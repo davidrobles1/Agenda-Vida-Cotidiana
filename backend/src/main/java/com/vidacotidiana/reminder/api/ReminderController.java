@@ -14,6 +14,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -26,10 +27,10 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.UUID;
 
 /**
- * Covers the reminder endpoints in scope through Milestone 2's first
- * increment (Documentacion/openapi/openapi.yaml): create, list (own
- * reminders, paginated), get by id, toggle completion, and edit. DELETE is
- * still out of scope — see docs/development/01-technical-backlog.md BE-015.
+ * Covers the full Reminder CRUD in Documentacion/openapi/openapi.yaml:
+ * create, list (own reminders, paginated), get by id, toggle completion,
+ * edit, and delete. See ReminderService.delete for the reduced scope of
+ * deletion until sharing/push exist (BE-016..026).
  */
 @RestController
 @RequestMapping("/api/v1/reminders")
@@ -78,5 +79,11 @@ public class ReminderController {
         Reminder reminder = reminderService.edit(
                 id, currentUser.userId(), request.title(), request.description(), request.dueAt(), request.version());
         return ReminderResponse.from(reminder);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+        reminderService.delete(id, currentUser.userId());
+        return ResponseEntity.noContent().build();
     }
 }

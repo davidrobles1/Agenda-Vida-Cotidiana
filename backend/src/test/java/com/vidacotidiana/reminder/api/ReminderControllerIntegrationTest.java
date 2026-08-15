@@ -18,6 +18,7 @@ import java.util.UUID;
 
 import static org.hamcrest.Matchers.is;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -32,8 +33,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * bypassing real Keycloak network calls), USER sync, Flyway migration, JPA,
  * and the Reminder vertical slice endpoints.
  *
- * Traceability: UC-03/UC-04/UC-05, AC-003/AC-004/AC-004b/AC-005/AC-006,
- * docs/development/01-technical-backlog.md BE-007..BE-013, BE-014.
+ * Traceability: UC-03/UC-04/UC-05, AC-003/AC-004/AC-004b/AC-005/AC-006/AC-013,
+ * docs/development/01-technical-backlog.md BE-007..BE-013, BE-014, BE-015.
  */
 @Testcontainers
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
@@ -303,5 +304,73 @@ class ReminderControllerIntegrationTest {
                         .content(updateBody))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code", is("REMINDER_NOT_FOUND")));
+    }
+
+    @Test
+    void deleteReminder_ownerDeletesThenGetReturnsNotFound() throws Exception {
+        UUID userId = UUID.randomUUID();
+        var principal = jwt().jwt(jwtFor(userId, "kevin@example.com").build());
+        String createBody = objectMapper.writeValueAsString(Map.of("title", "Throwaway reminder"));
+
+        String createdJson = mockMvc.perform(post("/api/v1/reminders")
+                        .with(principal)
+                        .contentType("application/json")
+                        .content(createBody))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String reminderId = objectMapper.readTree(createdJson).get("id").asText();
+
+        mockMvc.perform(delete("/api/v1/reminders/" + reminderId).with(principal))
+                .andExpect(status().isNoContent())
+                .andExpect(jsonPath("$").doesNotExist());
+
+        mockMvc.perform(get("/api/v1/reminders/" + reminderId).with(principal))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code", is("REMINDER_NOT_FOUND")));
+    }
+
+    @Test
+    void deleteReminder_ownedByAnotherUserReturnsNotFound_neverForbidden() throws Exception {
+        UUID ownerId = UUID.randomUUID();
+        UUID strangerId = UUID.randomUUID();
+        var owner = jwt().jwt(jwtFor(ownerId, "laura@example.com").build());
+        var stranger = jwt().jwt(jwtFor(strangerId, "mallory@example.com").build());
+
+        String createBody = objectMapper.writeValueAsString(Map.of("title", "Private reminder"));
+        String createdJson = mockMvc.perform(post("/api/v1/reminders")
+                        .with(owner)
+                        .contentType("application/json")
+                        .content(createBody))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String reminderId = objectMapper.readTree(createdJson).get("id").asText();
+
+        mockMvc.perform(delete("/api/v1/reminders/" + reminderId).with(stranger))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code", is("REMINDER_NOT_FOUND")));
+
+        // Untouched: the stranger's failed delete attempt must not have removed the owner's reminder.
+        mockMvc.perform(get("/api/v1/reminders/" + reminderId).with(owner))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void deleteReminder_missingIdReturnsNotFound() throws Exception {
+        UUID userId = UUID.randomUUID();
+        var principal = jwt().jwt(jwtFor(userId, "nathan@example.com").build());
+
+        mockMvc.perform(delete("/api/v1/reminders/" + UUID.randomUUID()).with(principal))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code", is("REMINDER_NOT_FOUND")))
+                .andExpect(jsonPath("$.traceId").exists());
+    }
+
+    @Test
+    void deleteReminder_requiresAuthentication() throws Exception {
+        // AC-006: even a 401 raised inside the Spring Security filter chain must carry the uniform Error envelope.
+        mockMvc.perform(delete("/api/v1/reminders/" + UUID.randomUUID()))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code", is("UNAUTHORIZED")))
+                .andExpect(jsonPath("$.traceId").exists());
     }
 }

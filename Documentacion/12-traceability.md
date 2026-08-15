@@ -9,7 +9,7 @@ Cadena exigida: `Requirement → Use Case → Acceptance Criteria → API → Da
 | FR-001 | UC-01 | AC-001 | Auth vía Keycloak (sin endpoint propio) | USER | identity | US-001 | Pendiente (pre-código) | V1 |
 | FR-002 | UC-02, UC-06 | AC-002 | Auth vía Keycloak (resource server) | USER | identity | US-002, US-009 | Pendiente (pre-código) | V1 |
 | FR-003 | UC-03, UC-04 | AC-003, AC-005 | `GET /reminders` | REMINDER | reminder | US-003 | Pendiente (pre-código) | V1 |
-| FR-004 | UC-03, UC-04, UC-05 | AC-003, AC-004, AC-004b, AC-005, AC-006 | `GET/POST /reminders`, `GET/PATCH/DELETE /reminders/{id}` | REMINDER | reminder | US-004, US-005, US-006, US-007 | Pendiente (pre-código) | V1 |
+| FR-004 | UC-03, UC-04, UC-05 | AC-003, AC-004, AC-004b, AC-005, AC-006 | `GET/POST /reminders`, `GET/PATCH/DELETE /reminders/{id}` | REMINDER | reminder | US-004, US-005, US-006, US-007 | `ReminderServiceTest`, `ReminderControllerIntegrationTest` (30 casos, `./mvnw clean test` real, ver `docs/development/02-validation-report.md` §8/§10) | V1 |
 | FR-005 | UC-03, UC-11 | AC-012 (evento local, sin backend) | N/A — resuelto en el cliente | REMINDER.due_at | notification (cliente) | US-008 | Pendiente (pre-código) | V1 |
 | FR-006 | UC-06 | AC-002 | `GET /me` | USER | user | US-009 | Pendiente (pre-código) | V1 |
 | FR-007 | UC-07, UC-14 | AC-007, AC-017 | `POST /reminders/{id}/shares`, `DELETE /invitations/{invitationId}` | INVITATION | sharing | US-011 | Pendiente (pre-código) | V1 |

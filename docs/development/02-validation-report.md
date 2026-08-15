@@ -334,3 +334,47 @@ Idéntico resultado al validado con Gradle en `§8.7`. Se detuvo el proceso y se
 - `TEST_STATUS: PASSED (19/19)` (Maven, visto realmente, mismos test classes, sin tocar lógica de negocio).
 - Ningún error de migración encontrado (plugins, exclusiones o versiones resueltas distinto por Maven) — no fue necesario corregir nada más allá de traducir `build.gradle.kts` a `pom.xml`.
 - Ver `docs/development/03-milestone-1-gate.md` (addendum) para la confirmación de que `MILESTONE_1_STATUS` sigue `READY` bajo Maven.
+
+---
+
+## 10. Milestone 2 — BE-014 (`PATCH`) y BE-015 (`DELETE`) (2026-08-15)
+
+Mismo día, tras confirmar el gate `READY` bajo Maven (§9). Se implementaron y validaron en real dos incrementos de Milestone 2 sobre el mismo entorno (JDK 21 + Docker reales, `docker ps` operativo).
+
+### 10.1 BE-014 — `PATCH /reminders/{id}` (AC-004b)
+
+Código nuevo: `ReminderController.update`, `ReminderService.edit`, `Reminder.applyEdit`, DTO `UpdateReminderRequest` (`version` obligatorio, a diferencia del `version` opcional de `/complete`). Tests nuevos: `ReminderServiceTest` (+3: edición con versión correcta, `VersionConflictException` con versión incorrecta sin aplicar el cambio, no-propietario → `NotFoundException`), `ReminderControllerIntegrationTest` (+4: edición parcial exitosa, `409` por versión incorrecta, `400` por versión ausente, no-propietario → `404`).
+
+```text
+$ JAVA_HOME=$(/usr/libexec/java_home -v 21) ./mvnw clean test
+...
+[INFO] Tests run: 26, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+```
+
+**26/26 en verde a la primera** (19 heredados + 7 nuevos). `./mvnw clean package` → `BUILD SUCCESS`.
+
+### 10.2 BE-015 — `DELETE /reminders/{id}` (AC-013/DEC-002, alcance reducido)
+
+`openapi.yaml` describe este endpoint como "cascades to INVITATION/REMINDER_SHARE and notifies active collaborators before deletion (DEC-002)". `REMINDER_SHARE`/`INVITATION` (`BE-016..021`) y el envío de push (`BE-025`) siguen sin implementar — no hay nada que cascadear ni nadie que notificar todavía. Se implementó exactamente el subconjunto válido con lo que existe hoy: borrado del `REMINDER` propio, mismo criterio de autorización que el resto del slice (no-propietario → `404`, nunca `403`, sin revelar existencia), `204` sin cuerpo. Documentado explícitamente en el código (`ReminderService.delete`) y en `01-technical-backlog.md` — no es un pendiente oculto, es la consecuencia directa de que sharing/push no existen todavía. La cascada real y la notificación se completan cuando se implementen `BE-016..026` (ya cubierto por `BE-022`/`BE-026`, sin ID nuevo).
+
+Código nuevo: `ReminderController.delete` (`@DeleteMapping`, `204 No Content`), `ReminderService.delete`. Tests nuevos: `ReminderServiceTest` (+3: propietario borra y se verifica `repository.delete` invocado, no-propietario → `NotFoundException` sin invocar `delete`, id inexistente → `NotFoundException`), `ReminderControllerIntegrationTest` (+4: happy path `DELETE` → `204` seguido de `GET` sobre el mismo id → `404`, no-propietario → `404` sin que el recordatorio del dueño se vea afectado, id inexistente → `404`, sin autenticación → `401` con el envoltorio `Error` uniforme).
+
+```text
+$ JAVA_HOME=$(/usr/libexec/java_home -v 21) ./mvnw clean test
+...
+[INFO] Tests run: 15, Failures: 0, Errors: 0, Skipped: 0 -- in com.vidacotidiana.reminder.api.ReminderControllerIntegrationTest
+[INFO] Tests run: 15, Failures: 0, Errors: 0, Skipped: 0 -- in com.vidacotidiana.reminder.application.ReminderServiceTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0 -- in com.vidacotidiana.user.api.UserControllerIntegrationTest
+[INFO] Tests run: 33, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+```
+
+**33/33 en verde a la primera** (26 heredados + 7 nuevos de `BE-015`). `./mvnw clean package` → `BUILD SUCCESS`, jar ejecutable regenerado.
+
+### 10.3 Resultado
+
+- `BUILD_STATUS: SUCCESSFUL` (Maven, visto realmente, ambos incrementos).
+- `TEST_STATUS: PASSED (33/33)` (visto realmente; ningún test simulado ni declarado en verde sin ejecutarlo).
+- Ningún cambio a `openapi.yaml`: ambos endpoints implementan exactamente el contrato ya definido (BE-015 dentro del subconjunto hoy alcanzable, declarado explícitamente, no silenciosamente).
+- Ver `docs/development/01-technical-backlog.md` (BE-014/BE-015) y `Documentacion/12-traceability.md` (fila `FR-004`) para la propagación de este resultado.

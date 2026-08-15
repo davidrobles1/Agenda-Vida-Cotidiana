@@ -17,6 +17,8 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -172,6 +174,39 @@ class ReminderServiceTest {
 
         assertThatThrownBy(() -> reminderService.edit(id, strangerId, "Hijacked title", null, null, reminder.getVersion()))
                 .isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    void delete_ownerDeletesReminder() {
+        Reminder reminder = new Reminder(ownerId, "Buy milk", null, null);
+        UUID id = fakeId(reminder);
+        when(reminderRepository.findById(id)).thenReturn(Optional.of(reminder));
+
+        reminderService.delete(id, ownerId);
+
+        verify(reminderRepository).delete(reminder);
+    }
+
+    @Test
+    void delete_nonOwnerGetsNotFoundAndNothingIsDeleted() {
+        Reminder reminder = new Reminder(ownerId, "Buy milk", null, null);
+        UUID id = fakeId(reminder);
+        when(reminderRepository.findById(id)).thenReturn(Optional.of(reminder));
+
+        assertThatThrownBy(() -> reminderService.delete(id, strangerId))
+                .isInstanceOf(NotFoundException.class)
+                .satisfies(ex -> assertThat(((NotFoundException) ex).getCode()).isEqualTo("REMINDER_NOT_FOUND"));
+        verify(reminderRepository, never()).delete(any(Reminder.class));
+    }
+
+    @Test
+    void delete_missingReminderThrowsNotFound() {
+        UUID missingId = UUID.randomUUID();
+        when(reminderRepository.findById(missingId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> reminderService.delete(missingId, ownerId))
+                .isInstanceOf(NotFoundException.class);
+        verify(reminderRepository, never()).delete(any(Reminder.class));
     }
 
     /**

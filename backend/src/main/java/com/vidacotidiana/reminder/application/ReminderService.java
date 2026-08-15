@@ -94,6 +94,25 @@ public class ReminderService {
         return reminderRepository.save(reminder);
     }
 
+    /**
+     * UC-05/AC-013/DEC-002. openapi.yaml describes this endpoint as
+     * cascading to INVITATION/REMINDER_SHARE and notifying active
+     * collaborators before deletion — but REMINDER_SHARE/INVITATION and
+     * push notifications don't exist yet in the code (BE-016..021, BE-025
+     * are still TODO). There is nothing to cascade and no one to notify
+     * today, so this deletes exactly the REMINDER row: a real no-op on the
+     * still-unimplemented parts, not a contract violation. When sharing and
+     * push land, this method extends to cover the cascade and the
+     * notification (BE-022/BE-026 in 01-technical-backlog.md); no new
+     * backlog id is needed.
+     */
+    @Transactional
+    public void delete(UUID reminderId, UUID callerUserId) {
+        Reminder reminder = findOrThrow(reminderId);
+        requireAccess(reminder, callerUserId);
+        reminderRepository.delete(reminder);
+    }
+
     private Reminder findOrThrow(UUID reminderId) {
         return reminderRepository.findById(reminderId)
                 .orElseThrow(() -> new NotFoundException("REMINDER_NOT_FOUND", "The requested reminder was not found."));
