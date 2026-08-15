@@ -1,0 +1,735 @@
+openapi: 3.0.3
+info:
+  title: Vida Cotidiana API
+  version: 1.0.0
+  description: >
+    Canonical API contract for Vida Cotidiana V1. All timestamps are
+    ISO-8601 in UTC. All identifiers are UUIDv4. Authentication is delegated
+    to Keycloak (OIDC/OAuth 2.1, Authorization Code + PKCE, DEC-004/ADR-008);
+    this API is a pure OAuth2 resource server and defines no /auth/* login
+    endpoint of its own. An operational healthcheck (e.g. Spring Boot
+    Actuator /actuator/health) exists outside this versioned business
+    contract and is intentionally not documented here (see
+    07-backend-architecture.md).
+servers:
+  - url: /api/v1
+security:
+  - keycloakBearer: []
+paths:
+  /me:
+    get:
+      summary: Get current user
+      security:
+        - keycloakBearer: []
+      responses:
+        '200':
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    delete:
+      summary: Request account deletion (soft delete, 30-day grace period before purge, DEC-015/ADR-012)
+      security:
+        - keycloakBearer: []
+      responses:
+        '202':
+          description: Deletion requested; account moves to PENDING_DELETION, purged after 30 days
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /me/devices:
+    get:
+      summary: List devices registered for push notifications for the authenticated user
+      security:
+        - keycloakBearer: []
+      responses:
+        '200':
+          description: List of registered devices
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DevicePushToken'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      summary: Register or update the push token for the current device (upsert by token, DEC-005)
+      security:
+        - keycloakBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterDeviceRequest'
+      responses:
+        '201':
+          description: Device registered or updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DevicePushToken'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /me/devices/{deviceId}:
+    delete:
+      summary: Remove a registered device (e.g. on logout from that device, FR-012)
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: deviceId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Device removed
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /reminders:
+    get:
+      summary: List own and shared reminders (paginated)
+      security:
+        - keycloakBearer: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+      responses:
+        '200':
+          description: Paginated reminder list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PageMeta'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Reminder'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      summary: Create a reminder (caller becomes owner)
+      security:
+        - keycloakBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReminderRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reminder'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /reminders/{id}:
+    get:
+      summary: Get a reminder (owner or active collaborator)
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Reminder
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reminder'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      summary: Update reminder (owner only). Requires the current version for optimistic locking.
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateReminderRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reminder'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Version conflict (optimistic locking) — the reminder was modified concurrently; refetch and retry.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      summary: Delete reminder (owner only). Cascades to INVITATION/REMINDER_SHARE and notifies active collaborators before deletion (DEC-002).
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /reminders/{id}/complete:
+    post:
+      summary: Toggle the single global completion state (owner or active collaborator, DEC-001). Optionally accepts the expected version for optimistic locking.
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompleteReminderRequest'
+      responses:
+        '200':
+          description: Completion state toggled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reminder'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Version conflict (optimistic locking)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /reminders/{id}/shares:
+    get:
+      summary: List collaborators and pending invitations for a reminder (owner only, paginated)
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+      responses:
+        '200':
+          description: List of shares and invitations
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PageMeta'
+                  - type: object
+                    properties:
+                      shares:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/ReminderShare'
+                      invitations:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Invitation'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      summary: Invite a collaborator by email or username (owner only)
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateInvitationRequest'
+      responses:
+        '201':
+          description: Invitation created (does not reveal whether the email belongs to an existing account, SEC-001)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invitation'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: A pending invitation for this recipient already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /reminders/{id}/shares/{shareId}:
+    delete:
+      summary: Revoke a collaborator's access immediately (owner only). Acts only on REMINDER_SHARE, never on INVITATION (DEC-003).
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: path
+          name: shareId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Access revoked (REMINDER_SHARE.status = REVOKED), effective immediately
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /me/invitations:
+    get:
+      summary: List pending invitations received by the authenticated user (paginated)
+      security:
+        - keycloakBearer: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+      responses:
+        '200':
+          description: List of pending invitations
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PageMeta'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Invitation'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /invitations/{invitationId}/accept:
+    post:
+      summary: Accept a pending invitation (recipient only). Implemented as an atomic conditional transition to avoid race conditions with a concurrent reject/expiry.
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: invitationId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Invitation accepted, collaboration is now active (REMINDER_SHARE created with status ACTIVE)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReminderShare'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '410':
+          $ref: '#/components/responses/Gone'
+  /invitations/{invitationId}/reject:
+    post:
+      summary: Reject a pending invitation (recipient only). Implemented as an atomic conditional transition.
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: invitationId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Invitation rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invitation'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '410':
+          $ref: '#/components/responses/Gone'
+  /invitations/{invitationId}:
+    delete:
+      summary: Cancel a pending invitation (inviter/owner only, before it is resolved by the recipient). Sets INVITATION.status = CANCELLED, never REVOKED (DEC-003).
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: invitationId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Invitation cancelled
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '410':
+          $ref: '#/components/responses/Gone'
+components:
+  securitySchemes:
+    keycloakBearer:
+      type: oauth2
+      description: >
+        OAuth2/OIDC access token issued by Keycloak (Authorization Code +
+        PKCE from the client). The backend validates the bearer JWT on every
+        request as a pure OAuth2 resource server; it never issues its own
+        session or token (DEC-004/ADR-008). Token issuer/JWK Set URL are
+        environment configuration, not part of this contract.
+      flows:
+        authorizationCode:
+          authorizationUrl: https://keycloak.example/realms/vida-cotidiana/protocol/openid-connect/auth
+          tokenUrl: https://keycloak.example/realms/vida-cotidiana/protocol/openid-connect/token
+          scopes:
+            openid: OpenID Connect authentication
+  parameters:
+    PageParam:
+      in: query
+      name: page
+      required: false
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+      description: Zero-based page index.
+    SizeParam:
+      in: query
+      name: size
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+      description: Page size (max 100).
+  schemas:
+    Error:
+      type: object
+      description: Uniform error envelope. Never includes stack traces, SQL, internal names or secrets.
+      required: [code, message, traceId]
+      properties:
+        code:
+          type: string
+          example: REMINDER_NOT_FOUND
+        message:
+          type: string
+          example: The requested reminder was not found.
+        traceId:
+          type: string
+    PageMeta:
+      type: object
+      required: [page, size, totalElements, totalPages]
+      properties:
+        page:
+          type: integer
+        size:
+          type: integer
+        totalElements:
+          type: integer
+        totalPages:
+          type: integer
+    User:
+      type: object
+      required: [id, email]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        username:
+          type: string
+          nullable: true
+        deletionStatus:
+          type: string
+          enum: [ACTIVE, PENDING_DELETION, DELETED]
+    CreateReminderRequest:
+      type: object
+      required: [title]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 2000
+        dueAt:
+          type: string
+          format: date-time
+          description: ISO-8601 timestamp in UTC.
+    UpdateReminderRequest:
+      type: object
+      description: Partial update. version is required to detect concurrent modifications (optimistic locking).
+      required: [version]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 2000
+        dueAt:
+          type: string
+          format: date-time
+          description: ISO-8601 timestamp in UTC.
+        version:
+          type: integer
+          description: Expected current version of the reminder; a mismatch returns 409.
+    CompleteReminderRequest:
+      type: object
+      description: Optional. If version is provided, the server validates it for optimistic locking; if omitted, the toggle is applied without a concurrency check.
+      properties:
+        version:
+          type: integer
+    Reminder:
+      type: object
+      required: [id, title, status, version]
+      properties:
+        id:
+          type: string
+          format: uuid
+        ownerUserId:
+          type: string
+          format: uuid
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 2000
+        dueAt:
+          type: string
+          format: date-time
+          description: ISO-8601 timestamp in UTC.
+        status:
+          type: string
+          enum: [PENDING, COMPLETED]
+          description: Single global completion state shared by owner and all active collaborators (DEC-001).
+        version:
+          type: integer
+          description: Optimistic locking version, incremented on every update.
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    CreateInvitationRequest:
+      type: object
+      description: Exactly one of email or username must be provided.
+      properties:
+        email:
+          type: string
+          format: email
+        username:
+          type: string
+    Invitation:
+      type: object
+      required: [id, reminderId, status, expiresAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        reminderId:
+          type: string
+          format: uuid
+        invitedEmail:
+          type: string
+          format: email
+        status:
+          type: string
+          description: REVOKED does not apply here (DEC-003) — revocation lives only on ReminderShare.
+          enum: [PENDING, ACCEPTED, REJECTED, EXPIRED, CANCELLED]
+        expiresAt:
+          type: string
+          format: date-time
+          description: createdAt + 7 days (ASSUMPTION, FR-007). ISO-8601 UTC.
+        createdAt:
+          type: string
+          format: date-time
+    ReminderShare:
+      type: object
+      required: [id, reminderId, collaboratorUserId, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        reminderId:
+          type: string
+          format: uuid
+        collaboratorUserId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          description: Revocation lives here (DEC-003), never on Invitation.
+          enum: [ACTIVE, REVOKED]
+        createdAt:
+          type: string
+          format: date-time
+        revokedAt:
+          type: string
+          format: date-time
+          nullable: true
+    RegisterDeviceRequest:
+      type: object
+      required: [platform, token]
+      properties:
+        platform:
+          type: string
+          enum: [ANDROID, IOS, WEB]
+        token:
+          type: string
+    DevicePushToken:
+      type: object
+      required: [id, platform, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        platform:
+          type: string
+          enum: [ANDROID, IOS, WEB]
+        createdAt:
+          type: string
+          format: date-time
+        lastSeenAt:
+          type: string
+          format: date-time
+  responses:
+    BadRequest:
+      description: Input validation failed.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Not authenticated (missing or invalid bearer token).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Caller is authenticated but has no permission on this resource.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource does not exist or is not accessible to the caller (never distinguishes the two, to avoid leaking existence, SEC-001).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Gone:
+      description: Invitation already expired or already resolved (accepted/rejected/cancelled); grants no access.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    TooManyRequests:
+      description: Rate limit exceeded (applies especially to invitation creation, to mitigate abuse/enumeration).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'

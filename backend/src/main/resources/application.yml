@@ -1,0 +1,46 @@
+spring:
+  application:
+    name: vida-cotidiana-backend
+
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/vidacotidiana}
+    username: ${DB_USERNAME:vidacotidiana}
+    password: ${DB_PASSWORD:vidacotidiana}
+
+  jpa:
+    hibernate:
+      # Flyway owns the schema; Hibernate must never auto-generate DDL (validate only).
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # Keycloak realm issuer, e.g. http://localhost:8081/realms/vida-cotidiana
+          issuer-uri: ${OIDC_ISSUER:http://localhost:8081/realms/vida-cotidiana}
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+
+logging:
+  level:
+    root: INFO
+    com.vidacotidiana: INFO

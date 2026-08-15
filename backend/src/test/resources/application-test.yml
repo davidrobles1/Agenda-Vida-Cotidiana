@@ -1,0 +1,13 @@
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # Never actually contacted in tests: SecurityMockMvcRequestPostProcessors.jwt()
+          # injects the Authentication directly, bypassing real token
+          # validation. Kept well-formed only so context startup does not
+          # fail resolving the (lazy) JwtDecoder bean.
+          issuer-uri: http://localhost:8081/realms/vida-cotidiana-test
+  jpa:
+    hibernate:
+      ddl-auto: validate

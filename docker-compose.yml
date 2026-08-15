@@ -1,0 +1,34 @@
+# Local development infrastructure only (18-dev-environment.md).
+# NOT for staging/production — see 19-cicd.md / AWS target (DEC-008) for those.
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: vidacotidiana
+      POSTGRES_USER: vidacotidiana
+      POSTGRES_PASSWORD: vidacotidiana
+    ports:
+      - "5432:5432"
+    volumes:
+      - vida-cotidiana-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vidacotidiana"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:25.0
+    command: start-dev
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    ports:
+      - "8081:8080"
+    # The "vida-cotidiana" realm and its clients are NOT preconfigured here —
+    # see docs/development/00-development-baseline.md §3 and
+    # docs/development/01-technical-backlog.md (INFRA-002). Create/import the
+    # realm manually after first start via http://localhost:8081.
+
+volumes:
+  vida-cotidiana-postgres-data:

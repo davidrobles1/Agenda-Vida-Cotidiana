@@ -1,0 +1,16 @@
+# Backend (Gradle/Java)
+backend/.gradle/
+backend/build/
+backend/out/
+backend/.env
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+.DS_Store
+
+# Generated executive artifacts are tracked intentionally (docs/generated/)
+# — do not ignore them.
