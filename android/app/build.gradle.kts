@@ -33,6 +33,8 @@ android {
         buildConfigField("String", "OIDC_CLIENT_ID", "\"android-app\"")
         buildConfigField("String", "OIDC_REDIRECT_URI", "\"com.vidacotidiana.app://callback\"")
         buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:8080/api/v1/\"")
+
+        testInstrumentationRunner = "com.vidacotidiana.app.HiltTestRunner"
     }
 
     buildTypes {
@@ -90,4 +92,12 @@ dependencies {
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-tooling")
+
+    // AND-002/AND-003 real-device instrumented test: UI Automator drives the
+    // Custom Tabs login page (a separate process/app — Espresso alone can't
+    // reach across app boundaries), Compose Testing drives the app's own screens.
+    androidTestImplementation("androidx.test.uiautomator:uiautomator:2.3.0")
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("com.google.dagger:hilt-android-testing:2.51.1")
+    kaptAndroidTest("com.google.dagger:hilt-android-compiler:2.51.1")
 }

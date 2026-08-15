@@ -14,6 +14,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import kotlinx.coroutines.launch
 
 @Composable
@@ -34,7 +35,10 @@ fun LoginScreen(authManager: AuthManager, onLoggedIn: () -> Unit) {
     }
 
     Column(modifier = Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
-        Button(onClick = { launcher.launch(authManager.buildLoginIntent()) }) {
+        Button(
+            modifier = Modifier.testTag("login_button"),
+            onClick = { launcher.launch(authManager.buildLoginIntent()) },
+        ) {
             Text("Log in")
         }
         error?.let { Text(it) }

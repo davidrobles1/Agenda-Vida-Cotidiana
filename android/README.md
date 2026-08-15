@@ -41,12 +41,56 @@ license accepted non-interactively. `./gradlew clean assembleDebug`: **BUILD
 SUCCESSFUL**, real APK produced at `app/build/outputs/apk/debug/app-debug.apk` (~36 MB).
 
 **UI-level testing (actually tapping through login/reminders) is NOT_EXECUTED —
-BLOCKED_BY_ENVIRONMENT:** `adb devices` lists nothing; no Android emulator was set up
-(only the packages explicitly requested — `platform-tools`, a platform, build-tools —
-were installed, deliberately not the `emulator`/system-image packages, to keep disk
-footprint minimal and per the "no Android Studio" instruction). The APK's manifest was
-independently verified with `aapt dump xmltree` to confirm the AppAuth redirect wiring
-is real, but nobody has tapped the actual login button on a device.
+BLOCKED_BY_ENVIRONMENT:** `adb devices` lists nothing at all — not `unauthorized`, just
+empty, meaning either no phone is plugged in right now, or USB debugging isn't enabled
+(see below). No Android emulator was set up either (only the packages explicitly
+requested — `platform-tools`, a platform, build-tools — were installed, deliberately
+not the `emulator`/system-image packages, to keep disk footprint minimal and per the
+"no Android Studio" instruction). The APK's manifest was independently verified with
+`aapt dump xmltree` to confirm the AppAuth redirect wiring is real, but nobody has
+tapped the actual login button on a device.
+
+### Instrumented test (real device, once connected)
+
+`app/src/androidTest/java/com/vidacotidiana/app/LoginAndRemindersFlowTest.kt` — a real
+`@HiltAndroidTest` that taps the actual "Log in" button, drives the Keycloak login page
+rendered inside Chrome Custom Tabs with **UI Automator** (Espresso alone can't reach
+across app/process boundaries), then drives the reminders screen with **Compose
+Testing**: create a reminder, confirm it appears, complete it, confirm the status
+updates — against the real Keycloak (`:8081`) and real backend (`:8080`). Takes 3
+screenshots via `UiDevice.takeScreenshot(...)` under
+`<app>/files/screenshots/0{1,2,3}_*.png` on the device.
+
+Compiles and packages for real: `./gradlew assembleDebugAndroidTest` → `BUILD
+SUCCESSFUL`, real test APK at `app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk`.
+**Never actually run** — no device was available. The two `By.clazz("android.widget.EditText")`
+index-based selectors for Keycloak's login form are the standard UI Automator technique
+for driving Custom Tabs content (Chrome doesn't map HTML element ids to Android
+accessibility resource-ids, so `By.res(...)` would not work) but are unverified against
+Keycloak's actual rendered page — may need adjustment on first real run.
+
+Requires the `testuser`/`TestPass123!` account created in the Keycloak dev realm during
+Phase 1 of the earlier session.
+
+```
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+./gradlew connectedDebugAndroidTest
+adb pull /sdcard/Android/data/com.vidacotidiana.app/files/screenshots ./screenshots
+```
+
+### Connecting a device (troubleshooting)
+
+```
+adb devices -l
+```
+
+- **Empty list:** the phone isn't plugged in, or **"USB debugging" isn't enabled** —
+  this is a separate switch from "Developer options" itself, under
+  Settings → Developer options → USB debugging. Enabling "Developer options" alone
+  (tapping Build number 7 times) is not enough.
+- **`unauthorized`:** a popup titled "Allow USB debugging?" is waiting on the phone's
+  own screen — tap Allow there, then re-run `adb devices -l`.
+- **`device`:** ready — proceed with the install/test commands above.
 
 ### Installing on a real device
 
