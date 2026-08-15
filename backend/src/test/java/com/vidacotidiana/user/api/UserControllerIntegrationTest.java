@@ -16,6 +16,8 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import java.time.Instant;
 import java.util.UUID;
 
+import static com.atlassian.oai.validator.mockmvc.OpenApiValidationMatchers.openApi;
+import static com.vidacotidiana.OpenApiContractSupport.VALIDATOR;
 import static org.hamcrest.Matchers.is;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -72,7 +74,9 @@ class UserControllerIntegrationTest {
                 .andExpect(jsonPath("$.id", is(userId.toString())))
                 .andExpect(jsonPath("$.email", is("frank@example.com")))
                 .andExpect(jsonPath("$.username", is("frank")))
-                .andExpect(jsonPath("$.deletionStatus", is("ACTIVE")));
+                .andExpect(jsonPath("$.deletionStatus", is("ACTIVE")))
+                // TEST-API-001: representative contract check for GET /me against the real openapi.yaml.
+                .andExpect(openApi().isValid(VALIDATOR));
     }
 
     @Test

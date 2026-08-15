@@ -95,6 +95,13 @@
             <artifactId>postgresql</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- TEST-API-001/20-testing-qa.md: contract tests validating responses against openapi.yaml -->
+        <dependency>
+            <groupId>com.atlassian.oai</groupId>
+            <artifactId>swagger-request-validator-mockmvc</artifactId>
+            <version>3.0.0</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <dependencyManagement>

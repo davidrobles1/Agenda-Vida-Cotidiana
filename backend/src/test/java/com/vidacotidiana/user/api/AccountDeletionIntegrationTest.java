@@ -22,6 +22,8 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.UUID;
 
+import static com.atlassian.oai.validator.mockmvc.OpenApiValidationMatchers.openApi;
+import static com.vidacotidiana.OpenApiContractSupport.VALIDATOR;
 import static org.hamcrest.Matchers.is;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -83,7 +85,10 @@ class AccountDeletionIntegrationTest {
         // Sync the USER row (UserSyncFilter runs on any authenticated request).
         mockMvc.perform(get("/api/v1/me").with(principal)).andExpect(status().isOk());
 
-        mockMvc.perform(delete("/api/v1/me").with(principal)).andExpect(status().isAccepted());
+        mockMvc.perform(delete("/api/v1/me").with(principal))
+                .andExpect(status().isAccepted())
+                // TEST-API-001: representative contract check for DELETE /me 202 against the real openapi.yaml.
+                .andExpect(openApi().isValid(VALIDATOR));
 
         mockMvc.perform(get("/api/v1/me").with(principal))
                 .andExpect(status().isOk())

@@ -16,6 +16,8 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import java.util.Map;
 import java.util.UUID;
 
+import static com.atlassian.oai.validator.mockmvc.OpenApiValidationMatchers.openApi;
+import static com.vidacotidiana.OpenApiContractSupport.VALIDATOR;
 import static org.hamcrest.Matchers.is;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -86,6 +88,8 @@ class ReminderControllerIntegrationTest {
                 .andExpect(jsonPath("$.title", is("Buy milk")))
                 .andExpect(jsonPath("$.status", is("PENDING")))
                 .andExpect(jsonPath("$.version", is(0)))
+                // TEST-API-001: representative contract check for POST /reminders against the real openapi.yaml.
+                .andExpect(openApi().isValid(VALIDATOR))
                 .andReturn().getResponse().getContentAsString();
 
         String reminderId = objectMapper.readTree(createdJson).get("id").asText();
@@ -93,7 +97,9 @@ class ReminderControllerIntegrationTest {
         mockMvc.perform(get("/api/v1/reminders").with(principal))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items[0].id", is(reminderId)))
-                .andExpect(jsonPath("$.totalElements", is(1)));
+                .andExpect(jsonPath("$.totalElements", is(1)))
+                // TEST-API-001: representative contract check for GET /reminders against the real openapi.yaml.
+                .andExpect(openApi().isValid(VALIDATOR));
 
         mockMvc.perform(post("/api/v1/reminders/" + reminderId + "/complete").with(principal))
                 .andExpect(status().isOk())
@@ -135,7 +141,9 @@ class ReminderControllerIntegrationTest {
         // AC-004: a non-owner must get 404, never 403 — never reveals existence.
         mockMvc.perform(get("/api/v1/reminders/" + reminderId).with(stranger))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.code", is("REMINDER_NOT_FOUND")));
+                .andExpect(jsonPath("$.code", is("REMINDER_NOT_FOUND")))
+                // TEST-API-001: representative contract check for GET /reminders/{id} 404 against the real openapi.yaml.
+                .andExpect(openApi().isValid(VALIDATOR));
     }
 
     @Test
@@ -228,7 +236,9 @@ class ReminderControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.title", is("Buy oat milk")))
                 .andExpect(jsonPath("$.description", is("2%"))) // omitted in the request: unchanged
-                .andExpect(jsonPath("$.version", is(1)));
+                .andExpect(jsonPath("$.version", is(1)))
+                // TEST-API-001: representative contract check for PATCH /reminders/{id} 200 against the real openapi.yaml.
+                .andExpect(openApi().isValid(VALIDATOR));
     }
 
     @Test
@@ -252,7 +262,9 @@ class ReminderControllerIntegrationTest {
                         .contentType("application/json")
                         .content(staleUpdateBody))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.code", is("REMINDER_VERSION_CONFLICT")));
+                .andExpect(jsonPath("$.code", is("REMINDER_VERSION_CONFLICT")))
+                // TEST-API-001: representative contract check for PATCH /reminders/{id} 409 against the real openapi.yaml.
+                .andExpect(openApi().isValid(VALIDATOR));
     }
 
     @Test
@@ -351,7 +363,9 @@ class ReminderControllerIntegrationTest {
 
         // Untouched: the stranger's failed delete attempt must not have removed the owner's reminder.
         mockMvc.perform(get("/api/v1/reminders/" + reminderId).with(owner))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                // TEST-API-001: representative contract check for GET /reminders/{id} 200 against the real openapi.yaml.
+                .andExpect(openApi().isValid(VALIDATOR));
     }
 
     @Test

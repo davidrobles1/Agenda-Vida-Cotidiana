@@ -1,5 +1,8 @@
 package com.vidacotidiana.sharing.application;
 
+import com.vidacotidiana.audit.application.AuditEventService;
+import com.vidacotidiana.audit.domain.AuditEventType;
+import com.vidacotidiana.audit.domain.AuditTargetType;
 import com.vidacotidiana.notification.application.PushNotificationSender;
 import com.vidacotidiana.reminder.application.ReminderService;
 import com.vidacotidiana.reminder.domain.Reminder;
@@ -46,6 +49,7 @@ class SharingServiceTest {
     private EmailSender emailSender;
     private PushNotificationSender pushNotificationSender;
     private InvitationRateLimiter invitationRateLimiter;
+    private AuditEventService auditEventService;
     private SharingService sharingService;
 
     private final UUID ownerId = UUID.randomUUID();
@@ -63,8 +67,9 @@ class SharingServiceTest {
         emailSender = Mockito.mock(EmailSender.class);
         pushNotificationSender = Mockito.mock(PushNotificationSender.class);
         invitationRateLimiter = new InvitationRateLimiter(); // real instance: exercises DEVOPS-001 for real, generous enough default limit not to interfere with unrelated tests
+        auditEventService = Mockito.mock(AuditEventService.class);
         sharingService = new SharingService(reminderService, invitationRepository, reminderShareRepository, userRepository,
-                emailSender, pushNotificationSender, invitationRateLimiter);
+                emailSender, pushNotificationSender, invitationRateLimiter, auditEventService);
 
         reminder = new Reminder(ownerId, "Family trip", null, null);
         reminderId = fakeReminderId(reminder);
@@ -90,6 +95,8 @@ class SharingServiceTest {
         // only the "no account" branch triggers the email adapter — an account holder gets a push instead (AC-012/BE-026).
         verify(emailSender, never()).sendInvitation(any(), any());
         verify(pushNotificationSender).sendBestEffort(eq(invitedUserId), any());
+        // BE-029: audited in the same transaction, actor = the owner who created the invitation.
+        verify(auditEventService).record(AuditEventType.INVITATION_CREATED, ownerId, AuditTargetType.INVITATION, invitation.getId());
     }
 
     @Test
@@ -189,6 +196,7 @@ class SharingServiceTest {
         assertThat(share.getStatus().name()).isEqualTo("ACTIVE");
         // AC-012/BE-026: the inviter (owner) is notified that their invitation was accepted.
         verify(pushNotificationSender).sendBestEffort(eq(ownerId), any());
+        verify(auditEventService).record(AuditEventType.INVITATION_ACCEPTED, invitedUserId, AuditTargetType.INVITATION, invitationId);
     }
 
     @Test
@@ -227,6 +235,7 @@ class SharingServiceTest {
         assertThat(result).isSameAs(invitation);
         verify(reminderShareRepository, never()).save(any(ReminderShare.class));
         verify(pushNotificationSender).sendBestEffort(eq(ownerId), any());
+        verify(auditEventService).record(AuditEventType.INVITATION_REJECTED, invitedUserId, AuditTargetType.INVITATION, invitationId);
     }
 
     @Test
@@ -252,6 +261,7 @@ class SharingServiceTest {
         verify(invitationRepository).resolveIfPending(invitationId, InvitationStatus.CANCELLED);
         // AC-012/BE-026: the invitee (who has an account here) is notified of the cancellation.
         verify(pushNotificationSender).sendBestEffort(eq(invitedUserId), any());
+        verify(auditEventService).record(AuditEventType.INVITATION_CANCELLED, ownerId, AuditTargetType.INVITATION, invitationId);
     }
 
     @Test
@@ -287,6 +297,7 @@ class SharingServiceTest {
         assertThat(share.getStatus().name()).isEqualTo("REVOKED");
         verify(reminderShareRepository).save(share);
         verify(pushNotificationSender).sendBestEffort(eq(invitedUserId), any());
+        verify(auditEventService).record(AuditEventType.SHARE_REVOKED, ownerId, AuditTargetType.REMINDER_SHARE, shareId);
     }
 
     @Test

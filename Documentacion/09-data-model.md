@@ -10,12 +10,15 @@
 
 **DECISION (DEC-015):** `USER` incorpora campos de soft delete con periodo de gracia de 30 días.
 
+**RECOMMENDATION (técnica, no es decisión de negocio, añadida el 2026-08-15, BE-029):** `11-auth-security.md` §Auditoría exige registrar eventos de seguridad (creación/cancelación/aceptación/rechazo/expiración de invitación, revocación de acceso) "sin guardar secretos", pero no especificaba ningún schema de tabla — este documento tampoco incluía ninguna entidad de auditoría hasta ahora. `AUDIT_EVENT` es la adición mínima para cumplir literalmente ese requisito ya aprobado; no introduce ningún requisito nuevo. Deliberadamente **sin** columna de detalle libre/JSON: los cinco campos de abajo ya bastan para lo pedido, y una columna de texto arbitrario sería la puerta de entrada exacta para que alguien termine guardando un email o un token ahí más adelante, violando "sin guardar secretos".
+
 ```mermaid
 erDiagram
     USER ||--o{ REMINDER : owns
     USER ||--o{ REMINDER_SHARE : "es colaborador en"
     USER ||--o{ INVITATION : "recibe (si tiene cuenta)"
     USER ||--o{ DEVICE_PUSH_TOKEN : "registra"
+    USER ||--o{ AUDIT_EVENT : "actor de (nullable, ver Reglas)"
     REMINDER ||--o{ REMINDER_SHARE : "compartido con"
     REMINDER ||--o{ INVITATION : "origina"
 
@@ -69,6 +72,14 @@ erDiagram
       timestamp created_at
       timestamp last_seen_at
     }
+    AUDIT_EVENT {
+      uuid id PK
+      string event_type "INVITATION_CREATED, INVITATION_CANCELLED, INVITATION_ACCEPTED, INVITATION_REJECTED, INVITATION_EXPIRED, SHARE_REVOKED"
+      uuid actor_user_id FK "nullable — null cuando el actor es un job del sistema (p. ej. expiración)"
+      string target_type "REMINDER, INVITATION, REMINDER_SHARE"
+      uuid target_id
+      timestamp occurred_at
+    }
 ```
 
 ## Reglas
@@ -87,3 +98,4 @@ erDiagram
 - **DECISION (DEC-003):** `INVITATION.status` no incluye `REVOKED`. La revocación de acceso vive únicamente en `REMINDER_SHARE.status`.
 - **DECISION (DEC-015):** al solicitar la eliminación de una cuenta, `USER.deletion_status` pasa a `PENDING_DELETION` y `purge_at` se fija a 30 días después; un job periódico purga (`deletion_status = DELETED`, anonimiza/borra datos personales) las cuentas cuyo `purge_at` ya venció. Mientras esté en `PENDING_DELETION`, el usuario puede cancelar la solicitud (revertir a `ACTIVE`) — comportamiento exacto de reversión: `TBD` de UX, no bloqueante.
 - **DECISION (DEC-015, A'):** las filas de `INVITATION` en estado `REJECTED`, `EXPIRED` o `CANCELLED` deben purgar `invited_email` (o la fila completa) pasado un plazo corto de retención (ASSUMPTION: 90 días) cuando `invited_user_id` es nulo (invitado sin cuenta) — minimización de datos de terceros sin cuenta (NFR-002).
+- **RECOMMENDATION (técnica, BE-029):** `AUDIT_EVENT` se escribe en la misma transacción que la operación de negocio que audita (a diferencia de push, que es best-effort) — un evento de auditoría perdido pese a que la operación tuvo éxito sería peor que no tener el log. Índices sobre `(target_type, target_id)` y sobre `occurred_at`. Sin endpoint de lectura en V1 (no está en `openapi.yaml`); es solo almacenamiento, la consulta queda fuera de alcance hasta que se decida explícitamente.

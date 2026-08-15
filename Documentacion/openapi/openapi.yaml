@@ -114,6 +114,7 @@ paths:
                 allOf:
                   - $ref: '#/components/schemas/PageMeta'
                   - type: object
+                    additionalProperties: true # BE-035, see PageMeta
                     properties:
                       items:
                         type: array
@@ -285,6 +286,7 @@ paths:
                 allOf:
                   - $ref: '#/components/schemas/PageMeta'
                   - type: object
+                    additionalProperties: true # BE-035, see PageMeta
                     properties:
                       shares:
                         type: array
@@ -382,6 +384,7 @@ paths:
                 allOf:
                   - $ref: '#/components/schemas/PageMeta'
                   - type: object
+                    additionalProperties: true # BE-035, see PageMeta
                     properties:
                       items:
                         type: array
@@ -514,6 +517,12 @@ components:
           type: string
     PageMeta:
       type: object
+      # BE-035: additionalProperties: true is required here because PageMeta is combined via allOf
+      # with a sibling object (page items) at each paginated endpoint — without it, strict allOf
+      # validators (incl. swagger-request-validator/TEST-API-001) reject each branch as a closed
+      # schema and fail the sibling's fields as "not allowed", even though the merged instance is
+      # exactly what the composed schema intends. Not a loosening of type/required validation.
+      additionalProperties: true
       required: [page, size, totalElements, totalPages]
       properties:
         page:

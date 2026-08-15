@@ -1,0 +1,12 @@
+version: 2
+updates:
+  # INFRA-003/17-dependencies.md: dependency vulnerability scan for the V1 security gate,
+  # chosen over adding the OWASP dependency-check-maven plugin — see 19-cicd.md ASSUMPTION note.
+  - package-ecosystem: maven
+    directory: /backend
+    schedule:
+      interval: weekly
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

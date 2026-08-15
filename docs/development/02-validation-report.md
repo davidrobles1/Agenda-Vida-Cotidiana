@@ -528,3 +528,97 @@ Segunda pasada (tras las dos correcciones reales): **8 hallazgos**, exactamente 
 - `DEVOPS-002` ejecutado de verdad, con triage real (6 fijados, 8 declarados falsos positivos explícitamente, ninguno silenciado).
 - TBD explícito, no resuelto en código por instrucción directa de la tarea: destino de `REMINDER`/`REMINDER_SHARE`/`INVITATION` de una cuenta purgada — ver `docs/development/01-technical-backlog.md`.
 - Ver `docs/development/01-technical-backlog.md` (BE-023..028/033/034, DEVOPS-001/002) para la propagación completa de este resultado.
+
+## 13. Auditoría, contract tests, Keycloak/CI y bootstrap de clientes — BE-029, TEST-API-001, INFRA-002/003, AND-001/IOS-001/WEB-001 (2026-08-15)
+
+Mismo día, tras `BE-023..028/033/034`. Backend V1 funcionalmente completo (reminders + sharing + push + eliminación de cuenta + rate limiting, 101/101 tests reales) antes de arrancar este ciclo. Cubre en un solo incremento: auditoría de eventos de seguridad (BE-029), contract tests contra `openapi.yaml` (TEST-API-001, encontró `BE-035`), exportación real de realms de Keycloak + CI (INFRA-002/003), y bootstrap de los tres clientes (AND-001/IOS-001/WEB-001).
+
+### 13.1 Auditoría de eventos de seguridad (BE-029)
+
+`11-auth-security.md` §Auditoría exige registrar 6 transiciones (creación/cancelación/aceptación/rechazo/expiración de invitación, revocación de share) pero no especificaba ningún esquema — no existía en ninguna decisión previa. Diseñado deliberadamente sin columna de detalle libre/JSON (riesgo de fuga futura de secretos, razón explícita de la tarea): `AUDIT_EVENT(id, event_type, actor_user_id FK nullable, target_type, target_id, occurred_at)`, índices en `(target_type, target_id)` y `occurred_at`. Añadido explícitamente a `09-data-model.md` como adición nueva (no insertado silenciosamente como si siempre hubiera existido).
+
+`V4__audit.sql` aplicada realmente por Flyway (`Migrating schema "public" to version "4 - audit"`, confirmado en cada test de integración). `audit.application.AuditEventService.record(...)` se llama **dentro de la misma transacción `@Transactional`** que cada operación de negocio (`SharingService`, `InvitationMaintenanceService`) — nunca best-effort como el push; un evento de auditoría perdido en una operación exitosa sería peor que solo tener el log. Sin endpoint de lectura (no está en `openapi.yaml`, no se inventó uno).
+
+**Rediseño necesario para auditar la expiración por lote:** el sweep de expiración (`BE-033`) usaba un `UPDATE` masivo (`expireOverduePending()`), que no daba forma de saber qué filas concretas se habían expirado — necesario para auditar cada una individualmente. Rediseñado a `findByStatusAndExpiresAtLessThanEqual(...)` (candidatos) + `expireIfOverdue(id)` por fila (mismo `UPDATE ... WHERE status = 'PENDING'` atómico de siempre), auditando solo cuando `expireIfOverdue` devuelve `1` — si una fila perdió la carrera contra una aceptación/rechazo/cancelación concurrente, no se audita como expirada.
+
+Verificado con `AuditEventIntegrationTest` (6 casos, extremo a extremo contra PostgreSQL real vía Testcontainers — HTTP real → consulta directa de `AuditEventRepository`, no solo que se llamó al servicio), más `SharingServiceTest`/`InvitationMaintenanceServiceTest` a nivel unitario. Un error de test (no de producción) encontrado y corregido en el camino: `rejectingInvitation_insertsInvitationRejectedAuditEvent` asumía 1 sola fila para el target `INVITATION`, pero el flujo (crear + rechazar) produce 2 (`CREATED` + `REJECTED`) — corregido filtrando por `event_type` antes de contar, igual que ya hacían correctamente los tests de cancelación/aceptación/expiración.
+
+### 13.2 Contract tests contra `openapi.yaml` (TEST-API-001) — y dos desviaciones reales encontradas (BE-035)
+
+`com.atlassian.oai:swagger-request-validator-mockmvc:3.0.0` (scope test). La versión 3.0.0 resultó ser un alias — las clases reales (`OpenApiValidationMatchers`, `MockMvcRequest`, `MockMvcResponse`, `OpenApiMatchers`, paquete `com.atlassian.oai.validator.mockmvc`) vienen transitivamente de `openapi-request-validator-mockmvc:3.0.0` (rebranding de Atlassian). API usada: `OpenApiValidationMatchers.openApi().isValid(validator)` como `ResultMatcher` adicional en `mockMvc.perform(...).andExpect(...)`.
+
+`OpenApiContractSupport.VALIDATOR` (`backend/src/test/java/com/vidacotidiana/OpenApiContractSupport.java`) construye un único `OpenApiInteractionValidator` compartido, apuntando a la ruta real del repo `../Documentacion/openapi/openapi.yaml` (working directory de Maven = raíz del módulo `backend/`) — no una copia. Cableado sobre al menos un caso representativo por recurso, sobre los tests de integración ya existentes, **sin duplicar la suite**:
+
+| Endpoint | Casos cubiertos | Test |
+|---|---|---|
+| `GET /me` | 200 | `UserControllerIntegrationTest` |
+| `POST`/`GET /reminders` | 201, 200 | `ReminderControllerIntegrationTest` |
+| `GET /reminders/{id}` | 200, 404 | `ReminderControllerIntegrationTest` |
+| `PATCH /reminders/{id}` | 200, 409 | `ReminderControllerIntegrationTest` |
+| `POST /reminders/{id}/shares` | 201, 409 | `SharingFlowIntegrationTest` |
+| `POST /invitations/{id}/accept` | 200, 410 | `SharingFlowIntegrationTest` |
+| `GET`/`POST`/`DELETE /me/devices` | 200/201/204, 403 (`BE-024`) | `DeviceControllerIntegrationTest` |
+| `DELETE /me` | 202 | `AccountDeletionIntegrationTest` |
+
+**Dos desviaciones reales encontradas, corregidas en el código (nunca relajando el contrato), documentadas como `BE-035`:**
+
+1. **`description`/`dueAt` nulos rechazados por el schema.** `ReminderResponse` serializaba `"description": null` / `"dueAt": null` cuando el reminder no los tenía. `Reminder` en `openapi.yaml` los declara `type: string` / `type: string, format: date-time` **sin `nullable: true`** (a diferencia de `ReminderShare.revokedAt`, que sí lo declara explícitamente y por eso nunca falló). Corregido con `@JsonInclude(JsonInclude.Include.NON_NULL)` en `ReminderResponse`: un campo opcional ausente se omite del JSON, no se serializa como `null` — consistente con cómo el resto del contrato ya trata "opcional".
+2. **`allOf` de paginación rechazado por `additionalProperties`.** Los tres endpoints paginados (`GET /reminders`, `GET /reminders/{id}/shares`, `GET /me/invitations`) componen la respuesta con `allOf: [PageMeta, {items|shares+invitations}]`. El validador rechazaba cada instancia real: interpreta cada rama de `allOf` como un schema cerrado (sin fusionar propiedades entre ramas), así que la rama `PageMeta` rechazaba `items` como "additionalProperties no permitido" y viceversa — aunque la instancia combinada es exactamente la unión que el `allOf` pretende describir. Este no era un defecto del código (que ya devolvía exactamente `page/size/totalElements/totalPages/items`, la unión correcta) sino de la composición del schema frente a esta librería. Corregido añadiendo `additionalProperties: true` explícito a `PageMeta` y a cada rama inline de `allOf` en `openapi.yaml` — no afloja ningún tipo, `enum` o `required` ya validado, solo corrige la interacción `allOf`+`additionalProperties`.
+
+Ambas confirmadas real y directamente: el mismo archivo de test, mismo endpoint, mismo request — solo `git diff` sobre el código/schema entre el fallo y el fix, ejecutando `./mvnw test` cada vez.
+
+### 13.3 Exportación real de realms de Keycloak (INFRA-002)
+
+Sin configuración manual previa de ningún realm. En vez de escribir el JSON a mano, se levantó un Keycloak 25 real vía Docker, se crearon los dos realms (`vida-cotidiana`, `vida-cotidiana-test` — nombres exactos ya fijados en `application.yml`/`application-test.yml`, ningún nombre nuevo) vía `POST /admin/realms` de la API de administración real, y se exportaron vía `POST /admin/realms/{realm}/partial-export`. Guardados en `infra/keycloak/realm-vida-cotidiana.json` / `realm-vida-cotidiana-test.json` (sin secretos: los únicos clientes son los de sistema de Keycloak — `account`, `account-console`, `admin-cli`, `broker`, `realm-management`, `security-admin-console` — ningún cliente OIDC de Android/iOS/Web definido, eso es `AND-002`/`IOS-002`/`WEB-002`, fuera de alcance, sin decisión aprobada de nombres/roles).
+
+`docker-compose.yml`: `command: start-dev --import-realm` + `volumes: ./infra/keycloak:/opt/keycloak/data/import`, reemplazando el comentario de "crear/importar manualmente". **Verificado con un ciclo de importación real independiente**, no solo asumido: contenedor Keycloak nuevo, JSONs copiados al directorio de import, arrancado con `--import-realm` → logs confirman `Realm 'vida-cotidiana-test' imported` / `Realm 'vida-cotidiana' imported` → `GET /realms/vida-cotidiana` y `GET /realms/vida-cotidiana-test` responden con el `token-service`/`account-service` correctos. (Nota de entorno: `docker compose up` directo desde este repo falló en esta sesión concreta por una restricción de file-sharing de Docker Desktop sobre `~/Documents` — no una falla del propio `docker-compose.yml`; el mecanismo de import se verificó de forma equivalente montando los mismos JSONs desde una ruta sí compartida por Docker Desktop en este entorno.)
+
+También corregido el comentario obsoleto de la línea 1 de `docker-compose.yml` (seguía mencionando AWS/DEC-008 de antes de `ADR-014`, no capturado en la corrección de infraestructura de la actualización anterior).
+
+### 13.4 CI (INFRA-003)
+
+`.github/workflows/backend-ci.yml`: checkout → JDK 21 (Temurin, cache Maven) → `./mvnw compile` → `./mvnw test` (unit+integration; Testcontainers necesita Docker, disponible en `ubuntu-latest`) → `./mvnw spotbugs:check` → `gitleaks/gitleaks-action@v2` (secret scan) → `./mvnw package -DskipTests` → upload de artefacto. Disparado en PR a `main` y push a `main`.
+
+**ASSUMPTION, no DECISION:** GitHub Actions — GitHub es el único nombre relacionado con CI/organización en toda la documentación (`25-open-questions.md` pregunta 4, todavía abierta, no una decisión aprobada). Si el equipo termina en otro proveedor, este workflow necesita portarse; documentado así explícitamente en `19-cicd.md`.
+
+Escaneo de dependencias: `.github/dependabot.yml` (Maven + github-actions, semanal) en vez de añadir el plugin `owasp-dependency-check-maven` — evita una dependencia de red a la base de datos NVD en cada build (latencia/rate-limiting sin API key), justificado en `19-cicd.md`/`17-dependencies.md`. Branch protection anotado como paso manual pendiente (config del repositorio remoto, no un archivo versionable).
+
+Verificado: ambos YAML parsean correctamente (`yaml.safe_load`); no se pudo ejecutar el workflow de verdad en GitHub (no hay push a un repositorio remoto en esta sesión) — declarado explícitamente, no simulado como "pipeline verde".
+
+### 13.5 Bootstrap de clientes — AND-001/IOS-001/WEB-001
+
+Misma disciplina de honestidad ambiental ya aplicada al backend (JDK/Docker) extendida a Android SDK/Xcode/Node:
+
+- **Android:** `android/` (Gradle Kotlin DSL; AGP 8.5.2/Kotlin 2.0.20/Compose BOM 2024.09.00/Hilt 2.51.1, ASSUMPTION técnica — resuelve el TBD de versiones exactas de `17-dependencies.md`; `minSdk=30` DEC-011), wrapper Gradle 8.9 **real** (generado con un Gradle real descargado a un scratch dir, no un stub a mano). Estructura `app/core/{network,security,ui}`, `app/feature/{auth,home,reminders,sharing,settings}`, `app/navigation`, una pantalla Compose mínima. `./gradlew assembleDebug` ejecutado de verdad: la configuración de Gradle resuelve sin error (confirma que plugins/dependencias/Compose Compiler están bien declarados); falla en `:app:compileDebugJavaWithJavac` con `SDK location not found` — sin Android SDK en este entorno (sin `ANDROID_HOME`, sin `sdkmanager`/`adb`, sin `~/Library/Android/sdk`). **BLOCKED_BY_ENVIRONMENT**, no NOT_EXECUTED a ciegas: se intentó de verdad y se capturó el punto de fallo real.
+- **iOS:** `ios/` (SwiftUI, `Package.swift` con Swift Package Manager — ASSUMPTION per el TBD del propio `08b-ios-architecture.md`; `iOS 17` mínimo DEC-012). Estructura `App/Core/{Network,Security,UI}`, `App/Feature/{Auth,Home,Reminders,Sharing,Settings}`, `App/Navigation`, una vista SwiftUI mínima. Un `.xcodeproj` real no se pudo generar a mano de forma confiable (formato frágil sin Xcode) — se documenta como paso pendiente en Xcode cuando esté disponible. `xcodebuild -version` ejecutado de verdad: `requires Xcode, but active developer directory ... is a command line tools instance`. `swift build` ejecutado de verdad: cae al SDK de macOS (el único presente) y falla al tipar `WindowGroup`/`Scene` (API de iOS 17 no completamente disponible bajo el deployment target de macOS por defecto). **BLOCKED_BY_ENVIRONMENT** — solo Command Line Tools instaladas, no Xcode.app completo.
+- **Web:** `web/` scaffoldeado con el generador real (`npm create vite@latest -- --template react-ts`), reestructurado a `src/core/{api,auth,ui}`, `src/features/{auth,home,reminders,sharing,settings}`, `src/routes`, página mínima. `browserslist` en `package.json` según DEC-013. Nota en `web/README.md` sobre el patrón de token pendiente para `WEB-002` (Opción 1 de `08c-web-architecture.md` — memoria + renovación silenciosa, ya la más coherente con DEC-007/SPA, no una decisión nueva). Node **sí** disponible (`v25.8.0`/`npm 11.11.0`) — `npm install` (27 paquetes, 0 vulnerabilidades) y `npm run build` (`tsc -b && vite build`, `✓ built in 681ms`) ejecutados de verdad, ambos con éxito real.
+
+### 13.6 `./mvnw clean test` y `./mvnw clean package` — resultado final real
+
+```text
+$ ./mvnw clean test
+...
+[INFO] Tests run: 6 -- AuditEventIntegrationTest
+[INFO] Tests run: 108, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+
+$ ./mvnw clean package
+...
+[INFO] Tests run: 108, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Building jar: target/vida-cotidiana-backend-0.1.0-SNAPSHOT.jar
+[INFO] Replacing main artifact ... repackaged archive
+[INFO] BUILD SUCCESS
+```
+
+**108/108 en verde** (101 heredados + 6 `AuditEventIntegrationTest` + 1 caso nuevo de `InvitationMaintenanceServiceTest` para el audit del sweep de expiración). Ningún fallo sin resolver en esta ronda final.
+
+### 13.7 Resultado
+
+- `BUILD_STATUS: SUCCESSFUL`.
+- `TEST_STATUS: PASSED (108/108)`.
+- Dos desviaciones reales de contrato encontradas y corregidas (`BE-035`), un error de test (no de producción) encontrado y corregido durante `BE-029`.
+- Keycloak: dos realms exportados de verdad desde un servidor real, ciclo de importación verificado de forma independiente.
+- CI: pipeline creado y su YAML validado sintácticamente; ejecución real en GitHub no verificable sin un repositorio remoto en esta sesión — declarado explícitamente.
+- Android/iOS: scaffold completo, build real intentado y **BLOCKED_BY_ENVIRONMENT** en ambos, con el punto de fallo exacto capturado (no una suposición).
+- Web: scaffold, `npm install` y `npm run build` reales, ambos exitosos.
+- Ver `docs/development/01-technical-backlog.md` (BE-029, TEST-API-001/BE-035, INFRA-002/003, AND-001/IOS-001/WEB-001) para la propagación completa de este resultado.

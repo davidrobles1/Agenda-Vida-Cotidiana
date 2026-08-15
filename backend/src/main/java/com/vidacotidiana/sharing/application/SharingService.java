@@ -1,5 +1,8 @@
 package com.vidacotidiana.sharing.application;
 
+import com.vidacotidiana.audit.application.AuditEventService;
+import com.vidacotidiana.audit.domain.AuditEventType;
+import com.vidacotidiana.audit.domain.AuditTargetType;
 import com.vidacotidiana.notification.application.PushEvent;
 import com.vidacotidiana.notification.application.PushEventType;
 import com.vidacotidiana.notification.application.PushNotificationSender;
@@ -46,11 +49,12 @@ public class SharingService {
     private final EmailSender emailSender;
     private final PushNotificationSender pushNotificationSender;
     private final InvitationRateLimiter invitationRateLimiter;
+    private final AuditEventService auditEventService;
 
     public SharingService(ReminderService reminderService, InvitationRepository invitationRepository,
                            ReminderShareRepository reminderShareRepository, UserRepository userRepository,
                            EmailSender emailSender, PushNotificationSender pushNotificationSender,
-                           InvitationRateLimiter invitationRateLimiter) {
+                           InvitationRateLimiter invitationRateLimiter, AuditEventService auditEventService) {
         this.reminderService = reminderService;
         this.invitationRepository = invitationRepository;
         this.reminderShareRepository = reminderShareRepository;
@@ -58,6 +62,7 @@ public class SharingService {
         this.emailSender = emailSender;
         this.pushNotificationSender = pushNotificationSender;
         this.invitationRateLimiter = invitationRateLimiter;
+        this.auditEventService = auditEventService;
     }
 
     /**
@@ -109,6 +114,7 @@ public class SharingService {
 
         log.info("Invitation created: id={}, reminderId={}, inviterUserId={}, hasExistingAccount={}",
                 invitation.getId(), reminderId, callerUserId, invitedUserId != null);
+        auditEventService.record(AuditEventType.INVITATION_CREATED, callerUserId, AuditTargetType.INVITATION, invitation.getId());
 
         // AC-012/UC-11: an invitee with an account gets a push; one without gets the (currently no-op) email.
         if (invitedUserId != null) {
@@ -156,6 +162,7 @@ public class SharingService {
         ReminderShare share = new ReminderShare(invitation.getReminderId(), callerUserId, invitationId);
         share = reminderShareRepository.save(share);
         log.info("Invitation accepted: id={}, reminderId={}, collaboratorUserId={}", invitationId, invitation.getReminderId(), callerUserId);
+        auditEventService.record(AuditEventType.INVITATION_ACCEPTED, callerUserId, AuditTargetType.INVITATION, invitationId);
         pushNotificationSender.sendBestEffort(invitation.getInviterUserId(),
                 new PushEvent(PushEventType.INVITATION_ACCEPTED, "Your invitation was accepted."));
         return share;
@@ -172,6 +179,7 @@ public class SharingService {
         }
 
         log.info("Invitation rejected: id={}, invitedUserId={}", invitationId, callerUserId);
+        auditEventService.record(AuditEventType.INVITATION_REJECTED, callerUserId, AuditTargetType.INVITATION, invitationId);
         pushNotificationSender.sendBestEffort(invitation.getInviterUserId(),
                 new PushEvent(PushEventType.INVITATION_REJECTED, "Your invitation was declined."));
         return invitationRepository.findById(invitationId)
@@ -196,6 +204,7 @@ public class SharingService {
         }
 
         log.info("Invitation cancelled: id={}, inviterUserId={}", invitationId, callerUserId);
+        auditEventService.record(AuditEventType.INVITATION_CANCELLED, callerUserId, AuditTargetType.INVITATION, invitationId);
         // Only meaningful if the invitee has an account (there's no recipient to notify otherwise).
         if (invitation.getInvitedUserId() != null) {
             pushNotificationSender.sendBestEffort(invitation.getInvitedUserId(),
@@ -223,6 +232,7 @@ public class SharingService {
             share.revoke();
             reminderShareRepository.save(share);
             log.info("Reminder share revoked: id={}, reminderId={}, collaboratorUserId={}", shareId, reminderId, share.getCollaboratorUserId());
+            auditEventService.record(AuditEventType.SHARE_REVOKED, callerUserId, AuditTargetType.REMINDER_SHARE, shareId);
             pushNotificationSender.sendBestEffort(share.getCollaboratorUserId(),
                     new PushEvent(PushEventType.REMINDER_SHARE_REVOKED, "Your access to a shared reminder was revoked."));
         }

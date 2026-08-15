@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -45,18 +46,24 @@ public interface InvitationRepository extends JpaRepository<Invitation, UUID> {
             + "AND i.expiresAt > CURRENT_TIMESTAMP")
     int resolveIfPending(@Param("id") UUID id, @Param("newStatus") InvitationStatus newStatus);
 
+    /** BE-033/BE-029: candidates for the expiration sweep — fetched individually so each transition can be audited by id (see expireIfOverdue). */
+    List<Invitation> findByStatusAndExpiresAtLessThanEqual(InvitationStatus status, Instant cutoff);
+
     /**
      * BE-033 — gap found while cross-checking 09-data-model.md's
      * `INVITATION(status, expires_at)` index comment ("para el job de
      * expiración") against the backlog: no job existed to actually flip
-     * PENDING -> EXPIRED. A bulk atomic sweep, same WHERE-conditioned
-     * UPDATE pattern as resolveIfPending.
+     * PENDING -> EXPIRED. Same atomic per-row conditional UPDATE pattern as
+     * resolveIfPending, applied per candidate (BE-029: this is also what
+     * lets sharing.application.InvitationMaintenanceService know exactly
+     * which rows it actually expired, to audit them one by one — a bulk
+     * UPDATE with no RETURNING would not give us that).
      */
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE Invitation i SET i.status = com.vidacotidiana.sharing.domain.InvitationStatus.EXPIRED, "
             + "i.resolvedAt = CURRENT_TIMESTAMP "
-            + "WHERE i.status = com.vidacotidiana.sharing.domain.InvitationStatus.PENDING AND i.expiresAt <= CURRENT_TIMESTAMP")
-    int expireOverduePending();
+            + "WHERE i.id = :id AND i.status = com.vidacotidiana.sharing.domain.InvitationStatus.PENDING AND i.expiresAt <= CURRENT_TIMESTAMP")
+    int expireIfOverdue(@Param("id") UUID id);
 
     /**
      * BE-028/AC-016/DEC-015(A'): invitations resolved (REJECTED/EXPIRED/

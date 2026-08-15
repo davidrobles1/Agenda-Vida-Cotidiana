@@ -1,5 +1,6 @@
 # Local development infrastructure only (18-dev-environment.md).
-# NOT for staging/production — see 19-cicd.md / AWS target (DEC-008) for those.
+# NOT for staging/production — target is a self-hosted rented server, hosting
+# provider TBD (DEC-008/ADR-014, 22-decision-log.md); see 19-cicd.md.
 services:
   postgres:
     image: postgres:16-alpine
@@ -19,16 +20,19 @@ services:
 
   keycloak:
     image: quay.io/keycloak/keycloak:25.0
-    command: start-dev
+    command: start-dev --import-realm
     environment:
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
     ports:
       - "8081:8080"
-    # The "vida-cotidiana" realm and its clients are NOT preconfigured here —
-    # see docs/development/00-development-baseline.md §3 and
-    # docs/development/01-technical-backlog.md (INFRA-002). Create/import the
-    # realm manually after first start via http://localhost:8081.
+    volumes:
+      - ./infra/keycloak:/opt/keycloak/data/import
+    # INFRA-002: "vida-cotidiana" (dev) and "vida-cotidiana-test" (test) are
+    # imported automatically from infra/keycloak/*.json on first start —
+    # matching the issuer-uri values in application.yml/application-test.yml.
+    # No Android/iOS/Web OIDC clients are defined yet (AND-002/IOS-002/WEB-002,
+    # out of scope — no approved client names/roles exist).
 
 volumes:
   vida-cotidiana-postgres-data:

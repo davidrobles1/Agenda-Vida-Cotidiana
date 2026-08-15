@@ -26,6 +26,8 @@ import java.time.ZoneOffset;
 import java.util.Map;
 import java.util.UUID;
 
+import static com.atlassian.oai.validator.mockmvc.OpenApiValidationMatchers.openApi;
+import static com.vidacotidiana.OpenApiContractSupport.VALIDATOR;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
@@ -123,7 +125,14 @@ class SharingFlowIntegrationTest {
 
         String reminderId = createReminder(owner, "Family trip");
 
-        JsonNode invitation = createInvitation(owner, reminderId, Map.of("email", "invitee1@example.com"));
+        String body = objectMapper.writeValueAsString(Map.of("email", "invitee1@example.com"));
+        String json = mockMvc.perform(post("/api/v1/reminders/" + reminderId + "/shares")
+                        .with(owner).contentType("application/json").content(body))
+                .andExpect(status().isCreated())
+                // TEST-API-001: representative contract check for POST /reminders/{id}/shares 201 against the real openapi.yaml.
+                .andExpect(openApi().isValid(VALIDATOR))
+                .andReturn().getResponse().getContentAsString();
+        JsonNode invitation = objectMapper.readTree(json);
 
         assertInvitationShape(invitation, "invitee1@example.com");
     }
@@ -185,7 +194,9 @@ class SharingFlowIntegrationTest {
         String body = objectMapper.writeValueAsString(Map.of("email", "dup@example.com"));
         mockMvc.perform(post("/api/v1/reminders/" + reminderId + "/shares").with(owner).contentType("application/json").content(body))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.code", is("INVITATION_ALREADY_PENDING")));
+                .andExpect(jsonPath("$.code", is("INVITATION_ALREADY_PENDING")))
+                // TEST-API-001: representative contract check for POST /reminders/{id}/shares 409 against the real openapi.yaml.
+                .andExpect(openApi().isValid(VALIDATOR));
     }
 
     @Test
@@ -234,7 +245,9 @@ class SharingFlowIntegrationTest {
         mockMvc.perform(post("/api/v1/invitations/" + invitationId + "/accept").with(collaborator))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status", is("ACTIVE")))
-                .andExpect(jsonPath("$.collaboratorUserId", is(collaboratorId.toString())));
+                .andExpect(jsonPath("$.collaboratorUserId", is(collaboratorId.toString())))
+                // TEST-API-001: representative contract check for POST /invitations/{id}/accept 200 against the real openapi.yaml.
+                .andExpect(openApi().isValid(VALIDATOR));
 
         // AC-011/BE-022: the collaborator now sees this reminder in their own list, and can read/complete it.
         mockMvc.perform(get("/api/v1/reminders").with(collaborator))
@@ -265,7 +278,9 @@ class SharingFlowIntegrationTest {
         // of a concurrent race) must get 410, and must not create a second ReminderShare.
         mockMvc.perform(post("/api/v1/invitations/" + invitationId + "/accept").with(collaborator))
                 .andExpect(status().isGone())
-                .andExpect(jsonPath("$.code", is("INVITATION_ALREADY_RESOLVED")));
+                .andExpect(jsonPath("$.code", is("INVITATION_ALREADY_RESOLVED")))
+                // TEST-API-001: representative contract check for POST /invitations/{id}/accept 410 against the real openapi.yaml.
+                .andExpect(openApi().isValid(VALIDATOR));
     }
 
     @Test

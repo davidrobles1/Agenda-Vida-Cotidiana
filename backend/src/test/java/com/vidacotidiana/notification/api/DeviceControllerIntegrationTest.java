@@ -18,6 +18,8 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 
+import static com.atlassian.oai.validator.mockmvc.OpenApiValidationMatchers.openApi;
+import static com.vidacotidiana.OpenApiContractSupport.VALIDATOR;
 import static org.hamcrest.Matchers.is;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -74,15 +76,21 @@ class DeviceControllerIntegrationTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.platform", is("ANDROID")))
                 .andExpect(jsonPath("$.id").exists())
+                // TEST-API-001: representative contract check for POST /me/devices against the real openapi.yaml.
+                .andExpect(openApi().isValid(VALIDATOR))
                 .andReturn().getResponse().getContentAsString();
         String deviceId = objectMapper.readTree(createdJson).get("id").asText();
 
         mockMvc.perform(get("/api/v1/me/devices").with(principal))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id", is(deviceId)));
+                .andExpect(jsonPath("$[0].id", is(deviceId)))
+                // TEST-API-001: representative contract check for GET /me/devices against the real openapi.yaml.
+                .andExpect(openApi().isValid(VALIDATOR));
 
         mockMvc.perform(delete("/api/v1/me/devices/" + deviceId).with(principal))
-                .andExpect(status().isNoContent());
+                .andExpect(status().isNoContent())
+                // TEST-API-001: representative contract check for DELETE /me/devices/{id} against the real openapi.yaml.
+                .andExpect(openApi().isValid(VALIDATOR));
 
         mockMvc.perform(get("/api/v1/me/devices").with(principal))
                 .andExpect(status().isOk())
@@ -139,7 +147,9 @@ class DeviceControllerIntegrationTest {
 
         mockMvc.perform(delete("/api/v1/me/devices/" + deviceId).with(stranger))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.code", is("FORBIDDEN")));
+                .andExpect(jsonPath("$.code", is("FORBIDDEN")))
+                // TEST-API-001/BE-024: representative contract check for the explicit 403 against the real openapi.yaml.
+                .andExpect(openApi().isValid(VALIDATOR));
     }
 
     @Test

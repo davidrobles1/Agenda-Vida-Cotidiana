@@ -1,0 +1,75 @@
+name: backend-ci
+
+# INFRA-003/19-cicd.md. ASSUMPTION: GitHub Actions is used because GitHub is
+# the only CI-adjacent name anywhere in the documentation (25-open-questions.md
+# question 4, "organización GitHub" — an open question, not an approved
+# decision). If the team ends up on another provider, this workflow needs
+# porting; it is not a DECISION.
+#
+# Runs on ubuntu-latest, which ships Docker — required by the Testcontainers
+# integration tests (real PostgreSQL, no H2/mocks, per 20-testing-qa.md).
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+
+defaults:
+  run:
+    working-directory: backend
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Compile
+        run: ./mvnw -B compile
+
+      - name: Unit + integration tests
+        run: ./mvnw -B test
+
+      - name: Static analysis (SpotBugs)
+        run: ./mvnw -B spotbugs:check
+
+      - name: Secret scan (gitleaks)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build artifact
+        run: ./mvnw -B package -DskipTests
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vida-cotidiana-backend
+          path: backend/target/*.jar
+          retention-days: 14
+
+# Dependency/security scan: handled by GitHub Dependabot (.github/dependabot.yml),
+# not an added Maven plugin — see the ASSUMPTION note in 19-cicd.md for why
+# OWASP dependency-check-maven was not chosen for V1 (NVD download latency/
+# rate limits would make this pipeline slow and flaky without an API key).
+#
+# Deploy to staging/production: TBD (19-cicd.md) — not implemented here.
+#
+# Branch protection (require this workflow + review before merge to main) is
+# remote GitHub repository configuration, not a versionable file — see the
+# pending manual step noted in 19-cicd.md.

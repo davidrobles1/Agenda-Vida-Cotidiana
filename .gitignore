@@ -3,10 +3,35 @@ backend/target/
 backend/out/
 backend/.env
 
+# Android (AND-001)
+android/local.properties
+android/.gradle/
+android/build/
+android/app/build/
+android/.kotlin/
+android/captures/
+*.apk
+*.aab
+
+# iOS (IOS-001)
+ios/.build/
+ios/.swiftpm/
+ios/DerivedData/
+ios/*.xcuserstate
+ios/**/xcuserdata/
+
+# Web (WEB-001)
+web/node_modules/
+web/dist/
+
 # IDE
 .idea/
 *.iml
 .vscode/
+.classpath
+.project
+.settings/
+backend/bin/
 
 # OS
 .DS_Store

@@ -18,6 +18,11 @@ Nota histórica: el bootstrap inicial del backend (Milestone 1) se hizo con Grad
 ## Android
 Kotlin/Compose/Android Gradle Plugin: versiones exactas `TBD` al crear el proyecto.
 
+## Escaneo de dependencias
+GitHub Dependabot (`.github/dependabot.yml`, INFRA-003) — actualizaciones semanales para
+`backend` (Maven) y para los workflows de GitHub Actions. Ver la nota ASSUMPTION en `19-cicd.md`
+sobre por qué se eligió Dependabot en vez de añadir el plugin `owasp-dependency-check-maven`.
+
 ## Política
 Dependencias críticas deben tener:
 - mantenimiento activo;
