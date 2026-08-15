@@ -3,27 +3,29 @@ package com.vidacotidiana.app
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
+import com.vidacotidiana.app.feature.auth.AuthManager
+import com.vidacotidiana.app.navigation.AppNavGraph
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
-// AND-001: bootstrap-only placeholder screen. Real navigation/auth/API
-// consumption starts at AND-002 (see app.navigation and app.feature.auth).
+// AND-002/AND-003: real login (AppAuth, Authorization Code + PKCE against
+// Keycloak's android-app client) and a real reminders CRUD screen.
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    @Inject
+    lateinit var authManager: AuthManager
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             MaterialTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text(text = "Vida Cotidiana")
-                    }
+                    AppNavGraph(authManager = authManager)
                 }
             }
         }

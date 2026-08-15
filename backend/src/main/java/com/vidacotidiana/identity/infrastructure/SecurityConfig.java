@@ -3,6 +3,7 @@ package com.vidacotidiana.identity.infrastructure;
 import com.vidacotidiana.shared.infrastructure.TraceIdFilter;
 import com.vidacotidiana.user.infrastructure.UserSyncFilter;
 import jakarta.servlet.Filter;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -12,6 +13,11 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.session.DisableEncodeUrlFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.List;
 
 /**
  * Pure OAuth2/OIDC resource server (DEC-004/ADR-008): the backend never
@@ -32,21 +38,25 @@ public class SecurityConfig {
     private final TraceIdFilter traceIdFilter;
     private final RestAuthenticationEntryPoint restAuthenticationEntryPoint;
     private final RestAccessDeniedHandler restAccessDeniedHandler;
+    private final List<String> corsAllowedOrigins;
 
     public SecurityConfig(UserSyncFilter userSyncFilter,
                            TraceIdFilter traceIdFilter,
                            RestAuthenticationEntryPoint restAuthenticationEntryPoint,
-                           RestAccessDeniedHandler restAccessDeniedHandler) {
+                           RestAccessDeniedHandler restAccessDeniedHandler,
+                           @Value("${vida-cotidiana.cors.allowed-origins}") List<String> corsAllowedOrigins) {
         this.userSyncFilter = userSyncFilter;
         this.traceIdFilter = traceIdFilter;
         this.restAuthenticationEntryPoint = restAuthenticationEntryPoint;
         this.restAccessDeniedHandler = restAccessDeniedHandler;
+        this.corsAllowedOrigins = corsAllowedOrigins;
     }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(csrf -> csrf.disable()) // stateless bearer-token API, no cookies/session (CSRF not applicable)
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
@@ -66,6 +76,23 @@ public class SecurityConfig {
                 .addFilterAfter(userSyncFilter, BearerTokenAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    /**
+     * WEB-002: bearer-token auth only, no cookies — allowCredentials stays
+     * false, so this can safely list explicit origins (never "*" with
+     * credentials, which browsers reject anyway, but explicit is clearer).
+     */
+    private CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(corsAllowedOrigins);
+        configuration.setAllowedMethods(List.of("GET", "POST", "PATCH", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        configuration.setAllowCredentials(false);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/api/v1/**", configuration);
+        return source;
     }
 
     /**

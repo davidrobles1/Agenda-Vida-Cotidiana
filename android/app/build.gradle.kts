@@ -20,6 +20,19 @@ android {
         targetSdk = 34
         versionCode = 1
         versionName = "0.1.0"
+
+        // AND-002: AppAuth's RedirectUriReceiverActivity is registered for this
+        // scheme via manifest merge — must match the redirect_uri configured on
+        // the android-app Keycloak client (Phase 1) and BuildConfig.OIDC_REDIRECT_URI below.
+        manifestPlaceholders["appAuthRedirectScheme"] = "com.vidacotidiana.app"
+
+        // Real emulator/device host resolution: 10.0.2.2 is the special alias the
+        // Android emulator uses to reach the host machine's localhost. A physical
+        // device on the same LAN needs the Mac's real LAN IP instead (see README).
+        buildConfigField("String", "OIDC_ISSUER", "\"http://10.0.2.2:8081/realms/vida-cotidiana\"")
+        buildConfigField("String", "OIDC_CLIENT_ID", "\"android-app\"")
+        buildConfigField("String", "OIDC_REDIRECT_URI", "\"com.vidacotidiana.app://callback\"")
+        buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:8080/api/v1/\"")
     }
 
     buildTypes {
@@ -39,6 +52,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -55,6 +69,8 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.navigation:navigation-compose:2.7.7")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.4")
+    implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
 
     implementation("com.google.dagger:hilt-android:2.51.1")
     kapt("com.google.dagger:hilt-android-compiler:2.51.1")
@@ -62,7 +78,13 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.1")
     implementation("com.squareup.retrofit2:retrofit:2.11.0")
+    implementation("com.jakewharton.retrofit:retrofit2-kotlinx-serialization-converter:1.0.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+
+    // AND-002: Authorization Code + PKCE against Keycloak (android-app client, Phase 1).
+    implementation("net.openid:appauth:0.11.1")
+    // AND-002: EncryptedSharedPreferences/Keystore for token storage (11-auth-security.md).
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
 
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")

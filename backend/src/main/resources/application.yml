@@ -31,6 +31,13 @@ spring:
 server:
   port: 8080
 
+# WEB-002: the SPA (DEC-007) calls this API from a different origin (Vite dev
+# server / eventual web hosting), so the browser enforces CORS. Comma-separated,
+# defaults to the local Vite dev origin from Phase 1/2 of AND-002..WEB-003.
+vida-cotidiana:
+  cors:
+    allowed-origins: ${WEB_CORS_ALLOWED_ORIGINS:http://localhost:5173}
+
 # BE-025/ADR-007/DEC-010: firebase.credentials-path is intentionally NOT declared here.
 # Spring Boot's relaxed binding already maps an env var FIREBASE_CREDENTIALS_PATH to the
 # property firebase.credentials-path without any entry in this file; declaring it here with
