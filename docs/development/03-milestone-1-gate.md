@@ -1,12 +1,12 @@
 # Milestone 1 — Backend Vertical Slice Gate
 
-Fecha: 2026-08-09. Fuente de verdad: `Documentacion/` (V1_READY, ver `32-v1-development-gate-audit.md`), `docs/development/00-development-baseline.md`, `01-technical-backlog.md`, `02-validation-report.md`, `Documentacion/openapi/openapi.yaml`. Ninguna decisión aprobada fue modificada en este ciclo; ningún endpoint ni regla de negocio fue inventado.
+Fecha inicial: 2026-08-09 (ciclos 1–2, revisión estática, sin entorno real). **Actualizado 2026-08-15 (ciclo 3): ejecución real (`02-validation-report.md` §8), gate cerrado `READY`.** Fuente de verdad: `Documentacion/` (V1_READY, ver `32-v1-development-gate-audit.md`), `docs/development/00-development-baseline.md`, `01-technical-backlog.md`, `02-validation-report.md`, `Documentacion/openapi/openapi.yaml`. Ninguna decisión aprobada fue modificada en ningún ciclo; ningún endpoint ni regla de negocio fue inventado.
 
 ## Scope
 
 Vertical slice mínimo definido en el kickoff de desarrollo: **Auth (resource server) → User sync → Create Reminder → List Reminders → Complete Reminder**, con manejo uniforme de errores y bloqueo optimista opcional. Explícitamente **fuera de alcance** de Milestone 1 (no implementado, no se debía implementar todavía): editar (`PATCH`)/eliminar (`DELETE`) recordatorio, sharing/invitations, push notifications, eliminación de cuenta, Android/iOS/Web, CI/CD.
 
-En este ciclo de validación se corrigieron 3 errores reales encontrados por inspección (ver `02-validation-report.md` §7.5) y se amplió la cobertura de tests (§7.6); no se agregó ninguna funcionalidad nueva.
+En el ciclo 2 de validación se corrigieron 3 errores reales encontrados por inspección (ver `02-validation-report.md` §7.5) y se amplió la cobertura de tests (§7.6). En el ciclo 3 se ejecutó el build/test real por primera vez, se encontró y corrigió una incompatibilidad real `docker-java`/Docker Engine 29+ (`02-validation-report.md` §8.4), y se confirmaron los 19 tests en verde. Ninguna funcionalidad nueva fue agregada en ningún ciclo.
 
 ## Requirements
 
@@ -46,15 +46,16 @@ Implementados y verificados contra `openapi.yaml` (ver `02-validation-report.md`
 
 ## Tests
 
-Todos **escritos y revisados estáticamente**; **ninguno ejecutado realmente** en este entorno (sin JDK 21/Docker, ver `02-validation-report.md` §7.1).
+Escritos, revisados estáticamente en los ciclos 1–2, y **ejecutados realmente en el ciclo 3** (`02-validation-report.md` §8) contra JDK 21 + Docker reales, con Testcontainers levantando un PostgreSQL 16 real.
 
 | Clase | Casos | Cubre |
 |---|---|---|
-| `reminder.application.ReminderServiceTest` | 8 | Crear, acceso propietario, acceso ajeno → `NotFoundException`, id inexistente → `NotFoundException`, completar (toggle ida/vuelta), version correcta, version incorrecta → `VersionConflictException`, version omitida, no-propietario → `NotFoundException`. |
-| `reminder.api.ReminderControllerIntegrationTest` | 8 | Flujo feliz crear/listar/completar, validación 400 (título vacío), 404 uniforme para ajeno (nunca 403), 409 por version incorrecta, version omitida sin chequeo, 404 por id inexistente, 401 con envoltorio `Error` completo. |
+| `reminder.application.ReminderServiceTest` | 9 | Crear, acceso propietario, acceso ajeno → `NotFoundException`, id inexistente → `NotFoundException`, completar (toggle ida/vuelta), version correcta, version incorrecta → `VersionConflictException`, version omitida, no-propietario → `NotFoundException`. |
+| `reminder.api.ReminderControllerIntegrationTest` | 7 | Flujo feliz crear/listar/completar, validación 400 (título vacío), 404 uniforme para ajeno (nunca 403), 409 por version incorrecta, version omitida sin chequeo, 404 por id inexistente, 401 con envoltorio `Error` completo. |
 | `user.api.UserControllerIntegrationTest` | 3 | Creación de `USER` en el primer request autenticado, actualización (no duplicación) al cambiar el email del claim, 401 uniforme sin autenticación. |
+| **Total** | **19** | |
 
-**Resultado real de ejecución: NOT_EXECUTED.** No se declara ningún test como PASS.
+**Resultado real de ejecución: `./gradlew clean test` → BUILD SUCCESSFUL, 19/19 PASSED, 0 failures, 0 errors** (visto realmente el 2026-08-15, `02-validation-report.md` §8.5). `./gradlew build` también `BUILD SUCCESSFUL` (§8.6), generando el jar ejecutable. Adicionalmente se validó `bootRun` manual contra un PostgreSQL 16 real (Flyway aplicó la migración, Hibernate validó el esquema) y Keycloak levantado vía `docker compose`, confirmando `GET /actuator/health` → `200` y `401` uniforme sin token en `/api/v1/me` y `/api/v1/reminders` (§8.7).
 
 ## Security
 
@@ -69,26 +70,23 @@ Todos **escritos y revisados estáticamente**; **ninguno ejecutado realmente** e
 
 Solo limitaciones reales, ninguna oculta:
 
-1. **No se ejecutó ningún build ni test real** en esta sesión — el entorno no tiene JDK 21 (solo JRE 11 headless, sin `javac`), no tiene Gradle, no tiene Docker, y no tiene acceso de red a Maven Central/`services.gradle.org`. Ver comandos exactos en `02-validation-report.md` §4.
-2. El wrapper de Gradle (`gradlew`) no existe todavía en el repositorio — debe generarse una vez con `gradle wrapper --gradle-version 8.9` en un equipo con Gradle instalado.
-3. No existe realm de Keycloak configurado — `docker-compose.yml` levanta el servidor, no el realm/cliente `vida-cotidiana` (tarea manual, `INFRA-002`).
-4. `git commit` no se pudo completar en esta sesión por una restricción del punto de montaje sobre operaciones de archivo internas de `.git/` — ver `02-validation-report.md` §5 para el comando de recuperación en el equipo del usuario.
-5. `PATCH /api/v1/reminders/{id}` está definido en `openapi.yaml` pero no implementado — por diseño, es el primer ítem de Milestone 2, no un defecto de Milestone 1.
+1. No se configuró el realm de Keycloak (`vida-cotidiana`) en esta validación — `docker-compose.yml` levanta el servidor, no el realm/cliente (tarea manual, `INFRA-002`). Por eso no se validó un login/token real de extremo a extremo; sí se validó que el resource server arranca y protege los endpoints correctamente sin token (`02-validation-report.md` §8.7).
+2. El `docker-compose.yml` versionado no se pudo levantar tal cual en la máquina de esta validación porque el puerto `5432` ya está ocupado por un PostgreSQL 17 nativo preexistente en ese equipo, ajeno al proyecto. No es un defecto del compose ni del código — se documenta como hecho del entorno local del validador (`02-validation-report.md` §8.7); cualquier otro desarrollador sin ese conflicto de puerto podrá levantar `docker compose up -d postgres keycloak` sin ajustes.
+3. `PATCH /api/v1/reminders/{id}` está definido en `openapi.yaml` pero no implementado — por diseño, es el primer ítem de Milestone 2, no un defecto de Milestone 1.
+4. Se fijó `testcontainers-bom` a `1.21.4` (antes `1.20.1`) y se añadió `backend/src/test/resources/docker-java.properties` (`api.version=1.44`) para resolver una incompatibilidad real entre `docker-java` y Docker Engine 29+ descubierta durante esta validación (`02-validation-report.md` §8.4). Es un ajuste de versión/configuración de herramienta de test, no un cambio de contrato ni de decisión aprobada.
 
 ## Gate Result
 
-**MILESTONE_1_STATUS: NOT_READY**
+**MILESTONE_1_STATUS: READY**
 
-**BUILD_STATUS: NOT_EXECUTED**
-**TEST_STATUS: NOT_EXECUTED**
-**BLOCKERS: 1**
+**BUILD_STATUS: SUCCESSFUL**
+**TEST_STATUS: PASSED (19/19)**
+**BLOCKERS: 0**
 
-El único bloqueador es de entorno, no de diseño ni de código: **no fue posible ejecutar `./gradlew clean test`/`./gradlew build` en esta sesión** (sin JDK 21, Gradle ni Docker disponibles, y sin acceso de red para instalarlos). El código fue revisado exhaustivamente por inspección estática (coherencia OpenAPI↔Controller↔DTO↔Service↔Entity↔Flyway, balance sintáctico, resolución de imports, tipos y constraints), y se corrigieron 3 errores reales encontrados durante esa revisión (ver `02-validation-report.md` §7.5). No se declara `MILESTONE_1_STATUS: READY` porque eso exigiría haber visto realmente `BUILD SUCCESSFUL` y los tests en verde, y esta sesión no puede producir esa evidencia — solo un desarrollador con un entorno completo puede.
+Ejecutado y visto realmente el 2026-08-15 (`02-validation-report.md` §8): `./gradlew clean test` → `BUILD SUCCESSFUL`, 19 tests, 0 failures, 0 errors, incluyendo los dos test classes de integración con Testcontainers levantando un PostgreSQL 16 real vía Docker. `./gradlew build` → `BUILD SUCCESSFUL`, jar ejecutable generado. Validación manual adicional (`bootRun` contra Postgres real + Keycloak real vía `docker compose`) confirmó arranque limpio, migración Flyway aplicada, validación de esquema Hibernate sin discrepancias, `/actuator/health` en `200`, y el envoltorio `Error` uniforme en `401` sin token. No se simuló ningún resultado; no se declaró nada como PASS sin haberlo visto ejecutar.
 
 ## Recommendation
 
-**No procede iniciar Milestone 2 todavía.** Antes de continuar:
+**Milestone 1 cerrado. Procede iniciar Milestone 2** (editar/eliminar recordatorio + inicio de `sharing`, ver `01-technical-backlog.md` BE-014 en adelante), siguiendo el mismo estándar de esta validación: escribir el código, ejecutar `./gradlew clean test`/`./gradlew build` de verdad antes de declarar cualquier tarea `DONE`, y no modificar `openapi.yaml`/decisiones aprobadas salvo necesidad real y justificada.
 
-1. En un equipo con JDK 21 + Docker, ejecutar los comandos de `02-validation-report.md` §4 (`gradle wrapper`, `./gradlew clean test`, `./gradlew build`, `docker compose up`, prueba manual de `bootRun`).
-2. Si todo pasa en verde: actualizar `MILESTONE_1_STATUS` a `READY` en este mismo documento (sin reabrir ninguna otra sección) y recién entonces **proceder a Milestone 2** (editar/eliminar recordatorio + inicio de `sharing`, ver `01-technical-backlog.md` BE-014 en adelante).
-3. Si algo falla: reportar el error real exacto (stack trace/mensaje del compilador o del test runner) para corregirlo — no se debe adivinar la causa sin verlo.
+Pendiente no bloqueante para cuando se necesite `bootRun`/pruebas exploratorias con Keycloak real: crear el realm `vida-cotidiana` y su cliente (`INFRA-002`, ver `docs/development/00-development-baseline.md` §3).

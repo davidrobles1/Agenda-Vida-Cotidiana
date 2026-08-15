@@ -8,16 +8,16 @@ Inventario real del repositorio al iniciar esta fase (verificado por inspección
 
 | Componente | Estado | Evidencia |
 |---|---|---|
-| Control de versiones (Git) | **MISSING → BROKEN (este ciclo)** | No existía `.git/` al iniciar. Se intentó `git init`/`add`/`commit` en este ciclo; `commit` falló porque el punto de montaje de esta sesión no permite las operaciones de archivo que Git necesita sobre `.git/` (quedó un `index.lock` no removible desde esta sesión). Ver `02-validation-report.md` §5 para el detalle y el comando exacto de recuperación en el equipo del usuario. |
+| Control de versiones (Git) | **DONE (2026-08-15)** | El `.git/index.lock` atascado (limitación de las sesiones de sandbox anteriores) se eliminó en una máquina real sin esa restricción; `git init -b main`/`add`/`commit` se ejecutaron con éxito (commit raíz `9f77ead`, 88 archivos). Ver `02-validation-report.md` §8.2. |
 | Backend (Spring Boot) | **MISSING → PARTIAL (este ciclo)** | No existía ningún código antes de este ciclo. Este ciclo añade `backend/` con el primer vertical slice (ver §2 y `docs/development/01-technical-backlog.md`). |
 | Android | **MISSING** | No existe carpeta `android/` ni proyecto Gradle/Kotlin. |
 | iOS | **MISSING** | No existe carpeta `ios/` ni proyecto Xcode/Swift. |
 | Web | **MISSING** | No existe carpeta `web/` ni proyecto React/TypeScript. |
 | Configuración de entorno (`.env`, perfiles) | **MISSING → PARTIAL (este ciclo)** | Se añade `backend/src/main/resources/application.yml` con perfiles `local`/`test`; no existía nada antes. |
-| Docker / infraestructura local | **MISSING → PARTIAL (este ciclo)** | Se añade `docker-compose.yml` (PostgreSQL + Keycloak) en la raíz; no existía antes. No se ha podido levantar en este entorno (ver §11, sandbox sin Docker). |
+| Docker / infraestructura local | **DONE (2026-08-15)** | `docker-compose.yml` (PostgreSQL + Keycloak) en la raíz, validado: Keycloak 25 levantado vía `docker compose`; Postgres validado en un puerto alternativo por un conflicto de puerto local preexistente ajeno al proyecto (ver `02-validation-report.md` §8.7). |
 | Base de datos / esquema | **MISSING → PARTIAL (este ciclo)** | Se añade la primera migración Flyway (`V1__init_schema.sql`) con las tablas `users` y `reminders` únicamente (alcance del vertical slice). `invitations`, `reminder_shares`, `device_push_tokens` quedan para el milestone de Sharing/Push (no se crean tablas para funcionalidad todavía no implementada). |
 | Migraciones Flyway | **MISSING → PARTIAL (este ciclo)** | Ver arriba. |
-| Tests | **MISSING → PARTIAL (este ciclo)** | Se añaden tests unitarios (`ReminderServiceTest`) y de integración (`ReminderControllerIntegrationTest`, Testcontainers) para el vertical slice. No ejecutados en este entorno (ver §11). |
+| Tests | **DONE (2026-08-15)** | `ReminderServiceTest`, `ReminderControllerIntegrationTest`, `UserControllerIntegrationTest`: 19/19 ejecutados realmente vía `./gradlew clean test`, 0 failures/0 errors (JDK 21 + Docker/Testcontainers reales). Ver `02-validation-report.md` §8 y `03-milestone-1-gate.md`. |
 | CI/CD | **MISSING** | No existe ningún workflow (`.github/workflows/`, etc.). Documentado conceptualmente en `19-cicd.md`, no implementado. |
 | Keycloak (realm, clientes) | **MISSING** | No existe configuración de realm exportada ni instancia corriendo. `docker-compose.yml` añade un contenedor Keycloak en modo dev, pero el realm (`vida-cotidiana`) y sus clientes deben crearse manualmente o vía script de importación — no incluido en este ciclo. |
 | Documentación (`Documentacion/`, `docs/`) | **DONE** | Completa y en estado `READY` según `32-v1-development-gate-audit.md`. Es la fuente de verdad de este ciclo. |
@@ -84,17 +84,17 @@ No se justifica ningún cambio a este orden: la estructura real del repositorio 
 
 ## 6. Riesgos técnicos
 
-- **No se pudo compilar ni ejecutar el código en este entorno** (sandbox sin JDK completo — solo JRE 11 headless —, sin Gradle, sin Docker, sin acceso de red a repositorios de artefactos). El código fue escrito siguiendo estrictamente la sintaxis de Java 21/Spring Boot 3.3.x y las convenciones de `15-coding-standards.md`, pero **debe compilarse y ejecutarse en un entorno real (JDK 21 + Docker) antes de confiar en él**. Ver §11 (Validación) para el detalle exacto de lo que sí y no se pudo verificar.
-- El wrapper de Gradle (`gradlew`/`gradle-wrapper.jar`) no se pudo generar en este entorno (requiere descargar un binario desde `services.gradle.org`, bloqueado por la allowlist de red del sandbox). Se documenta el comando exacto para generarlo en el primer checkout real (`gradle wrapper --gradle-version 8.9`).
+- **Riesgo cerrado (2026-08-15):** el código se compiló y ejecutó en un entorno real (JDK 21 + Docker), confirmando la revisión estática de los ciclos 1–2 sin errores de sintaxis/imports/tipos. Ver §11 (Validación) y `02-validation-report.md` §8.
+- El wrapper de Gradle (`gradlew`/`gradle-wrapper.jar`) fue generado en este ciclo (`gradle wrapper --gradle-version 8.9`, usando un binario de Gradle 8.9 temporal solo para ese paso) y ya está commiteado en el repositorio; ningún desarrollador necesita repetir este paso.
 - El realm de Keycloak no está preconfigurado; sin él, el resource server no tiene un `issuer-uri` válido contra el cual validar tokens. Es un paso manual de un desarrollador con Keycloak corriendo.
 - La política exacta de `AC-004` ("otro usuario recibe 404 o 403 según política definida") se resolvió como **404 uniforme** para cualquier recordatorio no accesible (propio o no), consistente con la descripción ya existente de `NotFound` en `openapi.yaml` ("never distinguishes the two, to avoid leaking existence"). No es una decisión nueva, es la aplicación directa de una regla ya documentada.
 - El mapeo `USER.id = Keycloak `sub` claim` (ambos UUID) es una decisión de implementación no explicitada en `09-data-model.md`. Se documenta aquí como nota de implementación, no como cambio al modelo de datos aprobado — evita una columna `keycloak_id` redundante y mantiene una única fuente de identidad.
 
 ## 7. Primer milestone
 
-**Milestone 1 (este ciclo): "Reminder core, sin compartir."**
+**Milestone 1: "Reminder core, sin compartir."** — **MILESTONE_1_STATUS: READY** (2026-08-15, ver `docs/development/03-milestone-1-gate.md`).
 Alcance: autenticación vía Keycloak, sincronización de usuario, crear/listar/completar recordatorios propios, con bloqueo optimista y manejo de errores uniforme.
-Criterio de cierre real (no solo "compila"): tests unitarios y de integración en verde contra una base de datos real (Testcontainers), ejecutados por un desarrollador con JDK 21 + Docker — pendiente de ejecución real, ver §11.
+Criterio de cierre real cumplido: tests unitarios y de integración en verde contra una base de datos real (Testcontainers), 19/19, `./gradlew build` `BUILD SUCCESSFUL` — ver §11 y `02-validation-report.md` §8.
 
 **Milestone 2 (siguiente, no iniciado):** editar/eliminar recordatorio (cierra el CRUD completo, US-005/US-007) + inicio del módulo `sharing` (invitaciones).
 
@@ -104,10 +104,10 @@ Se aplicó `14-definition-of-done.md` en lo que el entorno permite verificar:
 
 | Criterio DoD | Estado en este ciclo |
 |---|---|
-| Cumple criterios de aceptación | Sí, por diseño (AC-001 a AC-006 relevantes al slice) — no verificado con tests ejecutados realmente. |
+| Cumple criterios de aceptación | Sí — verificado con tests ejecutados realmente (19/19 en verde, `02-validation-report.md` §8.5). |
 | Código revisado | No aplica todavía (no hay proceso de PR sin repositorio remoto). |
-| Pruebas unitarias/integración relevantes | Escritas; **no ejecutadas** en este entorno. |
-| Compilación limpia | **No verificable en este entorno** (sin JDK 21/Gradle). |
+| Pruebas unitarias/integración relevantes | Escritas y **ejecutadas realmente** (`./gradlew clean test`, JDK 21 + Docker/Testcontainers reales). |
+| Compilación limpia | **Verificada** (`./gradlew build` → `BUILD SUCCESSFUL`, jar ejecutable generado). |
 | Análisis estático limpio | No configurado todavía (queda en backlog, `DEVOPS` — SAST/lint). |
 | No existen secretos | Verificado por inspección manual: `application.yml` no contiene credenciales reales, usa variables de entorno. |
 | Dependencias revisadas | Sí — todas ya estaban documentadas en `07-backend-architecture.md`/`17-dependencies.md`; ninguna nueva sin justificar. |
@@ -119,7 +119,7 @@ Se aplicó `14-definition-of-done.md` en lo que el entorno permite verificar:
 | Evidencia de QA disponible | Este documento + `01-technical-backlog.md` + resultado de validación en §11. |
 | Ticket enlazado al PR | No aplica (no hay tracker conectado; backlog vive en Markdown). |
 
-**Conclusión:** el vertical slice cumple el DoD documental y de diseño; **no cumple todavía el DoD de ejecución** (compilación/tests/CI reales) porque el entorno de esta sesión no dispone de las herramientas necesarias. Esto se declara explícitamente, no se oculta.
+**Conclusión:** el vertical slice cumple el DoD documental, de diseño, y de ejecución (compilación/tests reales en verde, 2026-08-15). Queda pendiente únicamente CI (no existe todavía como pipeline automatizado) y análisis estático (backlog `DEVOPS-002`).
 
 ## 9. Relación con requisitos / UC / AC
 
@@ -143,6 +143,6 @@ Por instrucción explícita de esta fase, y confirmado en `32-v1-development-gat
 - El estado único global de `Reminder` (`PENDING`/`COMPLETED`, sin estado por colaborador).
 - El contrato `openapi.yaml` — el código de este ciclo se ajustó al contrato existente; no se modificó el contrato para que el código encajara.
 
-## 11. Validación de este ciclo (ejecutada según lo que el entorno permite)
+## 11. Validación de este ciclo
 
-Ver `docs/development/02-validation-report.md` para el detalle completo, comandos exactos y resultado de cada verificación intentada. Resumen: el código se revisó manualmente línea por línea contra el contrato (`openapi.yaml`, `09-data-model.md`, `11-auth-security.md`) y no se pudo compilar/ejecutar en este entorno por ausencia de JDK 21, Gradle y Docker. Se documentan los comandos exactos que un desarrollador debe ejecutar localmente para completar la validación real antes de dar el milestone por cerrado.
+Ver `docs/development/02-validation-report.md` para el detalle completo, comandos exactos y resultado de cada verificación. Resumen: el código se revisó manualmente línea por línea contra el contrato (`openapi.yaml`, `09-data-model.md`, `11-auth-security.md`) en los ciclos 1–2, y en el ciclo 3 (2026-08-15) se compiló, testeó (`./gradlew clean test`, 19/19 en verde) y empaquetó (`./gradlew build`) realmente contra JDK 21 + Docker/Testcontainers reales, más una validación manual de `bootRun` contra PostgreSQL y Keycloak reales. `MILESTONE_1_STATUS: READY` (`docs/development/03-milestone-1-gate.md`).

@@ -161,3 +161,121 @@ Todos estos tests están **escritos y revisados estáticamente**, no ejecutados 
 - `CODE_STATUS: WRITTEN_AND_STATICALLY_VERIFIED — PENDING_REAL_BUILD` (se mantiene; no se pudo mejorar a `BUILD_AND_TEST_VERIFIED` porque eso exigiría haber ejecutado realmente `./gradlew clean test`, cosa que este entorno no permite).
 
 Se corrigieron 3 errores reales encontrados por inspección (no hipotéticos: los tres son violaciones concretas de AC-006 y del comportamiento esperado de los filtros, detectables por lectura de código sin necesitar ejecutarlo). Ver `docs/development/03-milestone-1-gate.md` para el resultado consolidado del gate.
+
+---
+
+## 8. Ciclo de validación 3 — ejecución real (cierre efectivo del gate)
+
+**Fecha:** 2026-08-15. **Entorno:** máquina real del usuario (macOS, fuera del sandbox de las sesiones anteriores). A diferencia de los ciclos 1 y 2, este ciclo **sí** dispuso de JDK 21, Docker y acceso de red reales, por lo que aquí se ejecutaron de verdad los comandos que en `§4`/`§7.1` solo estaban documentados como pendientes.
+
+### 8.1 Entorno real (comandos ejecutados, salida real)
+
+```text
+$ java -version
+openjdk version "21.0.10" 2026-01-20 LTS
+OpenJDK Runtime Environment (build 21.0.10+8-LTS-217)
+
+$ docker --version
+Docker version 29.6.2, build dfc4efb
+
+$ docker compose version
+Docker Compose version v5.3.1
+```
+
+El daemon de Docker no estaba corriendo al inicio de este ciclo (`docker ps` fallaba con `no such file or directory` en el socket); Docker Desktop ya estaba abierto por el usuario y el daemon quedó disponible sin más acción.
+
+### 8.2 Git — resuelto
+
+El `.git/index.lock` que había quedado atascado en el ciclo 1 (bloqueo del entorno de esa sesión, no del repositorio) se eliminó sin incidentes (`rm -f .git/index.lock`) porque en esta máquina real no existe la restricción de montaje que afectaba a las sesiones de sandbox anteriores. Se ejecutó `git add -A` (88 archivos, incluyendo los cambios sin confirmar de los hallazgos 1–3 del ciclo 2 que habían quedado como *unstaged*/*untracked*) y `git commit`, con éxito. Commit raíz `9f77ead`.
+
+### 8.3 Gradle wrapper — generado
+
+No había `gradle` instalado como binario del sistema (`which gradle` → vacío) ni vía Homebrew utilizable sin `sudo chown` (que no se ejecutó, por ser una operación irreversible sobre `/opt/homebrew` fuera del alcance de esta tarea). Se descargó la distribución binaria oficial de Gradle 8.9 (`https://services.gradle.org/distributions/gradle-8.9-bin.zip`, verificado con red real, sin bloqueo de allowlist) a un directorio temporal fuera del repositorio, y se usó ese binario **una sola vez** para ejecutar `gradle wrapper --gradle-version 8.9` dentro de `backend/`. Resultado: `backend/gradlew`, `backend/gradlew.bat`, `backend/gradle/wrapper/gradle-wrapper.jar` y `gradle-wrapper.properties` (`distributionUrl` → `gradle-8.9-bin.zip`) generados y confirmados con `BUILD SUCCESSFUL`. El binario temporal no forma parte del repositorio ni de la imagen de build; todo build subsecuente usa exclusivamente `./gradlew`.
+
+### 8.4 `./gradlew clean test` — primer intento: fallo real, causa raíz identificada y corregida
+
+Primer intento (`./gradlew clean test --no-daemon`): `compileJava`/`compileTestJava`/`classes` **compilaron limpio a la primera** (confirma la revisión estática manual de los ciclos 1–2: cero errores de sintaxis, imports o tipos). `ReminderServiceTest` (9 tests, no requiere Docker) pasó. Los dos test classes que usan Testcontainers (`ReminderControllerIntegrationTest`, `UserControllerIntegrationTest`) fallaron en `initializationError` con:
+
+```
+java.lang.IllegalStateException: Could not find a valid Docker environment.
+  UnixSocketClientProviderStrategy: failed with exception BadRequestException (Status 400: {...campos vacíos...})
+  DockerDesktopClientProviderStrategy: failed with exception BadRequestException (Status 400: {...campos vacíos...})
+```
+
+**Causa raíz (real, no hipotética):** incompatibilidad conocida entre `docker-java` (cliente HTTP interno de Testcontainers) y Docker Engine 29+, que en 2026 elevó su versión mínima de API de `1.24` a `1.40` (este daemon reporta `MinAPIVersion: 1.40`, `ApiVersion: 1.55` vía `docker version`). `testcontainers-bom` estaba fijado en `1.20.1` (`build.gradle.kts`), cuyo `docker-java` interno sondea por defecto una versión de API anterior al mínimo aceptado, y el daemon responde `400` con un cuerpo `SystemInfo` vacío en vez de un error claro. Se confirmó reproduciendo el mismo cuerpo vacío con `curl --unix-socket /var/run/docker.sock http://localhost/v1.24/info` (200, pero todos los campos vacíos) contra `http://localhost/info` sin versión (200, campos completos).
+
+**Corrección aplicada (código, no el contrato):**
+1. `backend/build.gradle.kts`: `testcontainers-bom` `1.20.1` → `1.21.4` (última versión de la línea `1.x`, sin saltar a la `2.x` que cambia coordenadas de artefacto). Por sí sola no resolvió el problema — mismo síntoma.
+2. `backend/src/test/resources/docker-java.properties` (archivo nuevo): `api.version=1.44`, fijando explícitamente la versión de API que `docker-java` debe negociar con el daemon, dentro del rango que este acepta (`1.40`–`1.55`). Esta es la solución documentada por el propio proyecto Testcontainers para este incompatibilidad conocida con Docker Desktop/Engine 29+ en versiones `1.21.x` (la alternativa sin este archivo es saltar a `testcontainers` `2.x`, que sí resuelve el problema de raíz pero es un cambio de versión mayor no justificado para este ciclo).
+
+Ninguna de las dos correcciones toca `openapi.yaml`, el modelo de datos, ni ninguna decisión aprobada — es exclusivamente una fijación de versión/configuración de una herramienta de test, exactamente el tipo de ajuste técnico que esta fase de validación está autorizada a hacer.
+
+### 8.5 `./gradlew clean test` — segundo intento: verde real
+
+```
+> Task :clean
+> Task :compileJava
+> Task :processResources
+> Task :classes
+> Task :compileTestJava
+> Task :processTestResources
+> Task :testClasses
+> Task :test
+
+BUILD SUCCESSFUL in 35s
+6 actionable tasks: 6 executed
+```
+
+Resultado real por clase (XML de `build/test-results/test/`, generados en esta ejecución, no reutilizados de ciclos anteriores):
+
+| Clase | tests | failures | errors |
+|---|---|---|---|
+| `reminder.application.ReminderServiceTest` | 9 | 0 | 0 |
+| `reminder.api.ReminderControllerIntegrationTest` | 7 | 0 | 0 |
+| `user.api.UserControllerIntegrationTest` | 3 | 0 | 0 |
+| **Total** | **19** | **0** | **0** |
+
+**TEST_STATUS: PASSED (19/19, ejecución real, Testcontainers con PostgreSQL 16 real vía Docker, no simulado).**
+
+### 8.6 `./gradlew build` — verde real
+
+```
+> Task :compileJava UP-TO-DATE
+> Task :bootJar
+> Task :jar
+> Task :assemble
+> Task :test UP-TO-DATE
+> Task :check UP-TO-DATE
+> Task :build
+
+BUILD SUCCESSFUL in 4s
+8 actionable tasks: 3 executed, 5 up-to-date
+```
+
+Artefactos generados y confirmados: `backend/build/libs/vida-cotidiana-backend-0.1.0-SNAPSHOT.jar` (55.9 MB, jar ejecutable Spring Boot) y `...-plain.jar`.
+
+**BUILD_STATUS: SUCCESSFUL (ejecución real de `./gradlew build`, no simulado).**
+
+### 8.7 Validación manual adicional: `docker compose` + `bootRun` contra Postgres/Keycloak reales
+
+`docker compose up -d postgres keycloak` (desde la raíz del repo) levantó Keycloak 25 sin problema (`http://localhost:8081`), pero el servicio `postgres` del compose falló al enlazar el puerto `5432`: **ya existe un PostgreSQL 17 nativo corriendo en esa máquina fuera de este proyecto** (`/Library/PostgreSQL/17/bin/postgres`, servicio del sistema preexistente, no relacionado con Vida Cotidiana). Esto no es un defecto de `docker-compose.yml` ni del proyecto — es un conflicto de puerto con software ya instalado en el equipo del usuario, fuera del alcance de esta tarea modificar o detener.
+
+Para completar la validación manual de `bootRun` sin tocar el Postgres nativo del sistema ni cambiar el `docker-compose.yml` versionado, se levantó un contenedor Postgres 16 temporal ad hoc en el puerto alternativo `15432` (mismas credenciales que `docker-compose.yml`: `vidacotidiana`/`vidacotidiana`), se ejecutó `DB_URL=jdbc:postgresql://localhost:15432/vidacotidiana ./gradlew bootRun` y se verificó en caliente:
+
+- Arranque limpio: Flyway aplicó `V1__init_schema.sql` contra el Postgres 16 real (`Successfully applied 1 migration ... now at version v1`), Hibernate validó el esquema (`ddl-auto: validate`) sin discrepancias, Tomcat arrancó en el puerto 8080, aplicación lista en 2.585s.
+- `GET /actuator/health` → `200 {"status":"UP"}`.
+- `GET /api/v1/me` sin token → `401 {"code":"UNAUTHORIZED","message":"Authentication is required to access this resource.","traceId":"..."}`.
+- `GET /api/v1/reminders` sin token → mismo envoltorio `401` uniforme.
+
+Esto confirma en caliente, contra un proceso real (no un test), la corrección del Hallazgo 1 del ciclo 2 (`RestAuthenticationEntryPoint` devolviendo el envoltorio `Error` uniforme para 401 generados por Spring Security). No se validó el flujo completo de login/token real contra Keycloak (crear el realm `vida-cotidiana` sigue siendo un paso manual pendiente, `INFRA-002`, fuera del alcance de este ciclo) — la validación se limitó a confirmar que la aplicación arranca, conecta a una base de datos real, aplica migraciones reales, y responde con el contrato de errores correcto sin autenticación.
+
+Tras la validación, se detuvo el proceso `bootRun` y se eliminaron los contenedores temporales (`vc-validation-postgres`, y el `docker compose down` de `keycloak`). No queda ningún contenedor ni proceso de este ciclo corriendo en el equipo del usuario.
+
+### 8.8 Resultado de este ciclo
+
+- `BUILD_STATUS: SUCCESSFUL` (visto realmente, `./gradlew build` con `BUILD SUCCESSFUL`).
+- `TEST_STATUS: PASSED` (19/19, visto realmente, incluyendo Testcontainers con Docker real).
+- `CODE_STATUS: BUILD_AND_TEST_VERIFIED` (supera el estado `PENDING_REAL_BUILD` de los ciclos 1–2: ya no falta evidencia de ejecución real).
+- Se corrigió una causa raíz real y no anticipada (incompatibilidad `docker-java`/Docker Engine 29+, `§8.4`), documentada con su causa exacta y su fix, no adivinada.
+
+Ver `docs/development/03-milestone-1-gate.md` para la actualización del gate a `READY` con esta evidencia.
