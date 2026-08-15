@@ -6,6 +6,8 @@ Estado: `DONE` (código completo **y** verificado con build/test real), `PARTIAL
 
 **Nota de esta actualización (2026-08-15, ver `03-milestone-1-gate.md`, `MILESTONE_1_STATUS: READY`):** `./gradlew clean test` y `./gradlew build` se ejecutaron realmente (JDK 21 + Docker reales) con resultado `BUILD SUCCESSFUL` y 19/19 tests en verde (`02-validation-report.md` §8). Los ítems de backend de Milestone 1 (`BE-001` a `BE-013`, `BE-030` a `BE-032`) pasan de `PARTIAL` a `DONE` en esta actualización — código completo **y** verificado con build/test real, no solo estáticamente.
 
+**Nota adicional (mismo día, tras la migración de build tool a Maven, ADR-013):** con el gate de Milestone 1 confirmado `READY` bajo Maven (`02-validation-report.md` §9, addendum en `03-milestone-1-gate.md`), arrancó Milestone 2 con `BE-014` (`PATCH /reminders/{id}`). `./mvnw clean test`: 26/26 en verde (19 heredados + 7 nuevos de `BE-014`); `./mvnw clean package`: `BUILD SUCCESS`.
+
 ## Backend (Java 21 / Spring Boot 3.3.4 / Modular Monolith)
 
 | ID | Tarea | Origen | Estado | Clases / Tests |
@@ -26,7 +28,7 @@ Estado: `DONE` (código completo **y** verificado con build/test real), `PARTIAL
 | BE-030 | Fix: filtros `TraceIdFilter`/`UserSyncFilter` se ejecutaban dos veces por request (auto-registro genérico de Spring Boot + registro explícito en `SecurityConfig`) | Hallazgo propio de esta validación | DONE | `SecurityConfig` (`FilterRegistrationBean` deshabilitando el auto-registro) |
 | BE-031 | Fix: 401/403 generados dentro de la cadena de Spring Security no llevaban el envoltorio `Error` (`code`/`message`/`traceId`) | Hallazgo propio de esta validación, AC-006 | DONE | `RestAuthenticationEntryPoint`, `RestAccessDeniedHandler`; `ReminderControllerIntegrationTest.reminderEndpoints_requireAuthentication`, `UserControllerIntegrationTest.getCurrentUser_requiresAuthentication` |
 | BE-032 | Fix: excepción no controlada dentro de `UserSyncFilter` (p. ej. token sin claim `email`) escapaba de `GlobalExceptionHandler` | Hallazgo propio de esta validación, AC-006 | DONE | `UserSyncFilter` (try/catch + respuesta `Error` uniforme) |
-| BE-014 | `PATCH /reminders/{id}` (editar, bloqueo optimista obligatorio) | AC-004b, US-005 | TODO — **fuera del alcance de Milestone 1** (ver `03-milestone-1-gate.md`) |
+| BE-014 | `PATCH /reminders/{id}` (editar, bloqueo optimista obligatorio) | AC-004b, US-005 | DONE (2026-08-15, Milestone 2) | `ReminderController.update`, `ReminderService.edit`, `Reminder.applyEdit`, `UpdateReminderRequest`; `ReminderServiceTest` (+3 casos), `ReminderControllerIntegrationTest` (+4 casos). `./mvnw clean test`: 26/26 en verde; `./mvnw clean package`: `BUILD SUCCESS`. |
 | BE-015 | `DELETE /reminders/{id}` (cascada + notificación a colaboradores activos) | UC-05, AC-013, DEC-002 | TODO (depende de BE-020 para colaboradores) |
 | BE-016 | Migración Flyway `V2__sharing.sql` (`invitations`, `reminder_shares`) | `09-data-model.md` | TODO |
 | BE-017 | `POST /reminders/{id}/shares` (crear invitación, sin enumeración, rate limit) | UC-07, AC-007, SEC-001 | TODO |

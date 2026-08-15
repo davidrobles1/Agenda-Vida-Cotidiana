@@ -139,6 +139,41 @@ class ReminderServiceTest {
                 .isInstanceOf(NotFoundException.class);
     }
 
+    @Test
+    void edit_matchingVersionUpdatesProvidedFieldsOnly() {
+        Reminder reminder = new Reminder(ownerId, "Buy milk", "2%", null);
+        UUID id = fakeId(reminder);
+        when(reminderRepository.findById(id)).thenReturn(Optional.of(reminder));
+
+        Reminder result = reminderService.edit(id, ownerId, "Buy oat milk", null, null, reminder.getVersion());
+
+        assertThat(result.getTitle()).isEqualTo("Buy oat milk");
+        assertThat(result.getDescription()).isEqualTo("2%"); // untouched: null argument means "no change"
+    }
+
+    @Test
+    void edit_mismatchedVersionThrowsVersionConflictWithoutApplyingChange() {
+        // AC-004b: a stale version must be rejected with 409, and the edit must not be applied.
+        Reminder reminder = new Reminder(ownerId, "Water plants", null, null);
+        UUID id = fakeId(reminder);
+        when(reminderRepository.findById(id)).thenReturn(Optional.of(reminder));
+
+        assertThatThrownBy(() -> reminderService.edit(id, ownerId, "Water the ferns", null, null, reminder.getVersion() + 1))
+                .isInstanceOf(VersionConflictException.class)
+                .satisfies(ex -> assertThat(((VersionConflictException) ex).getCode()).isEqualTo("REMINDER_VERSION_CONFLICT"));
+        assertThat(reminder.getTitle()).isEqualTo("Water plants");
+    }
+
+    @Test
+    void edit_nonOwnerGetsNotFound() {
+        Reminder reminder = new Reminder(ownerId, "Water plants", null, null);
+        UUID id = fakeId(reminder);
+        when(reminderRepository.findById(id)).thenReturn(Optional.of(reminder));
+
+        assertThatThrownBy(() -> reminderService.edit(id, strangerId, "Hijacked title", null, null, reminder.getVersion()))
+                .isInstanceOf(NotFoundException.class);
+    }
+
     /**
      * Reminder.id is only assigned by the database (@GeneratedValue) in a
      * real persistence context; for pure unit tests against a mocked

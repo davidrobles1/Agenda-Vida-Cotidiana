@@ -73,6 +73,27 @@ public class ReminderService {
         return reminderRepository.save(reminder);
     }
 
+    /**
+     * UC-05 (edit)/AC-004b. Unlike toggleCompletion, version is mandatory
+     * here: a mismatch always rejects the edit with 409, never silently
+     * skips the check.
+     */
+    @Transactional
+    public Reminder edit(UUID reminderId, UUID callerUserId, String title, String description,
+                          Instant dueAt, int expectedVersion) {
+        Reminder reminder = findOrThrow(reminderId);
+        requireAccess(reminder, callerUserId);
+
+        if (expectedVersion != reminder.getVersion()) {
+            throw new VersionConflictException(
+                    "Reminder " + reminderId + " was modified concurrently (expected version "
+                            + expectedVersion + ", current version " + reminder.getVersion() + ").");
+        }
+
+        reminder.applyEdit(title, description, dueAt);
+        return reminderRepository.save(reminder);
+    }
+
     private Reminder findOrThrow(UUID reminderId) {
         return reminderRepository.findById(reminderId)
                 .orElseThrow(() -> new NotFoundException("REMINDER_NOT_FOUND", "The requested reminder was not found."));

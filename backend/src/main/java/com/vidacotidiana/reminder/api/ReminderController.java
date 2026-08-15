@@ -4,6 +4,7 @@ import com.vidacotidiana.identity.infrastructure.CurrentUser;
 import com.vidacotidiana.reminder.api.dto.CompleteReminderRequest;
 import com.vidacotidiana.reminder.api.dto.CreateReminderRequest;
 import com.vidacotidiana.reminder.api.dto.ReminderResponse;
+import com.vidacotidiana.reminder.api.dto.UpdateReminderRequest;
 import com.vidacotidiana.reminder.application.ReminderService;
 import com.vidacotidiana.reminder.domain.Reminder;
 import com.vidacotidiana.shared.api.PageResponse;
@@ -14,6 +15,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -24,11 +26,10 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.UUID;
 
 /**
- * Covers exactly the reminder endpoints in scope for the first vertical
- * slice (Documentacion/openapi/openapi.yaml): create, list (own reminders,
- * paginated), get by id, and toggle completion. PATCH (edit) and DELETE are
- * deliberately out of scope for this slice — see
- * docs/development/01-technical-backlog.md BE-014/BE-015.
+ * Covers the reminder endpoints in scope through Milestone 2's first
+ * increment (Documentacion/openapi/openapi.yaml): create, list (own
+ * reminders, paginated), get by id, toggle completion, and edit. DELETE is
+ * still out of scope — see docs/development/01-technical-backlog.md BE-015.
  */
 @RestController
 @RequestMapping("/api/v1/reminders")
@@ -69,6 +70,13 @@ public class ReminderController {
                                       @RequestBody(required = false) CompleteReminderRequest request) {
         Integer expectedVersion = (request != null) ? request.version() : null;
         Reminder reminder = reminderService.toggleCompletion(id, currentUser.userId(), expectedVersion);
+        return ReminderResponse.from(reminder);
+    }
+
+    @PatchMapping("/{id}")
+    public ReminderResponse update(@PathVariable UUID id, @Valid @RequestBody UpdateReminderRequest request) {
+        Reminder reminder = reminderService.edit(
+                id, currentUser.userId(), request.title(), request.description(), request.dueAt(), request.version());
         return ReminderResponse.from(reminder);
     }
 }

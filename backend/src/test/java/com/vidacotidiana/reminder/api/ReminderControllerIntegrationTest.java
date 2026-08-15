@@ -19,6 +19,7 @@ import java.util.UUID;
 import static org.hamcrest.Matchers.is;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -31,8 +32,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * bypassing real Keycloak network calls), USER sync, Flyway migration, JPA,
  * and the Reminder vertical slice endpoints.
  *
- * Traceability: UC-03/UC-04, AC-003/AC-004/AC-004b/AC-005/AC-006,
- * docs/development/01-technical-backlog.md BE-007..BE-013.
+ * Traceability: UC-03/UC-04/UC-05, AC-003/AC-004/AC-004b/AC-005/AC-006,
+ * docs/development/01-technical-backlog.md BE-007..BE-013, BE-014.
  */
 @Testcontainers
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
@@ -201,5 +202,106 @@ class ReminderControllerIntegrationTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code", is("REMINDER_NOT_FOUND")))
                 .andExpect(jsonPath("$.traceId").exists());
+    }
+
+    @Test
+    void updateReminder_matchingVersionAppliesPartialEdit() throws Exception {
+        UUID userId = UUID.randomUUID();
+        var principal = jwt().jwt(jwtFor(userId, "frank@example.com").build());
+        String createBody = objectMapper.writeValueAsString(Map.of("title", "Buy milk", "description", "2%"));
+
+        String createdJson = mockMvc.perform(post("/api/v1/reminders")
+                        .with(principal)
+                        .contentType("application/json")
+                        .content(createBody))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String reminderId = objectMapper.readTree(createdJson).get("id").asText();
+
+        String updateBody = objectMapper.writeValueAsString(Map.of("title", "Buy oat milk", "version", 0));
+
+        mockMvc.perform(patch("/api/v1/reminders/" + reminderId)
+                        .with(principal)
+                        .contentType("application/json")
+                        .content(updateBody))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title", is("Buy oat milk")))
+                .andExpect(jsonPath("$.description", is("2%"))) // omitted in the request: unchanged
+                .andExpect(jsonPath("$.version", is(1)));
+    }
+
+    @Test
+    void updateReminder_mismatchedVersionReturns409() throws Exception {
+        UUID userId = UUID.randomUUID();
+        var principal = jwt().jwt(jwtFor(userId, "grace@example.com").build());
+        String createBody = objectMapper.writeValueAsString(Map.of("title", "Water plants"));
+
+        String createdJson = mockMvc.perform(post("/api/v1/reminders")
+                        .with(principal)
+                        .contentType("application/json")
+                        .content(createBody))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String reminderId = objectMapper.readTree(createdJson).get("id").asText();
+
+        String staleUpdateBody = objectMapper.writeValueAsString(Map.of("title", "Water the ferns", "version", 99));
+
+        mockMvc.perform(patch("/api/v1/reminders/" + reminderId)
+                        .with(principal)
+                        .contentType("application/json")
+                        .content(staleUpdateBody))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code", is("REMINDER_VERSION_CONFLICT")));
+    }
+
+    @Test
+    void updateReminder_missingVersionIsRejected() throws Exception {
+        // AC-004b: version is required on PATCH, unlike the optional version on /complete.
+        UUID userId = UUID.randomUUID();
+        var principal = jwt().jwt(jwtFor(userId, "heidi@example.com").build());
+        String createBody = objectMapper.writeValueAsString(Map.of("title", "Water plants"));
+
+        String createdJson = mockMvc.perform(post("/api/v1/reminders")
+                        .with(principal)
+                        .contentType("application/json")
+                        .content(createBody))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String reminderId = objectMapper.readTree(createdJson).get("id").asText();
+
+        String bodyWithoutVersion = objectMapper.writeValueAsString(Map.of("title", "Water the ferns"));
+
+        mockMvc.perform(patch("/api/v1/reminders/" + reminderId)
+                        .with(principal)
+                        .contentType("application/json")
+                        .content(bodyWithoutVersion))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("VALIDATION_ERROR")));
+    }
+
+    @Test
+    void updateReminder_ownedByAnotherUserReturnsNotFound_neverForbidden() throws Exception {
+        UUID ownerId = UUID.randomUUID();
+        UUID strangerId = UUID.randomUUID();
+        var owner = jwt().jwt(jwtFor(ownerId, "ivan@example.com").build());
+        var stranger = jwt().jwt(jwtFor(strangerId, "judy@example.com").build());
+
+        String createBody = objectMapper.writeValueAsString(Map.of("title", "Private reminder"));
+        String createdJson = mockMvc.perform(post("/api/v1/reminders")
+                        .with(owner)
+                        .contentType("application/json")
+                        .content(createBody))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String reminderId = objectMapper.readTree(createdJson).get("id").asText();
+
+        String updateBody = objectMapper.writeValueAsString(Map.of("title", "Hijacked title", "version", 0));
+
+        mockMvc.perform(patch("/api/v1/reminders/" + reminderId)
+                        .with(stranger)
+                        .contentType("application/json")
+                        .content(updateBody))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code", is("REMINDER_NOT_FOUND")));
     }
 }

@@ -118,4 +118,22 @@ public class Reminder {
         this.status = (this.status == ReminderStatus.PENDING) ? ReminderStatus.COMPLETED : ReminderStatus.PENDING;
         this.updatedAt = Instant.now();
     }
+
+    /**
+     * AC-004b: partial update — a null argument leaves the corresponding
+     * field unchanged. Version comparison happens in ReminderService before
+     * this is called; this method only applies the already-authorized edit.
+     */
+    public void applyEdit(String title, String description, Instant dueAt) {
+        if (title != null) {
+            this.title = title;
+        }
+        if (description != null) {
+            this.description = description;
+        }
+        if (dueAt != null) {
+            this.dueAt = dueAt;
+        }
+        this.updatedAt = Instant.now();
+    }
 }
