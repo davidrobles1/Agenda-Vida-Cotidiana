@@ -1,6 +1,8 @@
 package com.vidacotidiana.shared.api;
 
+import com.vidacotidiana.shared.domain.ConflictException;
 import com.vidacotidiana.shared.domain.DomainException;
+import com.vidacotidiana.shared.domain.GoneException;
 import com.vidacotidiana.shared.domain.NotFoundException;
 import com.vidacotidiana.shared.domain.VersionConflictException;
 import com.vidacotidiana.shared.infrastructure.TraceIdFilter;
@@ -37,6 +39,16 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleOptimisticLocking(ObjectOptimisticLockingFailureException ex) {
         return build(HttpStatus.CONFLICT, "REMINDER_VERSION_CONFLICT",
                 "The resource was modified concurrently; refetch and retry.");
+    }
+
+    @ExceptionHandler(ConflictException.class)
+    public ResponseEntity<ErrorResponse> handleConflict(ConflictException ex) {
+        return build(HttpStatus.CONFLICT, ex.getCode(), ex.getMessage());
+    }
+
+    @ExceptionHandler(GoneException.class)
+    public ResponseEntity<ErrorResponse> handleGone(GoneException ex) {
+        return build(HttpStatus.GONE, ex.getCode(), ex.getMessage());
     }
 
     @ExceptionHandler(DomainException.class)

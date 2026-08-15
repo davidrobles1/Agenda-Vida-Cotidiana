@@ -5,6 +5,8 @@ import com.vidacotidiana.reminder.domain.ReminderRepository;
 import com.vidacotidiana.reminder.domain.ReminderStatus;
 import com.vidacotidiana.shared.domain.NotFoundException;
 import com.vidacotidiana.shared.domain.VersionConflictException;
+import com.vidacotidiana.sharing.domain.ReminderShareRepository;
+import com.vidacotidiana.sharing.domain.ReminderShareStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -23,23 +25,31 @@ import static org.mockito.Mockito.when;
 
 /**
  * Unit tests for the Reminder vertical slice application service.
- * Traceability: UC-03/UC-04, AC-003/AC-004/AC-004b/AC-005
- * (Documentacion/13-acceptance.md), BE-007/BE-009/BE-010
+ * Traceability: UC-03/UC-04/UC-05, AC-003/AC-004/AC-004b/AC-005/AC-011
+ * (Documentacion/13-acceptance.md), BE-007/BE-009/BE-010/BE-022
  * (docs/development/01-technical-backlog.md).
  */
 class ReminderServiceTest {
 
     private ReminderRepository reminderRepository;
+    private ReminderShareRepository reminderShareRepository;
     private ReminderService reminderService;
 
     private final UUID ownerId = UUID.randomUUID();
     private final UUID strangerId = UUID.randomUUID();
+    private final UUID collaboratorId = UUID.randomUUID();
 
     @BeforeEach
     void setUp() {
         reminderRepository = Mockito.mock(ReminderRepository.class);
-        reminderService = new ReminderService(reminderRepository);
+        reminderShareRepository = Mockito.mock(ReminderShareRepository.class);
+        reminderService = new ReminderService(reminderRepository, reminderShareRepository);
         when(reminderRepository.save(any(Reminder.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    }
+
+    private void grantActiveShareTo(UUID reminderId, UUID userId) {
+        when(reminderShareRepository.existsByReminderIdAndCollaboratorUserIdAndStatus(reminderId, userId, ReminderShareStatus.ACTIVE))
+                .thenReturn(true);
     }
 
     @Test
@@ -73,6 +83,19 @@ class ReminderServiceTest {
         assertThatThrownBy(() -> reminderService.getAccessible(id, strangerId))
                 .isInstanceOf(NotFoundException.class)
                 .satisfies(ex -> assertThat(((NotFoundException) ex).getCode()).isEqualTo("REMINDER_NOT_FOUND"));
+    }
+
+    @Test
+    void getAccessible_activeCollaboratorCanRead() {
+        // AC-011/BE-022: an active collaborator has the same read access as the owner.
+        Reminder reminder = new Reminder(ownerId, "Pay rent", null, null);
+        UUID id = fakeId(reminder);
+        when(reminderRepository.findById(id)).thenReturn(Optional.of(reminder));
+        grantActiveShareTo(id, collaboratorId);
+
+        Reminder result = reminderService.getAccessible(id, collaboratorId);
+
+        assertThat(result).isSameAs(reminder);
     }
 
     @Test
@@ -142,6 +165,31 @@ class ReminderServiceTest {
     }
 
     @Test
+    void toggleCompletion_activeCollaboratorCanToggle() {
+        // AC-005/AC-011: any user with access (owner or ACTIVE collaborator) can complete/revert.
+        Reminder reminder = new Reminder(ownerId, "Water plants", null, null);
+        UUID id = fakeId(reminder);
+        when(reminderRepository.findById(id)).thenReturn(Optional.of(reminder));
+        grantActiveShareTo(id, collaboratorId);
+
+        Reminder result = reminderService.toggleCompletion(id, collaboratorId, null);
+
+        assertThat(result.getStatus()).isEqualTo(ReminderStatus.COMPLETED);
+    }
+
+    @Test
+    void edit_activeCollaboratorGetsNotFound_neverForbidden() {
+        // AC-011: a collaborator may never edit, even with ACTIVE access — same 404 as a stranger.
+        Reminder reminder = new Reminder(ownerId, "Water plants", null, null);
+        UUID id = fakeId(reminder);
+        when(reminderRepository.findById(id)).thenReturn(Optional.of(reminder));
+        grantActiveShareTo(id, collaboratorId);
+
+        assertThatThrownBy(() -> reminderService.edit(id, collaboratorId, "Hijacked title", null, null, reminder.getVersion()))
+                .isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
     void edit_matchingVersionUpdatesProvidedFieldsOnly() {
         Reminder reminder = new Reminder(ownerId, "Buy milk", "2%", null);
         UUID id = fakeId(reminder);
@@ -196,6 +244,19 @@ class ReminderServiceTest {
         assertThatThrownBy(() -> reminderService.delete(id, strangerId))
                 .isInstanceOf(NotFoundException.class)
                 .satisfies(ex -> assertThat(((NotFoundException) ex).getCode()).isEqualTo("REMINDER_NOT_FOUND"));
+        verify(reminderRepository, never()).delete(any(Reminder.class));
+    }
+
+    @Test
+    void delete_activeCollaboratorGetsNotFoundAndNothingIsDeleted() {
+        // AC-011: a collaborator may never delete, even with ACTIVE access — same 404 as a stranger.
+        Reminder reminder = new Reminder(ownerId, "Buy milk", null, null);
+        UUID id = fakeId(reminder);
+        when(reminderRepository.findById(id)).thenReturn(Optional.of(reminder));
+        grantActiveShareTo(id, collaboratorId);
+
+        assertThatThrownBy(() -> reminderService.delete(id, collaboratorId))
+                .isInstanceOf(NotFoundException.class);
         verify(reminderRepository, never()).delete(any(Reminder.class));
     }
 

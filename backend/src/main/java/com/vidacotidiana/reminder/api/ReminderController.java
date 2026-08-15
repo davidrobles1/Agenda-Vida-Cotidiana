@@ -56,7 +56,7 @@ public class ReminderController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         Pageable pageable = PageRequest.of(page, Math.min(size, 100));
-        Page<Reminder> reminders = reminderService.listOwnedBy(currentUser.userId(), pageable);
+        Page<Reminder> reminders = reminderService.listAccessibleTo(currentUser.userId(), pageable);
         return PageResponse.from(reminders.map(ReminderResponse::from));
     }
 

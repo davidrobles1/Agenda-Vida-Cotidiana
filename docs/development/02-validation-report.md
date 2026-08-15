@@ -378,3 +378,57 @@ $ JAVA_HOME=$(/usr/libexec/java_home -v 21) ./mvnw clean test
 - `TEST_STATUS: PASSED (33/33)` (visto realmente; ningún test simulado ni declarado en verde sin ejecutarlo).
 - Ningún cambio a `openapi.yaml`: ambos endpoints implementan exactamente el contrato ya definido (BE-015 dentro del subconjunto hoy alcanzable, declarado explícitamente, no silenciosamente).
 - Ver `docs/development/01-technical-backlog.md` (BE-014/BE-015) y `Documentacion/12-traceability.md` (fila `FR-004`) para la propagación de este resultado.
+
+---
+
+## 11. Corrección de infraestructura (AWS → servidor propio) y sharing completo — BE-016..022 (2026-08-15)
+
+Mismo día. Antes de implementar sharing, se corrigió una decisión de infraestructura superada: el Product Owner determinó que V1 no usa AWS ni ningún servicio gestionado de AWS — el backend y PostgreSQL se despliegan en un servidor propio alquilado (self-hosted). Ver `ADR-014` en `Documentacion/22-decision-log.md` para el detalle completo; `DEC-009` (proveedor de correo, que dependía de `DEC-008`/AWS) quedó reabierta como `TBD`, sin sustituir por un proveedor específico sin instrucción explícita. Esta sección documenta solo la parte de **código y build/test real**; la lista completa de documentos corregidos (ADR-009 marcado histórico, `28-v1-decision-pack.md`, `01-scope.md`, `06-c4.md`, `07-backend-architecture.md`, `25-open-questions.md`, `AI-CONTEXT.md`, `README.md`, `00-development-baseline.md`, `01-technical-backlog.md`) está en los commits correspondientes, no repetida aquí.
+
+### 11.1 Consecuencia en código: adapter de correo no-op
+
+`sharing.application.EmailSender` (puerto) + `sharing.infrastructure.NoOpEmailSender` (único adapter): registra en log que un email de invitación "se enviaría", sin enviar nada real y sin ningún cliente SMTP/API. El proveedor real se conecta detrás de esta misma interfaz cuando `DEC-009` se resuelva.
+
+### 11.2 Sharing completo: BE-016 a BE-022
+
+Migración `V2__sharing.sql` (`invitations`, `reminder_shares`, con `ON DELETE CASCADE`, `UNIQUE(reminder_id, collaborator_user_id)`, índice único parcial `WHERE status = 'PENDING'`, e índices de `invited_email`/`(status, expires_at)`/`collaborator_user_id` — exactamente los obligatorios de `09-data-model.md`, ninguno adicional).
+
+Código nuevo: paquete `sharing` completo (`domain`: `Invitation`, `ReminderShare`, `InvitationRepository` con la transición atómica condicional `resolveIfPending`, `ReminderShareRepository`; `application`: `SharingService`, `EmailSender`; `infrastructure`: `NoOpEmailSender`; `api`: `ReminderShareController`, `InvitationController`, DTOs). Tres excepciones de dominio nuevas en `shared.domain` (`ConflictException` → 409, `GoneException` → 410, `ValidationException` → 400), registradas en `GlobalExceptionHandler`. `ReminderService` extendido (BE-022): `getOwnedOrThrow` (owner-only, reutilizado por `SharingService`) vs. `requireOwnerOrActiveCollaborator` (lectura/completar); `ReminderRepository.findAccessibleTo` amplía `GET /reminders` a propios + compartidos `ACTIVE`.
+
+**Transición atómica condicional (AC-008/SEC-002), verificada de verdad, no solo escrita:** `InvitationRepository.resolveIfPending` es un `@Modifying @Query("UPDATE Invitation i SET i.status = :newStatus, i.resolvedAt = CURRENT_TIMESTAMP WHERE i.id = :id AND i.status = ...PENDING")`. `SharingFlowIntegrationTest.acceptInvitation_alreadyResolved_returns410` ejecuta dos requests secuenciales de aceptación sobre la misma invitación (simulando el lado perdedor de una concurrencia real, tal como autoriza la tarea) y confirma que la segunda responde `410` sin crear un segundo `REMINDER_SHARE` — no hay una ventana "leer, comprobar en Java, guardar" en la que dos requests pudieran ambas tener éxito.
+
+### 11.3 `./mvnw clean test` — verde a la primera
+
+```text
+$ JAVA_HOME=$(/usr/libexec/java_home -v 21) ./mvnw clean test
+...
+[INFO] Tests run: 16, Failures: 0, Errors: 0, Skipped: 0 -- in com.vidacotidiana.sharing.api.SharingFlowIntegrationTest
+[INFO] Tests run: 19, Failures: 0, Errors: 0, Skipped: 0 -- in com.vidacotidiana.sharing.application.SharingServiceTest
+[INFO] Tests run: 15, Failures: 0, Errors: 0, Skipped: 0 -- in com.vidacotidiana.reminder.api.ReminderControllerIntegrationTest
+[INFO] Tests run: 19, Failures: 0, Errors: 0, Skipped: 0 -- in com.vidacotidiana.reminder.application.ReminderServiceTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0 -- in com.vidacotidiana.user.api.UserControllerIntegrationTest
+[INFO] Tests run: 72, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+```
+
+**72/72 en verde** (33 heredados de Milestone 1/BE-014/BE-015 + 39 nuevos: 16 en `SharingFlowIntegrationTest`, 19 en `SharingServiceTest`, 4 casos de autorización de colaborador añadidos a `ReminderServiceTest` para BE-022). Ningún test falló en el primer intento — no fue necesario ningún fix de compatibilidad esta vez (a diferencia de la migración Gradle→Maven, §8.4). Los logs de Flyway confirman `Migrating schema "public" to version "2 - sharing"` en cada test de integración, contra un PostgreSQL 16 real vía Testcontainers.
+
+Cobertura real por escenario (no solo "compila"): invitación por email con/sin cuenta existente (misma forma de respuesta, SEC-001), por username existente/inexistente (400), invitación duplicada pendiente (409), creación por no-propietario (404), listados paginados con autorización owner-only, aceptar/rechazar (happy path + `410` en la segunda resolución), cancelar (owner/no-inviter/ya-resuelta), revocar con efecto inmediato (colaborador revocado → `404` en el siguiente request, sin ventana de gracia), y el nuevo alcance de autorización: un colaborador activo puede `GET`/completar pero recibe `404` (nunca 403) en `PATCH`/`DELETE`/invitar, y `GET /reminders` ahora incluye recordatorios compartidos activos.
+
+### 11.4 `./mvnw clean package` — verde
+
+```text
+[INFO] Tests run: 72, Failures: 0, Errors: 0, Skipped: 0
+...
+[INFO] BUILD SUCCESS
+```
+
+Jar ejecutable regenerado.
+
+### 11.5 Resultado
+
+- `BUILD_STATUS: SUCCESSFUL`.
+- `TEST_STATUS: PASSED (72/72)`.
+- Cero cambios a `openapi.yaml`/`09-data-model.md`: BE-016..022 implementan exactamente el contrato ya definido, incluyendo los estados/campos exactos de `INVITATION`/`REMINDER_SHARE`.
+- `DEVOPS-001` (rate limiting sobre creación de invitaciones) deliberadamente **no** incluido en este incremento, tal como pedía la tarea — sigue `TODO`.
+- Ver `docs/development/01-technical-backlog.md` (BE-016..022) y `Documentacion/12-traceability.md` (filas `FR-007`..`FR-010`) para la propagación de este resultado.
