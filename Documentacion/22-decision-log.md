@@ -97,6 +97,8 @@
 ## ADR-009 Cloud provider: AWS
 **Estado:** Accepted (2026-08-09, `DEC-008`)
 
+**Estado histórico previo (superado, ver ADR-014):** esta decisión (AWS como cloud provider) fue revertida por decisión explícita posterior del Product Owner el 2026-08-15. V1 se despliega en un servidor propio alquilado (self-hosted), no en AWS ni en ningún servicio gestionado de AWS. Se conserva el contexto y razonamiento original de este ADR como registro histórico; no describe el estado vigente. Ver ADR-014.
+
 **Contexto:** CLAUDE.md proponía AWS como objetivo por defecto; la documentación del proyecto lo mantenía como `TBD` sin ratificar.
 
 **Decisión:** AWS es el cloud provider de V1.
@@ -148,3 +150,17 @@
 **Alternativas consideradas:** mantener Gradle (statu quo, sin justificación en contra salvo preferencia explícita del Product Owner).
 
 **Consecuencias:** `backend/build.gradle.kts`, `settings.gradle.kts`, `gradle/` y `gradlew`/`gradlew.bat` se eliminan, reemplazados por `pom.xml` y `mvnw`/`mvnw.cmd`/`.mvn/`. Revalidado con build/test real (`./mvnw clean test` → 19/19 tests, `./mvnw clean package` → jar ejecutable); ver `docs/development/02-validation-report.md` §9 y el addendum de `03-milestone-1-gate.md`. `18-dev-environment.md` actualizado (`./mvnw` en vez de `./gradlew` para el backend; Android sigue usando Gradle, sin relación con este cambio).
+
+## ADR-014 Cloud/infra provider: servidor propio alquilado (self-hosted)
+**Estado:** Accepted (2026-08-15)
+
+**Contexto:** ADR-009/DEC-008 habían fijado AWS como cloud provider de V1. El Product Owner decidió explícitamente, antes de continuar con Milestone 2, no usar AWS ni ningún servicio gestionado de AWS (RDS, S3, SES, SNS). La infraestructura será un servidor propio alquilado (self-hosted), donde se alojan el backend y PostgreSQL, gestionado directamente por el equipo. Esto no es una decisión de arquitectura del backend en sí — el monolito modular (ADR-001), PostgreSQL, Flyway, Keycloak (ADR-008) y el patrón resource-server-only siguen exactamente igual; es una corrección de dónde se despliega, no de cómo está construido.
+
+**Decisión:**
+(a) se descarta AWS y cualquier servicio gestionado de AWS (RDS, S3, SES, SNS) para V1;
+(b) el backend y PostgreSQL se despliegan en un servidor alquilado por el equipo, gestionado directamente (no managed);
+(c) detalles concretos del proveedor de hosting, especificaciones de servidor y región quedan `TBD` — el Product Owner solo fijó "no AWS, servidor propio", no el proveedor específico.
+
+**Alternativas consideradas:** mantener AWS (ADR-009, statu quo, descartado explícitamente por el Product Owner); GCP/Azure (no evaluadas, fuera de lo que el Product Owner pidió).
+
+**Consecuencias:** DEC-009 (proveedor de correo), que dependía explícitamente de DEC-008 ("si se elige AWS, Amazon SES; si no, un especialista tipo Postmark" — `28-v1-decision-pack.md`), queda reabierta como `TBD` — ninguna de las opciones originales fue elegida todavía, y no se sustituye AWS por un proveedor de correo específico sin instrucción del Product Owner. El módulo `sharing` expone un puerto `EmailSender` (mismo patrón que `PushNotificationSender`, ADR-007) con un adapter no-op/log-only mientras DEC-009 siga abierta.

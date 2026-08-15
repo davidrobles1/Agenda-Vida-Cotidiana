@@ -43,7 +43,7 @@ Inventario real del repositorio al iniciar esta fase (verificado por inspección
 - Eliminación de cuenta (`DELETE /me`, `PENDING_DELETION`, job de purga).
 - Auditoría (`audit`) como módulo explícito (por ahora, logging estructurado sin tabla dedicada).
 - Android, iOS, Web — ningún cliente.
-- CI/CD, entornos `staging`/`production`, despliegue AWS.
+- CI/CD, entornos `staging`/`production`, despliegue en servidor propio (`TBD` proveedor exacto — corrige la referencia previa a AWS, ver ADR-014 en `Documentacion/22-decision-log.md`).
 - Configuración real de Keycloak (realm/clientes/roles) — el `docker-compose.yml` levanta el servidor, no el realm.
 - Contract tests automatizados contra `openapi.yaml` (se deja como backlog técnico, ver `01-technical-backlog.md`, ítem `TEST-API-001`).
 

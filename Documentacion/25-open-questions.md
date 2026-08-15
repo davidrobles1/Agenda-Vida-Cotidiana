@@ -9,8 +9,8 @@
 - ~~¿Política de retención/eliminación de cuenta para V1?~~ → DECISION: soft delete con 30 días de gracia; purga de emails de invitados sin cuenta (DEC-015/ADR-012).
 - ~~¿Qué ocurre si el propietario elimina un recordatorio que tiene colaboradores activos?~~ → DECISION: se elimina en cascada y se notifica a los colaboradores activos (DEC-002).
 - ~~Formato del lifecycle de INVITATION / uso de REVOKED~~ → DECISION: enum corregido a `PENDING, ACCEPTED, REJECTED, EXPIRED, CANCELLED`; revocación solo en `REMINDER_SHARE` (DEC-003).
-- ~~¿Proveedor cloud preferido?~~ → DECISION: AWS (DEC-008/ADR-009).
-- ~~¿Proveedor de correo transaccional?~~ → DECISION: Amazon SES (DEC-009).
+- ~~¿Proveedor cloud preferido?~~ → DECISION: servidor propio alquilado, self-hosted (DEC-008/ADR-014; corrige la decisión previa de AWS del 2026-08-09, ver `22-decision-log.md`).
+- ¿Proveedor de correo transaccional? — Reabierta el 2026-08-15. Había sido marcada como resuelta (`DECISION: Amazon SES, DEC-009`, 2026-08-09), pero esa elección dependía de que el cloud provider fuera AWS; al revertirse esa decisión (`ADR-014`), `DEC-009` quedó sin la premisa de la que dependía y ninguna de sus opciones originales (Amazon SES / especialista tipo Postmark / self-hosted) fue elegida en su lugar. Sigue `TBD`.
 - ~~Proveedor OIDC definitivo~~ → DECISION: Keycloak (DEC-004/ADR-008).
 - ~~Proveedor(es) de push por plataforma~~ → DECISION: FCM unificado (DEC-010/ADR-007).
 - ~~¿Versión mínima de Android/iOS a soportar? ¿Navegadores web soportados?~~ → DECISION: Android API 30, iOS 17, navegadores evergreen últimas 2 versiones mayores (DEC-011/012/013).

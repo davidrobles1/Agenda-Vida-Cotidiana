@@ -44,7 +44,7 @@ backend/
 
 **DECISION (DEC-005):** `notification` (o `user`, a definir en la fase de implementación) gestiona la entidad `DEVICE_PUSH_TOKEN`, con soporte para múltiples dispositivos activos por usuario.
 
-**DECISION (DEC-009):** el módulo `identity`/`sharing` usa **Amazon SES** como adapter concreto de envío de correo (invitaciones por email, FR-007).
+**DECISION (DEC-009, reabierta el 2026-08-15 — ver ADR-014 en `22-decision-log.md`):** `sharing` expone un puerto/interfaz de envío de correo (`EmailSender`, mismo patrón que `PushNotificationSender` en `notification`, ADR-007) con proveedor concreto **`TBD`** — dependía de `DEC-008` (AWS → Amazon SES), que fue revertida (V1 usa un servidor propio alquilado, no AWS). La implementación actual usa un adapter **no-op/log-only** (registra en log que se "enviaría" un email, sin enviar nada real) hasta que `DEC-009` se resuelva; el proveedor real se conecta detrás de la misma interfaz sin cambiar el resto del módulo.
 
 **DECISION (DEC-015):** `user` implementa el flujo de soft delete (`deletion_status`, `purge_at`) y un job periódico de purga; `sharing` implementa el job de purga de invitaciones resueltas sin cuenta asociada.
 

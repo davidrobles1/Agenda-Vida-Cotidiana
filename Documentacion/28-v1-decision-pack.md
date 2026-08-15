@@ -206,6 +206,8 @@ Paquete de decisiones pendientes para cerrar V1. Contiene exclusivamente las 15 
 
 **DECISION: A — AWS como cloud provider (aprobada 2026-08-09).**
 
+**Nota (2026-08-15):** la Opción A (AWS) fue **revertida** por decisión explícita posterior del Product Owner. V1 se despliega en un servidor propio alquilado (self-hosted), gestionado directamente por el equipo — no en AWS ni en ningún servicio gestionado de AWS (RDS, S3, SES, SNS). Ver `ADR-014` en `22-decision-log.md` para el detalle completo (contexto, alternativas, consecuencias). El texto de esta decisión (`DEC-008`) se conserva arriba como registro histórico de lo aprobado el 2026-08-09; no describe el estado vigente.
+
 ---
 
 ## DEC-009 — Proveedor de correo
@@ -229,7 +231,11 @@ Paquete de decisiones pendientes para cerrar V1. Contiene exclusivamente las 15 
 
 **Impacto futuras versiones:** verificación de email (DEC-014) y futuras notificaciones por correo (digest, recuperación de cuenta) dependen de esta elección.
 
-**DECISION: A — Amazon SES para correo transaccional (aprobada 2026-08-09).**
+**DECISION (histórica, aprobada 2026-08-09, ya no vigente): A — Amazon SES para correo transaccional.**
+
+**Reapertura (2026-08-15):** esta decisión dependía explícitamente de `DEC-008` ("si se elige AWS, Amazon SES (A); si no, un especialista tipo Postmark (B)" — ver `RECOMMENDATION` arriba). Al revertirse `DEC-008` (ver `ADR-014`), la premisa de la que dependía `A` dejó de aplicar. El Product Owner no especificó qué proveedor de correo usar en su lugar.
+
+**DECISION: TBD — ninguna de las tres opciones originales (A. Amazon SES / B. especialista tipo Postmark / C. self-hosted tipo Postal) ha sido elegida todavía.** No se asume ninguna por defecto. El módulo `sharing` expone un puerto `EmailSender` con un adapter no-op/log-only hasta que se resuelva esta decisión (ver `07-backend-architecture.md` y `docs/development/01-technical-backlog.md` `INFRA-005`).
 
 ---
 

@@ -63,8 +63,10 @@ Versión final objetivo. El alcance funcional exacto es `TBD`.
 - Plataformas V1: Android, iOS, Web (DECISION, ADR-005).
 - Mercado inicial: TBD.
 - Modelo de monetización: TBD para V1.
-- Cloud provider: **AWS** (DECISION, DEC-008/ADR-009).
-- Proveedor de correo: **Amazon SES** (DECISION, DEC-009).
+- Cloud provider: **servidor propio alquilado (self-hosted)** (DECISION, DEC-008/ADR-014). Proveedor de hosting concreto: `TBD`.
+- Proveedor de correo: `TBD` — `DEC-009` reabierta (ver nota histórica abajo).
+
+**Nota histórica (corregida el 2026-08-15):** el 2026-08-09 se había aprobado `AWS` como cloud provider (`DEC-008/ADR-009`) y, en consecuencia, `Amazon SES` como proveedor de correo (`DEC-009`). El Product Owner revirtió explícitamente la elección de cloud provider antes de continuar con Milestone 2: V1 usa un servidor propio alquilado, no AWS ni ningún servicio gestionado de AWS (ver `ADR-014` en `22-decision-log.md`). Como `DEC-009` dependía de `DEC-008`, queda reabierta como `TBD` — no se eligió un proveedor de correo alternativo sin instrucción explícita del Product Owner.
 - Proveedor de identidad (OIDC self-hosted): **Keycloak** (DECISION, DEC-004/ADR-008).
 - Proveedor de push: **Firebase Cloud Messaging (FCM)**, unificado para las tres plataformas (DECISION, DEC-010/ADR-007).
 - Stack iOS: **Swift + SwiftUI** (DECISION, DEC-006/ADR-010). Ver `08b-ios-architecture.md`.

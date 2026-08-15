@@ -28,7 +28,7 @@ Repositorio de documentación para construir Vida Cotidiana de forma incremental
 - Archivos: object storage compatible con S3 (preparado conceptualmente, sin implementar en V1).
 - API: REST + OpenAPI.
 - CI/CD: GitHub Actions.
-- Cloud: **AWS** (DEC-008/ADR-009). Correo transaccional: **Amazon SES** (DEC-009).
+- Cloud: **servidor propio alquilado (self-hosted)** (DEC-008/ADR-014; corrige la decisión previa de AWS/ADR-009 del 2026-08-09). Correo transaccional: `TBD` (DEC-009 reabierta).
 - Retención/eliminación de cuenta: soft delete con 30 días de gracia (DEC-015/ADR-012).
 - IA: fuera de V1–V4.
 - Finanzas: fuera de V1–V4.

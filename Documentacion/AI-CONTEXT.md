@@ -19,7 +19,7 @@ Plataforma (Android, iOS, Web) para organizar información y actividades de la v
 Fase de documentación pre-desarrollo. No existe código de producto todavía. Las 15 decisiones bloqueantes de V1 fueron aprobadas por el Product Owner el 2026-08-09 (`28-v1-decision-pack.md`) y quedan reflejadas en todo el repositorio de documentación. Ver `29-v1-final-readiness.md` para el estado de preparación y los TBDs no bloqueantes restantes.
 
 ## Arquitectura
-- Backend: **monolito modular** (Clean Architecture + DDD pragmático), módulos: `shared`, `identity`, `user`, `reminder`, `sharing`, `notification`, `audit`. No microservicios en V1 (ADR-001). Hospedado en **AWS** (ADR-009).
+- Backend: **monolito modular** (Clean Architecture + DDD pragmático), módulos: `shared`, `identity`, `user`, `reminder`, `sharing`, `notification`, `audit`. No microservicios en V1 (ADR-001). Hospedado en un **servidor propio alquilado (self-hosted)** (DEC-008/ADR-014; corrige la decisión previa de AWS, ver `22-decision-log.md`).
 - Frontend:
   - Android: Kotlin + Jetpack Compose, Clean Architecture + MVVM, `minSdk 30` (Android 11) (ADR-002/DEC-011).
   - iOS: Swift + SwiftUI nativo, Clean Architecture + MVVM, mínimo iOS 17 (ADR-010/DEC-012). Ver `08b-ios-architecture.md`.
@@ -39,7 +39,7 @@ Fase de documentación pre-desarrollo. No existe código de producto todavía. L
 - iOS: Swift, SwiftUI, Keychain, AppAuth-iOS, Firebase SDK (push). Mínimo iOS 17.
 - Web: React, TypeScript, SPA, librería OIDC para SPA, Firebase SDK (Web Push).
 - Object Storage S3-compatible: preparado conceptualmente, no implementado en V1 (sin archivos/adjuntos).
-- Cloud: **AWS**. Correo transaccional: **Amazon SES**. Identidad: **Keycloak**. Push: **FCM**.
+- Cloud: **servidor propio alquilado (self-hosted)**, proveedor de hosting concreto `TBD` (DEC-008/ADR-014). Correo transaccional: `TBD` (DEC-009 reabierta; adapter actual no-op/log-only). Identidad: **Keycloak**. Push: **FCM**.
 
 ## Estructura de documentación
 Archivos numerados en `Documentacion/` (00 a 26) + `openapi/openapi.yaml`. Ver `README.md` e `INDEX` implícito en la numeración. No usar la estructura de carpetas de CLAUDE.md hasta una fase de reorganización explícita — mientras tanto, los documentos numerados son la fuente de verdad.
@@ -63,10 +63,12 @@ IA, Finanzas/integración bancaria/estados de cuenta, marketplace, afiliados, pu
 - ADR-006 Modelo de compartir: owner + colaboradores 1:N vía invitación; estado de completado único global (DEC-001); eliminación en cascada con notificación (DEC-002); lifecycle de INVITATION corregido (DEC-003) (Accepted).
 - ADR-007 Push notifications: interfaz propia `PushNotificationSender`, proveedor **FCM** unificado (DEC-010), entidad `DEVICE_PUSH_TOKEN` (DEC-005) (Accepted).
 - ADR-008 Proveedor OIDC self-hosted: **Keycloak** (DEC-004); verificación de email delegada (DEC-014) (Accepted).
-- ADR-009 Cloud provider: **AWS** (DEC-008) (Accepted).
+- ADR-009 Cloud provider: **AWS** (DEC-008) (Accepted 2026-08-09, **superado por ADR-014 el 2026-08-15** — ver abajo).
 - ADR-010 Stack iOS: **Swift + SwiftUI** (DEC-006) (Accepted).
 - ADR-011 Stack Web: **React + TypeScript SPA** (DEC-007) (Accepted).
 - ADR-012 Política de retención/eliminación de cuenta: soft delete 30 días + purga de invitaciones sin cuenta (DEC-015) (Accepted).
+- ADR-013 Build tool: **Maven**, sustituye el bootstrap inicial en Gradle (Accepted, 2026-08-15).
+- ADR-014 Cloud/infra provider: **servidor propio alquilado (self-hosted)**, sustituye AWS (DEC-008 corregida; DEC-009/correo reabierta como `TBD`) (Accepted, 2026-08-15).
 
 ## Reglas de seguridad
 - HTTPS siempre; autorización por recurso verificada server-side; deny-by-default; mínimo privilegio.
