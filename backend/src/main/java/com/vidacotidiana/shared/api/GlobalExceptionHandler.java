@@ -4,6 +4,7 @@ import com.vidacotidiana.shared.domain.ConflictException;
 import com.vidacotidiana.shared.domain.DomainException;
 import com.vidacotidiana.shared.domain.GoneException;
 import com.vidacotidiana.shared.domain.NotFoundException;
+import com.vidacotidiana.shared.domain.RateLimitExceededException;
 import com.vidacotidiana.shared.domain.VersionConflictException;
 import com.vidacotidiana.shared.infrastructure.TraceIdFilter;
 import jakarta.validation.ConstraintViolationException;
@@ -49,6 +50,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(GoneException.class)
     public ResponseEntity<ErrorResponse> handleGone(GoneException ex) {
         return build(HttpStatus.GONE, ex.getCode(), ex.getMessage());
+    }
+
+    @ExceptionHandler(RateLimitExceededException.class)
+    public ResponseEntity<ErrorResponse> handleRateLimitExceeded(RateLimitExceededException ex) {
+        return build(HttpStatus.TOO_MANY_REQUESTS, ex.getCode(), ex.getMessage());
     }
 
     @ExceptionHandler(DomainException.class)

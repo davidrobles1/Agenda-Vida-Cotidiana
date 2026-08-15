@@ -2,6 +2,7 @@ package com.vidacotidiana.sharing.api;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.vidacotidiana.sharing.application.InvitationMaintenanceService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -15,10 +16,17 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import javax.sql.DataSource;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.Map;
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -32,11 +40,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Integration tests for the sharing module against a real PostgreSQL
  * instance (Testcontainers) — same pattern as
  * reminder.api.ReminderControllerIntegrationTest. Exercises invitations,
- * shares, and the extended Reminder authorization (BE-022) end to end.
+ * shares, the extended Reminder authorization (BE-022), invitation
+ * expiration (BE-033), and rate limiting (DEVOPS-001) end to end.
  *
  * Traceability: UC-07/UC-08/UC-09/UC-10/UC-14, AC-007/AC-008/AC-009/
  * AC-010/AC-011/AC-017, docs/development/01-technical-backlog.md
- * BE-016..022.
+ * BE-016..022, BE-033, DEVOPS-001.
  */
 @Testcontainers
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
@@ -62,6 +71,12 @@ class SharingFlowIntegrationTest {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private DataSource dataSource;
+
+    @Autowired
+    private InvitationMaintenanceService invitationMaintenanceService;
 
     private org.springframework.security.oauth2.jwt.Jwt.Builder jwtFor(UUID userId, String email, String username) {
         return org.springframework.security.oauth2.jwt.Jwt.withTokenValue("test-token")
@@ -382,5 +397,57 @@ class SharingFlowIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items[0].invitedEmail", is("invitee16@example.com")))
                 .andExpect(jsonPath("$.totalElements", is(1)));
+    }
+
+    @Test
+    void expiredInvitation_cannotBeAcceptedBeforeSweep_thenSweepMarksItExpired() throws Exception {
+        // BE-033: the gap this closes — an invitation whose expires_at already passed, but that the
+        // sweep job hasn't reached yet, must still be rejected atomically by resolveIfPending.
+        UUID ownerId = UUID.randomUUID();
+        UUID inviteeId = UUID.randomUUID();
+        var owner = principalFor(ownerId, "owner17@example.com", "owner17");
+        var invitee = principalFor(inviteeId, "invitee17@example.com", "invitee17");
+        syncUser(invitee);
+        String reminderId = createReminder(owner, "Family trip");
+        JsonNode invitation = createInvitation(owner, reminderId, Map.of("email", "invitee17@example.com"));
+        String invitationId = invitation.get("id").asText();
+
+        try (Connection connection = dataSource.getConnection();
+             PreparedStatement statement = connection.prepareStatement("UPDATE invitations SET expires_at = ? WHERE id = ?")) {
+            statement.setObject(1, OffsetDateTime.now(ZoneOffset.UTC).minusMinutes(1));
+            statement.setObject(2, UUID.fromString(invitationId));
+            statement.executeUpdate();
+        }
+
+        // Still PENDING in the status column (the sweep hasn't run) but must be rejected anyway.
+        mockMvc.perform(post("/api/v1/invitations/" + invitationId + "/accept").with(invitee))
+                .andExpect(status().isGone());
+
+        invitationMaintenanceService.expireOverduePendingInvitations();
+
+        try (Connection connection = dataSource.getConnection();
+             PreparedStatement statement = connection.prepareStatement("SELECT status FROM invitations WHERE id = ?")) {
+            statement.setObject(1, UUID.fromString(invitationId));
+            ResultSet resultSet = statement.executeQuery();
+            assertThat(resultSet.next()).isTrue();
+            assertThat(resultSet.getString("status")).isEqualTo("EXPIRED");
+        }
+    }
+
+    @Test
+    void createInvitation_exceedingRateLimit_returns429() throws Exception {
+        // DEVOPS-001, real HTTP round trip (unit-level coverage already exists in SharingServiceTest).
+        UUID ownerId = UUID.randomUUID();
+        var owner = principalFor(ownerId, "owner18@example.com", "owner18");
+        String reminderId = createReminder(owner, "Family trip");
+
+        for (int i = 0; i < 10; i++) {
+            createInvitation(owner, reminderId, Map.of("email", "bulk" + i + "@example.com"));
+        }
+
+        String body = objectMapper.writeValueAsString(Map.of("email", "onemore@example.com"));
+        mockMvc.perform(post("/api/v1/reminders/" + reminderId + "/shares").with(owner).contentType("application/json").content(body))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.code", is("RATE_LIMIT_EXCEEDED")));
     }
 }

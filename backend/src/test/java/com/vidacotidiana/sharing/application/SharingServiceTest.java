@@ -1,10 +1,12 @@
 package com.vidacotidiana.sharing.application;
 
+import com.vidacotidiana.notification.application.PushNotificationSender;
 import com.vidacotidiana.reminder.application.ReminderService;
 import com.vidacotidiana.reminder.domain.Reminder;
 import com.vidacotidiana.shared.domain.ConflictException;
 import com.vidacotidiana.shared.domain.GoneException;
 import com.vidacotidiana.shared.domain.NotFoundException;
+import com.vidacotidiana.shared.domain.RateLimitExceededException;
 import com.vidacotidiana.shared.domain.ValidationException;
 import com.vidacotidiana.sharing.domain.Invitation;
 import com.vidacotidiana.sharing.domain.InvitationRepository;
@@ -32,8 +34,8 @@ import static org.mockito.Mockito.when;
 /**
  * Unit tests for the sharing application service.
  * Traceability: UC-07/UC-08/UC-09/UC-10/UC-14,
- * AC-007/AC-008/AC-009/AC-010/AC-017 (Documentacion/13-acceptance.md),
- * BE-017..021 (docs/development/01-technical-backlog.md).
+ * AC-007/AC-008/AC-009/AC-010/AC-012/AC-017 (Documentacion/13-acceptance.md),
+ * BE-017..021/BE-026/DEVOPS-001 (docs/development/01-technical-backlog.md).
  */
 class SharingServiceTest {
 
@@ -42,6 +44,8 @@ class SharingServiceTest {
     private ReminderShareRepository reminderShareRepository;
     private UserRepository userRepository;
     private EmailSender emailSender;
+    private PushNotificationSender pushNotificationSender;
+    private InvitationRateLimiter invitationRateLimiter;
     private SharingService sharingService;
 
     private final UUID ownerId = UUID.randomUUID();
@@ -57,7 +61,10 @@ class SharingServiceTest {
         reminderShareRepository = Mockito.mock(ReminderShareRepository.class);
         userRepository = Mockito.mock(UserRepository.class);
         emailSender = Mockito.mock(EmailSender.class);
-        sharingService = new SharingService(reminderService, invitationRepository, reminderShareRepository, userRepository, emailSender);
+        pushNotificationSender = Mockito.mock(PushNotificationSender.class);
+        invitationRateLimiter = new InvitationRateLimiter(); // real instance: exercises DEVOPS-001 for real, generous enough default limit not to interfere with unrelated tests
+        sharingService = new SharingService(reminderService, invitationRepository, reminderShareRepository, userRepository,
+                emailSender, pushNotificationSender, invitationRateLimiter);
 
         reminder = new Reminder(ownerId, "Family trip", null, null);
         reminderId = fakeReminderId(reminder);
@@ -80,8 +87,9 @@ class SharingServiceTest {
         assertThat(invitation.getInvitedEmail()).isEqualTo("friend@example.com");
         assertThat(invitation.getStatus()).isEqualTo(InvitationStatus.PENDING);
         // SEC-001: whether or not the email has an account, the invitation is created identically;
-        // only the "no account" branch triggers the email adapter (push covers the other case, BE-025/026).
+        // only the "no account" branch triggers the email adapter — an account holder gets a push instead (AC-012/BE-026).
         verify(emailSender, never()).sendInvitation(any(), any());
+        verify(pushNotificationSender).sendBestEffort(eq(invitedUserId), any());
     }
 
     @Test
@@ -95,6 +103,7 @@ class SharingServiceTest {
         assertThat(invitation.getInvitedEmail()).isEqualTo("stranger@example.com");
         assertThat(invitation.getStatus()).isEqualTo(InvitationStatus.PENDING);
         verify(emailSender).sendInvitation("stranger@example.com", "Family trip");
+        verify(pushNotificationSender, never()).sendBestEffort(any(), any());
     }
 
     @Test
@@ -108,6 +117,23 @@ class SharingServiceTest {
 
         assertThat(invitation.getInvitedEmail()).isEqualTo("bykname@example.com");
         verify(emailSender, never()).sendInvitation(any(), any());
+        verify(pushNotificationSender).sendBestEffort(eq(invitedUserId), any());
+    }
+
+    @Test
+    void createInvitation_exceedingRateLimit_returns429() {
+        // DEVOPS-001: the 11th invitation from the same caller within the window is rejected.
+        for (int i = 0; i < 10; i++) {
+            String email = "bulk" + i + "@example.com";
+            when(invitationRepository.findByReminderIdAndInvitedEmailAndStatus(reminderId, email, InvitationStatus.PENDING))
+                    .thenReturn(Optional.empty());
+            when(userRepository.findByEmail(email)).thenReturn(Optional.empty());
+            sharingService.createInvitation(reminderId, ownerId, email, null);
+        }
+
+        assertThatThrownBy(() -> sharingService.createInvitation(reminderId, ownerId, "onemore@example.com", null))
+                .isInstanceOf(RateLimitExceededException.class)
+                .satisfies(ex -> assertThat(((RateLimitExceededException) ex).getCode()).isEqualTo("RATE_LIMIT_EXCEEDED"));
     }
 
     @Test
@@ -161,6 +187,8 @@ class SharingServiceTest {
         assertThat(share.getReminderId()).isEqualTo(reminderId);
         assertThat(share.getCollaboratorUserId()).isEqualTo(invitedUserId);
         assertThat(share.getStatus().name()).isEqualTo("ACTIVE");
+        // AC-012/BE-026: the inviter (owner) is notified that their invitation was accepted.
+        verify(pushNotificationSender).sendBestEffort(eq(ownerId), any());
     }
 
     @Test
@@ -198,6 +226,7 @@ class SharingServiceTest {
 
         assertThat(result).isSameAs(invitation);
         verify(reminderShareRepository, never()).save(any(ReminderShare.class));
+        verify(pushNotificationSender).sendBestEffort(eq(ownerId), any());
     }
 
     @Test
@@ -221,6 +250,8 @@ class SharingServiceTest {
         sharingService.cancelInvitation(invitationId, ownerId);
 
         verify(invitationRepository).resolveIfPending(invitationId, InvitationStatus.CANCELLED);
+        // AC-012/BE-026: the invitee (who has an account here) is notified of the cancellation.
+        verify(pushNotificationSender).sendBestEffort(eq(invitedUserId), any());
     }
 
     @Test
@@ -255,6 +286,7 @@ class SharingServiceTest {
 
         assertThat(share.getStatus().name()).isEqualTo("REVOKED");
         verify(reminderShareRepository).save(share);
+        verify(pushNotificationSender).sendBestEffort(eq(invitedUserId), any());
     }
 
     @Test

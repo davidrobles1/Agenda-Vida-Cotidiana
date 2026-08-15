@@ -1,5 +1,8 @@
 package com.vidacotidiana.sharing.application;
 
+import com.vidacotidiana.notification.application.PushEvent;
+import com.vidacotidiana.notification.application.PushEventType;
+import com.vidacotidiana.notification.application.PushNotificationSender;
 import com.vidacotidiana.reminder.application.ReminderService;
 import com.vidacotidiana.reminder.domain.Reminder;
 import com.vidacotidiana.shared.domain.ConflictException;
@@ -26,7 +29,7 @@ import java.util.UUID;
 
 /**
  * Application service for the sharing module (UC-07..UC-10/UC-14,
- * AC-007..AC-010/AC-017, BE-017..021). Reuses
+ * AC-007..AC-010/AC-017, BE-017..021, BE-026, DEVOPS-001). Reuses
  * reminder.application.ReminderService.getOwnedOrThrow for every owner-only
  * operation here instead of duplicating the ownership check against
  * ReminderRepository directly.
@@ -41,15 +44,20 @@ public class SharingService {
     private final ReminderShareRepository reminderShareRepository;
     private final UserRepository userRepository;
     private final EmailSender emailSender;
+    private final PushNotificationSender pushNotificationSender;
+    private final InvitationRateLimiter invitationRateLimiter;
 
     public SharingService(ReminderService reminderService, InvitationRepository invitationRepository,
                            ReminderShareRepository reminderShareRepository, UserRepository userRepository,
-                           EmailSender emailSender) {
+                           EmailSender emailSender, PushNotificationSender pushNotificationSender,
+                           InvitationRateLimiter invitationRateLimiter) {
         this.reminderService = reminderService;
         this.invitationRepository = invitationRepository;
         this.reminderShareRepository = reminderShareRepository;
         this.userRepository = userRepository;
         this.emailSender = emailSender;
+        this.pushNotificationSender = pushNotificationSender;
+        this.invitationRateLimiter = invitationRateLimiter;
     }
 
     /**
@@ -57,9 +65,13 @@ public class SharingService {
      * 201 response is identical whether or not the email belongs to an
      * existing account — invitedUserId is resolved server-side but never
      * exposed (see sharing.api.dto.InvitationResponse).
+     * DEVOPS-001: rate-limited per caller before any other work — see
+     * InvitationRateLimiter for the exact window/threshold.
      */
     @Transactional
     public Invitation createInvitation(UUID reminderId, UUID callerUserId, String email, String username) {
+        invitationRateLimiter.checkAndRecord(callerUserId);
+
         if ((email == null) == (username == null)) {
             throw new ValidationException("Exactly one of email or username must be provided.");
         }
@@ -98,10 +110,11 @@ public class SharingService {
         log.info("Invitation created: id={}, reminderId={}, inviterUserId={}, hasExistingAccount={}",
                 invitation.getId(), reminderId, callerUserId, invitedUserId != null);
 
-        // Only the no-account case gets an email today; an invitee with an existing account would instead
-        // get a push notification once notification/BE-025/026 exist — not implemented here, same
-        // deliberate no-op scope as ReminderService.delete (BE-015) for the parts sharing/push don't cover yet.
-        if (invitedUserId == null) {
+        // AC-012/UC-11: an invitee with an account gets a push; one without gets the (currently no-op) email.
+        if (invitedUserId != null) {
+            pushNotificationSender.sendBestEffort(invitedUserId,
+                    new PushEvent(PushEventType.INVITATION_RECEIVED, "You were invited to collaborate on \"" + reminder.getTitle() + "\"."));
+        } else {
             emailSender.sendInvitation(invitedEmail, reminder.getTitle());
         }
 
@@ -143,13 +156,15 @@ public class SharingService {
         ReminderShare share = new ReminderShare(invitation.getReminderId(), callerUserId, invitationId);
         share = reminderShareRepository.save(share);
         log.info("Invitation accepted: id={}, reminderId={}, collaboratorUserId={}", invitationId, invitation.getReminderId(), callerUserId);
+        pushNotificationSender.sendBestEffort(invitation.getInviterUserId(),
+                new PushEvent(PushEventType.INVITATION_ACCEPTED, "Your invitation was accepted."));
         return share;
     }
 
     /** BE-019/AC-009. Recipient-only. Same atomic transition as accept; rejecting never creates a ReminderShare. */
     @Transactional
     public Invitation rejectInvitation(UUID invitationId, UUID callerUserId) {
-        findInvitationVisibleTo(invitationId, callerUserId);
+        Invitation invitation = findInvitationVisibleTo(invitationId, callerUserId);
 
         int updated = invitationRepository.resolveIfPending(invitationId, InvitationStatus.REJECTED);
         if (updated == 0) {
@@ -157,6 +172,8 @@ public class SharingService {
         }
 
         log.info("Invitation rejected: id={}, invitedUserId={}", invitationId, callerUserId);
+        pushNotificationSender.sendBestEffort(invitation.getInviterUserId(),
+                new PushEvent(PushEventType.INVITATION_REJECTED, "Your invitation was declined."));
         return invitationRepository.findById(invitationId)
                 .orElseThrow(() -> new IllegalStateException("Invitation " + invitationId + " vanished immediately after being resolved."));
     }
@@ -179,6 +196,11 @@ public class SharingService {
         }
 
         log.info("Invitation cancelled: id={}, inviterUserId={}", invitationId, callerUserId);
+        // Only meaningful if the invitee has an account (there's no recipient to notify otherwise).
+        if (invitation.getInvitedUserId() != null) {
+            pushNotificationSender.sendBestEffort(invitation.getInvitedUserId(),
+                    new PushEvent(PushEventType.INVITATION_CANCELLED, "An invitation you received was cancelled."));
+        }
     }
 
     /**
@@ -201,6 +223,8 @@ public class SharingService {
             share.revoke();
             reminderShareRepository.save(share);
             log.info("Reminder share revoked: id={}, reminderId={}, collaboratorUserId={}", shareId, reminderId, share.getCollaboratorUserId());
+            pushNotificationSender.sendBestEffort(share.getCollaboratorUserId(),
+                    new PushEvent(PushEventType.REMINDER_SHARE_REVOKED, "Your access to a shared reminder was revoked."));
         }
     }
 

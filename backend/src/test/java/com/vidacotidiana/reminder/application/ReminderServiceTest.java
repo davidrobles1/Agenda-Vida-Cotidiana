@@ -1,10 +1,12 @@
 package com.vidacotidiana.reminder.application;
 
+import com.vidacotidiana.notification.application.PushNotificationSender;
 import com.vidacotidiana.reminder.domain.Reminder;
 import com.vidacotidiana.reminder.domain.ReminderRepository;
 import com.vidacotidiana.reminder.domain.ReminderStatus;
 import com.vidacotidiana.shared.domain.NotFoundException;
 import com.vidacotidiana.shared.domain.VersionConflictException;
+import com.vidacotidiana.sharing.domain.ReminderShare;
 import com.vidacotidiana.sharing.domain.ReminderShareRepository;
 import com.vidacotidiana.sharing.domain.ReminderShareStatus;
 import org.junit.jupiter.api.BeforeEach;
@@ -13,6 +15,7 @@ import org.mockito.Mockito;
 
 import java.lang.reflect.Field;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -25,14 +28,15 @@ import static org.mockito.Mockito.when;
 
 /**
  * Unit tests for the Reminder vertical slice application service.
- * Traceability: UC-03/UC-04/UC-05, AC-003/AC-004/AC-004b/AC-005/AC-011
- * (Documentacion/13-acceptance.md), BE-007/BE-009/BE-010/BE-022
+ * Traceability: UC-03/UC-04/UC-05, AC-003/AC-004/AC-004b/AC-005/AC-011/AC-013
+ * (Documentacion/13-acceptance.md), BE-007/BE-009/BE-010/BE-022/BE-026
  * (docs/development/01-technical-backlog.md).
  */
 class ReminderServiceTest {
 
     private ReminderRepository reminderRepository;
     private ReminderShareRepository reminderShareRepository;
+    private PushNotificationSender pushNotificationSender;
     private ReminderService reminderService;
 
     private final UUID ownerId = UUID.randomUUID();
@@ -43,8 +47,11 @@ class ReminderServiceTest {
     void setUp() {
         reminderRepository = Mockito.mock(ReminderRepository.class);
         reminderShareRepository = Mockito.mock(ReminderShareRepository.class);
-        reminderService = new ReminderService(reminderRepository, reminderShareRepository);
+        pushNotificationSender = Mockito.mock(PushNotificationSender.class);
+        reminderService = new ReminderService(reminderRepository, reminderShareRepository, pushNotificationSender);
         when(reminderRepository.save(any(Reminder.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(reminderShareRepository.findByReminderIdAndStatus(any(UUID.class), any(ReminderShareStatus.class)))
+                .thenReturn(List.of());
     }
 
     private void grantActiveShareTo(UUID reminderId, UUID userId) {
@@ -232,6 +239,22 @@ class ReminderServiceTest {
 
         reminderService.delete(id, ownerId);
 
+        verify(reminderRepository).delete(reminder);
+    }
+
+    @Test
+    void delete_notifiesEachActiveCollaborator() {
+        // AC-013 second half/BE-026: every ACTIVE collaborator gets a best-effort push before deletion.
+        Reminder reminder = new Reminder(ownerId, "Buy milk", null, null);
+        UUID id = fakeId(reminder);
+        when(reminderRepository.findById(id)).thenReturn(Optional.of(reminder));
+        ReminderShare activeShare = new ReminderShare(id, collaboratorId, UUID.randomUUID());
+        when(reminderShareRepository.findByReminderIdAndStatus(id, ReminderShareStatus.ACTIVE))
+                .thenReturn(List.of(activeShare));
+
+        reminderService.delete(id, ownerId);
+
+        verify(pushNotificationSender).sendBestEffort(org.mockito.ArgumentMatchers.eq(collaboratorId), any());
         verify(reminderRepository).delete(reminder);
     }
 

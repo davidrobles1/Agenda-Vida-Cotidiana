@@ -67,6 +67,13 @@
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
 
+        <!-- Push notifications (BE-025, ADR-007/DEC-010): real FCM adapter, only active when firebase.credentials-path is set -->
+        <dependency>
+            <groupId>com.google.firebase</groupId>
+            <artifactId>firebase-admin</artifactId>
+            <version>9.10.0</version>
+        </dependency>
+
         <!-- Tests -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -108,6 +115,13 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+            <!-- DEVOPS-002: local SAST/lint only. Not bound to any lifecycle phase (no CI yet, INFRA-003) —
+                 run explicitly with ./mvnw spotbugs:check. -->
+            <plugin>
+                <groupId>com.github.spotbugs</groupId>
+                <artifactId>spotbugs-maven-plugin</artifactId>
+                <version>4.10.3.0</version>
             </plugin>
         </plugins>
     </build>

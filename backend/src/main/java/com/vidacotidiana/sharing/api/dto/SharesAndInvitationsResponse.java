@@ -22,6 +22,12 @@ public record SharesAndInvitationsResponse(
         List<ReminderShareResponse> shares,
         List<InvitationResponse> invitations
 ) {
+    // DEVOPS-002/spotbugs EI_EXPOSE_REP/REP2: defensive copy, same reasoning as shared.api.PageResponse.
+    public SharesAndInvitationsResponse {
+        shares = List.copyOf(shares);
+        invitations = List.copyOf(invitations);
+    }
+
     public static SharesAndInvitationsResponse from(SharingService.SharesAndInvitations result) {
         return new SharesAndInvitationsResponse(
                 result.shares().getNumber(),

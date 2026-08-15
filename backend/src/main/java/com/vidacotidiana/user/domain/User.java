@@ -6,6 +6,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 /**
@@ -78,6 +79,14 @@ public class User {
         return deletionStatus;
     }
 
+    public Instant getDeletionRequestedAt() {
+        return deletionRequestedAt;
+    }
+
+    public Instant getPurgeAt() {
+        return purgeAt;
+    }
+
     public Instant getCreatedAt() {
         return createdAt;
     }
@@ -100,5 +109,30 @@ public class User {
         if (changed) {
             this.updatedAt = Instant.now();
         }
+    }
+
+    /** UC-13/AC-015/DEC-015: 30-day grace period before purge. */
+    public void requestDeletion() {
+        Instant now = Instant.now();
+        this.deletionStatus = "PENDING_DELETION";
+        this.deletionRequestedAt = now;
+        this.purgeAt = now.plus(30, ChronoUnit.DAYS);
+        this.updatedAt = now;
+    }
+
+    /**
+     * UC-13 step 4/AC-015. Irreversibly anonymizes personal data on this
+     * USER row only — REMINDER/REMINDER_SHARE/INVITATION belonging to this
+     * user are untouched (no approved decision specifies their fate on
+     * purge; inventing one would violate the no-new-requirements rule, see
+     * docs/development/01-technical-backlog.md BE-027). email is
+     * regenerated (not nulled) because it has a UNIQUE constraint and this
+     * method must remain safe to run repeatedly across different users.
+     */
+    public void purge() {
+        this.email = "deleted-" + this.id + "@purged.invalid";
+        this.username = null;
+        this.deletionStatus = "DELETED";
+        this.updatedAt = Instant.now();
     }
 }

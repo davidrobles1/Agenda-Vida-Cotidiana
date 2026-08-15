@@ -11,6 +11,12 @@ import java.util.List;
  */
 public record PageResponse<T>(int page, int size, long totalElements, int totalPages, List<T> items) {
 
+    // DEVOPS-002/spotbugs EI_EXPOSE_REP/REP2: defensive copy so this record never shares a mutable
+    // List reference with its caller in either direction.
+    public PageResponse {
+        items = List.copyOf(items);
+    }
+
     public static <T> PageResponse<T> from(Page<T> page) {
         return new PageResponse<>(
                 page.getNumber(),

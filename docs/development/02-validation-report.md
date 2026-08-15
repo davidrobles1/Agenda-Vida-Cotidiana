@@ -432,3 +432,99 @@ Jar ejecutable regenerado.
 - Cero cambios a `openapi.yaml`/`09-data-model.md`: BE-016..022 implementan exactamente el contrato ya definido, incluyendo los estados/campos exactos de `INVITATION`/`REMINDER_SHARE`.
 - `DEVOPS-001` (rate limiting sobre creación de invitaciones) deliberadamente **no** incluido en este incremento, tal como pedía la tarea — sigue `TODO`.
 - Ver `docs/development/01-technical-backlog.md` (BE-016..022) y `Documentacion/12-traceability.md` (filas `FR-007`..`FR-010`) para la propagación de este resultado.
+
+---
+
+## 12. Push notifications, eliminación de cuenta, mantenimiento de invitaciones, rate limiting y SAST — BE-023..028/033/034, DEVOPS-001/002 (2026-08-15)
+
+Mismo día, tras `BE-016..022`. Cubre en un solo incremento: dispositivos push (BE-023/024), puerto+adapters de push (BE-025), eventos de push (BE-026), eliminación de cuenta (BE-027), purga de invitaciones huérfanas (BE-028), expiración real de invitaciones (BE-033, gap encontrado), un fix de re-sincronización tras purga (BE-034, gap encontrado), rate limiting (DEVOPS-001) y SAST local (DEVOPS-002).
+
+### 12.1 Dispositivos push (BE-023/024)
+
+`V3__push.sql` (`device_push_tokens`: `UNIQUE(token)`, `CHECK(platform)`, índice `user_id`) aplicada realmente por Flyway. `DeviceController`/`DeviceRegistrationService`: upsert por token (DEC-005, confirmado con `DeviceControllerIntegrationTest.registerDevice_upsertsByToken_reassigningFromPreviousOwner`), y el punto de autorización explícitamente distinto del resto del sistema: **AC-014 exige `403` real** al intentar eliminar el dispositivo de otro usuario, no el `404` uniforme que Reminder/sharing usan para no revelar existencia. Implementado literalmente (`DeviceRegistrationService.deleteDevice` lanza `AccessDeniedException`, reutilizando el handler ya existente) y verificado con `DeviceControllerIntegrationTest.deleteDevice_ownedByAnotherUser_returns403NotFoundUniform` — el nombre del test deja constancia de que esto NO se "corrigió" para uniformar con el resto del API.
+
+### 12.2 Puerto de push + adapters (BE-025)
+
+`notification.application.PushNotificationSender` (puerto) + `PushEvent`/`PushEventType`. Dos adapters:
+- `NoOpPushNotificationSender` — bean por defecto, log-only.
+- `FcmPushNotificationSender` — adapter real con `com.google.firebase:firebase-admin:9.10.0` (justificada por ADR-007/DEC-010, independiente de la reversión AWS→self-hosted).
+
+`PushNotificationConfig` selecciona el bean vía `@ConditionalOnProperty("firebase.credentials-path")` (FCM) / `@ConditionalOnMissingBean` (no-op). **`firebase.credentials-path` no está configurada en este entorno ni en `application-test.yml`** — no hay proyecto Firebase real disponible aquí — así que el bean activo en absolutamente toda la suite de tests (y en el entorno de desarrollo tal cual está) es el no-op. Esto se declara explícitamente: el adapter FCM es código real, revisado, y con su propia cobertura de tests (`FcmPushNotificationSenderTest`, 3 casos) que **verifica exclusivamente la construcción del payload** (`Message` con el `token` correcto por cada dispositivo del destinatario, ninguna llamada cuando no hay dispositivos, y que una `FirebaseMessagingException` simulada queda contenida sin propagarse — AC-012) **contra un cliente `FirebaseMessaging` mockeado. El envío real a Firebase no es verificable en este entorno** y no se declara como tal.
+
+### 12.3 Eventos de push (BE-026)
+
+Conectado exactamente a los puntos que AC-012 lista y que ya existían en código: invitación creada (al invitado, solo si tiene cuenta — SEC-001/BE-017 ya resolvía el caso sin cuenta con el adapter de correo), aceptada/rechazada (al inviter), cancelada (al invitado, si tiene cuenta), colaboración revocada (BE-021, al colaborador), y **eliminación de recordatorio compartido** (`ReminderService.delete`, cerrando la segunda mitad de `AC-013` que `BE-015`/`docs/development/01-technical-backlog.md` dejaban explícitamente declarada como pendiente desde el ciclo de `BE-015`). Ningún evento fuera de esa lista (p. ej. "recordatorio editado", mencionado de forma genérica en la prosa de AC-012 pero explícitamente excluido por la instrucción de esta tarea, no se implementó).
+
+### 12.4 Eliminación de cuenta (BE-027) — y un gap real encontrado (BE-034)
+
+`DELETE /me` → `202`, `User.requestDeletion()` (`PENDING_DELETION`, `purge_at` = +30 días). Job `@Scheduled` cada hora (`AccountDeletionService.purgeAccountsPastGracePeriod`) anonimiza `email`/`username` de las cuentas vencidas. Sin endpoint de cancelación (no documentado, `09-data-model.md` lo marca TBD de UX) y sin bloqueo de login durante `PENDING_DELETION` (UC-13 paso 3 TBD; el backend no gestiona sesiones).
+
+**Hallazgo real (BE-034), encontrado escribiendo `AccountDeletionIntegrationTest`:** el flujo de test real era DELETE /me → forzar `purge_at` al pasado (JDBC directo) → ejecutar el job → **GET /me para confirmar la anonimización**. Ese último `GET /me`, al ser un request autenticado, pasa por `UserSyncFilter`, que llama a `UserSyncService.syncFromToken(...)` con las claims del JWT (que siguen siendo las originales — el backend no puede revocar la sesión de Keycloak). Antes del fix, `syncFromToken` comparaba el email/username del JWT contra los ya anonimizados, los encontraba "distintos", y **los sobrescribía de vuelta a los valores originales dentro del mismo request** — deshaciendo la purga silenciosamente. Confirmado con SQL/log real:
+
+```text
+MockHttpServletResponse body (GET /me, inmediatamente tras la purga):
+  {"id":"...","email":"todelete@example.com","username":"todelete","deletionStatus":"DELETED"}
+```
+
+`deletionStatus` ya reflejaba `DELETED` (el job sí corrió), pero `email`/`username` habían sido restaurados por el sync del mismo request. **Corrección:** `UserSyncService.syncFromToken` ahora comprueba `deletionStatus == "DELETED"` antes de aplicar `refreshFromIdentityProvider`, y omite la re-sincronización en ese caso. Re-verificado tras el fix:
+
+```text
+MockHttpServletResponse body (GET /me, tras el fix):
+  {"id":"...","email":"deleted-<id>@purged.invalid","username":null,"deletionStatus":"DELETED"}
+```
+
+Test dedicado añadido: `UserSyncServiceTest.syncFromToken_purgedUser_isNeverResyncedFromJwt` (mismas claims que antes de purgar, la cuenta debe permanecer anonimizada). Mismo patrón de hallazgo real que `BE-030..032` en el ciclo de Milestone 1: encontrado por el test de integración real, no hipotético, corregido y documentado, no ocultado.
+
+### 12.5 Mantenimiento de invitaciones — BE-028 y BE-033 (gap real encontrado)
+
+**BE-033 (gap encontrado):** `09-data-model.md` línea 77 documenta el índice `INVITATION(status, expires_at)` explícitamente "para el job de expiración", pero ningún job existía para transicionar `PENDING → EXPIRED`, y `resolveIfPending` (BE-019/020) tampoco comprobaba `expiresAt`. Sin el fix, una invitación vencida seguiría siendo aceptable/rechazable/cancelable indefinidamente hasta que alguien la tocara. Corregido con `InvitationRepository.expireOverduePending()` (sweep atómico) y `resolveIfPending` extendido con `AND expiresAt > now()` en la misma actualización condicional — verificado con `SharingFlowIntegrationTest.expiredInvitation_cannotBeAcceptedBeforeSweep_thenSweepMarksItExpired`: fuerza `expires_at` al pasado vía JDBC, confirma `410` en el intento de aceptar **antes** de que el sweep corra (el fix de `resolveIfPending` es lo que lo bloquea, no el sweep), luego ejecuta el sweep y confirma `status = 'EXPIRED'` en la base de datos real.
+
+**BE-028:** `InvitationRepository.purgeOrphaned` — `DELETE` de invitaciones resueltas (`REJECTED`/`EXPIRED`/`CANCELLED`) sin cuenta asociada, resueltas hace más de 90 días (ASSUMPTION ya documentada).
+
+### 12.6 Rate limiting (DEVOPS-001)
+
+`sharing.application.InvitationRateLimiter`: ventana deslizante en memoria, sin dependencia nueva. 10 invitaciones/usuario/hora (parámetro técnico). Verificado con `SharingServiceTest.createInvitation_exceedingRateLimit_returns429` (unitario, 11 llamadas) y `SharingFlowIntegrationTest.createInvitation_exceedingRateLimit_returns429` (HTTP real, 11 requests, el 11.º responde `429` con `code: RATE_LIMIT_EXCEEDED`).
+
+### 12.7 `./mvnw clean test` — resultado real
+
+```text
+$ JAVA_HOME=$(/usr/libexec/java_home -v 21) ./mvnw clean test
+...
+[INFO] Tests run: 18 -- SharingFlowIntegrationTest
+[INFO] Tests run: 20 -- SharingServiceTest
+[INFO] Tests run: 2  -- InvitationMaintenanceServiceTest
+[INFO] Tests run: 5  -- DeviceControllerIntegrationTest
+[INFO] Tests run: 7  -- DeviceRegistrationServiceTest
+[INFO] Tests run: 3  -- FcmPushNotificationSenderTest
+[INFO] Tests run: 15 -- ReminderControllerIntegrationTest
+[INFO] Tests run: 20 -- ReminderServiceTest
+[INFO] Tests run: 2  -- AccountDeletionIntegrationTest
+[INFO] Tests run: 3  -- UserControllerIntegrationTest
+[INFO] Tests run: 3  -- AccountDeletionServiceTest
+[INFO] Tests run: 3  -- UserSyncServiceTest
+[INFO] Tests run: 101, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+```
+
+**101/101 en verde** (72 heredados + 29 nuevos). Un fallo real en el primer intento (`AccountDeletionIntegrationTest.deleteMe_thenPurgeJob_anonymizesAccountPastGracePeriod`, el bug BE-034 de §12.4), corregido y re-verificado en verde — no se declaró nada como PASS antes de verlo pasar de verdad.
+
+### 12.8 `./mvnw clean package` — resultado real
+
+`BUILD SUCCESS`, jar ejecutable regenerado (con `firebase-admin` incluido en `BOOT-INF/lib`).
+
+### 12.9 SAST local (DEVOPS-002)
+
+`spotbugs-maven-plugin:4.10.3.0`, ejecutado explícitamente (`./mvnw spotbugs:check`, no colgado del build por defecto). Primera pasada: **14 hallazgos**, todos `EI_EXPOSE_REP`/`EI_EXPOSE_REP2`. Triage real, no automático:
+- **6 reales, corregidos:** `shared.api.PageResponse` y `sharing.api.dto.SharesAndInvitationsResponse` devolvían/almacenaban sus campos `List` sin copia defensiva. Fix: `List.copyOf(...)` en el constructor compacto de ambos records.
+- **8 declarados falsos positivos, sin suprimir globalmente:** el patrón de inyección de dependencias por constructor de Spring (`ObjectMapper`, filtros, servicios guardados como campos) dispara la misma regla `EI_EXPOSE_REP2`; copiar defensivamente un bean singleton gestionado por el contenedor no es una corrección real, rompería la inyección de dependencias. Listados explícitamente: `RestAccessDeniedHandler`, `RestAuthenticationEntryPoint`, `SecurityConfig` (x2), `DeviceController`, `ReminderController`, `SharingService`, `UserSyncFilter`.
+
+Segunda pasada (tras las dos correcciones reales): **8 hallazgos**, exactamente los 8 falsos positivos ya declarados — confirmado, no una promesa.
+
+### 12.10 Resultado
+
+- `BUILD_STATUS: SUCCESSFUL`.
+- `TEST_STATUS: PASSED (101/101)`.
+- Dos gaps reales encontrados y corregidos durante esta validación (`BE-033`, `BE-034`), mismo patrón de honestidad que `BE-030..032`.
+- `DEVOPS-002` ejecutado de verdad, con triage real (6 fijados, 8 declarados falsos positivos explícitamente, ninguno silenciado).
+- TBD explícito, no resuelto en código por instrucción directa de la tarea: destino de `REMINDER`/`REMINDER_SHARE`/`INVITATION` de una cuenta purgada — ver `docs/development/01-technical-backlog.md`.
+- Ver `docs/development/01-technical-backlog.md` (BE-023..028/033/034, DEVOPS-001/002) para la propagación completa de este resultado.

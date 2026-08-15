@@ -1,9 +1,13 @@
 package com.vidacotidiana.reminder.application;
 
+import com.vidacotidiana.notification.application.PushEvent;
+import com.vidacotidiana.notification.application.PushEventType;
+import com.vidacotidiana.notification.application.PushNotificationSender;
 import com.vidacotidiana.reminder.domain.Reminder;
 import com.vidacotidiana.reminder.domain.ReminderRepository;
 import com.vidacotidiana.shared.domain.NotFoundException;
 import com.vidacotidiana.shared.domain.VersionConflictException;
+import com.vidacotidiana.sharing.domain.ReminderShare;
 import com.vidacotidiana.sharing.domain.ReminderShareRepository;
 import com.vidacotidiana.sharing.domain.ReminderShareStatus;
 import org.springframework.data.domain.Page;
@@ -12,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -36,10 +41,13 @@ public class ReminderService {
 
     private final ReminderRepository reminderRepository;
     private final ReminderShareRepository reminderShareRepository;
+    private final PushNotificationSender pushNotificationSender;
 
-    public ReminderService(ReminderRepository reminderRepository, ReminderShareRepository reminderShareRepository) {
+    public ReminderService(ReminderRepository reminderRepository, ReminderShareRepository reminderShareRepository,
+                            PushNotificationSender pushNotificationSender) {
         this.reminderRepository = reminderRepository;
         this.reminderShareRepository = reminderShareRepository;
+        this.pushNotificationSender = pushNotificationSender;
     }
 
     @Transactional
@@ -109,16 +117,21 @@ public class ReminderService {
     /**
      * UC-05/AC-013/DEC-002. Owner-only (AC-011). Since BE-016 (V2__sharing.sql)
      * added INVITATION/REMINDER_SHARE with ON DELETE CASCADE on reminder_id,
-     * deleting the REMINDER row now really does cascade at the database
-     * level, satisfying that half of DEC-002 without any code change here.
-     * What's still a real no-op is the push notification to active
-     * collaborators (AC-013's second requirement) — notification/BE-025/026
-     * don't exist yet. That gap is declared explicitly, not hidden: this
-     * method extends to send it once BE-026 lands.
+     * deleting the REMINDER row cascades at the database level, satisfying
+     * the first half of DEC-002 without any extra code here. BE-026 closes
+     * the second half: every ACTIVE collaborator gets a best-effort push
+     * before the row is gone (AC-013).
      */
     @Transactional
     public void delete(UUID reminderId, UUID callerUserId) {
         Reminder reminder = getOwnedOrThrow(reminderId, callerUserId);
+
+        List<ReminderShare> activeShares = reminderShareRepository.findByReminderIdAndStatus(reminderId, ReminderShareStatus.ACTIVE);
+        for (ReminderShare share : activeShares) {
+            pushNotificationSender.sendBestEffort(share.getCollaboratorUserId(),
+                    new PushEvent(PushEventType.REMINDER_DELETED, "A reminder shared with you was deleted: " + reminder.getTitle()));
+        }
+
         reminderRepository.delete(reminder);
     }
 

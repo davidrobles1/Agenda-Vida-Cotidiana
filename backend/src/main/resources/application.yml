@@ -31,6 +31,15 @@ spring:
 server:
   port: 8080
 
+# BE-025/ADR-007/DEC-010: firebase.credentials-path is intentionally NOT declared here.
+# Spring Boot's relaxed binding already maps an env var FIREBASE_CREDENTIALS_PATH to the
+# property firebase.credentials-path without any entry in this file; declaring it here with
+# a default (even an empty string) would make the property permanently "present" and defeat
+# notification.infrastructure.PushNotificationConfig's @ConditionalOnProperty check, which
+# needs true absence to fall back to the no-op adapter. Unset in this environment and in every
+# test profile -> the no-op PushNotificationSender is used. Set the env var to a real Firebase
+# service-account JSON path to activate the FCM adapter instead.
+
 management:
   endpoints:
     web:
