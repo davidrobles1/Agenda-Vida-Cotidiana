@@ -1,6 +1,5 @@
-# Backend (Gradle/Java)
-backend/.gradle/
-backend/build/
+# Backend (Maven/Java)
+backend/target/
 backend/out/
 backend/.env
 

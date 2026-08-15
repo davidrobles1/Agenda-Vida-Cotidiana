@@ -10,7 +10,7 @@ Estado: `DONE` (código completo **y** verificado con build/test real), `PARTIAL
 
 | ID | Tarea | Origen | Estado | Clases / Tests |
 |---|---|---|---|---|
-| BE-001 | Bootstrap Gradle (Kotlin DSL), estructura de paquetes por módulo (`shared/identity/user/reminder/sharing/notification/audit`) | `07-backend-architecture.md` | DONE | `build.gradle.kts`, `settings.gradle.kts` |
+| BE-001 | Bootstrap del proyecto backend (**Maven**, `pom.xml` + wrapper `./mvnw`; originalmente Gradle, migrado 2026-08-15 por decisión del Product Owner, ver ADR-013), estructura de paquetes por módulo (`shared/identity/user/reminder/sharing/notification/audit`) | `07-backend-architecture.md` | DONE | `pom.xml`, `mvnw`/`mvnw.cmd`/`.mvn/wrapper/` |
 | BE-002 | `docker-compose.yml` local (PostgreSQL 16 + Keycloak 25 dev) | `18-dev-environment.md` | DONE | `docker-compose.yml` (Keycloak levantado vía `docker compose`; Postgres del compose validado en un puerto alternativo por conflicto de puerto local, ver `02-validation-report.md` §8.7) |
 | BE-003 | Migración Flyway `V1__init_schema.sql` (`users`, `reminders`) | `09-data-model.md` | DONE | `V1__init_schema.sql` (aplicada realmente por Flyway contra un PostgreSQL 16 real; Hibernate validó el esquema sin discrepancias, `02-validation-report.md` §8.7) |
 | BE-004 | Resource server OAuth2/OIDC (Spring Security, sin login propio) | `11-auth-security.md`, ADR-008 | DONE | `SecurityConfig`, `RestAuthenticationEntryPoint`, `RestAccessDeniedHandler` (nuevas en este ciclo) |

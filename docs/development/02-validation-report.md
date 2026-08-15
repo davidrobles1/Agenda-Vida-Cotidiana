@@ -279,3 +279,58 @@ Tras la validación, se detuvo el proceso `bootRun` y se eliminaron los contened
 - Se corrigió una causa raíz real y no anticipada (incompatibilidad `docker-java`/Docker Engine 29+, `§8.4`), documentada con su causa exacta y su fix, no adivinada.
 
 Ver `docs/development/03-milestone-1-gate.md` para la actualización del gate a `READY` con esta evidencia.
+
+---
+
+## 9. Migración de build tool — Gradle → Maven (2026-08-15)
+
+**Decisión:** el Product Owner decidió cambiar la herramienta de build del backend de Gradle a Maven, en adelante, antes de iniciar Milestone 2. Es una decisión de tooling, no de arquitectura — no toca `openapi.yaml`, el modelo de datos, ni ninguna decisión aprobada (DEC-001 a DEC-015, ADRs). Resuelve el `TBD` que `17-dependencies.md` dejaba abierto ("Gradle preferido para build: TBD"); ver ADR-013 en `Documentacion/22-decision-log.md`.
+
+**Importante:** todo lo documentado en §7–§8 de este mismo archivo (ciclos 1–3, incluyendo `./gradlew clean test`, `./gradlew build`, la incompatibilidad `docker-java`/Docker Engine 29+ y su fix) sigue siendo evidencia real y válida de *lo que se ejecutó con Gradle en su momento*. No se reescribe ni se invalida retroactivamente — queda como historial superado por el cambio de herramienta, no como un resultado falso.
+
+### 9.1 Qué se migró
+
+- `backend/build.gradle.kts` → `backend/pom.xml`: mismas dependencias exactas (Spring Boot 3.3.4 como parent, Java 21, `spring-boot-starter-{web,validation,data-jpa,oauth2-resource-server,security,actuator}`, `flyway-core` + `flyway-database-postgresql`, `postgresql` runtime; test: `spring-boot-starter-test`, `spring-security-test`, `testcontainers-bom` **1.21.4** — se mantuvo la versión del fix real de `§8.4`, no se bajó a `1.20.1` — más `testcontainers` `junit-jupiter` y `postgresql`).
+- `backend/settings.gradle.kts` y `backend/gradle/` (wrapper de Gradle + `README.md` histórico) — eliminados.
+- `backend/gradlew`/`gradlew.bat` — eliminados (quedaban no funcionales sin `gradle/wrapper/gradle-wrapper.jar`).
+- Wrapper de Maven generado con `mvn -N wrapper:wrapper` (Maven 3.9.9, `only-script`): `backend/mvnw`, `backend/mvnw.cmd`, `backend/.mvn/wrapper/maven-wrapper.properties`.
+- `backend/src/test/resources/docker-java.properties` (`api.version=1.44`) — **conservado sin cambios**; es el mismo fix real de compatibilidad con Docker Engine 29+ de `§8.4`, no depende de la herramienta de build.
+- `backend/.gitignore` y `.gitignore` (raíz): `build/`/`.gradle/` → `target/`.
+
+### 9.2 Revalidación real bajo Maven (JDK 21 + Docker reales, misma máquina)
+
+```text
+$ JAVA_HOME=$(/usr/libexec/java_home -v 21) ./mvnw clean test
+...
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0 -- in com.vidacotidiana.reminder.api.ReminderControllerIntegrationTest
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0 -- in com.vidacotidiana.reminder.application.ReminderServiceTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0 -- in com.vidacotidiana.user.api.UserControllerIntegrationTest
+[INFO] Tests run: 19, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+```
+
+**19/19 tests en verde, a la primera** — sin necesidad de repetir ningún ajuste adicional: el `docker-java.properties` conservado de `§8.4` funcionó igual bajo Maven Surefire que bajo Gradle Test, confirmando que era un fix de la herramienta de test (Testcontainers/docker-java), no de Gradle.
+
+```text
+$ JAVA_HOME=$(/usr/libexec/java_home -v 21) ./mvnw clean package
+...
+[INFO] Replacing main artifact .../target/vida-cotidiana-backend-0.1.0-SNAPSHOT.jar with repackaged archive, adding nested dependencies in BOOT-INF/.
+[INFO] BUILD SUCCESS
+```
+
+Jar ejecutable generado: `backend/target/vida-cotidiana-backend-0.1.0-SNAPSHOT.jar` (55.9 MB).
+
+**Validación manual adicional** (equivalente a `§8.7`, repetida bajo Maven): se levantó un PostgreSQL 16 temporal (puerto `15432`, mismo motivo que `§8.7` — el Postgres nativo del sistema en `5432` sigue presente en esta máquina) y Keycloak vía `docker compose up -d keycloak`, y se ejecutó `DB_URL=jdbc:postgresql://localhost:15432/vidacotidiana ./mvnw spring-boot:run`:
+
+- Arranque limpio en 3.653s, Flyway aplicó `V1__init_schema.sql` contra el Postgres real, mismo comportamiento que con `bootRun` de Gradle.
+- `GET /actuator/health` → `200 {"status":"UP"}`.
+- `GET /api/v1/me` y `GET /api/v1/reminders` sin token → `401` con el mismo envoltorio `Error` uniforme (`code`/`message`/`traceId`).
+
+Idéntico resultado al validado con Gradle en `§8.7`. Se detuvo el proceso y se eliminaron los contenedores temporales al terminar; no queda nada corriendo.
+
+### 9.3 Resultado de la migración
+
+- `BUILD_STATUS: SUCCESSFUL` (Maven, visto realmente).
+- `TEST_STATUS: PASSED (19/19)` (Maven, visto realmente, mismos test classes, sin tocar lógica de negocio).
+- Ningún error de migración encontrado (plugins, exclusiones o versiones resueltas distinto por Maven) — no fue necesario corregir nada más allá de traducir `build.gradle.kts` a `pom.xml`.
+- Ver `docs/development/03-milestone-1-gate.md` (addendum) para la confirmación de que `MILESTONE_1_STATUS` sigue `READY` bajo Maven.

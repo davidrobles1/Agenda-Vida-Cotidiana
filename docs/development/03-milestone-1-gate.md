@@ -87,6 +87,27 @@ Ejecutado y visto realmente el 2026-08-15 (`02-validation-report.md` §8): `./gr
 
 ## Recommendation
 
-**Milestone 1 cerrado. Procede iniciar Milestone 2** (editar/eliminar recordatorio + inicio de `sharing`, ver `01-technical-backlog.md` BE-014 en adelante), siguiendo el mismo estándar de esta validación: escribir el código, ejecutar `./gradlew clean test`/`./gradlew build` de verdad antes de declarar cualquier tarea `DONE`, y no modificar `openapi.yaml`/decisiones aprobadas salvo necesidad real y justificada.
+**Milestone 1 cerrado. Procede iniciar Milestone 2** (editar/eliminar recordatorio + inicio de `sharing`, ver `01-technical-backlog.md` BE-014 en adelante), siguiendo el mismo estándar de esta validación: escribir el código, ejecutar el build/test real antes de declarar cualquier tarea `DONE`, y no modificar `openapi.yaml`/decisiones aprobadas salvo necesidad real y justificada.
 
 Pendiente no bloqueante para cuando se necesite `bootRun`/pruebas exploratorias con Keycloak real: crear el realm `vida-cotidiana` y su cliente (`INFRA-002`, ver `docs/development/00-development-baseline.md` §3).
+
+---
+
+## Addendum (2026-08-15) — Migración de build tool Gradle → Maven
+
+Antes de iniciar Milestone 2, el Product Owner decidió migrar el build del backend de Gradle a Maven (decisión de tooling, no de arquitectura — ver ADR-013 en `Documentacion/22-decision-log.md` y `02-validation-report.md` §9 para el detalle completo de la migración y su revalidación).
+
+**Esto no invalida el resultado de este gate.** Toda la evidencia de arriba (`BUILD_STATUS: SUCCESSFUL`, `TEST_STATUS: PASSED (19/19)`) fue real y correcta *en el momento en que se generó, bajo Gradle*. Queda explícitamente como **evidencia histórica, superada por el cambio de herramienta** — no como un resultado falso ni retroactivamente inválido.
+
+Se revalidó el mismo scope, con los mismos 19 test classes/casos (sin tocar lógica de negocio), bajo Maven:
+
+- `./mvnw clean test` → `BUILD SUCCESS`, **19/19 tests, 0 failures, 0 errors** — verde a la primera, sin necesidad de repetir ningún fix.
+- `./mvnw clean package` → `BUILD SUCCESS`, jar ejecutable generado.
+- Validación manual (`./mvnw spring-boot:run` contra PostgreSQL real + Keycloak real): arranque limpio, Flyway aplicó la migración, `/actuator/health` → `200`, `401` uniforme sin token en `/api/v1/me` y `/api/v1/reminders` — idéntico al comportamiento validado bajo Gradle.
+
+**MILESTONE_1_STATUS: READY (confirmado bajo Maven, 2026-08-15).**
+**BUILD_STATUS: SUCCESSFUL (Maven).**
+**TEST_STATUS: PASSED (19/19, Maven).**
+**BLOCKERS: 0.**
+
+A partir de este addendum, todos los comandos de desarrollo del backend usan `./mvnw` (ver `Documentacion/18-dev-environment.md`). `./gradlew` ya no existe en el repositorio.

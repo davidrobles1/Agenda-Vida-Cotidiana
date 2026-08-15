@@ -137,3 +137,14 @@
 **Alternativas consideradas:** hard delete inmediato; retención mínima solo para auditoría anonimizada; conservación indefinida de emails de invitados (ver `28-v1-decision-pack.md` DEC-015).
 
 **Consecuencias:** requiere un job de purga diferida para cuentas marcadas para eliminación y otro para invitaciones resueltas/expiradas; añade estado de "pendiente de eliminación" a `USER` (ver `09-data-model.md`).
+
+## ADR-013 Build tool: Maven (sustituye el bootstrap inicial en Gradle)
+**Estado:** Accepted (2026-08-15)
+
+**Contexto:** `17-dependencies.md` dejaba "Gradle preferido para build: TBD"; el bootstrap de Milestone 1 fijó Gradle 8.9 (Kotlin DSL) como resolución provisional de ese TBD (`docs/development/00-development-baseline.md`). Antes de iniciar Milestone 2, el Product Owner decidió explícitamente cambiar a Maven para todo el backend en adelante. Es una decisión de tooling, no de arquitectura — no afecta `openapi.yaml`, el modelo de datos, ni ninguna decisión aprobada (DEC-001 a DEC-015, otros ADRs).
+
+**Decisión:** Maven (`./mvnw`, wrapper Maven 3.9.9) reemplaza a Gradle como build tool del backend.
+
+**Alternativas consideradas:** mantener Gradle (statu quo, sin justificación en contra salvo preferencia explícita del Product Owner).
+
+**Consecuencias:** `backend/build.gradle.kts`, `settings.gradle.kts`, `gradle/` y `gradlew`/`gradlew.bat` se eliminan, reemplazados por `pom.xml` y `mvnw`/`mvnw.cmd`/`.mvn/`. Revalidado con build/test real (`./mvnw clean test` → 19/19 tests, `./mvnw clean package` → jar ejecutable); ver `docs/development/02-validation-report.md` §9 y el addendum de `03-milestone-1-gate.md`. `18-dev-environment.md` actualizado (`./mvnw` en vez de `./gradlew` para el backend; Android sigue usando Gradle, sin relación con este cambio).

@@ -26,7 +26,7 @@ Inventario real del repositorio al iniciar esta fase (verificado por inspección
 
 ## 2. Componentes existentes (al cierre de este ciclo)
 
-- `backend/` — proyecto Gradle (Kotlin DSL) Java 21 / Spring Boot 3.3.4, módulos `shared`, `identity`, `user`, `reminder` (los únicos necesarios para el vertical slice; `sharing`, `notification`, `audit` quedan como paquetes vacíos a crear cuando se implementen, para no anticipar código sin uso).
+- `backend/` — proyecto **Maven** (originalmente Gradle/Kotlin DSL, migrado el 2026-08-15, ver §4 y ADR-013) Java 21 / Spring Boot 3.3.4, módulos `shared`, `identity`, `user`, `reminder` (los únicos necesarios para el vertical slice; `sharing`, `notification`, `audit` quedan como paquetes vacíos a crear cuando se implementen, para no anticipar código sin uso).
 - Migración Flyway `V1__init_schema.sql` (`users`, `reminders`).
 - Resource server OAuth2/OIDC contra Keycloak (sin login propio, DEC-004/ADR-008).
 - Sincronización de `USER` desde el JWT autenticado (upsert en cada request autenticado).
@@ -52,7 +52,7 @@ Ninguno de estos faltantes es una regresión: son exactamente los siguientes mil
 ## 4. Dependencias técnicas
 
 - **Java 21 LTS**, **Spring Boot 3.3.4** (versión exacta fijada en este ciclo; `17-dependencies.md` la marcaba como `TBD al bootstrap` — este es ese momento; no es una decisión de negocio, es la resolución de un TBD técnico explícitamente delegado a la implementación).
-- **Gradle 8.9** (Kotlin DSL) — `17-dependencies.md` indicaba "Gradle preferido... TBD"; se fija Gradle como build tool de este ciclo en adelante.
+- **Maven** (`./mvnw`, wrapper Maven 3.9.9) — `17-dependencies.md` indicaba "Gradle preferido... TBD"; el bootstrap original de este ciclo fijó Gradle 8.9 (Kotlin DSL) como resolución provisional de ese TBD. **Decisión posterior del Product Owner (2026-08-15): migrar a Maven** (ADR-013, `22-decision-log.md`). Es un cambio de tooling, no de arquitectura; ver `docs/development/02-validation-report.md` (sección de migración) para la revalidación real (`./mvnw clean test`/`./mvnw clean package`) y `03-milestone-1-gate.md` (addendum) para la confirmación de que el gate sigue `READY` bajo Maven.
 - **PostgreSQL 16** (imagen Docker `postgres:16-alpine` para desarrollo local).
 - **Flyway** (integrado vía `spring-boot-starter-data-jpa` + `org.flywaydb:flyway-database-postgresql`).
 - **Spring Security OAuth2 Resource Server** (`spring-boot-starter-oauth2-resource-server`) contra Keycloak (imagen `quay.io/keycloak/keycloak:25.0` en modo `start-dev` para local).

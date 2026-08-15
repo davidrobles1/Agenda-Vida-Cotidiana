@@ -10,9 +10,10 @@
 - IDE con plugins Kotlin/Java.
 
 ## Backend
+Build tool: Maven (`./mvnw`, ver ADR-013 en `22-decision-log.md`). No requiere Maven instalado localmente — el wrapper lo descarga.
 ```bash
-./gradlew test
-./gradlew bootRun
+./mvnw test
+./mvnw spring-boot:run
 ```
 
 ## Android
