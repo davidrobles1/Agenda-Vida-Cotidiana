@@ -54,7 +54,7 @@ management:
         include: health
   endpoint:
     health:
-      show-details: never
+      show-details: when-authorized
 
 logging:
   level:

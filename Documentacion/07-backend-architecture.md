@@ -69,4 +69,10 @@ infrastructure/
 - **`sharing`:** la transición `INVITATION.status = PENDING → ACCEPTED/REJECTED` debe implementarse como una actualización condicional atómica en base de datos (`UPDATE ... WHERE status = 'PENDING'`) para que, ante dos solicitudes concurrentes sobre la misma invitación, solo una tenga éxito y la otra reciba `410` (invitación ya resuelta) en vez de crear dos `REMINDER_SHARE` para la misma invitación.
 
 ## Observabilidad — healthcheck
-El backend expone un endpoint de healthcheck operativo (p. ej. Spring Boot Actuator `/actuator/health`) para orquestación/monitoring (NFR-006). Este endpoint es no autenticado, de solo lectura, y vive **fuera** del contrato versionado `/api/v1` definido en `openapi/openapi.yaml` — no forma parte de la superficie de negocio de la API y por lo tanto no requiere autorización OWNER/COLLABORATOR ni aparece en el OpenAPI de negocio.
+El backend expone un endpoint de healthcheck operativo (Spring Boot Actuator `/actuator/health`) para orquestación/monitoring (NFR-006). Este endpoint es no autenticado, de solo lectura, y vive **fuera** del contrato versionado `/api/v1` definido en `openapi/openapi.yaml` — no forma parte de la superficie de negocio de la API y por lo tanto no requiere autorización OWNER/COLLABORATOR ni aparece en el OpenAPI de negocio.
+
+**DECISION, implementada y verificada con evidencia real (INFRA-006, 2026-08-16, ver `01-technical-backlog.md`):**
+- Solo `health` está expuesto (`management.endpoints.web.exposure.include=health`) — ningún otro endpoint de Actuator (`env`, `beans`, `mappings`, etc.) se expone, para no ampliar innecesariamente la superficie de ataque en V1.
+- `management.endpoint.health.show-details=when-authorized`: un caller sin bearer token solo ve `{"status":"UP"|"DOWN"}`; el desglose por componente (`db`, `diskSpace`, `ping`) solo se muestra a un caller autenticado.
+- El chequeo de Postgres viene del `DataSourceHealthIndicator` de Spring Boot (gratis con `spring-boot-starter-data-jpa` + driver de Postgres) — confirmado real apagando y encendiendo el contenedor de Postgres, no asumido.
+- `SecurityConfig` tiene una excepción explícita (`permitAll()`) para `/actuator/health` en la cadena de filtros del resource server OAuth2 — sin ella, todo path exige bearer token por defecto.
