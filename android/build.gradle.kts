@@ -7,4 +7,6 @@ plugins {
     id("org.jetbrains.kotlin.plugin.serialization") version "2.0.20" apply false
     // AND-005: applied only in app/build.gradle.kts, gated on google-services.json existing there.
     id("com.google.gms.google-services") version "4.4.2" apply false
+    // WEB-006/AND-006: same gate — real google-services.json required, applied only in app/build.gradle.kts.
+    id("com.google.firebase.crashlytics") version "3.0.2" apply false
 }

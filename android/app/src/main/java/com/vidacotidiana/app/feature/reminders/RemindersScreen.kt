@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedTextField
@@ -35,6 +36,11 @@ fun RemindersScreen(
     var sharingReminderId by remember { mutableStateOf<String?>(null) }
 
     Column(modifier = Modifier.padding(16.dp)) {
+        // Found for real (on-device, AND-006 verification): a Row with 4 buttons at their
+        // natural width overflowed this screen's width — the same squeeze-to-invisible
+        // failure mode as ReminderRow before its fillMaxWidth(0.6f) fix, just without a
+        // long title to make it obvious. Splitting into two rows avoids reintroducing it
+        // rather than guessing at weights for a header that keeps growing.
         Row {
             Text("Vida Cotidiana")
             Button(modifier = Modifier.testTag("invitations_button"), onClick = onNavigateToInvitations) {
@@ -43,6 +49,22 @@ fun RemindersScreen(
             Button(modifier = Modifier.testTag("notifications_button"), onClick = onNavigateToNotifications) {
                 Text("Notifications")
             }
+        }
+        Row {
+            // AND-006 real verification only — not a user-facing feature. Gated at
+            // runtime by VidaCotidianaApplication's collection-enabled flag, not by
+            // hiding these buttons, since the point is to prove the real pipeline works.
+            Button(
+                modifier = Modifier.testTag("debug_record_exception_button"),
+                onClick = {
+                    FirebaseCrashlytics.getInstance()
+                        .recordException(RuntimeException("AND-006 debug non-fatal: manually triggered from RemindersScreen"))
+                },
+            ) { Text("Debug: record error") }
+            Button(
+                modifier = Modifier.testTag("debug_crash_button"),
+                onClick = { throw RuntimeException("AND-006 debug crash: manually triggered from RemindersScreen") },
+            ) { Text("Debug: crash") }
         }
 
         Row(modifier = Modifier.fillMaxWidth()) {

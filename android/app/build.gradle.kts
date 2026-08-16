@@ -10,6 +10,8 @@ plugins {
     id("org.jetbrains.kotlin.plugin.serialization")
     // AND-005: real google-services.json now present (Firebase project vida-cotidiana-6da30).
     id("com.google.gms.google-services")
+    // AND-006: same real Firebase project, Crashlytics product.
+    id("com.google.firebase.crashlytics")
 }
 
 android {
@@ -38,6 +40,17 @@ android {
         buildConfigField("String", "OIDC_CLIENT_ID", "\"android-app\"")
         buildConfigField("String", "OIDC_REDIRECT_URI", "\"com.vidacotidiana.app://callback\"")
         buildConfigField("String", "API_BASE_URL", "\"http://192.168.0.18:8080/api/v1/\"")
+
+        // AND-006: Crashlytics is always enabled in release (see buildTypes below);
+        // in debug it stays off unless a dev explicitly opts in for local
+        // verification (-PcrashlyticsDebugEnabled=true or gradle.properties),
+        // so no debug build from any developer's machine reports crashes by
+        // default. See VidaCotidianaApplication.kt for where this is read.
+        buildConfigField(
+            "boolean",
+            "CRASHLYTICS_DEBUG_ENABLED",
+            (project.findProperty("crashlyticsDebugEnabled") as String? ?: "false"),
+        )
 
         testInstrumentationRunner = "com.vidacotidiana.app.HiltTestRunner"
     }
@@ -97,6 +110,7 @@ dependencies {
     // no other Firebase product enabled.
     implementation(platform("com.google.firebase:firebase-bom:33.5.1"))
     implementation("com.google.firebase:firebase-messaging-ktx")
+    implementation("com.google.firebase:firebase-crashlytics-ktx")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1")
 
     testImplementation("junit:junit:4.13.2")

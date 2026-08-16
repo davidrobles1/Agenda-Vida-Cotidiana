@@ -12,6 +12,15 @@ export function RemindersPage() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [sharingReminderId, setSharingReminderId] = useState<string | null>(null)
+  const [debugCrash, setDebugCrash] = useState(false)
+
+  // WEB-006 real verification: thrown during render (not inside the click
+  // handler) so Sentry.ErrorBoundary in main.tsx actually catches it and
+  // reports to GlitchTip — an error boundary never sees exceptions thrown
+  // from an event handler, only from rendering.
+  if (debugCrash) {
+    throw new Error('WEB-006 debug crash: manually triggered from RemindersPage')
+  }
 
   async function refresh() {
     try {
@@ -63,6 +72,9 @@ export function RemindersPage() {
         <Link to="/notifications">Notifications</Link>
         <button type="button" onClick={logout}>
           Log out
+        </button>
+        <button type="button" onClick={() => setDebugCrash(true)}>
+          Debug: trigger error
         </button>
       </header>
 

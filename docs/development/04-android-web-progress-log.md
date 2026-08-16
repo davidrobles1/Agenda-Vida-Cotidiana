@@ -93,3 +93,29 @@ Cada entrada: qué se agregó, en qué plataforma(s), y el estado de iOS frente 
    **iOS: no aplica**, pero **lección general aplicable:** cualquier flujo de permisos de navegador/push que se intente verificar con Playwright/Selenium en el futuro (Web o, si alguna vez se investiga WebKit-driven testing en iOS/Safari) debe anticipar el mismo tipo de rechazo anti-automatización del lado del proveedor — la verificación automatizada puede quedar estructuralmente limitada a "todo lo previo al último paso", con el último paso requiriendo confirmación manual humana, documentada explícitamente en vez de forzar una aserción que nunca podrá pasar bajo WebDriver.
 
 **Verificación real:** `e2e/notifications.spec.ts` (Playwright) cubre automatizadamente todo lo alcanzable bajo WebDriver (login real, `GET /me/devices` real, botón "Enable notifications" habilitado); el registro del token en sí quedó verificado por el clic manual del usuario + confirmación en Postgres, documentado explícitamente en el propio test y en `01-technical-backlog.md` — no simulado, no asumido.
+
+---
+
+## 2026-08-16 — AND-006/WEB-006/INFRA-007: reporte de errores (Crashlytics + GlitchTip)
+
+**Qué:** Firebase Crashlytics en Android (mismo proyecto Firebase que `AND-005`), GlitchTip autoalojado para Web (`docker-compose.yml`, reutiliza el servicio `postgres` existente + Redis, imagen oficial `glitchtip/glitchtip:v4.1.3`), `@sentry/react` como cliente Web (GlitchTip habla el protocolo de Sentry).
+
+**Plataformas:** Android, Web. **Enfoque acotado explícitamente por el usuario** — nada de CI, Crashlytics/GlitchTip en un entorno real, ni auditoría de seguridad todavía; esta entrada es solo error-tracking de desarrollo local.
+
+**iOS:** **pendiente**, ambas piezas (Firebase Crashlytics tiene un equivalente directo para iOS vía el mismo proyecto Firebase — `GoogleService-Info-apple.plist` ya está en la raíz del repo desde `AND-005`, sin usar; GlitchTip también aceptaría un cliente `@sentry/react-native` o el SDK nativo de Sentry para Swift si iOS alguna vez lo necesita, aunque eso no se ha evaluado). No se tocó `ios/` en esta sesión.
+
+**Bugs/hallazgos reales durante esta verificación:**
+
+1. **Android: header de `RemindersScreen` desbordado** — un `Row` con 4 botones (Invitations/Notifications/Debug ×2) no cabía en el ancho de pantalla; los dos botones de debug ni siquiera aparecían en el árbol de UI Automator (ausentes, no solo invisibles). Mismo patrón que el bug de `ReminderRow` en `AND-004`, esta vez sin necesitar un título largo — cualquier `Row` sin `weight`/límites de ancho con suficientes hijos puede reproducirlo. Fix: los botones de debug se movieron a su propio `Row`.
+   **iOS: riesgo no auditado.** El `HStack` del header de `RemindersView.swift` en iOS tiene el mismo riesgo teórico si se le añaden más elementos — SwiftUI maneja el overflow distinto (envuelve/trunca en vez de comprimir a cero), pero no se ha verificado con una cantidad de botones similar.
+
+2. **Android: `connectedAndroidTest` no observa un crash real de la misma forma que un tap manual vía `adb`** — `CrashlyticsCrashTest` (Compose Testing) reporta "passed" incluso cuando el botón de debug SÍ lanza la excepción y el proceso muere; la prueba real vino de `adb shell input tap` directo sobre la app instalada (fuera de cualquier arnés de test), que sí mostró el `FATAL EXCEPTION` genuino en `logcat` y el proceso muerto (`adb shell pidof` vacío). **Lección general:** un test instrumentado que pasa no siempre es evidencia suficiente para un escenario de crash real — cuando el objetivo es específicamente probar que "el proceso muere de verdad", el mecanismo del test framework puede interferir con la observación misma; documentado explícitamente en el Javadoc de `CrashlyticsCrashTest` en vez de confiar ciegamente en su resultado verde.
+   **iOS: no aplica directamente** (XCTest tiene su propio manejo de crashes, no se ha investigado si comparte esta limitación).
+
+3. **Entorno macOS, no un bug de la app:** el puerto host `5432` ya estaba ocupado por una instalación nativa de PostgreSQL 17 ajena a Docker — remapeado a `5434` en `docker-compose.yml` para el servicio `postgres`, sin afectar la comunicación interna contenedor-a-contenedor. Y Docker Desktop rechazó montar el script de init de GlitchTip con "operation not permitted" — restricción TCC de macOS para la carpeta `~/Documents`, resuelta con un permiso de sistema de una sola vez (Ajustes → Privacidad y Seguridad → Archivos y Carpetas → Docker → Carpeta Documentos). Documentado en el comentario del propio `docker-compose.yml` junto con un workaround (`docker exec ... psql -c "CREATE DATABASE glitchtip"`) por si se repite en otra máquina.
+
+**Verificación real:**
+- **Android:** con `-PcrashlyticsDebugEnabled=true`, un tap real (no automatizado) sobre "Debug: crash" produjo un `FATAL EXCEPTION` real con el stack trace exacto y mató el proceso de verdad; el SDK de Crashlytics se conectó de verdad a Firebase (tokens de autenticación genuinos en los logs); **el usuario confirmó visualmente en Firebase Console → Crashlytics que el evento llegó** — Crashlytics no tiene una API pública en tiempo real como GlitchTip, así que esta confirmación humana era la única forma honesta de cerrar el loop, tal como permitía la tarea.
+- **Web:** `e2e/error-tracking.spec.ts` (Playwright real) hace clic en un botón de debug que lanza durante el render (capturado por un `Sentry.ErrorBoundary` nuevo en `main.tsx`), y **confirma programáticamente contra la propia API de GlitchTip** (`GET /api/0/projects/{org}/{project}/issues/`, compatible con la API de Sentry, con un `APIToken` real) que el issue llegó — no solo mirando la UI. Confirmado además manualmente con `curl` fuera del test.
+
+`./mvnw clean test`: 110/110 en verde (sin cambios de este bloque). `npm run build`: éxito real. `./gradlew assembleDebug`/`assembleRelease`: ambos `BUILD SUCCESSFUL`.

@@ -9,9 +9,23 @@ services:
       POSTGRES_USER: vidacotidiana
       POSTGRES_PASSWORD: vidacotidiana
     ports:
-      - "5432:5432"
+      # Host port 5432 was occupied by something outside this compose project
+      # on the machine this was verified on (found for real, not assumed) —
+      # 5434 avoids the collision; only matters for host-external access,
+      # container-to-container traffic (e.g. glitchtip-* below) always uses
+      # the internal "postgres:5432" regardless of this host mapping.
+      - "5434:5432"
     volumes:
       - vida-cotidiana-postgres-data:/var/lib/postgresql/data
+      # Runs once on first init only — creates the separate "glitchtip"
+      # database in this same instance (see "glitchtip-*" services below).
+      # If Docker Desktop on macOS refuses this bind mount with "operation
+      # not permitted" (found for real: a TCC/Full Disk Access restriction on
+      # ~/Documents, unrelated to this compose file), grant Docker Desktop
+      # Full Disk Access once in System Settings -> Privacy & Security, or
+      # run `docker exec <postgres-container> psql -U vidacotidiana -c
+      # "CREATE DATABASE glitchtip"` manually after `postgres` is up.
+      - ./infra/postgres:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U vidacotidiana"]
       interval: 5s
@@ -34,5 +48,63 @@ services:
     # No Android/iOS/Web OIDC clients are defined yet (AND-002/IOS-002/WEB-002,
     # out of scope — no approved client names/roles exist).
 
+  # WEB-006/INFRA-007: GlitchTip, self-hosted, Sentry-protocol-compatible error
+  # tracking for the Web client. Local development infrastructure only, same
+  # as Keycloak above — migrates to the rented server once INFRA-004 exists.
+  # Reuses the "postgres" service above (separate "glitchtip" database, see
+  # infra/postgres/init-glitchtip-db.sql) instead of running a second Postgres
+  # container. Redis is GlitchTip's own documented requirement for its Celery
+  # task queue (email, event ingestion) — not an addition of our own.
+  glitchtip-redis:
+    image: redis:7-alpine
+
+  glitchtip-migrate:
+    image: glitchtip/glitchtip:v4.1.3
+    command: ./manage.py migrate
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://vidacotidiana:vidacotidiana@postgres:5432/glitchtip
+      SECRET_KEY: ${GLITCHTIP_SECRET_KEY:-dev-only-insecure-secret-change-if-ever-deployed}
+
+  glitchtip-web:
+    image: glitchtip/glitchtip:v4.1.3
+    depends_on:
+      glitchtip-migrate:
+        condition: service_completed_successfully
+      glitchtip-redis:
+        condition: service_started
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgres://vidacotidiana:vidacotidiana@postgres:5432/glitchtip
+      REDIS_URL: redis://glitchtip-redis:6379/0
+      SECRET_KEY: ${GLITCHTIP_SECRET_KEY:-dev-only-insecure-secret-change-if-ever-deployed}
+      PORT: 8000
+      GLITCHTIP_DOMAIN: http://localhost:8000
+      # No outbound email in local dev — logs to the container's stdout instead.
+      EMAIL_URL: consolemail://
+      ENABLE_OPEN_USER_REGISTRATION: "true"
+    volumes:
+      - vida-cotidiana-glitchtip-uploads:/code/uploads
+
+  glitchtip-worker:
+    image: glitchtip/glitchtip:v4.1.3
+    command: ./bin/run-celery-with-beat.sh
+    depends_on:
+      glitchtip-migrate:
+        condition: service_completed_successfully
+      glitchtip-redis:
+        condition: service_started
+    environment:
+      DATABASE_URL: postgres://vidacotidiana:vidacotidiana@postgres:5432/glitchtip
+      REDIS_URL: redis://glitchtip-redis:6379/0
+      SECRET_KEY: ${GLITCHTIP_SECRET_KEY:-dev-only-insecure-secret-change-if-ever-deployed}
+      EMAIL_URL: consolemail://
+    volumes:
+      - vida-cotidiana-glitchtip-uploads:/code/uploads
+
 volumes:
   vida-cotidiana-postgres-data:
+  vida-cotidiana-glitchtip-uploads:
