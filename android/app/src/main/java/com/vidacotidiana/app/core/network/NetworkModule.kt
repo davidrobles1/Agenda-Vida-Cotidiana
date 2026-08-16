@@ -49,4 +49,16 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideReminderApi(retrofit: Retrofit): ReminderApi = retrofit.create(ReminderApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideSharingApi(retrofit: Retrofit): SharingApi = retrofit.create(SharingApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideUserApi(retrofit: Retrofit): UserApi = retrofit.create(UserApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideDeviceApi(retrofit: Retrofit): DeviceApi = retrofit.create(DeviceApi::class.java)
 }

@@ -1,0 +1,584 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		1311CE1349EB638E0554DF4B /* InvitationsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A524FAABB70D2AF2EA602C2 /* InvitationsView.swift */; };
+		158635FCD6DCDE02D2CAFCD4 /* NotificationsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1F8D60F394ADB0739AD449D /* NotificationsView.swift */; };
+		24E3C8D01A64DA38AE7D7D11 /* ReminderAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF3A8B1B51B4C66771BDF634 /* ReminderAPI.swift */; };
+		291AF3213CE87065BA65AD1E /* UserAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03CA6D1420E797A25EC1D07D /* UserAPI.swift */; };
+		2E06E2381687ED1777B229B2 /* AppConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = F268FD31B106BFC2518680B5 /* AppConfig.swift */; };
+		35DE3F13FFEFD1074028FDE4 /* KeychainTokenStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77BA7DCE19B163A2CD213276 /* KeychainTokenStore.swift */; };
+		40AFBA41EA586CB33BADC8D4 /* VidaCotidianaApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A550F109865C01BCE1B61EE7 /* VidaCotidianaApp.swift */; };
+		5C302B4FE0867F73B9A3009D /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CE3C705AF6F37F79E361659 /* RootView.swift */; };
+		68154E6E4C002F3FCB19167E /* AuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE9A912B65DCFA70E40B5A57 /* AuthManager.swift */; };
+		6D5EB96664766E3FF3033BA8 /* RemindersView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DB40F2B94DAFE0F3DB15E4D /* RemindersView.swift */; };
+		A0C56BC1F3900CFC1291061B /* DeviceAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 447937BEF2AF6E81C1923385 /* DeviceAPI.swift */; };
+		A65E737BED7E4A5BD0FAE133 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A6A5F9F0FE203F0B4996680 /* APIClient.swift */; };
+		A98698A6D0615987F13987DE /* SharingFlowUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 167091450EDE78AD7E2720B9 /* SharingFlowUITests.swift */; };
+		B102D02AF1289095FF9A5E78 /* LoginAndRemindersUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8598CF94C7A620EE9209785E /* LoginAndRemindersUITests.swift */; };
+		BF5FD160709769496B4F8B36 /* SharingAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEE5B438743FDD746427D48D /* SharingAPI.swift */; };
+		D473006B83587058FE83225E /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E85104E0347D14F01C6F9393 /* LoginView.swift */; };
+		E7C5A29C7D034318E8496835 /* ShareView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F906C5FC5AD7584B65A4272B /* ShareView.swift */; };
+		F06A68552974D34502E9CEAA /* PKCE.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16FB4D8A43DB3E3E9861EE9E /* PKCE.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		94A0D740212510229191FE56 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 0A696ED04D95583C7A86F085 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B416C19D6032559DFEE65F78;
+			remoteInfo = VidaCotidiana;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		011AE09BA19318D61FD75BEE /* .gitkeep */ = {isa = PBXFileReference; path = .gitkeep; sourceTree = "<group>"; };
+		02B52D9B7FA1F84B15716A16 /* .gitkeep */ = {isa = PBXFileReference; path = .gitkeep; sourceTree = "<group>"; };
+		03CA6D1420E797A25EC1D07D /* UserAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserAPI.swift; sourceTree = "<group>"; };
+		167091450EDE78AD7E2720B9 /* SharingFlowUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharingFlowUITests.swift; sourceTree = "<group>"; };
+		16FB4D8A43DB3E3E9861EE9E /* PKCE.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PKCE.swift; sourceTree = "<group>"; };
+		3A524FAABB70D2AF2EA602C2 /* InvitationsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InvitationsView.swift; sourceTree = "<group>"; };
+		3A6A5F9F0FE203F0B4996680 /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
+		447937BEF2AF6E81C1923385 /* DeviceAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceAPI.swift; sourceTree = "<group>"; };
+		478BCA0B1A1DA1401BA0E682 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		4CE3C705AF6F37F79E361659 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		77BA7DCE19B163A2CD213276 /* KeychainTokenStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainTokenStore.swift; sourceTree = "<group>"; };
+		8598CF94C7A620EE9209785E /* LoginAndRemindersUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginAndRemindersUITests.swift; sourceTree = "<group>"; };
+		971854FBF2FDA663F28F58E1 /* .gitkeep */ = {isa = PBXFileReference; path = .gitkeep; sourceTree = "<group>"; };
+		9DB40F2B94DAFE0F3DB15E4D /* RemindersView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemindersView.swift; sourceTree = "<group>"; };
+		A0C8C67A4DC4A2C79581620B /* VidaCotidiana.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = VidaCotidiana.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A1F8D60F394ADB0739AD449D /* NotificationsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationsView.swift; sourceTree = "<group>"; };
+		A550F109865C01BCE1B61EE7 /* VidaCotidianaApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VidaCotidianaApp.swift; sourceTree = "<group>"; };
+		BF2461CAA7CEDD3B47823C96 /* VidaCotidianaUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = VidaCotidianaUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		CA871617BF648B10620DDE5F /* .gitkeep */ = {isa = PBXFileReference; path = .gitkeep; sourceTree = "<group>"; };
+		DE9A912B65DCFA70E40B5A57 /* AuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthManager.swift; sourceTree = "<group>"; };
+		DEE5B438743FDD746427D48D /* SharingAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharingAPI.swift; sourceTree = "<group>"; };
+		E85104E0347D14F01C6F9393 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
+		F268FD31B106BFC2518680B5 /* AppConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfig.swift; sourceTree = "<group>"; };
+		F906C5FC5AD7584B65A4272B /* ShareView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareView.swift; sourceTree = "<group>"; };
+		FF3A8B1B51B4C66771BDF634 /* ReminderAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderAPI.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		01F59CD864D5C0DA23D6640F /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A0C8C67A4DC4A2C79581620B /* VidaCotidiana.app */,
+				BF2461CAA7CEDD3B47823C96 /* VidaCotidianaUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		0EA2347AA8BCC35020AFC3A9 /* Notifications */ = {
+			isa = PBXGroup;
+			children = (
+				A1F8D60F394ADB0739AD449D /* NotificationsView.swift */,
+			);
+			path = Notifications;
+			sourceTree = "<group>";
+		};
+		0FA677AEC1172195BB63FCB5 /* Home */ = {
+			isa = PBXGroup;
+			children = (
+				011AE09BA19318D61FD75BEE /* .gitkeep */,
+			);
+			path = Home;
+			sourceTree = "<group>";
+		};
+		1E8541C9AC9467830449B541 = {
+			isa = PBXGroup;
+			children = (
+				DC864A178F3046DE0EB82A90 /* App */,
+				D348B3BFAA482F5A6B98CD59 /* UITests */,
+				01F59CD864D5C0DA23D6640F /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		23150F803040B8EF1E3453BB /* UI */ = {
+			isa = PBXGroup;
+			children = (
+				CA871617BF648B10620DDE5F /* .gitkeep */,
+			);
+			path = UI;
+			sourceTree = "<group>";
+		};
+		2C0859FD5F2CF3253E8A9059 /* Reminders */ = {
+			isa = PBXGroup;
+			children = (
+				9DB40F2B94DAFE0F3DB15E4D /* RemindersView.swift */,
+			);
+			path = Reminders;
+			sourceTree = "<group>";
+		};
+		34496D3507460CDA90A5CCAF /* Auth */ = {
+			isa = PBXGroup;
+			children = (
+				DE9A912B65DCFA70E40B5A57 /* AuthManager.swift */,
+				E85104E0347D14F01C6F9393 /* LoginView.swift */,
+			);
+			path = Auth;
+			sourceTree = "<group>";
+		};
+		55D11BB6348D84F6BD6297E6 /* Core */ = {
+			isa = PBXGroup;
+			children = (
+				BDD7B687FA601CB1C36CD770 /* Network */,
+				C49180304817B3B369CAC970 /* Security */,
+				23150F803040B8EF1E3453BB /* UI */,
+			);
+			path = Core;
+			sourceTree = "<group>";
+		};
+		594E38246691B96C5EF69CFC /* Navigation */ = {
+			isa = PBXGroup;
+			children = (
+				4CE3C705AF6F37F79E361659 /* RootView.swift */,
+			);
+			path = Navigation;
+			sourceTree = "<group>";
+		};
+		7F7FDEC68305D830C753FD6E /* Sharing */ = {
+			isa = PBXGroup;
+			children = (
+				02B52D9B7FA1F84B15716A16 /* .gitkeep */,
+				3A524FAABB70D2AF2EA602C2 /* InvitationsView.swift */,
+				F906C5FC5AD7584B65A4272B /* ShareView.swift */,
+			);
+			path = Sharing;
+			sourceTree = "<group>";
+		};
+		8EEFDF9C0A13E0479888F3DB /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				971854FBF2FDA663F28F58E1 /* .gitkeep */,
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
+		9ACA837D7B510EA2D6EB5344 /* Feature */ = {
+			isa = PBXGroup;
+			children = (
+				34496D3507460CDA90A5CCAF /* Auth */,
+				0FA677AEC1172195BB63FCB5 /* Home */,
+				0EA2347AA8BCC35020AFC3A9 /* Notifications */,
+				2C0859FD5F2CF3253E8A9059 /* Reminders */,
+				8EEFDF9C0A13E0479888F3DB /* Settings */,
+				7F7FDEC68305D830C753FD6E /* Sharing */,
+			);
+			path = Feature;
+			sourceTree = "<group>";
+		};
+		BDD7B687FA601CB1C36CD770 /* Network */ = {
+			isa = PBXGroup;
+			children = (
+				3A6A5F9F0FE203F0B4996680 /* APIClient.swift */,
+				F268FD31B106BFC2518680B5 /* AppConfig.swift */,
+				447937BEF2AF6E81C1923385 /* DeviceAPI.swift */,
+				FF3A8B1B51B4C66771BDF634 /* ReminderAPI.swift */,
+				DEE5B438743FDD746427D48D /* SharingAPI.swift */,
+				03CA6D1420E797A25EC1D07D /* UserAPI.swift */,
+			);
+			path = Network;
+			sourceTree = "<group>";
+		};
+		C49180304817B3B369CAC970 /* Security */ = {
+			isa = PBXGroup;
+			children = (
+				77BA7DCE19B163A2CD213276 /* KeychainTokenStore.swift */,
+				16FB4D8A43DB3E3E9861EE9E /* PKCE.swift */,
+			);
+			path = Security;
+			sourceTree = "<group>";
+		};
+		D348B3BFAA482F5A6B98CD59 /* UITests */ = {
+			isa = PBXGroup;
+			children = (
+				8598CF94C7A620EE9209785E /* LoginAndRemindersUITests.swift */,
+				167091450EDE78AD7E2720B9 /* SharingFlowUITests.swift */,
+			);
+			path = UITests;
+			sourceTree = "<group>";
+		};
+		DC864A178F3046DE0EB82A90 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				478BCA0B1A1DA1401BA0E682 /* Info.plist */,
+				A550F109865C01BCE1B61EE7 /* VidaCotidianaApp.swift */,
+				55D11BB6348D84F6BD6297E6 /* Core */,
+				9ACA837D7B510EA2D6EB5344 /* Feature */,
+				594E38246691B96C5EF69CFC /* Navigation */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		9122ADC51840B4B69B89FF7A /* VidaCotidianaUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5C3052F391FFD1824EDCE10B /* Build configuration list for PBXNativeTarget "VidaCotidianaUITests" */;
+			buildPhases = (
+				C95E8D26C9AB388BCBE2AA67 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				03FE31C7B5AB0C2697AFC458 /* PBXTargetDependency */,
+			);
+			name = VidaCotidianaUITests;
+			packageProductDependencies = (
+			);
+			productName = VidaCotidianaUITests;
+			productReference = BF2461CAA7CEDD3B47823C96 /* VidaCotidianaUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		B416C19D6032559DFEE65F78 /* VidaCotidiana */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 03903EAA6E9B48CCA5071901 /* Build configuration list for PBXNativeTarget "VidaCotidiana" */;
+			buildPhases = (
+				0B0F5A38FDE80864704C53B6 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = VidaCotidiana;
+			packageProductDependencies = (
+			);
+			productName = VidaCotidiana;
+			productReference = A0C8C67A4DC4A2C79581620B /* VidaCotidiana.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		0A696ED04D95583C7A86F085 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					9122ADC51840B4B69B89FF7A = {
+						DevelopmentTeam = M6455LZ6V4;
+						ProvisioningStyle = Automatic;
+						TestTargetID = B416C19D6032559DFEE65F78;
+					};
+					B416C19D6032559DFEE65F78 = {
+						DevelopmentTeam = M6455LZ6V4;
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = C478DE51EAA13BD3C0DA17C9 /* Build configuration list for PBXProject "VidaCotidiana" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 1E8541C9AC9467830449B541;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 01F59CD864D5C0DA23D6640F /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				B416C19D6032559DFEE65F78 /* VidaCotidiana */,
+				9122ADC51840B4B69B89FF7A /* VidaCotidianaUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		0B0F5A38FDE80864704C53B6 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A65E737BED7E4A5BD0FAE133 /* APIClient.swift in Sources */,
+				2E06E2381687ED1777B229B2 /* AppConfig.swift in Sources */,
+				68154E6E4C002F3FCB19167E /* AuthManager.swift in Sources */,
+				A0C56BC1F3900CFC1291061B /* DeviceAPI.swift in Sources */,
+				1311CE1349EB638E0554DF4B /* InvitationsView.swift in Sources */,
+				35DE3F13FFEFD1074028FDE4 /* KeychainTokenStore.swift in Sources */,
+				D473006B83587058FE83225E /* LoginView.swift in Sources */,
+				158635FCD6DCDE02D2CAFCD4 /* NotificationsView.swift in Sources */,
+				F06A68552974D34502E9CEAA /* PKCE.swift in Sources */,
+				24E3C8D01A64DA38AE7D7D11 /* ReminderAPI.swift in Sources */,
+				6D5EB96664766E3FF3033BA8 /* RemindersView.swift in Sources */,
+				5C302B4FE0867F73B9A3009D /* RootView.swift in Sources */,
+				E7C5A29C7D034318E8496835 /* ShareView.swift in Sources */,
+				BF5FD160709769496B4F8B36 /* SharingAPI.swift in Sources */,
+				291AF3213CE87065BA65AD1E /* UserAPI.swift in Sources */,
+				40AFBA41EA586CB33BADC8D4 /* VidaCotidianaApp.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C95E8D26C9AB388BCBE2AA67 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B102D02AF1289095FF9A5E78 /* LoginAndRemindersUITests.swift in Sources */,
+				A98698A6D0615987F13987DE /* SharingFlowUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		03FE31C7B5AB0C2697AFC458 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B416C19D6032559DFEE65F78 /* VidaCotidiana */;
+			targetProxy = 94A0D740212510229191FE56 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		0E6B847B49F9A010902222D8 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = M6455LZ6V4;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = App/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.vidacotidiana.app;
+				PRODUCT_NAME = VidaCotidiana;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		1862C82B1F68235F11BE0F63 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = M6455LZ6V4;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.vidacotidiana.app.uitests;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = VidaCotidiana;
+			};
+			name = Release;
+		};
+		280AE6DC02428AF57C7227C9 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = M6455LZ6V4;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.vidacotidiana.app.uitests;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = VidaCotidiana;
+			};
+			name = Debug;
+		};
+		3DDDFFAC3A4C133AED1CB214 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		9FE8328B153AEFD60C140CDC /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = M6455LZ6V4;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = App/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.vidacotidiana.app;
+				PRODUCT_NAME = VidaCotidiana;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		EFF600FD35FFB81A86A195C1 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		03903EAA6E9B48CCA5071901 /* Build configuration list for PBXNativeTarget "VidaCotidiana" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9FE8328B153AEFD60C140CDC /* Debug */,
+				0E6B847B49F9A010902222D8 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		5C3052F391FFD1824EDCE10B /* Build configuration list for PBXNativeTarget "VidaCotidianaUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				280AE6DC02428AF57C7227C9 /* Debug */,
+				1862C82B1F68235F11BE0F63 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		C478DE51EAA13BD3C0DA17C9 /* Build configuration list for PBXProject "VidaCotidiana" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				3DDDFFAC3A4C133AED1CB214 /* Debug */,
+				EFF600FD35FFB81A86A195C1 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 0A696ED04D95583C7A86F085 /* Project object */;
+}

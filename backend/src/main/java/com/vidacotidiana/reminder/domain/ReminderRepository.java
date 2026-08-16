@@ -26,6 +26,7 @@ public interface ReminderRepository extends JpaRepository<Reminder, UUID> {
                    SELECT rs.reminderId FROM ReminderShare rs
                    WHERE rs.collaboratorUserId = :userId AND rs.status = com.vidacotidiana.sharing.domain.ReminderShareStatus.ACTIVE
                )
+            ORDER BY r.createdAt DESC
             """)
     Page<Reminder> findAccessibleTo(@Param("userId") UUID userId, Pageable pageable);
 }

@@ -1,12 +1,17 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { completeReminder, createReminder, listReminders, type Reminder } from './api'
 import { logout } from '../../core/auth/authClient'
+import { getCurrentUser } from '../../core/user/api'
+import { ShareDialog } from '../sharing/ShareDialog'
 
 export function RemindersPage() {
   const [reminders, setReminders] = useState<Reminder[]>([])
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [title, setTitle] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [sharingReminderId, setSharingReminderId] = useState<string | null>(null)
 
   async function refresh() {
     try {
@@ -22,6 +27,11 @@ export function RemindersPage() {
 
   useEffect(() => {
     refresh()
+    getCurrentUser()
+      .then((user) => setCurrentUserId(user.id))
+      .catch(() => {
+        /* Share button just won't show if this fails — not fatal to the reminders list. */
+      })
   }, [])
 
   async function handleCreate(e: React.FormEvent) {
@@ -49,6 +59,8 @@ export function RemindersPage() {
     <div>
       <header>
         <h1>Vida Cotidiana</h1>
+        <Link to="/invitations">Invitations</Link>
+        <Link to="/notifications">Notifications</Link>
         <button type="button" onClick={logout}>
           Log out
         </button>
@@ -77,6 +89,17 @@ export function RemindersPage() {
                   Complete
                 </button>
               )}
+              {reminder.ownerUserId === currentUserId && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSharingReminderId(sharingReminderId === reminder.id ? null : reminder.id)
+                  }
+                >
+                  Share
+                </button>
+              )}
+              {sharingReminderId === reminder.id && <ShareDialog reminderId={reminder.id} />}
             </li>
           ))}
         </ul>

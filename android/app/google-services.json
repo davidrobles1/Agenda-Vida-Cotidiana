@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "810187433686",
+    "project_id": "vida-cotidiana-6da30",
+    "storage_bucket": "vida-cotidiana-6da30.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:810187433686:android:b056f04ebf18e7e99a0b77",
+        "android_client_info": {
+          "package_name": "com.vidacotidiana.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBy7jujaIHf4_WCdZ4eCurjckyCohXuUH0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

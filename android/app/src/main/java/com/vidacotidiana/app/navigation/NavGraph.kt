@@ -7,11 +7,15 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.vidacotidiana.app.feature.auth.AuthManager
 import com.vidacotidiana.app.feature.auth.LoginScreen
+import com.vidacotidiana.app.feature.notifications.NotificationsScreen
 import com.vidacotidiana.app.feature.reminders.RemindersScreen
+import com.vidacotidiana.app.feature.sharing.InvitationsScreen
 
 private object Routes {
     const val LOGIN = "login"
     const val REMINDERS = "reminders"
+    const val INVITATIONS = "invitations"
+    const val NOTIFICATIONS = "notifications"
 }
 
 @Composable
@@ -31,7 +35,16 @@ fun AppNavGraph(authManager: AuthManager) {
             )
         }
         composable(Routes.REMINDERS) {
-            RemindersScreen()
+            RemindersScreen(
+                onNavigateToInvitations = { navController.navigate(Routes.INVITATIONS) },
+                onNavigateToNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
+            )
+        }
+        composable(Routes.INVITATIONS) {
+            InvitationsScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.NOTIFICATIONS) {
+            NotificationsScreen(onBack = { navController.popBackStack() })
         }
     }
 }

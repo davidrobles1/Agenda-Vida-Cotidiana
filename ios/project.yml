@@ -1,0 +1,56 @@
+name: VidaCotidiana
+options:
+  bundleIdPrefix: com.vidacotidiana
+  deploymentTarget:
+    iOS: "17.0"
+targets:
+  VidaCotidiana:
+    type: application
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: App
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.vidacotidiana.app
+        PRODUCT_NAME: VidaCotidiana
+        INFOPLIST_FILE: App/Info.plist
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        SWIFT_VERSION: "5.0"
+        TARGETED_DEVICE_FAMILY: "1,2"
+        CODE_SIGN_STYLE: Automatic
+        GENERATE_INFOPLIST_FILE: NO
+        # Tied to whichever Apple ID is added in Xcode -> Settings -> Accounts on
+        # the machine building this (verified real 2026-08-16, physical iPad
+        # install). A different developer's machine needs their own Team ID here
+        # (or re-select it once in Signing & Capabilities — xcodegen regenerating
+        # the project wipes anything not captured in this file).
+        DEVELOPMENT_TEAM: M6455LZ6V4
+  VidaCotidianaUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: UITests
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.vidacotidiana.app.uitests
+        SWIFT_VERSION: "5.0"
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: M6455LZ6V4
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: VidaCotidiana
+    dependencies:
+      - target: VidaCotidiana
+schemes:
+  VidaCotidiana:
+    build:
+      targets:
+        VidaCotidiana: all
+        VidaCotidianaUITests: [test]
+    test:
+      targets:
+        - VidaCotidianaUITests
+    run:
+      config: Debug

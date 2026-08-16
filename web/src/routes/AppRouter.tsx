@@ -4,6 +4,8 @@ import { isAuthenticated, subscribe } from '../core/auth/authClient'
 import { LoginPage } from '../features/auth/LoginPage'
 import { CallbackPage } from '../features/auth/CallbackPage'
 import { RemindersPage } from '../features/reminders/RemindersPage'
+import { InvitationsPage } from '../features/sharing/InvitationsPage'
+import { NotificationsPage } from '../features/notifications/NotificationsPage'
 
 function useIsAuthenticated(): boolean {
   return useSyncExternalStore(subscribe, isAuthenticated)
@@ -24,6 +26,22 @@ export function AppRouter() {
         element={
           <RequireAuth>
             <RemindersPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/invitations"
+        element={
+          <RequireAuth>
+            <InvitationsPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/notifications"
+        element={
+          <RequireAuth>
+            <NotificationsPage />
           </RequireAuth>
         }
       />

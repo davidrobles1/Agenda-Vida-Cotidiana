@@ -10,6 +10,7 @@ import retrofit2.http.Path
 @Serializable
 data class Reminder(
     val id: String,
+    val ownerUserId: String,
     val title: String,
     val description: String? = null,
     val dueAt: String? = null,

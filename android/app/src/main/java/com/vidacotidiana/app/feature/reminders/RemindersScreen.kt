@@ -17,18 +17,33 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.runtime.collectAsState
 import com.vidacotidiana.app.core.network.Reminder
+import com.vidacotidiana.app.feature.sharing.ShareDialog
 
 @Composable
-fun RemindersScreen(viewModel: RemindersViewModel = hiltViewModel()) {
+fun RemindersScreen(
+    onNavigateToInvitations: () -> Unit,
+    onNavigateToNotifications: () -> Unit,
+    viewModel: RemindersViewModel = hiltViewModel(),
+) {
     val state by viewModel.uiState.collectAsState()
     var title by remember { mutableStateOf("") }
+    var sharingReminderId by remember { mutableStateOf<String?>(null) }
 
     Column(modifier = Modifier.padding(16.dp)) {
-        Text("Vida Cotidiana")
+        Row {
+            Text("Vida Cotidiana")
+            Button(modifier = Modifier.testTag("invitations_button"), onClick = onNavigateToInvitations) {
+                Text("Invitations")
+            }
+            Button(modifier = Modifier.testTag("notifications_button"), onClick = onNavigateToNotifications) {
+                Text("Notifications")
+            }
+        }
 
         Row(modifier = Modifier.fillMaxWidth()) {
             OutlinedTextField(
@@ -53,7 +68,19 @@ fun RemindersScreen(viewModel: RemindersViewModel = hiltViewModel()) {
         } else {
             LazyColumn {
                 items(state.reminders, key = { it.id }) { reminder ->
-                    ReminderRow(reminder = reminder, onComplete = { viewModel.completeReminder(reminder) })
+                    Column {
+                        ReminderRow(
+                            reminder = reminder,
+                            isOwner = reminder.ownerUserId == state.currentUserId,
+                            onComplete = { viewModel.completeReminder(reminder) },
+                            onShareToggle = {
+                                sharingReminderId = if (sharingReminderId == reminder.id) null else reminder.id
+                            },
+                        )
+                        if (sharingReminderId == reminder.id) {
+                            ShareDialog(reminderId = reminder.id)
+                        }
+                    }
                 }
             }
         }
@@ -61,18 +88,34 @@ fun RemindersScreen(viewModel: RemindersViewModel = hiltViewModel()) {
 }
 
 @Composable
-private fun ReminderRow(reminder: Reminder, onComplete: () -> Unit) {
+private fun ReminderRow(reminder: Reminder, isOwner: Boolean, onComplete: () -> Unit, onShareToggle: () -> Unit) {
     // Tagged by title, not just "reminder_row": the reminders list keeps every
     // reminder ever created against this backend (real DB, no reset between
     // runs), so an untagged/generic row is ambiguous for testing — exactly
     // what broke LoginAndRemindersFlowTest's sibling-text matcher (4
     // "Complete" buttons all had *a* sibling matching the substring search).
+    // Found for real (SharingFlowTest, physical device): without a weight on the title,
+    // a long reminder title consumed the full Row width and squeezed the trailing
+    // Complete/Share buttons down to zero-width nodes — present in the semantics tree
+    // but unclickable (a tap at their coordinates landed on the title or Complete
+    // instead). weight(1f) + ellipsis caps the title so both buttons keep their
+    // natural tap target size regardless of title length.
     Row(
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).testTag("reminder_row_${reminder.title}"),
     ) {
-        Text("${reminder.title} — ${reminder.status}")
+        Text(
+            "${reminder.title} — ${reminder.status}",
+            modifier = Modifier.fillMaxWidth(0.6f),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
         if (reminder.status == "PENDING") {
             Button(onClick = onComplete) { Text("Complete") }
+        }
+        if (isOwner) {
+            Button(modifier = Modifier.testTag("share_button_${reminder.title}"), onClick = onShareToggle) {
+                Text("Share")
+            }
         }
     }
 }

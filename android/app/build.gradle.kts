@@ -8,6 +8,8 @@ plugins {
     id("org.jetbrains.kotlin.kapt")
     id("com.google.dagger.hilt.android")
     id("org.jetbrains.kotlin.plugin.serialization")
+    // AND-005: real google-services.json now present (Firebase project vida-cotidiana-6da30).
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -27,12 +29,15 @@ android {
         manifestPlaceholders["appAuthRedirectScheme"] = "com.vidacotidiana.app"
 
         // Real emulator/device host resolution: 10.0.2.2 is the special alias the
-        // Android emulator uses to reach the host machine's localhost. A physical
-        // device on the same LAN needs the Mac's real LAN IP instead (see README).
-        buildConfigField("String", "OIDC_ISSUER", "\"http://10.0.2.2:8081/realms/vida-cotidiana\"")
+        // Android emulator uses to reach the host machine's localhost. This
+        // checkout is verified against a physical device on the same LAN, which
+        // needs the Mac's real LAN IP instead (matches ios/App/Core/Network/AppConfig.swift
+        // and the backend's currently-pinned OIDC_ISSUER — see README/CIERRE notes;
+        // update if the Mac's DHCP lease changes).
+        buildConfigField("String", "OIDC_ISSUER", "\"http://192.168.0.18:8081/realms/vida-cotidiana\"")
         buildConfigField("String", "OIDC_CLIENT_ID", "\"android-app\"")
         buildConfigField("String", "OIDC_REDIRECT_URI", "\"com.vidacotidiana.app://callback\"")
-        buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:8080/api/v1/\"")
+        buildConfigField("String", "API_BASE_URL", "\"http://192.168.0.18:8080/api/v1/\"")
 
         testInstrumentationRunner = "com.vidacotidiana.app.HiltTestRunner"
     }
@@ -87,6 +92,12 @@ dependencies {
     implementation("net.openid:appauth:0.11.1")
     // AND-002: EncryptedSharedPreferences/Keystore for token storage (11-auth-security.md).
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
+
+    // AND-005: real Firebase project (google-services.json present) — token registration only,
+    // no other Firebase product enabled.
+    implementation(platform("com.google.firebase:firebase-bom:33.5.1"))
+    implementation("com.google.firebase:firebase-messaging-ktx")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1")
 
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")

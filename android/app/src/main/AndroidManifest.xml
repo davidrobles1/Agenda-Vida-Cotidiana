@@ -1,6 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- AND-005: required on API 33+ to actually display a notification; fetching an
+         FCM token itself does not need it, but a real push feature does. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:name=".VidaCotidianaApplication"
