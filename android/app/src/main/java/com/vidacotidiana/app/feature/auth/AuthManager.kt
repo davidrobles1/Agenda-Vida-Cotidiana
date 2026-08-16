@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import androidx.core.net.toUri
 import com.vidacotidiana.app.BuildConfig
+import com.vidacotidiana.app.core.network.AppAuthConfigProvider
 import com.vidacotidiana.app.core.security.TokenStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -36,7 +37,10 @@ class AuthManager @Inject constructor(
         "${BuildConfig.OIDC_ISSUER}/protocol/openid-connect/token".toUri(),
     )
 
-    private val authService = AuthorizationService(context)
+    // AppAuthConfigProvider is variant-specific (src/debug vs src/release): debug
+    // allows plain HTTP so this can reach the local dev Keycloak; release stays
+    // HTTPS-only (AppAuth's own default) — see AppAuthConfigProvider/DebugConnectionBuilder.
+    private val authService = AuthorizationService(context, AppAuthConfigProvider.config)
 
     fun isLoggedIn(): Boolean = tokenStore.load() != null
 

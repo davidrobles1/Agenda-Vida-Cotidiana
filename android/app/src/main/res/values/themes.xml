@@ -1,0 +1,10 @@
+<resources>
+    <!--
+      AppAuth's RedirectUriReceiverActivity (net.openid.appauth) extends
+      AppCompatActivity internally and crashes with "You need to use a
+      Theme.AppCompat theme" under a plain platform theme — found for real on
+      a physical device (Samsung Galaxy, Android 16) mid-login: the redirect
+      back from Keycloak reached the app and then crashed here.
+    -->
+    <style name="Theme.VidaCotidiana" parent="Theme.AppCompat.Light.NoActionBar" />
+</resources>

@@ -62,7 +62,14 @@ fun RemindersScreen(viewModel: RemindersViewModel = hiltViewModel()) {
 
 @Composable
 private fun ReminderRow(reminder: Reminder, onComplete: () -> Unit) {
-    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+    // Tagged by title, not just "reminder_row": the reminders list keeps every
+    // reminder ever created against this backend (real DB, no reset between
+    // runs), so an untagged/generic row is ambiguous for testing — exactly
+    // what broke LoginAndRemindersFlowTest's sibling-text matcher (4
+    // "Complete" buttons all had *a* sibling matching the substring search).
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).testTag("reminder_row_${reminder.title}"),
+    ) {
         Text("${reminder.title} — ${reminder.status}")
         if (reminder.status == "PENDING") {
             Button(onClick = onComplete) { Text("Complete") }

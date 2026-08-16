@@ -4,6 +4,11 @@
   backend/Keycloak during development (emulator alias 10.0.2.2, or the Mac's
   LAN IP for a physical device) — never in a release build, where this file
   is not merged in at all (debug-only source set).
+
+  Physical-device testing: add a <domain> entry here for the Mac's current
+  LAN IP (it changes on DHCP renewal — verified real during AND-002/003
+  on-device testing, see android/README.md) alongside the matching
+  buildConfigField values in ../../../build.gradle.kts.
 -->
 <network-security-config>
     <domain-config cleartextTrafficPermitted="true">

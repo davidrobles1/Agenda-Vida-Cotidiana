@@ -37,22 +37,36 @@ from the `xcodes` GitHub release (`xcodes-2.0.3`, arm64+x86_64) to `~/bin/xcodes
 bypassing Homebrew's build entirely — confirmed real: `xcodes version` → `2.0.3`,
 `xcodes list` lists real available Xcode versions from Apple.
 
-`xcodes install --latest` itself is now **blocked on an interactive Apple ID login**
-(username + password, almost certainly followed by a 2FA prompt) that only a real
-terminal session with the account owner typing can provide — not something that can be
-relayed through an automated tool call, and not something this assistant should ever
-be asked to hold credentials for. To continue:
+## Xcode installed, not yet selected (real, 2026-08-16)
+
+`xcodes install --latest` needed an interactive Apple ID login (username + password,
+almost certainly 2FA) — the user ran it themselves, in their own Terminal, and it
+succeeded. Confirmed for real here:
 
 ```
-export PATH="$HOME/bin:$PATH"
-xcodes install --latest
+$ xcodes installed
+26.6 (17F113) [Apple Silicon]	/Applications/Xcode-26.6.0.app
 ```
 
-Run that yourself, in your own Terminal, and complete the Apple ID prompts (this is the
-same "only login necessary, no App Store window" step from the original plan). Once
-Xcode is installed, license-accepted, and `xcodebuild -showsdks` lists an iOS SDK,
-IOS-002/IOS-003 (AppAuth or `ASWebAuthenticationSession` login + reminders CRUD) can
-proceed the same way AND-002/AND-003 did.
+But `xcode-select -p` still points at `/Library/Developer/CommandLineTools`, and
+switching it (`sudo xcode-select -s /Applications/Xcode-26.6.0.app`) needs the same
+interactive `sudo` password this environment can't provide — confirmed by trying both
+the direct command and `xcodes select` (which also shells out to `sudo` internally and
+hit the identical prompt). Three commands are still needed, all requiring the account
+owner's password, all safe to run together:
+
+```
+sudo xcode-select -s /Applications/Xcode-26.6.0.app
+sudo xcodebuild -license accept
+sudo xcodebuild -runFirstLaunch
+```
+
+Once those run, verify with `xcodebuild -version` and `xcodebuild -showsdks` (should
+list an iOS SDK), then IOS-002/IOS-003 (AppAuth or `ASWebAuthenticationSession` login +
+reminders CRUD) can proceed the same way AND-002/AND-003 did — including trimming
+simulator runtimes to iOS-only (`xcodes runtimes --uninstall watchOS,tvOS,visionOS`, if
+those installed by default) and building for the simulator to verify without needing to
+touch code-signing at all.
 
 ## Structure
 
