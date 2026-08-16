@@ -122,9 +122,15 @@ class LoginAndRemindersFlowTest {
             hasText("Complete") and hasAnyAncestor(hasTestTag("reminder_row_$reminderTitle")),
         ).performClick()
 
+        // UX-004 restyle: title and status are now separate Text nodes (title +
+        // StatusBadge showing "Completed", title case) instead of one concatenated
+        // "$title — COMPLETED" string — scope by the row's testTag instead of relying
+        // on that old combined text existing as a single node.
         waitOrDumpTree(20_000, "03_after_complete") {
-            composeRule.onAllNodesWithText("$reminderTitle — COMPLETED", substring = true)
-                .fetchSemanticsNodes().isNotEmpty()
+            composeRule.onNode(
+                hasText("Completed") and hasAnyAncestor(hasTestTag("reminder_row_$reminderTitle")),
+            ).fetchSemanticsNode()
+            true
         }
     }
 

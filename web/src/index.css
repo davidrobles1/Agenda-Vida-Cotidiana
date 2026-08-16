@@ -1,111 +1,183 @@
+/* UX-001/Documentacion/02-ux-ui/design-system.md — single source of truth for
+   these values; a component should reference a var(--*) here, never a raw
+   hex/px. Light palette on :root, dark overrides only where they differ. */
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+  --color-primary: #4f46e5;
+  --color-primary-container: #e0e7ff;
+  --color-on-primary: #ffffff;
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
+  --color-success: #059669;
+  --color-success-text: #047857;
+  --color-success-container: #d1fae5;
 
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
+  --color-warning: #d97706;
+  --color-warning-text: #b45309;
+  --color-warning-container: #fef3c7;
+
+  --color-error: #dc2626;
+  --color-error-container: #fee2e2;
+
+  --color-surface: #ffffff;
+  --color-surface-variant: #f9fafb;
+  --color-border: #e5e7eb;
+  --color-text: #111827;
+  --color-text-secondary: #6b7280;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  --radius-card: 12px;
+  --radius-control: 8px;
+
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.5;
   color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
+  color: var(--color-text);
+  background: var(--color-surface);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
+    --color-primary: #818cf8;
+    --color-primary-container: #312e81;
+    --color-on-primary: #1e1b4b;
 
-  #social .button-icon {
-    filter: invert(1) brightness(2);
+    --color-success: #34d399;
+    --color-success-text: #34d399;
+    --color-success-container: #064e3b;
+
+    --color-warning: #fbbf24;
+    --color-warning-text: #fbbf24;
+    --color-warning-container: #78350f;
+
+    --color-error: #f87171;
+    --color-error-container: #7f1d1d;
+
+    --color-surface: #16171d;
+    --color-surface-variant: #1f2028;
+    --color-border: #2e303a;
+    --color-text: #f3f4f6;
+    --color-text-secondary: #9ca3af;
   }
 }
 
-#root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
+* {
   box-sizing: border-box;
 }
 
 body {
   margin: 0;
+  background: var(--color-surface);
 }
 
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
+#root {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-4);
 }
 
 h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
-}
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
-}
-p {
-  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.25;
+  margin: 0 0 var(--space-6);
+  color: var(--color-text);
 }
 
-code,
-.counter {
-  font-family: var(--mono);
+button {
+  font-family: inherit;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  border-radius: var(--radius-control);
+  border: 1px solid transparent;
+  padding: var(--space-2) var(--space-4);
+  min-height: 44px;
+  cursor: pointer;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+button.secondary,
+button[data-variant='secondary'] {
+  background: transparent;
+  color: var(--color-primary);
+  border-color: var(--color-border);
+}
+
+button.destructive,
+button[data-variant='destructive'] {
+  background: transparent;
+  color: var(--color-error);
+  border-color: var(--color-error-container);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+input {
+  font-family: inherit;
+  font-size: 0.9375rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  padding: var(--space-2) var(--space-3);
+  min-height: 44px;
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+a {
+  color: var(--color-primary);
+}
+
+[role='alert'] {
+  color: var(--color-error);
+  background: var(--color-error-container);
+  border-radius: var(--radius-control);
+  padding: var(--space-2) var(--space-3);
+  font-size: 0.875rem;
+}
+
+.empty-state {
+  text-align: center;
+  padding: var(--space-8) var(--space-4);
+  color: var(--color-text-secondary);
+}
+
+.badge {
   display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
+  align-items: center;
+  padding: var(--space-1) var(--space-3);
+  border-radius: 9999px;
+  font-size: 0.8125rem;
+  font-weight: 500;
 }
 
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
+.badge-success {
+  background: var(--color-success-container);
+  color: var(--color-success-text);
+}
+
+.badge-warning {
+  background: var(--color-warning-container);
+  color: var(--color-warning-text);
 }

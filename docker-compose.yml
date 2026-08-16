@@ -42,11 +42,16 @@ services:
       - "8081:8080"
     volumes:
       - ./infra/keycloak:/opt/keycloak/data/import
+      # UX-005: custom per-client login themes (Documentacion/02-ux-ui/login-theme.md).
+      # /opt/keycloak/themes is empty in the base image (only a README.md) —
+      # verified for real against this same image before mounting here — so
+      # this bind mount can't shadow any built-in theme; it only adds ours.
+      - ./infra/keycloak/themes:/opt/keycloak/themes
     # INFRA-002: "vida-cotidiana" (dev) and "vida-cotidiana-test" (test) are
     # imported automatically from infra/keycloak/*.json on first start —
     # matching the issuer-uri values in application.yml/application-test.yml.
-    # No Android/iOS/Web OIDC clients are defined yet (AND-002/IOS-002/WEB-002,
-    # out of scope — no approved client names/roles exist).
+    # Android/iOS/Web OIDC clients (android-app/ios-app/web-spa) are defined
+    # in those realm files (AND-002/IOS-002/WEB-002).
 
   # WEB-006/INFRA-007: GlitchTip, self-hosted, Sentry-protocol-compatible error
   # tracking for the Web client. Local development infrastructure only, same

@@ -7,6 +7,7 @@ import {
   type Invitation,
   type ReminderShare,
 } from './api'
+import styles from './ShareDialog.module.css'
 
 interface ShareDialogProps {
   reminderId: string
@@ -69,10 +70,15 @@ export function ShareDialog({ reminderId }: ShareDialogProps) {
     }
   }
 
+  const pendingInvitations = invitations.filter((invitation) => invitation.status === 'PENDING')
+
   return (
-    <div data-testid="share-dialog">
-      <form onSubmit={handleInvite}>
+    <div data-testid="share-dialog" className={styles.panel}>
+      <h2 className={styles.heading}>Share this reminder</h2>
+
+      <form className={styles.inviteForm} onSubmit={handleInvite}>
         <input
+          className={styles.inviteInput}
           value={recipient}
           onChange={(e) => setRecipient(e.target.value)}
           placeholder="Email or username"
@@ -86,32 +92,37 @@ export function ShareDialog({ reminderId }: ShareDialogProps) {
         <p>Loading…</p>
       ) : (
         <>
-          <ul aria-label="Collaborators">
-            {shares.map((share) => (
-              <li key={share.id}>
-                <span>{share.collaboratorUserId} — {share.status}</span>
-                {share.status === 'ACTIVE' && (
-                  <button type="button" onClick={() => handleRevoke(share.id)}>
-                    Revoke
-                  </button>
-                )}
-              </li>
-            ))}
-            {shares.length === 0 && <li>No collaborators yet</li>}
-          </ul>
+          <div className={styles.section}>
+            <p className={styles.sectionLabel}>Collaborators</p>
+            {shares.length === 0 && <p className={styles.emptyRow}>No collaborators yet.</p>}
+            <ul className={styles.list} aria-label="Collaborators">
+              {shares.map((share) => (
+                <li key={share.id} className={styles.row}>
+                  <span>{share.collaboratorUserId} — {share.status}</span>
+                  {share.status === 'ACTIVE' && (
+                    <button type="button" data-variant="destructive" onClick={() => handleRevoke(share.id)}>
+                      Revoke
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
 
-          <ul aria-label="Pending invitations">
-            {invitations
-              .filter((invitation) => invitation.status === 'PENDING')
-              .map((invitation) => (
-                <li key={invitation.id}>
+          <div className={styles.section}>
+            <p className={styles.sectionLabel}>Pending invitations</p>
+            {pendingInvitations.length === 0 && <p className={styles.emptyRow}>No pending invitations.</p>}
+            <ul className={styles.list} aria-label="Pending invitations">
+              {pendingInvitations.map((invitation) => (
+                <li key={invitation.id} className={styles.row}>
                   <span>{invitation.invitedEmail} — {invitation.status}</span>
-                  <button type="button" onClick={() => handleCancel(invitation.id)}>
+                  <button type="button" data-variant="destructive" onClick={() => handleCancel(invitation.id)}>
                     Cancel
                   </button>
                 </li>
               ))}
-          </ul>
+            </ul>
+          </div>
         </>
       )}
     </div>

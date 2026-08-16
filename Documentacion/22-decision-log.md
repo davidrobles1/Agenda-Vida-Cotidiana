@@ -94,6 +94,8 @@
 
 **Consecuencias:** el backend se integra como resource server de Keycloak (Spring Security OAuth2/OIDC Resource Server); los clientes Android/iOS/Web obtienen tokens directamente de Keycloak (Authorization Code + PKCE) y nunca implementan su propio almacenamiento/verificación de contraseñas. Esto también resuelve el `DOCUMENTATION_CONFLICT` señalado en `27-v1-readiness-review.md` §4.1: la aplicación **no expone un endpoint propio `POST /auth/login`**; el login ocurre contra Keycloak y el backend solo valida el token recibido (ver `10-api-openapi.md` y `openapi.yaml`).
 
+**Nota (UX-005, 2026-08-16):** el login de Keycloak recibió un tema visual personalizado por cliente (`vida-cotidiana-mobile`/`vida-cotidiana-web`, `Documentacion/02-ux-ui/login-theme.md`, `infra/keycloak/themes/`). No es una nueva decisión arquitectónica ni un ADR — es una capa visual (FreeMarker + CSS, mecanismo estándar de Keycloak) sobre este mismo ADR-008; el flujo Authorization Code + PKCE y el nivel de seguridad no cambian.
+
 ## ADR-009 Cloud provider: AWS
 **Estado:** Accepted (2026-08-09, `DEC-008`)
 

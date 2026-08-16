@@ -1,0 +1,91 @@
+/* UX-005/Documentacion/02-ux-ui/login-theme.md — mobile Custom Tab login.
+   Same design tokens as android/.../core/ui/Color.kt (VidaColor) and
+   Documentacion/02-ux-ui/design-system.md, translated to CSS custom
+   properties because this page is server-rendered HTML, not Compose.
+   Single-column card, no split panel — a Custom Tab is a narrow viewport
+   (phone width), so the two-column layout used by vida-cotidiana-web would
+   just get squeezed into one column anyway; laying it out for one column
+   from the start avoids a pointless breakpoint. */
+:root {
+  --vc-primary: #4f46e5;
+  --vc-on-primary: #ffffff;
+  --vc-error: #dc2626;
+  --vc-error-container: #fee2e2;
+  --vc-surface: #ffffff;
+  --vc-surface-variant: #f9fafb;
+  --vc-border: #e5e7eb;
+  --vc-text: #111827;
+  --vc-text-secondary: #6b7280;
+  --vc-radius-card: 12px;
+  --vc-radius-control: 8px;
+}
+
+/* RECOMMENDATION (login-theme.md #4): the login page is rendered by
+   Keycloak, outside the Vite build that self-hosts Inter for the SPA
+   (@fontsource/inter) — bundling font binaries a second time into a
+   Keycloak theme just for this page isn't justified, so it uses the
+   platform's own system font instead of shipping Inter here. */
+body.vc-theme-mobile {
+  font-family: -apple-system, Roboto, 'Segoe UI', system-ui, sans-serif;
+  background: var(--vc-surface-variant);
+  color: var(--vc-text);
+}
+
+body.vc-theme-mobile #kc-header {
+  display: none;
+}
+
+body.vc-theme-mobile .pf-v5-c-login__container {
+  max-width: 400px;
+}
+
+body.vc-theme-mobile .vc-brand {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--vc-primary);
+  margin-bottom: 8px;
+}
+
+body.vc-theme-mobile .pf-v5-c-title {
+  color: var(--vc-text);
+}
+
+body.vc-theme-mobile .pf-v5-c-form__label-text {
+  color: var(--vc-text);
+  font-weight: 500;
+}
+
+body.vc-theme-mobile input[type='text'],
+body.vc-theme-mobile input[type='password'] {
+  border: 1px solid var(--vc-border);
+  border-radius: var(--vc-radius-control);
+  padding: 12px;
+  min-height: 48px; /* accessibility.md: 48dp Android touch-target minimum */
+  width: 100%;
+  box-sizing: border-box;
+  font-size: 1rem;
+}
+
+body.vc-theme-mobile #kc-login {
+  background: var(--vc-primary);
+  color: var(--vc-on-primary);
+  border: none;
+  border-radius: var(--vc-radius-control);
+  min-height: 48px;
+  font-weight: 600;
+}
+
+body.vc-theme-mobile #kc-login:hover {
+  background: #4338ca;
+}
+
+body.vc-theme-mobile a {
+  color: var(--vc-primary);
+}
+
+body.vc-theme-mobile .pf-v5-c-alert.pf-m-danger {
+  background: var(--vc-error-container);
+  color: var(--vc-error);
+  border-radius: var(--vc-radius-control);
+  border: none;
+}

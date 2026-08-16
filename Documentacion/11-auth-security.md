@@ -5,6 +5,8 @@
 
 **DECISION (DEC-014):** la verificación de email se delega al flujo estándar de Keycloak ("Verify Email" required action). La aplicación no implementa un sistema propio de verificación de email.
 
+**Nota (UX-005, no es un ADR nuevo):** el login de Keycloak usa un tema visual personalizado por cliente (`vida-cotidiana-mobile` para `android-app`/`ios-app`, `vida-cotidiana-web` para `web-spa`) — ver `Documentacion/02-ux-ui/login-theme.md`. Es una implementación visual (FreeMarker + CSS, mecanismo estándar de temas de Keycloak) sobre la decisión ya aprobada en este ADR-008: no cambia el flujo Authorization Code + PKCE, no añade ni quita ningún paso de autenticación, y no modifica el nivel de seguridad. Referenciado también en `22-decision-log.md` bajo ADR-008.
+
 No implementar criptografía/autenticación propia.
 
 **DECISION (ADR-008, consecuencia):** la aplicación no expone `POST /auth/login` propio; el backend actúa como resource server (Spring Security OAuth2 Resource Server) validando el token emitido por Keycloak. Esto corrige el `DOCUMENTATION_CONFLICT` señalado en `27-v1-readiness-review.md` §4.1.

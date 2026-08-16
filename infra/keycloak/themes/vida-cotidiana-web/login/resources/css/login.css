@@ -1,0 +1,179 @@
+/* UX-005/Documentacion/02-ux-ui/login-theme.md — Web split-panel login.
+   Same token values as web/src/index.css's :root custom properties
+   (design-system.md); re-declared here because this page is Keycloak's own
+   server-rendered HTML, outside the Vite build that owns index.css. */
+:root {
+  --vc-primary: #4f46e5;
+  --vc-on-primary: #ffffff;
+  --vc-error: #dc2626;
+  --vc-error-container: #fee2e2;
+  --vc-surface: #ffffff;
+  --vc-surface-variant: #f9fafb;
+  --vc-border: #e5e7eb;
+  --vc-text: #111827;
+  --vc-text-secondary: #6b7280;
+  --vc-radius-control: 8px;
+}
+
+/* Same font-hosting decision as vida-cotidiana-mobile's login.css — see
+   that file's comment. */
+body.vc-theme-web {
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  background: var(--vc-surface);
+  color: var(--vc-text);
+  margin: 0;
+}
+
+/* Real bug found verifying this (Playwright boundingBox() on .vc-hero came
+   out 64px short of the container edge): PatternFly's own base styles.css
+   puts real horizontal padding on .pf-v5-c-login and .pf-v5-c-login__container
+   (for the stock centered-card layout, where it's wanted) and never sets
+   box-sizing:border-box, so that inherited padding was silently eating into
+   the grid's content box instead of being part of the 480px/1fr split.
+   Confirmed the fix against getComputedStyle before treating it as final,
+   not just re-eyeballing the screenshot. */
+body.vc-theme-web,
+body.vc-theme-web * {
+  box-sizing: border-box;
+}
+
+body.vc-theme-web #kc-header {
+  display: none;
+}
+
+body.vc-theme-web .pf-v5-c-login {
+  padding: 0;
+}
+
+/* Split panel: the hero <aside> (added in template.ftl) sits left of the
+   real <main> login card. min(45vw, 480px) keeps the hero from swallowing
+   the whole viewport on very wide monitors. Collapses to one column under
+   860px — web-spa isn't a responsive target per platform-guidelines.md,
+   but the login page is reachable standalone (direct link, bookmarked
+   /realms/... URL) so it still needs to not break on a narrow window. */
+body.vc-theme-web .vc-split-container {
+  display: grid;
+  grid-template-columns: min(45vw, 480px) 1fr;
+  /* PatternFly's own base .pf-v5-c-login__container sets a 64px column-gap
+     for its own (unused-by-us) internal responsive grid — found for real via
+     getComputedStyle after the split panel rendered a mystery 64px gap that
+     didn't match the 480/1fr math. Zeroing it here, not just overriding the
+     properties we care about, since PatternFly could still set it after us
+     in a `stylesCommon` reload. */
+  gap: 0;
+  min-height: 100vh;
+  max-width: none;
+  padding: 0;
+  margin: 0;
+}
+
+@media (max-width: 860px) {
+  body.vc-theme-web .vc-split-container {
+    grid-template-columns: 1fr;
+  }
+  body.vc-theme-web .vc-hero {
+    display: none;
+  }
+}
+
+body.vc-theme-web .vc-hero {
+  background: linear-gradient(160deg, #4f46e5 0%, #4338ca 100%);
+  display: flex;
+  align-items: center;
+  padding: 48px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Abstract ornament (login-theme.md §9) — absolutely positioned behind the
+   text, never allowed to overlap it enough to hurt legibility (the tagline's
+   own background is the solid gradient underneath, not the SVG). */
+body.vc-theme-web .vc-hero-ornament {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+body.vc-theme-web .vc-hero-inner {
+  max-width: 320px;
+  position: relative;
+}
+
+body.vc-theme-web .vc-hero-brand {
+  color: #ffffff;
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+body.vc-theme-web .vc-hero-tagline {
+  color: #e0e7ff;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+body.vc-theme-web .pf-v5-c-login__main {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  /* Without this, .vc-hero (a sibling grid item) stretches to the row's
+     full height by default but this one didn't — found for real via
+     boundingBox() reporting 356px instead of the viewport height, leaving
+     the login card pinned to the top instead of vertically centered. */
+  align-self: stretch;
+  height: 100%;
+}
+
+body.vc-theme-web .pf-v5-c-login__container {
+  align-items: stretch;
+}
+
+body.vc-theme-web .vc-brand {
+  display: none; /* redundant with the hero panel's brand mark on this theme */
+}
+
+body.vc-theme-web .pf-v5-c-title {
+  color: var(--vc-text);
+}
+
+body.vc-theme-web .pf-v5-c-form__label-text {
+  color: var(--vc-text);
+  font-weight: 500;
+}
+
+body.vc-theme-web input[type='text'],
+body.vc-theme-web input[type='password'] {
+  border: 1px solid var(--vc-border);
+  border-radius: var(--vc-radius-control);
+  padding: 8px 12px;
+  min-height: 44px; /* accessibility.md: 44px Web touch-target minimum */
+  width: 100%;
+  box-sizing: border-box;
+  font-size: 0.9375rem;
+}
+
+body.vc-theme-web #kc-login {
+  background: var(--vc-primary);
+  color: var(--vc-on-primary);
+  border: none;
+  border-radius: var(--vc-radius-control);
+  min-height: 44px;
+  font-weight: 500;
+}
+
+body.vc-theme-web #kc-login:hover {
+  background: #4338ca;
+}
+
+body.vc-theme-web a {
+  color: var(--vc-primary);
+}
+
+body.vc-theme-web .pf-v5-c-alert.pf-m-danger {
+  background: var(--vc-error-container);
+  color: var(--vc-error);
+  border-radius: var(--vc-radius-control);
+  border: none;
+}

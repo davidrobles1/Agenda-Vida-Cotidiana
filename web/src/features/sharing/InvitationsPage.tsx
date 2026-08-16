@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { acceptInvitation, listMyInvitations, rejectInvitation, type Invitation } from './api'
+import styles from './InvitationsPage.module.css'
 
 export function InvitationsPage() {
   const [invitations, setInvitations] = useState<Invitation[]>([])
@@ -42,8 +43,8 @@ export function InvitationsPage() {
 
   return (
     <div>
-      <header>
-        <h1>Invitations</h1>
+      <header className={styles.header}>
+        <h1 className={styles.title}>Invitations</h1>
         <Link to="/reminders">Back</Link>
       </header>
 
@@ -52,18 +53,22 @@ export function InvitationsPage() {
       {loading ? (
         <p>Loading…</p>
       ) : invitations.length === 0 ? (
-        <p>No pending invitations</p>
+        <div className="empty-state">
+          <p>No pending invitations</p>
+        </div>
       ) : (
-        <ul>
+        <ul className={styles.list}>
           {invitations.map((invitation) => (
-            <li key={invitation.id}>
-              <span>{invitation.invitedEmail}</span>
-              <button type="button" onClick={() => handleAccept(invitation.id)}>
-                Accept
-              </button>
-              <button type="button" onClick={() => handleReject(invitation.id)}>
-                Reject
-              </button>
+            <li key={invitation.id} className={styles.card}>
+              <span className={styles.email}>{invitation.invitedEmail}</span>
+              <div className={styles.actions}>
+                <button type="button" onClick={() => handleAccept(invitation.id)}>
+                  Accept
+                </button>
+                <button type="button" data-variant="secondary" onClick={() => handleReject(invitation.id)}>
+                  Reject
+                </button>
+              </div>
             </li>
           ))}
         </ul>

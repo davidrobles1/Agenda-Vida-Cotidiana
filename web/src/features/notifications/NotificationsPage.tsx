@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { requestWebPushToken } from '../../core/notifications/firebase'
 import { listDevices, registerDevice, type DevicePushToken } from './api'
+import styles from './NotificationsPage.module.css'
 
 export function NotificationsPage() {
   const [devices, setDevices] = useState<DevicePushToken[]>([])
@@ -38,23 +39,27 @@ export function NotificationsPage() {
 
   return (
     <div>
-      <header>
-        <h1>Notifications</h1>
+      <header className={styles.header}>
+        <h1 className={styles.title}>Notifications</h1>
         <Link to="/reminders">Back</Link>
       </header>
 
       {error && <p role="alert">{error}</p>}
 
-      <button type="button" onClick={handleEnable} disabled={registering}>
+      <button type="button" className={styles.enableButton} onClick={handleEnable} disabled={registering}>
         {registering ? 'Enabling…' : 'Enable notifications'}
       </button>
 
       {loading ? (
         <p>Loading…</p>
+      ) : devices.length === 0 ? (
+        <div className="empty-state">
+          <p>No devices registered yet.</p>
+        </div>
       ) : (
-        <ul>
+        <ul className={styles.list}>
           {devices.map((device) => (
-            <li key={device.id}>
+            <li key={device.id} className={styles.deviceRow}>
               {device.platform} — registered {device.createdAt}
             </li>
           ))}
