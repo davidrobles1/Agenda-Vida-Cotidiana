@@ -5,6 +5,12 @@ export default defineConfig({
   timeout: 60_000,
   use: {
     baseURL: 'http://localhost:5173',
+    // WEB-005: real Web Push subscriptions need Google's proprietary GCM/FCM
+    // sender registration, which is only present in official Google Chrome —
+    // Playwright's bundled open-source Chromium always fails push
+    // subscriptions with "AbortError: Registration failed - permission
+    // denied" (found for real, not a bug in this app's code).
+    channel: 'chrome',
   },
   webServer: {
     command: 'npm run dev',

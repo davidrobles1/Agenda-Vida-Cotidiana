@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# Local env (see .env.example for the variable names this project expects)
+.env
+.env.local
+
 # Playwright
 test-results
 playwright-report
