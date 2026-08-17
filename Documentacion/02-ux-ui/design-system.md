@@ -23,15 +23,26 @@ Justificación breve: azul índigo — profesional, calmado, no asociado a alarm
 | `color-warning` | `#D97706` | `#FBBF24` | Ícono/borde/fondo de estado "pendiente" — **no usar para texto** (3.19:1 en fondo blanco, insuficiente) |
 | `color-warning-text` | `#B45309` | `#FBBF24` | Texto del estado "pendiente" (5.02:1 en blanco) |
 | `color-warning-container` | `#FEF3C7` | `#78350F` | Fondo de estado "pendiente" |
+| `color-info` | `#2563EB` | `#60A5FA` | Ícono/borde/fondo de estado informativo ("Programada", categoría Documentos) |
+| `color-info-text` | `#1D4ED8` | `#60A5FA` | Texto del estado informativo (6.70:1 en blanco / 7.28:1 en `#101418`) |
+| `color-info-container` | `#DBEAFE` | `#1E3A8A` | Fondo de estado informativo |
 | `color-error` | `#DC2626` | `#F87171` | Errores, acción destructiva (revocar, rechazar) — 4.83:1 en blanco, sí válido para texto |
 | `color-error-container` | `#FEE2E2` | `#7F1D1D` | Fondo de mensajes de error |
-| `color-surface` | `#FFFFFF` | `#16171D` | Fondo de pantalla |
-| `color-surface-variant` | `#F9FAFB` | `#1F2028` | Fondo de card/superficie elevada |
-| `color-border` | `#E5E7EB` | `#2E303A` | Bordes, separadores |
+| `color-surface` | `#FFFFFF` | `#101418` | Fondo de pantalla |
+| `color-surface-variant` | `#F9FAFB` | `#171D22` | Fondo de card/superficie elevada |
+| `color-border` | `#E5E7EB` | `#2E343B` | Bordes, separadores |
 | `color-text` | `#111827` | `#F3F4F6` | Texto principal |
 | `color-text-secondary` | `#6B7280` | `#9CA3AF` | Texto secundario (metadatos, timestamps) |
 
 **Contraste — verificado calculando la fórmula de contraste WCAG 2.1 real (luminancia relativa, no asumido visualmente), ver `accessibility.md` §1 para la tabla completa de pares y sus ratios exactos.** Hallazgo real durante esta verificación: `color-success`/`color-warning` en su tono original (600) **no** cumplían 4.5:1 para texto normal sobre blanco (3.77:1 y 3.19:1) — quedan como color de ícono/fondo/borde únicamente (ahí sí cumplen el umbral de 3:1 para elementos gráficos/texto grande), y se añadieron `color-success-text`/`color-warning-text` (tono 700, más oscuro) específicamente para texto, que sí cumplen AA.
+
+**Corrección UX-006 (2026-08-16) — `color-info` añadido, superficies oscuras oscurecidas, verificado con muestreo de píxel real, no a ojo.** Al construir la pantalla de referencia del dashboard (`docs/Ejemplo APK vida Cotidiana.png`/`docs/Ejemplo Web vida Cotidiana .png`) contra este documento aparecieron dos gaps reales:
+1. Faltaba un cuarto rol semántico (`info`, azul) — necesario para el badge de categoría "Documentos" y el pill de estado "Programada" de la referencia, que no encajan en `success`/`warning`/`error`. Añadido siguiendo el mismo patrón base/text/container ya establecido, con el mismo umbral AA verificado por fórmula (no asumido): 6.70:1 en blanco, 7.28:1 sobre el nuevo fondo oscuro.
+2. Los valores de `color-surface`/`color-surface-variant`/`color-border` en modo oscuro (`#16171D`/`#1F2028`/`#2E303A`) eran una estimación de la primera pasada de este documento, nunca verificada contra una referencia real. Muestreando la referencia Android a nivel de píxel (`PIL`/`getpixel`, promediando parches pequeños para evitar ruido de anti-aliasing) el fondo real es más cercano a casi-negro (`~#0F1516`) que a gris oscuro — se ajustaron los tres tokens a los valores de arriba. Los tokens de texto se re-verificaron contra el nuevo fondo, no se asumió que seguirían pasando: `F3F4F6` sobre `#101418` = 16.81:1, `9CA3AF` = 7.29:1 — ambos siguen pasando AA con margen amplio.
+
+**Nota sobre el modo claro/oscuro:** ambos temas (light/dark) ya eran reales desde la primera versión de este documento — Android reacciona a `isSystemInDarkTheme()` y Web a `prefers-color-scheme`, ambos automáticos según la preferencia del sistema operativo del usuario. **No existe (ni se agregó en `UX-006`) un selector manual de tema dentro de la app** — es un `TBD/FUTURE`, no una omisión silenciosa: ningún requerimiento funcional lo pide hoy, y la referencia visual mezcla capturas claras y oscuras sin especificar un mecanismo de cambio explícito.
+
+**Hallazgo real corregido en `UX-006`, Android — bug de modo oscuro pre-existente desde `UX-004`:** cuatro pantallas (`RemindersScreen.kt`, `ShareDialog.kt`, `InvitationsScreen.kt`, `NotificationsScreen.kt`) referenciaban directamente constantes `VidaColor.*Light` (p. ej. `VidaColor.SurfaceVariantLight`) en vez de leer a través del `MaterialTheme`/`ColorScheme` activo — el `Theme.kt` de `UX-004` sí construía un `ColorScheme` oscuro correcto, pero estas cuatro pantallas nunca lo consultaban, así que se veían con fondo/texto claros incluso con el sistema en modo oscuro. Corregido introduciendo `VidaColors`/`LocalVidaColors`/`VidaTheme.colors` (un `CompositionLocal` con los roles semánticos que no tienen equivalente directo en `ColorScheme` de Material 3 — success/warning/info) y reemplazando cada referencia `VidaColor.*Light` por su equivalente `VidaTheme.colors.*`, reactivo al tema. Web nunca tuvo este bug: las variables CSS (`var(--color-*)`) son intrínsecamente reactivas al tema por diseño del navegador — confirmado con `grep` de que ningún `.tsx` de Web tenía un hex hardcodeado.
 
 ## 2. Tipografía
 
@@ -78,6 +89,7 @@ Justificación breve: azul índigo — profesional, calmado, no asociado a alarm
 | Pendiente | `color-warning-container` (fondo) + `color-warning-text` (texto) | Texto "Pending" |
 | Completado | `color-success-container` (fondo) + `color-success-text` (texto) | Texto "Completed" + ✓ |
 | Error/rechazado | `color-error` | Texto explícito del error, `role="alert"` (Web) / `liveRegion` (Android) |
+| Informativo/programado | `color-info-container` (fondo) + `color-info-text` (texto) | Texto explícito del estado ("Programada", nombre de categoría) |
 
 ## 6. Dónde viven los tokens en código
 
@@ -85,3 +97,26 @@ Justificación breve: azul índigo — profesional, calmado, no asociado a alarm
 - Web: `web/src/index.css` (custom properties `--color-*`/`--space-*`) + `@fontsource/inter`.
 
 Ningún token se duplica a mano en un componente — todo componente nuevo o restilizado referencia estos archivos, nunca un valor hex/dp suelto (ver `15-coding-standards.md`).
+
+## 7. UX-006 — Librería de componentes de dashboard
+
+**RECOMMENDATION.** `UX-001`..`UX-005` cubrieron una app de una sola columna (lista de recordatorios + diálogos). `UX-006` introdujo un segundo patrón de layout — dashboard con navegación persistente — a partir de dos imágenes de referencia (`docs/Ejemplo APK vida Cotidiana.png`, `docs/Ejemplo Web vida Cotidiana .png`), con estos componentes nuevos, reutilizables entre las pantallas reales y las de datos simulados:
+
+| Componente | Qué es | Android | Web |
+|---|---|---|---|
+| Metric card | Badge de ícono + número grande + etiqueta + subtítulo (opcionalmente con tono de alerta) | `core/ui/components/MetricCard.kt` | `core/ui/components/MetricCard.tsx` |
+| List section card | Card con encabezado + "Ver todas" opcional + contenido | `ListSectionCard.kt` | `ListSectionCard.tsx` |
+| List item row | Ícono circular con tono + título + subtítulo + pill de estado opcional | `ListItemRow.kt` | `ListItemRow.tsx` |
+| Status pill | Texto + color, nunca solo color (§5) | `StatusPill.kt` | clases `.badge`/`.badge-*` (`index.css`) |
+| Filter chip | Chip seleccionable, usado en Inventario | `VidaFilterChip.kt` | `FilterChip.tsx` |
+| Donut chart | Solo con datos reales — nunca alimentado con Finanzas | `DonutChart.kt` (`Canvas`/`drawArc`) | `DonutChart.tsx` (SVG `stroke-dasharray`) |
+| Navegación persistente | 5 slots (Inicio/Tareas/+/Compartidos/Más), patrones nativos (`Scaffold`+`NavigationBar`) | `VidaBottomNav.kt` | Sidebar de 232px, colapsa a franja horizontal <900px (`core/ui/layout/AppShell.tsx`) |
+| Encabezado de pantalla | Saludo + avatar (Android); saludo + búsqueda decorativa + campana + botón "Nuevo" (Web) | `AppTopBar.kt` | integrado en `AppShell.tsx` |
+
+Ningún componente nuevo introduce un color/espaciado que no exista ya en §1/§3 — `BadgeTone`/`Tone` (`primary`/`success`/`warning`/`info`/`error`) es solo un nombre para los pares container/texto que ya existían.
+
+**Decisión de alcance (Sección 1 de la tarea, no reabierta aquí):** de los ítems del sidebar de la referencia, **Finanzas** e **"IA Asistente" quedan completamente fuera** — ninguna pantalla, ruta, ítem de menú ni mención "Próximamente" existe para ninguno de los dos, por restricción explícita de `CLAUDE.md`. **Configuración** tampoco se implementó — no hay pantalla de ajustes definida ni en alcance para esta tarea, y añadirla solo por completar visualmente el sidebar habría sido inventar una funcionalidad no pedida. **Compartidos** no aparece en el sidebar de la referencia (está implícito en el mockup del teléfono) — se agregó igualmente como ítem de navegación real (justo después de "Tareas" en Web, en la barra inferior en Android) porque es un módulo real que necesita un punto de entrada; documentado como `ASSUMPTION`, no como fidelidad literal a la imagen.
+
+**Búsqueda (Web):** el ícono de lupa del encabezado es puramente decorativo (`aria-hidden`, no interactivo) — no existe búsqueda del lado del servidor para ningún recurso de V1 hoy. Implementar un campo de texto funcional habría implicado prometer una función que no existe; se documenta aquí como `FUTURE` en vez de construirse a medias.
+
+**Landing post-login distinta por plataforma (`ASSUMPTION`, documentado para no perderlo):** Android navega a `Routes.HOME` tras login (coherente con la barra inferior de 5 slots donde "Inicio" es el primer destino). Web sigue aterrizando en `/reminders` tras login — **no** se cambió a `/home` porque los 4 e2e reales existentes (`sharing.spec.ts`, `notifications.spec.ts`, `local-notifications.spec.ts`, `error-tracking.spec.ts`) dependen de que el placeholder "New reminder" esté visible inmediatamente después de iniciar sesión; cambiarlo habría roto verificación real por una preferencia estética. "Inicio" queda a un clic en el sidebar.

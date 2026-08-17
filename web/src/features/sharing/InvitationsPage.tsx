@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { acceptInvitation, listMyInvitations, rejectInvitation, type Invitation } from './api'
+import { AppShell } from '../../core/ui/layout/AppShell'
+import { IconShared } from '../../core/ui/icons'
 import styles from './InvitationsPage.module.css'
 
 export function InvitationsPage() {
@@ -42,12 +43,7 @@ export function InvitationsPage() {
   }
 
   return (
-    <div>
-      <header className={styles.header}>
-        <h1 className={styles.title}>Invitations</h1>
-        <Link to="/reminders">Back</Link>
-      </header>
-
+    <AppShell title="Compartidos" subtitle="Invitaciones pendientes de recordatorios compartidos contigo.">
       {error && <p role="alert">{error}</p>}
 
       {loading ? (
@@ -60,7 +56,13 @@ export function InvitationsPage() {
         <ul className={styles.list}>
           {invitations.map((invitation) => (
             <li key={invitation.id} className={styles.card}>
-              <span className={styles.email}>{invitation.invitedEmail}</span>
+              <div className={styles.cardTop}>
+                <span className={styles.icon}>
+                  <IconShared width={16} height={16} />
+                </span>
+                <span className={styles.email}>{invitation.invitedEmail}</span>
+                <span className="badge badge-warning">Pendiente</span>
+              </div>
               <div className={styles.actions}>
                 <button type="button" onClick={() => handleAccept(invitation.id)}>
                   Accept
@@ -73,6 +75,6 @@ export function InvitationsPage() {
           ))}
         </ul>
       )}
-    </div>
+    </AppShell>
   )
 }

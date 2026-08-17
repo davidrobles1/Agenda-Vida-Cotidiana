@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { requestWebPushToken } from '../../core/notifications/firebase'
 import { listDevices, registerDevice, type DevicePushToken } from './api'
+import { AppShell } from '../../core/ui/layout/AppShell'
+import { IconBell } from '../../core/ui/icons'
 import styles from './NotificationsPage.module.css'
 
 export function NotificationsPage() {
@@ -38,12 +39,7 @@ export function NotificationsPage() {
   }
 
   return (
-    <div>
-      <header className={styles.header}>
-        <h1 className={styles.title}>Notifications</h1>
-        <Link to="/reminders">Back</Link>
-      </header>
-
+    <AppShell title="Notificaciones" subtitle="Dispositivos registrados para recibir avisos.">
       {error && <p role="alert">{error}</p>}
 
       <button type="button" className={styles.enableButton} onClick={handleEnable} disabled={registering}>
@@ -60,11 +56,17 @@ export function NotificationsPage() {
         <ul className={styles.list}>
           {devices.map((device) => (
             <li key={device.id} className={styles.deviceRow}>
-              {device.platform} — registered {device.createdAt}
+              <span className={styles.icon}>
+                <IconBell width={16} height={16} />
+              </span>
+              <span className={styles.deviceText}>
+                {device.platform} — registered {device.createdAt}
+              </span>
+              <span className="badge badge-success">Active</span>
             </li>
           ))}
         </ul>
       )}
-    </div>
+    </AppShell>
   )
 }

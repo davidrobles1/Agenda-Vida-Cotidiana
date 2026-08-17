@@ -1,16 +1,23 @@
 package com.vidacotidiana.app.feature.notifications
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -25,9 +32,12 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.vidacotidiana.app.core.ui.VidaColor
 import com.vidacotidiana.app.core.ui.VidaShape
 import com.vidacotidiana.app.core.ui.VidaSpacing
+import com.vidacotidiana.app.core.ui.VidaTheme
+import com.vidacotidiana.app.core.ui.components.BadgeTone
+import com.vidacotidiana.app.core.ui.components.StatusPill
+import com.vidacotidiana.app.core.ui.components.resolve
 
 @Composable
 fun NotificationsScreen(onBack: () -> Unit, viewModel: NotificationsViewModel = hiltViewModel()) {
@@ -66,7 +76,7 @@ fun NotificationsScreen(onBack: () -> Unit, viewModel: NotificationsViewModel = 
             Text(
                 "No devices registered yet.",
                 style = MaterialTheme.typography.bodyMedium,
-                color = VidaColor.TextSecondaryLight,
+                color = VidaTheme.colors.textSecondary,
             )
         } else {
             Column(verticalArrangement = Arrangement.spacedBy(VidaSpacing.sm)) {
@@ -74,14 +84,29 @@ fun NotificationsScreen(onBack: () -> Unit, viewModel: NotificationsViewModel = 
                     Card(
                         modifier = Modifier.fillMaxWidth().testTag("device_row_${device.id}"),
                         shape = RoundedCornerShape(VidaShape.card),
-                        colors = CardDefaults.cardColors(containerColor = VidaColor.SurfaceVariantLight),
+                        colors = CardDefaults.cardColors(containerColor = VidaTheme.colors.surfaceVariant),
                         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                     ) {
-                        Text(
-                            "${device.platform} — registered ${device.createdAt}",
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.padding(VidaSpacing.md),
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(VidaSpacing.md),
+                            horizontalArrangement = Arrangement.spacedBy(VidaSpacing.sm),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            val toneColors = BadgeTone.Info.resolve()
+                            Box(
+                                modifier = Modifier.size(32.dp).background(toneColors.container, CircleShape),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(Icons.Filled.Notifications, contentDescription = null, tint = toneColors.on, modifier = Modifier.size(16.dp))
+                            }
+                            Text(
+                                "${device.platform} — registered ${device.createdAt}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.weight(1f),
+                            )
+                            val pillColors = BadgeTone.Success.resolve()
+                            StatusPill(label = "Active", container = pillColors.container, text = pillColors.on)
+                        }
                     }
                 }
             }

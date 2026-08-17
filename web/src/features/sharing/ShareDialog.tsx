@@ -7,6 +7,7 @@ import {
   type Invitation,
   type ReminderShare,
 } from './api'
+import { IconUsers } from '../../core/ui/icons'
 import styles from './ShareDialog.module.css'
 
 interface ShareDialogProps {
@@ -98,7 +99,10 @@ export function ShareDialog({ reminderId }: ShareDialogProps) {
             <ul className={styles.list} aria-label="Collaborators">
               {shares.map((share) => (
                 <li key={share.id} className={styles.row}>
-                  <span>{share.collaboratorUserId} — {share.status}</span>
+                  <span className={styles.rowIcon}>
+                    <IconUsers width={14} height={14} />
+                  </span>
+                  <span className={styles.rowText}>{share.collaboratorUserId} — {share.status}</span>
                   {share.status === 'ACTIVE' && (
                     <button type="button" data-variant="destructive" onClick={() => handleRevoke(share.id)}>
                       Revoke
@@ -115,7 +119,10 @@ export function ShareDialog({ reminderId }: ShareDialogProps) {
             <ul className={styles.list} aria-label="Pending invitations">
               {pendingInvitations.map((invitation) => (
                 <li key={invitation.id} className={styles.row}>
-                  <span>{invitation.invitedEmail} — {invitation.status}</span>
+                  <span className={styles.rowIcon}>
+                    <IconUsers width={14} height={14} />
+                  </span>
+                  <span className={styles.rowText}>{invitation.invitedEmail} — {invitation.status}</span>
                   <button type="button" data-variant="destructive" onClick={() => handleCancel(invitation.id)}>
                     Cancel
                   </button>

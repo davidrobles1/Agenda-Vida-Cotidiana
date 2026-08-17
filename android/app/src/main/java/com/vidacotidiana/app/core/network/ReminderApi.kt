@@ -28,7 +28,7 @@ data class RemindersPage(
 )
 
 @Serializable
-data class CreateReminderRequest(val title: String)
+data class CreateReminderRequest(val title: String, val dueAt: String? = null)
 
 @Serializable
 data class CompleteReminderRequest(val version: Int? = null)

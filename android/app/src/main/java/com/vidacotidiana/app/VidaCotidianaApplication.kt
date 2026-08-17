@@ -2,6 +2,7 @@ package com.vidacotidiana.app
 
 import android.app.Application
 import com.google.firebase.crashlytics.FirebaseCrashlytics
+import com.vidacotidiana.app.core.notifications.LocalReminderNotifier
 import dagger.hilt.android.HiltAndroidApp
 
 @HiltAndroidApp
@@ -15,5 +16,9 @@ class VidaCotidianaApplication : Application() {
         // — never hardcoded true, so a plain debug build never reports crashes silently.
         val collectionEnabled = !BuildConfig.DEBUG || BuildConfig.CRASHLYTICS_DEBUG_ENABLED
         FirebaseCrashlytics.getInstance().setCrashlyticsCollectionEnabled(collectionEnabled)
+
+        // AND-007: creating the channel is idempotent and cheap — safe to call on
+        // every app start rather than only once at install time.
+        LocalReminderNotifier.createChannel(this)
     }
 }

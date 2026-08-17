@@ -1,16 +1,22 @@
 package com.vidacotidiana.app.feature.sharing
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -29,15 +35,19 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.vidacotidiana.app.core.network.CreateInvitationRequest
 import com.vidacotidiana.app.core.network.Invitation
 import com.vidacotidiana.app.core.network.ReminderShare
 import com.vidacotidiana.app.core.network.SharesAndInvitationsResponse
 import com.vidacotidiana.app.core.network.sharingApi
-import com.vidacotidiana.app.core.ui.VidaColor
 import com.vidacotidiana.app.core.ui.VidaShape
 import com.vidacotidiana.app.core.ui.VidaSpacing
+import com.vidacotidiana.app.core.ui.VidaTheme
+import com.vidacotidiana.app.core.ui.components.BadgeTone
+import com.vidacotidiana.app.core.ui.components.StatusPill
+import com.vidacotidiana.app.core.ui.components.resolve
 import kotlinx.coroutines.launch
 
 /** AND-004/UX-001: inline share panel shown from a reminder's own card (owner only). */
@@ -71,7 +81,7 @@ fun ShareDialog(reminderId: String) {
     Card(
         modifier = Modifier.fillMaxWidth().testTag("share_dialog_$reminderId"),
         shape = RoundedCornerShape(VidaShape.card),
-        colors = CardDefaults.cardColors(containerColor = VidaColor.PrimaryContainerLight),
+        colors = CardDefaults.cardColors(containerColor = VidaTheme.colors.primaryContainer),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Column(modifier = Modifier.padding(VidaSpacing.lg), verticalArrangement = Arrangement.spacedBy(VidaSpacing.md)) {
@@ -121,17 +131,15 @@ fun ShareDialog(reminderId: String) {
                 }
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(VidaSpacing.xs)) {
-                    Text("Collaborators", style = MaterialTheme.typography.labelMedium, color = VidaColor.TextSecondaryLight)
+                    Text("Collaborators", style = MaterialTheme.typography.labelMedium, color = VidaTheme.colors.textSecondary)
                     if (shares.isEmpty()) {
                         Text("No collaborators yet.", style = MaterialTheme.typography.bodyMedium)
                     }
                     shares.forEach { share ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
+                        PersonRow(
+                            label = share.collaboratorUserId,
+                            status = share.status,
                         ) {
-                            Text("${share.collaboratorUserId} — ${share.status}", style = MaterialTheme.typography.bodyMedium)
                             if (share.status == "ACTIVE") {
                                 OutlinedButton(
                                     shape = RoundedCornerShape(VidaShape.control),
@@ -149,17 +157,15 @@ fun ShareDialog(reminderId: String) {
                 }
 
                 Column(verticalArrangement = Arrangement.spacedBy(VidaSpacing.xs)) {
-                    Text("Pending invitations", style = MaterialTheme.typography.labelMedium, color = VidaColor.TextSecondaryLight)
+                    Text("Pending invitations", style = MaterialTheme.typography.labelMedium, color = VidaTheme.colors.textSecondary)
                     if (pendingInvitations.isEmpty()) {
                         Text("No pending invitations.", style = MaterialTheme.typography.bodyMedium)
                     }
                     pendingInvitations.forEach { invitation ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
+                        PersonRow(
+                            label = invitation.invitedEmail ?: "",
+                            status = invitation.status,
                         ) {
-                            Text("${invitation.invitedEmail} — ${invitation.status}", style = MaterialTheme.typography.bodyMedium)
                             OutlinedButton(
                                 shape = RoundedCornerShape(VidaShape.control),
                                 onClick = {
@@ -176,4 +182,51 @@ fun ShareDialog(reminderId: String) {
             }
         }
     }
+}
+
+/**
+ * UX-006: shares/invitations rows in the same "icon + label + status pill (+
+ * trailing action)" shape as the rest of the app's list rows. The label Text
+ * stays its own node (not concatenated with status) so tests scoping by
+ * exact/substring text — e.g. SharingFlowTest's "userb@example.com" — keep
+ * matching without depending on the pill's wording.
+ */
+@Composable
+private fun PersonRow(label: String, status: String, trailing: @Composable () -> Unit) {
+    val tone = statusTone(status)
+    val toneColors = tone.resolve()
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(VidaSpacing.sm),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier.size(32.dp).background(toneColors.container, CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(Icons.Filled.Person, contentDescription = null, tint = toneColors.on, modifier = Modifier.size(16.dp))
+        }
+        Text(label, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+        StatusPill(label = statusLabel(status), container = toneColors.container, text = toneColors.on)
+        trailing()
+    }
+}
+
+/** design-system.md §5 status-pill mapping, reused for share/invitation states. */
+private fun statusTone(status: String): BadgeTone = when (status) {
+    "ACTIVE", "ACCEPTED" -> BadgeTone.Success
+    "PENDING" -> BadgeTone.Warning
+    "REVOKED", "REJECTED", "EXPIRED", "CANCELLED" -> BadgeTone.Error
+    else -> BadgeTone.Primary
+}
+
+private fun statusLabel(status: String): String = when (status) {
+    "ACTIVE" -> "Active"
+    "PENDING" -> "Pending"
+    "ACCEPTED" -> "Accepted"
+    "REVOKED" -> "Revoked"
+    "REJECTED" -> "Rejected"
+    "EXPIRED" -> "Expired"
+    "CANCELLED" -> "Cancelled"
+    else -> status
 }

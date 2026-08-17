@@ -1,0 +1,82 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  background: var(--color-surface-variant);
+  border-radius: var(--radius-card);
+  padding: var(--space-4);
+  text-align: left;
+  border: none;
+  min-height: 0;
+  width: 100%;
+  color: inherit;
+  font: inherit;
+}
+
+a.card,
+button.card {
+  cursor: pointer;
+}
+
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.label {
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+}
+
+.iconBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-control);
+  flex-shrink: 0;
+}
+
+.value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.subtitle {
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+}
+
+.subtitle[data-tone='error'] {
+  color: var(--color-error);
+  font-weight: 500;
+}
+
+.iconBadge[data-tone='primary'] {
+  background: var(--color-primary-container);
+  color: var(--color-primary);
+}
+
+.iconBadge[data-tone='success'] {
+  background: var(--color-success-container);
+  color: var(--color-success-text);
+}
+
+.iconBadge[data-tone='warning'] {
+  background: var(--color-warning-container);
+  color: var(--color-warning-text);
+}
+
+.iconBadge[data-tone='info'] {
+  background: var(--color-info-container);
+  color: var(--color-info-text);
+}
+
+.iconBadge[data-tone='error'] {
+  background: var(--color-error-container);
+  color: var(--color-error);
+}

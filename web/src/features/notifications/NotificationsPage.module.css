@@ -1,16 +1,6 @@
-.header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: var(--space-6);
-}
-
-.title {
-  margin: 0;
-}
-
 .enableButton {
-  margin-bottom: var(--space-6);
+  margin-bottom: var(--space-2);
+  align-self: flex-start;
 }
 
 .list {
@@ -29,4 +19,24 @@
   text-align: left;
   font-size: 0.9375rem;
   color: var(--color-text-secondary);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--color-info-container);
+  color: var(--color-info-text);
+  flex-shrink: 0;
+}
+
+.deviceText {
+  flex: 1;
+  min-width: 0;
 }

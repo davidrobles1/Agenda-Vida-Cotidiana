@@ -26,10 +26,10 @@ export async function listReminders(): Promise<RemindersPage> {
   return response.json()
 }
 
-export async function createReminder(title: string): Promise<Reminder> {
+export async function createReminder(title: string, dueAt?: string): Promise<Reminder> {
   const response = await apiFetch('/reminders', {
     method: 'POST',
-    body: JSON.stringify({ title }),
+    body: JSON.stringify(dueAt ? { title, dueAt } : { title }),
   })
   if (!response.ok) throw new Error(`POST /reminders failed: ${response.status}`)
   return response.json()

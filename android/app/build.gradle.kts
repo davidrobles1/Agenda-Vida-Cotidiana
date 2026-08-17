@@ -88,6 +88,11 @@ dependencies {
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
+    // UX-006: badge/list-item icons for the dashboard redesign (Documentos/
+    // Garantías/Inventario/etc.) — no icon set existed in this project before,
+    // every screen up to now was text-only. BOM-managed, same version family
+    // as the rest of Compose already in use above.
+    implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.navigation:navigation-compose:2.7.7")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.4")
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")

@@ -7,12 +7,15 @@ import com.vidacotidiana.app.core.network.CreateReminderRequest
 import com.vidacotidiana.app.core.network.Reminder
 import com.vidacotidiana.app.core.network.ReminderApi
 import com.vidacotidiana.app.core.network.UserApi
+import com.vidacotidiana.app.core.notifications.ReminderAlarmScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.time.Instant
+import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 
 data class RemindersUiState(
@@ -26,6 +29,7 @@ data class RemindersUiState(
 class RemindersViewModel @Inject constructor(
     private val api: ReminderApi,
     private val userApi: UserApi,
+    private val alarmScheduler: ReminderAlarmScheduler,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(RemindersUiState())
@@ -59,11 +63,23 @@ class RemindersViewModel @Inject constructor(
         }
     }
 
-    fun createReminder(title: String) {
+    /**
+     * AND-007: dueAtMillis, when present, is what actually gets a local alarm
+     * scheduled — a freshly created reminder is always PENDING, so there's no
+     * separate status check needed here (unlike a future "edit" path, which
+     * doesn't exist yet — see ReminderAlarmScheduler's own comment).
+     */
+    fun createReminder(title: String, dueAtMillis: Long? = null) {
         if (title.isBlank()) return
+        val dueAtIso = dueAtMillis?.let { DateTimeFormatter.ISO_INSTANT.format(Instant.ofEpochMilli(it)) }
         viewModelScope.launch {
-            runCatching { api.createReminder(CreateReminderRequest(title)) }
-                .onSuccess { refresh() }
+            runCatching { api.createReminder(CreateReminderRequest(title, dueAtIso)) }
+                .onSuccess { created ->
+                    if (dueAtMillis != null) {
+                        alarmScheduler.schedule(created.id, created.title, dueAtMillis)
+                    }
+                    refresh()
+                }
                 .onFailure { e -> _uiState.value = _uiState.value.copy(error = e.message) }
         }
     }
@@ -71,7 +87,12 @@ class RemindersViewModel @Inject constructor(
     fun completeReminder(reminder: Reminder) {
         viewModelScope.launch {
             runCatching { api.completeReminder(reminder.id, CompleteReminderRequest(reminder.version)) }
-                .onSuccess { refresh() }
+                .onSuccess {
+                    // AND-007: nothing to notify about once it's done — cancels
+                    // silently (a no-op if this reminder never had a dueAt/alarm).
+                    alarmScheduler.cancel(reminder.id)
+                    refresh()
+                }
                 .onFailure { e -> _uiState.value = _uiState.value.copy(error = e.message) }
         }
     }

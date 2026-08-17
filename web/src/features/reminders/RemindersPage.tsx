@@ -1,15 +1,17 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { completeReminder, createReminder, listReminders, type Reminder } from './api'
-import { logout } from '../../core/auth/authClient'
 import { getCurrentUser } from '../../core/user/api'
 import { ShareDialog } from '../sharing/ShareDialog'
+import { cancelLocalReminder, scheduleLocalReminder } from '../../core/notifications/localReminderTimer'
+import { AppShell } from '../../core/ui/layout/AppShell'
+import { IconCheckCircle, IconTasks } from '../../core/ui/icons'
 import styles from './RemindersPage.module.css'
 
 export function RemindersPage() {
   const [reminders, setReminders] = useState<Reminder[]>([])
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [title, setTitle] = useState('')
+  const [dueAtLocal, setDueAtLocal] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [sharingReminderId, setSharingReminderId] = useState<string | null>(null)
@@ -48,8 +50,16 @@ export function RemindersPage() {
     e.preventDefault()
     if (!title.trim()) return
     try {
-      await createReminder(title.trim())
+      // datetime-local's value has no timezone designator, so `new Date(...)`
+      // correctly parses it as the browser's local time — matches what the
+      // user actually picked, not UTC.
+      const dueAtDate = dueAtLocal ? new Date(dueAtLocal) : null
+      const created = await createReminder(title.trim(), dueAtDate ? dueAtDate.toISOString() : undefined)
+      // WEB-007: best-effort, tab-must-stay-open local reminder — see
+      // core/notifications/localReminderTimer.ts for the real platform limit.
+      if (dueAtDate) scheduleLocalReminder(created.id, created.title, dueAtDate.getTime())
       setTitle('')
+      setDueAtLocal('')
       await refresh()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to create reminder')
@@ -59,6 +69,10 @@ export function RemindersPage() {
   async function handleComplete(reminder: Reminder) {
     try {
       await completeReminder(reminder.id, reminder.version)
+      // Nothing to notify about once it's done — a no-op if this reminder
+      // never had a scheduled timer (same fail-closed pattern as Android's
+      // ReminderAlarmScheduler.cancel()).
+      cancelLocalReminder(reminder.id)
       await refresh()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to complete reminder')
@@ -66,20 +80,12 @@ export function RemindersPage() {
   }
 
   return (
-    <div>
-      <header className={styles.header}>
-        <h1 className={styles.title}>Vida Cotidiana</h1>
-        <nav className={styles.nav}>
-          <Link to="/invitations">Invitations</Link>
-          <Link to="/notifications">Notifications</Link>
-          <button type="button" data-variant="secondary" onClick={logout}>
-            Log out
-          </button>
-          <button type="button" data-variant="secondary" onClick={() => setDebugCrash(true)}>
-            Debug: trigger error
-          </button>
-        </nav>
-      </header>
+    <AppShell title="Tareas" subtitle="Administra tus recordatorios.">
+      <div className={styles.debugRow}>
+        <button type="button" data-variant="secondary" onClick={() => setDebugCrash(true)}>
+          Debug: trigger error
+        </button>
+      </div>
 
       <form className={styles.createForm} onSubmit={handleCreate}>
         <input
@@ -90,6 +96,18 @@ export function RemindersPage() {
         />
         <button type="submit">Add</button>
       </form>
+
+      <div className={styles.dueDateRow}>
+        <label htmlFor="due-at-input" className={styles.dueDateSummary}>
+          Due date (optional)
+        </label>
+        <input
+          id="due-at-input"
+          type="datetime-local"
+          value={dueAtLocal}
+          onChange={(e) => setDueAtLocal(e.target.value)}
+        />
+      </div>
 
       {error && <p role="alert">{error}</p>}
       {loading ? (
@@ -120,7 +138,7 @@ export function RemindersPage() {
           ))}
         </ul>
       )}
-    </div>
+    </AppShell>
   )
 }
 
@@ -136,9 +154,15 @@ function ReminderCard({ reminder, isOwner, onComplete, onShareToggle }: Reminder
   return (
     <div className={styles.card}>
       <div className={styles.cardTop}>
+        <span className={styles.cardIcon} data-tone={reminder.status === 'COMPLETED' ? 'success' : 'primary'}>
+          {reminder.status === 'COMPLETED' ? <IconCheckCircle width={16} height={16} /> : <IconTasks width={16} height={16} />}
+        </span>
         <span className={styles.cardTitle}>{reminder.title}</span>
         <StatusBadge status={reminder.status} />
       </div>
+      {reminder.dueAt && (
+        <span className={styles.cardDueAt}>Due: {new Date(reminder.dueAt).toLocaleString()}</span>
+      )}
       {(reminder.status === 'PENDING' || isOwner) && (
         <div className={styles.cardActions}>
           {reminder.status === 'PENDING' && (

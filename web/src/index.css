@@ -14,6 +14,14 @@
   --color-warning-text: #b45309;
   --color-warning-container: #fef3c7;
 
+  /* UX-006: new role, added extracting real pixel values from the Web/Android
+     reference dashboards (Documentos badge, "Programada" status pill) — see
+     design-system.md §1 for the sampled hex values and computed contrast
+     (info-text: 6.70:1 on white, real AA pass, not assumed). */
+  --color-info: #2563eb;
+  --color-info-text: #1d4ed8;
+  --color-info-container: #dbeafe;
+
   --color-error: #dc2626;
   --color-error-container: #fee2e2;
 
@@ -61,12 +69,22 @@
     --color-warning-text: #fbbf24;
     --color-warning-container: #78350f;
 
+    --color-info: #60a5fa;
+    --color-info-text: #60a5fa;
+    --color-info-container: #1e3a8a;
+
     --color-error: #f87171;
     --color-error-container: #7f1d1d;
 
-    --color-surface: #16171d;
-    --color-surface-variant: #1f2028;
-    --color-border: #2e303a;
+    /* UX-006: darkened from #16171d/#1f2028 — the Android reference
+       dashboard sampled at real pixel level (docs/Ejemplo APK vida
+       Cotidiana.png) is closer to near-black (~#0f1516 background, ~#141a1f
+       cards) than the original guess. Text tokens re-verified against these
+       darker values (F3F4F6 on #101418: 16.81:1; 9CA3AF: 7.29:1 — both still
+       comfortably pass AA, not just carried over assuming they still would). */
+    --color-surface: #101418;
+    --color-surface-variant: #171d22;
+    --color-border: #2e343b;
     --color-text: #f3f4f6;
     --color-text-secondary: #9ca3af;
   }
@@ -81,10 +99,12 @@ body {
   background: var(--color-surface);
 }
 
+/* UX-006: the old 640px cap fit the single-column reminders list; the
+   dashboard layout (sidebar + wide content grid) needs the full viewport.
+   Narrow single-column pages (login) get their own constraint locally
+   instead — see LoginPage.module.css. */
 #root {
-  max-width: 640px;
-  margin: 0 auto;
-  padding: var(--space-6) var(--space-4);
+  min-height: 100vh;
 }
 
 h1 {
@@ -180,4 +200,19 @@ a {
 .badge-warning {
   background: var(--color-warning-container);
   color: var(--color-warning-text);
+}
+
+.badge-info {
+  background: var(--color-info-container);
+  color: var(--color-info-text);
+}
+
+.badge-error {
+  background: var(--color-error-container);
+  color: var(--color-error);
+}
+
+.badge-primary {
+  background: var(--color-primary-container);
+  color: var(--color-primary);
 }

@@ -1,0 +1,35 @@
+.categoryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: var(--space-4);
+}
+
+.categoryCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  background: var(--color-surface-variant);
+  border-radius: var(--radius-card);
+  padding: var(--space-4);
+}
+
+.categoryIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-control);
+  background: var(--color-info-container);
+  color: var(--color-info-text);
+}
+
+.categoryName {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.categoryCount {
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+}

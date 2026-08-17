@@ -2,8 +2,18 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- AND-005: required on API 33+ to actually display a notification; fetching an
-         FCM token itself does not need it, but a real push feature does. -->
+         FCM token itself does not need it, but a real push feature does. Also covers
+         AND-007's local reminder notifications — same OS-level permission, different
+         NotificationChannel. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- AND-007: a reminder is a specific moment the user chose, not an approximate
+         window — this is "special access" on API 31+ (RemindersScreen checks
+         AlarmManager.canScheduleExactAlarms() and prompts via Settings before ever
+         calling schedule(), never assumes it's already granted). -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <!-- AND-007: AlarmManager alarms don't survive a reboot — BootRescheduleReceiver
+         needs this to re-arm them. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <application
         android:name=".VidaCotidianaApplication"
@@ -29,6 +39,21 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- AND-007: fired by AlarmManager at a reminder's exact dueAt. -->
+        <receiver
+            android:name=".core.notifications.ReminderAlarmReceiver"
+            android:exported="false" />
+        <!-- AND-007: re-arms alarms after a reboot (see BootRescheduleReceiver's own
+             comment for why this exists at all). -->
+        <receiver
+            android:name=".core.notifications.BootRescheduleReceiver"
+            android:exported="true"
+            android:permission="android.permission.RECEIVE_BOOT_COMPLETED">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>

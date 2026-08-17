@@ -39,8 +39,25 @@
 .row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: var(--space-2);
+}
+
+.rowIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--color-surface);
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.rowText {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.9375rem;
 }
 
 .emptyRow {

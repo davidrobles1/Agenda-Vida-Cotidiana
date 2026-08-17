@@ -1,21 +1,6 @@
-.header {
+.debugRow {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  margin-bottom: var(--space-6);
-}
-
-.title {
-  margin: 0;
-}
-
-.nav {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .createForm {
@@ -30,6 +15,23 @@
 
 .loading {
   color: var(--color-text-secondary);
+}
+
+.dueDateRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-6);
+}
+
+.dueDateSummary {
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+}
+
+.cardDueAt {
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
 }
 
 .list {
@@ -52,15 +54,37 @@
 
 .cardTop {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
+}
+
+.cardIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.cardIcon[data-tone='primary'] {
+  background: var(--color-primary-container);
+  color: var(--color-primary);
+}
+
+.cardIcon[data-tone='success'] {
+  background: var(--color-success-container);
+  color: var(--color-success-text);
 }
 
 .cardTitle {
   font-size: 1.125rem;
   font-weight: 600;
   text-align: left;
+  flex: 1;
+  min-width: 0;
 }
 
 .cardActions {
