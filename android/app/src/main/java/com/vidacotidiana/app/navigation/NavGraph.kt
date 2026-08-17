@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavHostController
@@ -50,7 +51,17 @@ private val bottomNavRoutes = setOf(Routes.HOME, Routes.REMINDERS, Routes.INVITA
 @Composable
 fun AppNavGraph(authManager: AuthManager) {
     val navController: NavHostController = rememberNavController()
-    val startDestination = if (authManager.isLoggedIn()) Routes.HOME else Routes.LOGIN
+    // UX-006 real bug found on-device: this must be computed exactly once. A plain
+    // `val` here re-evaluates on every recomposition of AppNavGraph — which
+    // includes every recomposition triggered by currentBackStackEntryAsState()
+    // below, i.e. every single navigate() call. Right after a fresh login,
+    // onLoggedIn()'s own navigate(Routes.REMINDERS) call triggers exactly such a
+    // recomposition; by then authManager.isLoggedIn() has flipped to true, so an
+    // un-remembered val would recompute this as Routes.HOME and NavHost would
+    // reset the back stack to it — silently overriding the real navigation that
+    // was just requested. Reproduced for real: LoginAndRemindersFlowTest landed
+    // on HomeScreen instead of RemindersScreen straight after login.
+    val startDestination = remember { if (authManager.isLoggedIn()) Routes.HOME else Routes.LOGIN }
 
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.hierarchy?.firstOrNull { it.route in bottomNavRoutes }?.route
@@ -99,8 +110,15 @@ fun AppNavGraph(authManager: AuthManager) {
             composable(Routes.LOGIN) {
                 LoginScreen(
                     authManager = authManager,
+                    // UX-006 real finding (device verification): the 3 real instrumented
+                    // tests (LoginAndRemindersFlowTest/SharingFlowTest/NotificationsFlowTest)
+                    // depend on reminder_title_input/add_reminder_button being reachable
+                    // immediately after login — landing on Routes.HOME first broke that.
+                    // Same call already made for Web (RemindersPage.tsx stays the
+                    // post-login landing there too, see design-system.md §7) — Tareas is
+                    // just one bottom-nav tab among equals, not a worse landing than Inicio.
                     onLoggedIn = {
-                        navController.navigate(Routes.HOME) {
+                        navController.navigate(Routes.REMINDERS) {
                             popUpTo(Routes.LOGIN) { inclusive = true }
                         }
                     },
