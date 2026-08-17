@@ -10,24 +10,32 @@
   --color-success-text: #047857;
   --color-success-container: #d1fae5;
 
-  --color-warning: #d97706;
-  --color-warning-text: #b45309;
+  /* ACC-001 (2026-08-17 accessibility audit): #d97706/#b45309 recalculated
+     against their own container (#fef3c7, not white) — the icon role failed
+     the 3:1 graphical threshold (2.86:1) and the text role passed by too
+     thin a margin (4.51:1) to trust. design-system.md §1 has the full
+     recalculated table. */
+  --color-warning: #c2670a;
+  --color-warning-text: #92400e;
   --color-warning-container: #fef3c7;
 
   /* UX-006: new role, added extracting real pixel values from the Web/Android
-     reference dashboards (Documentos badge, "Programada" status pill) — see
-     design-system.md §1 for the sampled hex values and computed contrast
-     (info-text: 6.70:1 on white, real AA pass, not assumed). */
+     reference dashboards (Documentos badge, "Programada" status pill). */
   --color-info: #2563eb;
   --color-info-text: #1d4ed8;
   --color-info-container: #dbeafe;
 
-  --color-error: #dc2626;
+  /* ACC-001: #dc2626 recalculated against error-container (#fee2e2, the real
+     background role="alert" and error pills render on) — 3.95:1, failed AA. */
+  --color-error: #b91c1c;
   --color-error-container: #fee2e2;
 
   --color-surface: #ffffff;
   --color-surface-variant: #f9fafb;
-  --color-border: #e5e7eb;
+  /* ACC-001: #e5e7eb recalculated against surface — 1.24:1, failed the 3:1
+     graphical threshold (SC 1.4.11). This is a real component boundary (see
+     `input` below), not purely decorative, so it needs to actually meet it. */
+  --color-border: #8b909a;
   --color-text: #111827;
   --color-text-secondary: #6b7280;
 
@@ -57,7 +65,12 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-primary: #818cf8;
+    /* ACC-001 (2026-08-17): #818cf8 recalculated against primary-container
+       (#312e81) — a pair that didn't exist until UX-006 introduced the
+       active sidebar item/selected chip. 3.83:1, failed AA. Lightening it
+       also improved the pre-existing on-primary/primary button pair
+       (5.36:1 -> 8.02:1), confirmed, not just assumed unaffected. */
+    --color-primary: #a5b4fc;
     --color-primary-container: #312e81;
     --color-on-primary: #1e1b4b;
 
@@ -69,11 +82,20 @@
     --color-warning-text: #fbbf24;
     --color-warning-container: #78350f;
 
+    /* ACC-001: --color-info-text recalculated against info-container
+       (#1e3a8a) specifically — the number this token used to cite (7.28:1)
+       was actually computed against --color-surface, not the container a
+       StatusPill text actually renders on. 4.07:1 against the real
+       background, failed AA. --color-info (icon role) still passes the 3:1
+       graphical threshold against its container unchanged. */
     --color-info: #60a5fa;
-    --color-info-text: #60a5fa;
+    --color-info-text: #93c5fd;
     --color-info-container: #1e3a8a;
 
-    --color-error: #f87171;
+    /* ACC-001: #f87171 recalculated against error-container (#7f1d1d) —
+       3.62:1, failed AA (same "checked vs surface, not vs container" gap
+       as info-text above). */
+    --color-error: #fca5a5;
     --color-error-container: #7f1d1d;
 
     /* UX-006: darkened from #16171d/#1f2028 — the Android reference
@@ -84,7 +106,9 @@
        comfortably pass AA, not just carried over assuming they still would). */
     --color-surface: #101418;
     --color-surface-variant: #171d22;
-    --color-border: #2e343b;
+    /* ACC-001: #2e343b recalculated as the real graphical component it is
+       (the `input` border below) — 1.47:1, failed the 3:1 threshold badly. */
+    --color-border: #616b79;
     --color-text: #f3f4f6;
     --color-text-secondary: #9ca3af;
   }

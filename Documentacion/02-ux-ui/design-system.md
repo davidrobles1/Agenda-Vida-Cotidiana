@@ -14,27 +14,38 @@ Justificación breve: azul índigo — profesional, calmado, no asociado a alarm
 
 | Token | Light | Dark | Uso |
 |---|---|---|---|
-| `color-primary` | `#4F46E5` | `#818CF8` | Acciones principales, links, FAB (Android), foco |
+| `color-primary` | `#4F46E5` | `#A5B4FC` | Acciones principales, links, FAB (Android), foco |
 | `color-primary-container` | `#E0E7FF` | `#312E81` | Fondo de elementos primarios de baja énfasis (chips, fondos de card seleccionada) |
 | `color-on-primary` | `#FFFFFF` | `#1E1B4B` | Texto/ícono sobre `color-primary` |
 | `color-success` | `#059669` | `#34D399` | Ícono/borde/fondo de estado "completado" — **no usar para texto** (3.77:1 en fondo blanco, insuficiente para texto normal AA) |
 | `color-success-text` | `#047857` | `#34D399` | Texto del estado "completado" (5.48:1 en blanco) |
 | `color-success-container` | `#D1FAE5` | `#064E3B` | Fondo de estado "completado" |
-| `color-warning` | `#D97706` | `#FBBF24` | Ícono/borde/fondo de estado "pendiente" — **no usar para texto** (3.19:1 en fondo blanco, insuficiente) |
-| `color-warning-text` | `#B45309` | `#FBBF24` | Texto del estado "pendiente" (5.02:1 en blanco) |
+| `color-warning` | `#C2670A` | `#FBBF24` | Ícono/borde/fondo de estado "pendiente" — **no usar para texto** |
+| `color-warning-text` | `#92400E` | `#FBBF24` | Texto del estado "pendiente" |
 | `color-warning-container` | `#FEF3C7` | `#78350F` | Fondo de estado "pendiente" |
 | `color-info` | `#2563EB` | `#60A5FA` | Ícono/borde/fondo de estado informativo ("Programada", categoría Documentos) |
-| `color-info-text` | `#1D4ED8` | `#60A5FA` | Texto del estado informativo (6.70:1 en blanco / 7.28:1 en `#101418`) |
+| `color-info-text` | `#1D4ED8` | `#93C5FD` | Texto del estado informativo |
 | `color-info-container` | `#DBEAFE` | `#1E3A8A` | Fondo de estado informativo |
-| `color-error` | `#DC2626` | `#F87171` | Errores, acción destructiva (revocar, rechazar) — 4.83:1 en blanco, sí válido para texto |
+| `color-error` | `#B91C1C` | `#FCA5A5` | Errores, acción destructiva (revocar, rechazar), texto sobre `color-error-container` |
 | `color-error-container` | `#FEE2E2` | `#7F1D1D` | Fondo de mensajes de error |
 | `color-surface` | `#FFFFFF` | `#101418` | Fondo de pantalla |
 | `color-surface-variant` | `#F9FAFB` | `#171D22` | Fondo de card/superficie elevada |
-| `color-border` | `#E5E7EB` | `#2E343B` | Bordes, separadores |
+| `color-border` | `#8B909A` | `#616B79` | Bordes, separadores — incluye el borde de `input` (Web), un componente interactivo real, no solo decorativo |
 | `color-text` | `#111827` | `#F3F4F6` | Texto principal |
 | `color-text-secondary` | `#6B7280` | `#9CA3AF` | Texto secundario (metadatos, timestamps) |
 
-**Contraste — verificado calculando la fórmula de contraste WCAG 2.1 real (luminancia relativa, no asumido visualmente), ver `accessibility.md` §1 para la tabla completa de pares y sus ratios exactos.** Hallazgo real durante esta verificación: `color-success`/`color-warning` en su tono original (600) **no** cumplían 4.5:1 para texto normal sobre blanco (3.77:1 y 3.19:1) — quedan como color de ícono/fondo/borde únicamente (ahí sí cumplen el umbral de 3:1 para elementos gráficos/texto grande), y se añadieron `color-success-text`/`color-warning-text` (tono 700, más oscuro) específicamente para texto, que sí cumplen AA.
+**Contraste — recalculado por completo el 2026-08-17 contra el código real ya restilizado por `UX-006` (fórmula WCAG 2.1 real, luminancia relativa — no una reverificación de los números antiguos), ver `accessibility.md` §1 para la tabla completa de pares y sus ratios exactos.** La pasada original (`UX-001`) solo había verificado la paleta clara base; nunca se había recalculado contraste contra los tokens de tema oscuro reales de `UX-006`, ni contra combinaciones texto/ícono-sobre-container que no existían todavía en `UX-001` (pills de estado, sidebar activo, badges de módulos mock). Recalculando sistemáticamente las ~20 combinaciones texto/ícono-sobre-fondo que el código realmente usa, se encontraron **6 fallos reales de AA** (4 en oscuro, 2 en claro) — corregidos aquí, no solo documentados:
+
+| Par que fallaba | Antes | Ahora | Motivo |
+|---|---|---|---|
+| `color-info-text` sobre `color-info-container` (oscuro) | 4.07:1 | 5.74:1 | El valor anterior (`#60A5FA`) nunca se había verificado contra su propio container (`#1E3A8A`) — solo contra `color-surface`, que no es donde vive el texto de un `StatusPill`. |
+| `color-error` sobre `color-error-container` (oscuro) | 3.62:1 | 5.28:1 | Mismo error de método: solo se había verificado `error` como texto suelto sobre `surface`, nunca como texto de pill/badge sobre su propio container. |
+| `color-primary` sobre `color-primary-container` (oscuro) | 3.83:1 | 5.73:1 | Par nuevo introducido por `UX-006` (ítem activo del sidebar, chip seleccionado) — nunca existía en `UX-001`/`UX-004`, nunca se verificó. |
+| `color-border` sobre `color-surface` (oscuro y claro) | 1.47:1 / 1.24:1 | 3.83:1 / 3.20:1 | Nunca se había verificado como componente gráfico real (SC 1.4.11) — es el borde real de los `input` de Web, no solo un divisor decorativo. |
+| `color-warning` sobre `color-warning-container` (claro) | 2.86:1 | 3.60:1 | Rol gráfico (ícono), nunca antes verificado contra su propio container en modo claro. |
+| `color-error` sobre `color-error-container` (claro) | 3.95:1 | 5.30:1 | Mismo gap de método que arriba, esta vez en modo claro. |
+
+Efecto colateral positivo confirmado, no asumido: el `color-primary` más claro en modo oscuro también mejora el par botón (texto sobre fondo primario), de 5.36:1 a 8.02:1 — ningún par se degradó al corregir estos 6.
 
 **Corrección UX-006 (2026-08-16) — `color-info` añadido, superficies oscuras oscurecidas, verificado con muestreo de píxel real, no a ojo.** Al construir la pantalla de referencia del dashboard (`docs/Ejemplo APK vida Cotidiana.png`/`docs/Ejemplo Web vida Cotidiana .png`) contra este documento aparecieron dos gaps reales:
 1. Faltaba un cuarto rol semántico (`info`, azul) — necesario para el badge de categoría "Documentos" y el pill de estado "Programada" de la referencia, que no encajan en `success`/`warning`/`error`. Añadido siguiendo el mismo patrón base/text/container ya establecido, con el mismo umbral AA verificado por fórmula (no asumido): 6.70:1 en blanco, 7.28:1 sobre el nuevo fondo oscuro.

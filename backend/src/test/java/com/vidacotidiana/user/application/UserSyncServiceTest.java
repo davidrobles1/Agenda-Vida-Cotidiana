@@ -5,6 +5,7 @@ import com.vidacotidiana.user.domain.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -28,7 +29,7 @@ class UserSyncServiceTest {
     @BeforeEach
     void setUp() {
         userRepository = Mockito.mock(UserRepository.class);
-        service = new UserSyncService(userRepository);
+        service = new UserSyncService(userRepository, null);
     }
 
     @Test
@@ -66,5 +67,31 @@ class UserSyncServiceTest {
         User result = service.syncFromToken(userId, "brand-new@example.com", "brandnew");
 
         assertThat(result.getEmail()).isEqualTo("brand-new@example.com");
+    }
+
+    /**
+     * BE-036: unit-level check of the retry logic itself (the real race —
+     * two genuinely concurrent requests hitting Postgres — is covered
+     * separately by UserSyncServiceConcurrencyIntegrationTest, since a mock
+     * can't reproduce a real unique-constraint violation). Simulates the
+     * loser's exact observed sequence: findById empty, save() fails with the
+     * real exception type Spring's persistence exception translation raises
+     * for a Postgres unique violation, and the retry's findById now finds the
+     * row the "other request" committed in between.
+     */
+    @Test
+    void syncFromToken_loserOfRaceRetriesAndFindsWinnersRow() {
+        User winnersRow = new User(userId, "winner@example.com", "winner");
+        when(userRepository.findById(userId))
+                .thenReturn(Optional.empty())
+                .thenReturn(Optional.of(winnersRow));
+        when(userRepository.save(org.mockito.ArgumentMatchers.any(User.class)))
+                .thenThrow(new DataIntegrityViolationException("duplicate key value violates unique constraint \"users_pkey\""));
+
+        User result = service.syncFromToken(userId, "loser@example.com", "loser");
+
+        assertThat(result).isSameAs(winnersRow);
+        Mockito.verify(userRepository, Mockito.times(2)).findById(userId);
+        Mockito.verify(userRepository, Mockito.times(1)).save(org.mockito.ArgumentMatchers.any(User.class));
     }
 }

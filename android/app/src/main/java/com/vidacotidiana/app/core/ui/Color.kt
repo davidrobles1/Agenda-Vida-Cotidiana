@@ -13,7 +13,12 @@ object VidaColor {
     val PrimaryContainerLight = Color(0xFFE0E7FF)
     val OnPrimaryLight = Color(0xFFFFFFFF)
 
-    val PrimaryDark = Color(0xFF818CF8)
+    // ACC-001 (2026-08-17 accessibility audit): recalculated against
+    // PrimaryContainerDark (#312E81) — a pair UX-006 introduced (active
+    // sidebar/selected chip) and never verified. 3.83:1, failed AA;
+    // lightened to 0xA5B4FC (5.73:1), which also improved the pre-existing
+    // OnPrimaryDark/PrimaryDark button pair (5.36:1 -> 8.02:1, confirmed).
+    val PrimaryDark = Color(0xFFA5B4FC)
     val PrimaryContainerDark = Color(0xFF312E81)
     val OnPrimaryDark = Color(0xFF1E1B4B)
 
@@ -24,8 +29,12 @@ object VidaColor {
     val SuccessTextDark = Color(0xFF34D399)
     val SuccessContainerDark = Color(0xFF064E3B)
 
-    val WarningLight = Color(0xFFD97706)
-    val WarningTextLight = Color(0xFFB45309)
+    // ACC-001: WarningLight/WarningTextLight recalculated against
+    // WarningContainerLight (#FEF3C7) specifically, not just against white —
+    // the icon role failed the 3:1 graphical threshold (2.86:1) and the text
+    // role passed by too thin a margin (4.51:1) to trust.
+    val WarningLight = Color(0xFFC2670A)
+    val WarningTextLight = Color(0xFF92400E)
     val WarningContainerLight = Color(0xFFFEF3C7)
     val WarningDark = Color(0xFFFBBF24)
     val WarningTextDark = Color(0xFFFBBF24)
@@ -38,17 +47,27 @@ object VidaColor {
     val InfoTextLight = Color(0xFF1D4ED8)
     val InfoContainerLight = Color(0xFFDBEAFE)
     val InfoDark = Color(0xFF60A5FA)
-    val InfoTextDark = Color(0xFF60A5FA)
+    // ACC-001: recalculated against InfoContainerDark (#1E3A8A) — the number
+    // this token used to cite was actually computed against SurfaceDark, not
+    // the container a StatusPill text actually renders on. 4.07:1 against
+    // the real background, failed AA.
+    val InfoTextDark = Color(0xFF93C5FD)
     val InfoContainerDark = Color(0xFF1E3A8A)
 
-    val ErrorLight = Color(0xFFDC2626)
+    // ACC-001: recalculated against their own *ContainerLight/*ContainerDark
+    // (the pill/badge background these render as text on), not against
+    // surface — 3.95:1 (light) / 3.62:1 (dark), both failed AA.
+    val ErrorLight = Color(0xFFB91C1C)
     val ErrorContainerLight = Color(0xFFFEE2E2)
-    val ErrorDark = Color(0xFFF87171)
+    val ErrorDark = Color(0xFFFCA5A5)
     val ErrorContainerDark = Color(0xFF7F1D1D)
 
     val SurfaceLight = Color(0xFFFFFFFF)
     val SurfaceVariantLight = Color(0xFFF9FAFB)
-    val BorderLight = Color(0xFFE5E7EB)
+    // ACC-001: recalculated as the real graphical component it is (SC 1.4.11)
+    // instead of assumed-decorative — 1.24:1 against SurfaceLight, failed the
+    // 3:1 threshold.
+    val BorderLight = Color(0xFF8B909A)
     val TextLight = Color(0xFF111827)
     val TextSecondaryLight = Color(0xFF6B7280)
 
@@ -60,7 +79,9 @@ object VidaColor {
     // still pass.
     val SurfaceDark = Color(0xFF101418)
     val SurfaceVariantDark = Color(0xFF171D22)
-    val BorderDark = Color(0xFF2E343B)
+    // ACC-001: recalculated as the real graphical component it is — 1.47:1
+    // against SurfaceDark, failed the 3:1 threshold badly.
+    val BorderDark = Color(0xFF616B79)
     val TextDark = Color(0xFFF3F4F6)
     val TextSecondaryDark = Color(0xFF9CA3AF)
 }
