@@ -59,6 +59,33 @@ export async function login(): Promise<void> {
   )
 }
 
+// WEB-008 (Task B §2): Keycloak's real self-registration form
+// (protocol/openid-connect/registrations) — same client, same PKCE flow, same
+// redirect_uri as login(), only the endpoint path differs. On submit, Keycloak
+// creates the account and redirects back to /callback with an authorization
+// code exactly like a normal login, so CallbackPage's existing exchange logic
+// handles it unmodified.
+function registrationUrl(params: Record<string, string>): string {
+  return `${authConfig.issuer}/protocol/openid-connect/registrations?${new URLSearchParams(params)}`
+}
+
+export async function register(): Promise<void> {
+  const verifier = generateCodeVerifier()
+  const challenge = await generateCodeChallenge(verifier)
+  sessionStorage.setItem(CODE_VERIFIER_KEY, verifier)
+
+  window.location.assign(
+    registrationUrl({
+      client_id: authConfig.clientId,
+      response_type: 'code',
+      redirect_uri: authConfig.redirectUri,
+      scope: authConfig.scope,
+      code_challenge: challenge,
+      code_challenge_method: 'S256',
+    }),
+  )
+}
+
 async function exchangeCode(code: string, verifier: string): Promise<TokenSet> {
   const body = new URLSearchParams({
     grant_type: 'authorization_code',

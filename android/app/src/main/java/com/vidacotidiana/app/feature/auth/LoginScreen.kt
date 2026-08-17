@@ -11,6 +11,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -62,6 +63,12 @@ fun LoginScreen(authManager: AuthManager, onLoggedIn: () -> Unit) {
             onClick = { launcher.launch(authManager.buildLoginIntent()) },
         ) {
             Text("Log in")
+        }
+        TextButton(
+            modifier = Modifier.testTag("register_button").padding(top = VidaSpacing.sm),
+            onClick = { launcher.launch(authManager.buildRegisterIntent()) },
+        ) {
+            Text("Crear cuenta")
         }
         error?.let {
             Text(

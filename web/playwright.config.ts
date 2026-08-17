@@ -4,6 +4,21 @@ import { defineConfig } from '@playwright/test'
 export default defineConfig({
   testDir: './e2e',
   timeout: 60_000,
+  // Task B §1 real finding: with Keycloak's bruteForceProtected now on
+  // (realm-vida-cotidiana.json), running these 4 specs in parallel (the
+  // default) has all of them log in as the same real `testuser` account
+  // within the same ~1s window — reproduced for real, not assumed: 3
+  // separate 4-worker runs, 2 of them had one spec fail on Keycloak's own
+  // login page with "Invalid username or password" for the objectively
+  // correct password, while every serial (1-worker) run and every run with
+  // bruteForceProtected temporarily reverted to false passed cleanly. A
+  // single shared account authenticating from several concurrent sessions
+  // inside Keycloak's quickLoginCheckMilliSeconds window (1000ms, an
+  // untouched Keycloak default) isn't a realistic single-user login pattern
+  // this control needs to tolerate, so the fix belongs here — serialize the
+  // suite — rather than loosening the security control to make parallel
+  // load-testing-shaped test traffic pass.
+  workers: 1,
   use: {
     baseURL: 'http://localhost:5173',
     // WEB-005: real Web Push subscriptions need Google's proprietary GCM/FCM

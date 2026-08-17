@@ -136,6 +136,17 @@ body.vc-theme-web .vc-brand {
 
 body.vc-theme-web .pf-v5-c-title {
   color: var(--vc-text);
+  /* Real bug found verifying the register page (Task B §2): PatternFly's base
+     styles.css inherits word-break:break-word on this title, and the narrow
+     form column (already-shipped, intentional on the login page — see
+     .vc-split-container above) shrinks a flex child below its own content
+     width. A multi-word heading like "Sign in to your account" just wraps at
+     spaces so this never showed before, but a single unbreakable word like
+     "Register" broke mid-word ("Regi"/"ster") — confirmed via
+     getComputedStyle/boundingBox() before treating it as fixed, not just a
+     re-eyeballed screenshot. Scoped to the title only, not the whole page. */
+  word-break: normal;
+  overflow-wrap: normal;
 }
 
 body.vc-theme-web .pf-v5-c-form__label-text {
