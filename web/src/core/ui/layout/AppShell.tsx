@@ -4,6 +4,7 @@ import { logout } from '../../auth/authClient'
 import { getCurrentUser } from '../../user/api'
 import {
   IconBell,
+  IconCalendar,
   IconFolder,
   IconHome,
   IconInventory,
@@ -31,11 +32,17 @@ import styles from './AppShell.module.css'
  * phone mockup's bottom nav) — placed right after "Tareas" here since
  * sharing is reminder-scoped, the same adaptation call made for Android's
  * bottom nav.
+ *
+ * UX-007: "Calendario" is a first-class sidebar item (unlike Android, where
+ * it lives inside "Más" — the bottom nav has real history with overflow at
+ * only 4 items + a center FAB, see MoreScreen.kt's comment; the sidebar has
+ * no such width constraint).
  */
 const navItems = [
   { to: '/home', label: 'Inicio', icon: IconHome },
   { to: '/reminders', label: 'Tareas', icon: IconTasks },
   { to: '/invitations', label: 'Compartidos', icon: IconShared },
+  { to: '/calendar', label: 'Calendario', icon: IconCalendar },
   { to: '/documents', label: 'Documentos', icon: IconFolder },
   { to: '/inventory', label: 'Inventario', icon: IconInventory },
   { to: '/warranties', label: 'Garantías', icon: IconShield },

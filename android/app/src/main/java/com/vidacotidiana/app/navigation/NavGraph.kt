@@ -16,6 +16,7 @@ import com.vidacotidiana.app.core.ui.components.BottomNavDestination
 import com.vidacotidiana.app.core.ui.components.VidaBottomNav
 import com.vidacotidiana.app.feature.auth.AuthManager
 import com.vidacotidiana.app.feature.auth.LoginScreen
+import com.vidacotidiana.app.feature.calendar.CalendarScreen
 import com.vidacotidiana.app.feature.documents.DocumentsScreen
 import com.vidacotidiana.app.feature.family.FamilyScreen
 import com.vidacotidiana.app.feature.home.HomeScreen
@@ -41,6 +42,7 @@ private object Routes {
     const val MAINTENANCE = "maintenance"
     const val SUBSCRIPTIONS = "subscriptions"
     const val FAMILY = "family"
+    const val CALENDAR = "calendar"
 }
 
 // UX-006: the 4 real bottom-nav destinations — everything else (Notifications,
@@ -148,6 +150,7 @@ fun AppNavGraph(authManager: AuthManager) {
                     onNavigateToMaintenance = { navController.navigate(Routes.MAINTENANCE) },
                     onNavigateToSubscriptions = { navController.navigate(Routes.SUBSCRIPTIONS) },
                     onNavigateToFamily = { navController.navigate(Routes.FAMILY) },
+                    onNavigateToCalendar = { navController.navigate(Routes.CALENDAR) },
                     onLogout = {
                         authManager.logout()
                         navController.navigate(Routes.LOGIN) {
@@ -165,6 +168,9 @@ fun AppNavGraph(authManager: AuthManager) {
             composable(Routes.MAINTENANCE) { MaintenanceScreen() }
             composable(Routes.SUBSCRIPTIONS) { SubscriptionsScreen() }
             composable(Routes.FAMILY) { FamilyScreen() }
+            composable(Routes.CALENDAR) {
+                CalendarScreen(onNavigateToInvitations = { navController.navigate(Routes.INVITATIONS) })
+            }
         }
     }
 }

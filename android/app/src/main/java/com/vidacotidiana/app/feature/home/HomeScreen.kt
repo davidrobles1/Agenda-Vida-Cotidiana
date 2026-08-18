@@ -10,12 +10,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.background
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -30,6 +33,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.vidacotidiana.app.core.network.Reminder
+import com.vidacotidiana.app.core.ui.VidaShape
 import com.vidacotidiana.app.core.ui.VidaSpacing
 import com.vidacotidiana.app.core.ui.VidaTheme
 import com.vidacotidiana.app.core.ui.components.AppTopBar
@@ -39,16 +43,19 @@ import com.vidacotidiana.app.core.ui.components.DonutSlice
 import com.vidacotidiana.app.core.ui.components.ListItemRow
 import com.vidacotidiana.app.core.ui.components.ListSectionCard
 import com.vidacotidiana.app.core.ui.components.MetricCard
+import com.vidacotidiana.app.core.ui.components.notebookBackground
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 /**
- * UX-006: Home dashboard — matches the reference's layout (metric cards +
- * "Próximas tareas"/"Recordatorios importantes" + a status donut), but only
- * with real data (HomeViewModel). No Documentos/Garantías/Gastos metric
- * cards — those are mock modules or excluded entirely (Finanzas), see
- * design-system.md's note on this Home-specific decision.
+ * UX-007: Home restyled from a generic metrics dashboard into "Agenda" —
+ * "qué necesito ver/hacer hoy" leads (Hoy/Próximos días), metric cards
+ * (Tareas/Compartidos) come after, deprioritized, matching the reference's
+ * data but not its metrics-first layout order. Still only real data
+ * (HomeViewModel unchanged — this is a presentation-only reorder/restyle, no
+ * new fields, no touched logic) — no Documentos/Garantías/Gastos here, same
+ * scope decision as UX-006 (see design-system.md).
  */
 @Composable
 fun HomeScreen(
@@ -57,13 +64,17 @@ fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
+    val hasFocusItems = state.overdue.isNotEmpty() || state.upcoming.isNotEmpty()
 
     LazyColumn(
-        modifier = Modifier.fillMaxSize().padding(VidaSpacing.lg),
+        modifier = Modifier
+            .fillMaxSize()
+            .notebookBackground(VidaTheme.colors.border.copy(alpha = 0.2f))
+            .padding(VidaSpacing.lg),
         verticalArrangement = Arrangement.spacedBy(VidaSpacing.lg),
     ) {
         item {
-            AppTopBar(greetingName = state.greetingName.ifBlank { "…" }, subtitle = "Resumen de tu día")
+            AppTopBar(greetingName = state.greetingName.ifBlank { "…" }, subtitle = "Tu agenda de hoy")
         }
 
         if (state.loading) {
@@ -75,6 +86,50 @@ fun HomeScreen(
         state.error?.let {
             item {
                 Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+            }
+        }
+
+        if (state.overdue.isNotEmpty()) {
+            item {
+                ListSectionCard(title = "Hoy", onSeeAll = onNavigateToTasks) {
+                    Column(verticalArrangement = Arrangement.spacedBy(VidaSpacing.md)) {
+                        state.overdue.forEach { reminder ->
+                            ListItemRow(
+                                title = reminder.title,
+                                subtitle = reminder.dueAt?.let(::formatDueAt) ?: "",
+                                icon = Icons.Filled.Warning,
+                                tone = BadgeTone.Error,
+                                pillLabel = "Vencida",
+                                pillTone = BadgeTone.Error,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        if (state.upcoming.isNotEmpty()) {
+            item {
+                ListSectionCard(title = "Próximos días", onSeeAll = onNavigateToTasks) {
+                    Column(verticalArrangement = Arrangement.spacedBy(VidaSpacing.md)) {
+                        state.upcoming.forEach { reminder ->
+                            ListItemRow(
+                                title = reminder.title,
+                                subtitle = reminder.dueAt?.let(::formatDueAt) ?: "",
+                                icon = Icons.Filled.Description,
+                                tone = BadgeTone.Info,
+                                pillLabel = "Pendiente",
+                                pillTone = BadgeTone.Warning,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        if (!state.loading && !hasFocusItems) {
+            item {
+                EmptyTodayCard()
             }
         }
 
@@ -102,44 +157,6 @@ fun HomeScreen(
             }
         }
 
-        if (state.upcoming.isNotEmpty()) {
-            item {
-                ListSectionCard(title = "Próximas tareas", onSeeAll = onNavigateToTasks) {
-                    Column(verticalArrangement = Arrangement.spacedBy(VidaSpacing.md)) {
-                        state.upcoming.forEach { reminder ->
-                            ListItemRow(
-                                title = reminder.title,
-                                subtitle = reminder.dueAt?.let(::formatDueAt) ?: "",
-                                icon = Icons.Filled.Description,
-                                tone = BadgeTone.Info,
-                                pillLabel = "Pendiente",
-                                pillTone = BadgeTone.Warning,
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        if (state.overdue.isNotEmpty()) {
-            item {
-                ListSectionCard(title = "Recordatorios importantes", onSeeAll = onNavigateToTasks) {
-                    Column(verticalArrangement = Arrangement.spacedBy(VidaSpacing.md)) {
-                        state.overdue.forEach { reminder ->
-                            ListItemRow(
-                                title = reminder.title,
-                                subtitle = reminder.dueAt?.let(::formatDueAt) ?: "",
-                                icon = Icons.Filled.Warning,
-                                tone = BadgeTone.Error,
-                                pillLabel = "Vencida",
-                                pillTone = BadgeTone.Error,
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
         if (state.pendingCount + state.completedCount > 0) {
             item {
                 ListSectionCard(title = "Progreso de tareas") {
@@ -158,6 +175,26 @@ fun HomeScreen(
                 }
             }
         }
+    }
+}
+
+/** UX-007: shown when there's nothing overdue/upcoming — an agenda should say "you're clear", not just render nothing. */
+@Composable
+private fun EmptyTodayCard() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(VidaTheme.colors.successContainer, RoundedCornerShape(VidaShape.card))
+            .padding(VidaSpacing.lg),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(VidaSpacing.sm),
+    ) {
+        Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = VidaTheme.colors.successText)
+        Text(
+            "Estás al día. No tienes tareas pendientes por ahora.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = VidaTheme.colors.successText,
+        )
     }
 }
 

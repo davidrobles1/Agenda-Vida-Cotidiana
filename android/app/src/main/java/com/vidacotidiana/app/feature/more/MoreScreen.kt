@@ -18,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Autorenew
 import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Inventory2
@@ -48,6 +49,16 @@ data class MoreDestination(val label: String, val icon: ImageVector, val tone: B
  * reference doesn't show this screen directly (it's implied by "Más" in the
  * bottom nav), so this is a reasonable, standard "more menu" pattern rather
  * than an invented flow.
+ *
+ * UX-007: "Calendario" lives here rather than as a literal 6th bottom-nav
+ * icon — a design call, not a limitation of the router. The bottom nav
+ * already has real history with overflow at 4 items + a center FAB
+ * (AND-004/AND-006: a 5-button row silently dropped buttons off-screen);
+ * adding a 6th real icon risks the same failure mode again for marginal
+ * benefit, since Calendario is a secondary, occasional-use screen, not a
+ * daily-driver tab like Tareas/Compartidos. Web's sidebar has no such
+ * width constraint, so Calendario is a first-class sidebar item there
+ * (`AppShell.tsx`).
  */
 @Composable
 fun MoreScreen(
@@ -58,10 +69,12 @@ fun MoreScreen(
     onNavigateToMaintenance: () -> Unit,
     onNavigateToSubscriptions: () -> Unit,
     onNavigateToFamily: () -> Unit,
+    onNavigateToCalendar: () -> Unit,
     onLogout: () -> Unit,
 ) {
     val items = listOf(
         MoreDestination("Notificaciones", Icons.Filled.Notifications, BadgeTone.Primary) to onNavigateToNotifications,
+        MoreDestination("Calendario", Icons.Filled.CalendarMonth, BadgeTone.Primary) to onNavigateToCalendar,
         MoreDestination("Documentos", Icons.Filled.Description, BadgeTone.Info) to onNavigateToDocuments,
         MoreDestination("Garantías", Icons.Filled.VerifiedUser, BadgeTone.Success) to onNavigateToWarranties,
         MoreDestination("Inventario", Icons.Filled.Inventory2, BadgeTone.Primary) to onNavigateToInventory,

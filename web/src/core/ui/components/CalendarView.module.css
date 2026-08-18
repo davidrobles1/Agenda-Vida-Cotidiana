@@ -1,0 +1,104 @@
+.calendar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.monthLabel {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.navButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  min-height: 0;
+  padding: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--color-text-secondary);
+  border: none;
+}
+
+.navButton:hover {
+  background: var(--color-surface);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.weekday {
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  padding-bottom: var(--space-1);
+}
+
+.dayCell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  aspect-ratio: 1;
+  border-radius: var(--radius-control);
+}
+
+.dayNumber {
+  font-size: 0.8125rem;
+  color: var(--color-text);
+}
+
+.today {
+  background: var(--color-primary-container);
+}
+
+.today .dayNumber {
+  color: var(--color-primary);
+  font-weight: 700;
+}
+
+.markers {
+  display: flex;
+  gap: 2px;
+}
+
+.marker {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+}
+
+.marker[data-tone='primary'] {
+  background: var(--color-primary);
+}
+
+.marker[data-tone='warning'] {
+  background: var(--color-warning);
+}
+
+.marker[data-tone='info'] {
+  background: var(--color-info);
+}
+
+.marker[data-tone='error'] {
+  background: var(--color-error);
+}
+
+.marker[data-tone='success'] {
+  background: var(--color-success);
+}

@@ -4,6 +4,7 @@ import { isAuthenticated, subscribe } from '../core/auth/authClient'
 import { LoginPage } from '../features/auth/LoginPage'
 import { CallbackPage } from '../features/auth/CallbackPage'
 import { HomePage } from '../features/home/HomePage'
+import { CalendarPage } from '../features/calendar/CalendarPage'
 import { RemindersPage } from '../features/reminders/RemindersPage'
 import { InvitationsPage } from '../features/sharing/InvitationsPage'
 import { NotificationsPage } from '../features/notifications/NotificationsPage'
@@ -49,6 +50,14 @@ export function AppRouter() {
         element={
           <RequireAuth>
             <InvitationsPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/calendar"
+        element={
+          <RequireAuth>
+            <CalendarPage />
           </RequireAuth>
         }
       />

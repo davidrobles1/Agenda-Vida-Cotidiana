@@ -24,6 +24,11 @@ import com.vidacotidiana.app.core.ui.VidaTheme
  * UX-006: "row with colored icon + title + subtitle + status pill" — the
  * reference's list-item pattern, repeated across Próximas tareas,
  * Recordatorios importantes, Documentos, Garantías, Inventario, etc.
+ *
+ * UX-007: `trailing` is an optional extra slot after the pill (e.g. a
+ * `Checkbox` for Calendario's "Pendientes" list) — mirrors Web's
+ * `ListItemRow.tsx`, which already had this slot. Default null, so every
+ * existing call site is unaffected.
  */
 @Composable
 fun ListItemRow(
@@ -34,6 +39,7 @@ fun ListItemRow(
     modifier: Modifier = Modifier,
     pillLabel: String? = null,
     pillTone: BadgeTone? = null,
+    trailing: (@Composable () -> Unit)? = null,
 ) {
     val toneColors = tone.resolve()
     Row(
@@ -57,5 +63,6 @@ fun ListItemRow(
             val pillColors = pillTone.resolve()
             StatusPill(label = pillLabel, container = pillColors.container, text = pillColors.on)
         }
+        trailing?.invoke()
     }
 }

@@ -173,3 +173,20 @@ export function IconLogout(props: IconProps) {
     </svg>
   )
 }
+
+export function IconCalendar(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <rect x="3.5" y="5" width="17" height="16" rx="2" />
+      <path d="M8 3v4M16 3v4M3.5 10h17" />
+    </svg>
+  )
+}
+
+export function IconChevronLeft(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="m15 5-7 7 7 7" />
+    </svg>
+  )
+}

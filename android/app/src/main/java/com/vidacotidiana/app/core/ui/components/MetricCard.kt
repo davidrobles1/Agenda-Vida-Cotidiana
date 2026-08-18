@@ -20,16 +20,26 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.vidacotidiana.app.core.ui.VidaShape
 import com.vidacotidiana.app.core.ui.VidaSpacing
 import com.vidacotidiana.app.core.ui.VidaTheme
 
 /**
- * UX-006: reference dashboard's metric-card pattern (icon badge + number +
- * label + subtitle) — reused by Home for Tareas/Compartidos (real data) and
- * by the mock-data screens' own summary cards. `subtitleTone` lets the
- * subtitle read as a warning (e.g. "3 vencidas") without a second component.
+ * UX-006/UX-007: reference dashboard's metric-card pattern — reused by Home
+ * for Tareas/Compartidos (real data) and by the mock-data screens' own
+ * summary cards. `subtitleTone` lets the subtitle read as a warning (e.g. "3
+ * vencidas") without a second component.
+ *
+ * UX-007: compacted — icon/value/label sit on one row instead of three
+ * stacked rows (label+icon row, value row, subtitle row), so this reads as a
+ * dense stat chip rather than its own mini-card. Not just smaller text: the
+ * label moved from its own row above the value to a caption directly under
+ * it (value+label now read as one grouped unit next to the icon), and the
+ * subtitle moved from a full-width third line to a trailing tag that only
+ * takes as much width as it needs.
  */
 @Composable
 fun MetricCard(
@@ -49,26 +59,38 @@ fun MetricCard(
         colors = CardDefaults.cardColors(containerColor = VidaTheme.colors.surfaceVariant),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
-        Column(modifier = Modifier.padding(VidaSpacing.lg), verticalArrangement = Arrangement.spacedBy(VidaSpacing.sm)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(VidaSpacing.md),
+            horizontalArrangement = Arrangement.spacedBy(VidaSpacing.sm),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .background(toneColors.container, RoundedCornerShape(VidaShape.control)),
+                contentAlignment = Alignment.Center,
             ) {
-                Text(label, style = MaterialTheme.typography.bodyMedium, color = VidaTheme.colors.textSecondary)
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .background(toneColors.container, RoundedCornerShape(VidaShape.control)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(icon, contentDescription = null, tint = toneColors.on)
-                }
+                Icon(icon, contentDescription = null, tint = toneColors.on, modifier = Modifier.size(16.dp))
             }
-            Text(value, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = VidaTheme.colors.text)
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = VidaTheme.colors.text)
+                Text(
+                    label,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = VidaTheme.colors.textSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
             subtitle?.let {
                 val color = subtitleTone?.resolve()?.on ?: VidaTheme.colors.textSecondary
-                Text(it, style = MaterialTheme.typography.labelMedium, color = color)
+                Text(
+                    it,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = color,
+                    textAlign = TextAlign.End,
+                    maxLines = 2,
+                )
             }
         }
     }

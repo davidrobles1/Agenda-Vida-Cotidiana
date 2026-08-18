@@ -240,3 +240,19 @@ a {
   background: var(--color-primary-container);
   color: var(--color-primary);
 }
+
+/* UX-007: subtle ruled-notebook texture — Home/Calendario's "agenda
+   personal" identity, no photo/AI-generated image (same cost/license limit
+   already applied to the login theme). color-mix() keeps this a low-alpha
+   tint of --color-border instead of a hardcoded rgba() hex, so it stays
+   theme-correct automatically in light/dark — same as every other token in
+   this file. Android's equivalent: core/ui/components/NotebookBackground.kt. */
+.notebook-bg {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent,
+    transparent 27px,
+    color-mix(in srgb, var(--color-border) 20%, transparent) 27px,
+    color-mix(in srgb, var(--color-border) 20%, transparent) 28px
+  );
+}

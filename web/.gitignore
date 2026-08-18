@@ -20,6 +20,10 @@ dist-ssr
 test-results
 playwright-report
 playwright/.cache
+# e2e/calendar.spec.ts writes ad-hoc verification screenshots here — the
+# canonical, committed copies live in Documentacion/02-ux-ui/screenshots/
+# (same convention as every other UX-* screenshot).
+e2e/screenshots
 
 # Editor directories and files
 .vscode/*
