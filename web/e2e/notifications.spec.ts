@@ -26,7 +26,7 @@ test('notifications page loads real device data and enable button is reachable',
   await context.grantPermissions(['notifications'], { origin: 'http://localhost:5173' })
 
   await page.goto('/')
-  await page.getByRole('button', { name: 'Log in' }).click()
+  await page.getByRole('button', { name: 'Iniciar sesión' }).click()
 
   await page.waitForURL(/realms\/vida-cotidiana/)
   await page.getByLabel('Username or email').fill('testuser')

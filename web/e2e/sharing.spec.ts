@@ -16,7 +16,7 @@ test('owner invites collaborator by username', async ({ page }) => {
   const reminderTitle = `Web sharing test ${Math.random().toString(36).slice(2, 10)}`
 
   await page.goto('/')
-  await page.getByRole('button', { name: 'Log in' }).click()
+  await page.getByRole('button', { name: 'Iniciar sesión' }).click()
 
   await page.waitForURL(/realms\/vida-cotidiana/)
   await page.getByLabel('Username or email').fill('testuser')

@@ -1,13 +1,19 @@
-<#-- UX-005: copy of keycloak.v2's real login.ftl (extracted from the running
-     quay.io/keycloak/keycloak:25.0 image), with exactly one addition: the
-     "vc-brand" div below. Everything else — the <#import>, the macro call,
-     every form field, name, id and tabindex — is untouched, so the existing
-     Authorization Code + PKCE flow (username/password submit, error
-     rendering, registration link) behaves identically to the stock theme. -->
+<#-- UX-005/UX-008: copy of keycloak.v2's real login.ftl (extracted from the
+     running quay.io/keycloak/keycloak:25.0 image), with two additions: the
+     "vc-brand" div (restyled 2026-08-17 to match LoginPage.tsx's brand
+     block — see login.css) and a decorative "vc-form-footer" tagline after
+     the form. Everything else — the <#import>, the macro call, every form
+     field, name, id and tabindex — is untouched, so the existing
+     Authorization Code + PKCE flow (username/password submit, remember me,
+     forgot password, error rendering, registration link, password
+     show/hide) behaves identically to the stock theme. -->
 <#import "template.ftl" as layout>
 <@layout.registrationLayout displayMessage=!messagesPerField.existsError('username','password') displayInfo=realm.password && realm.registrationAllowed && !registrationDisabled??; section>
     <#if section = "header">
-        <div class="vc-brand" aria-hidden="true">Vida Cotidiana</div>
+        <div class="vc-brand" aria-hidden="true">
+            <span class="vc-brand-title">Agenda</span>
+            <span class="vc-brand-script">vida Cotidiana</span>
+        </div>
         ${msg("loginAccountTitle")}
     <#elseif section = "form">
         <div id="kc-form">
@@ -101,6 +107,7 @@
                       </div>
                 </form>
             </#if>
+            <p class="vc-form-footer" aria-hidden="true">Tu hogar, tus momentos, tu agenda.</p>
             </div>
         </div>
         <script type="module" src="${url.resourcesPath}/js/passwordVisibility.js"></script>

@@ -39,7 +39,7 @@ test('a real thrown error reaches GlitchTip, confirmed via its API', async ({ pa
   const marker = `WEB-006 debug crash: manually triggered from RemindersPage`
 
   await page.goto('/')
-  await page.getByRole('button', { name: 'Log in' }).click()
+  await page.getByRole('button', { name: 'Iniciar sesión' }).click()
 
   await page.waitForURL(/realms\/vida-cotidiana/)
   await page.getByLabel('Username or email').fill('testuser')

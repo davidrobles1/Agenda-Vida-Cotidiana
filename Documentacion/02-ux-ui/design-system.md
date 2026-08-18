@@ -160,3 +160,53 @@ Android's `MockWarranty`/`MockMaintenanceRecord` no tenían una fecha estructura
 Cero backend nuevo: sin migraciones, sin endpoints, sin tablas para Calendario/Garantías/Mantenimiento. Ver `05-v2-plan.md` para lo que se identificó como trabajo de backend real a futuro si estos módulos dejan de ser mock.
 
 **Landing post-login — la misma en ambas plataformas, corregido tras verificar en dispositivo físico (2026-08-17):** el borrador original de esta nota decía que Android aterrizaba en `Routes.HOME` tras login (mientras Web se quedaba en Reminders por sus e2e reales) — esa decisión resultó estar mal: los 3 tests instrumentados reales de Android (`LoginAndRemindersFlowTest`/`SharingFlowTest`/`NotificationsFlowTest`) dependen exactamente del mismo patrón que los de Web (`reminder_title_input`/`add_reminder_button` alcanzables justo tras el login), y aterrizar en Home los rompía — encontrado de verdad corriendo los tests en el teléfono físico, no anticipado por revisión de código. Corregido: Android también navega a `Routes.REMINDERS` tras el login (`NavGraph.kt`). "Inicio" queda a una pestaña de distancia en la barra inferior — no es un peor punto de aterrizaje que Tareas, ambas son pestañas de primer nivel.
+
+## 9. UX-008 — Identidad "Agenda" generalizada a toda la Web (paleta, tipografía, Keycloak)
+
+**DECISION (usuario, 2026-08-17).** El rediseño de `LoginPage.tsx` (beige cálido + azul elegante + acento terracota + tipografía serif/script) se generalizó a **toda la plataforma Web** — reemplaza la paleta índigo de `UX-001`/`UX-006` como identidad visual activa. **Alcance explícito de esta pasada: solo Web.** Android/iOS no se tocaron — se homologarán después, como tarea aparte.
+
+Antes de tocar cualquier archivo se hizo un inventario real del sistema existente (no se asumió la estructura): **15 de 16 archivos `.module.css` ya consumían exclusivamente `var(--color-*)` de `index.css`** — cero hex propios. El único outlier era `LoginPage.module.css`, con su paleta hardcodeada completa. Eso redujo esta tarea a (1) recalcular los valores de los tokens ya existentes, (2) migrar ese único archivo para que también los consuma, y (3) dos ajustes puntuales de jerarquía visual (ver abajo) — no una reescritura.
+
+**Psicología del color, validada antes de aplicarla (no asumida):** azul se mantiene como el único color con permiso de decir "toca aquí" (mismo rol que ya tenía el índigo — no hay ruptura de expectativa de uso). Beige queda solo como fondo de página, nunca de tarjeta (evita que sesiones largas de uso diario se sientan "pesadas" — la tarjeta más clara es la que hace respirar al ojo). **Terracota es deliberadamente un acento raro** (destacados/badges "featured"), no un segundo color de acción — dos acentos saturados compitiendo en la misma jerarquía habría sido exactamente el problema que esta pasada buscaba evitar.
+
+### Paleta — recalculada, no reutilizada a ojo
+
+Cada valor verificado con la fórmula WCAG 2.1 real (luminancia relativa) contra la superficie donde realmente renderiza, mismo método que `ACC-001`:
+
+| Token (`index.css`, mismo nombre de siempre) | Valor | Uso | Contraste real |
+|---|---|---|---|
+| `--color-primary` | `#2C5F8C` | Acción primaria, enlaces, foco, nav activo | 6.73:1 (texto blanco encima) |
+| `--color-primary-container` | `#E4EEF6` | Fondo de chip/ítem activo | `--color-primary` sobre este: 5.72:1 |
+| `--color-success` / `-text` | `#4D6B46` | Completado — un solo valor cubre ícono y texto (ya pasa AA como texto) | 4.87:1 sobre `-container` |
+| `--color-warning` / `-text` | `#8A5A12` | Pendiente/por vencer | 4.70:1 sobre `-container` |
+| `--color-info` / `-text` | `#2F5F66` | Informativo — deliberadamente **no** reutiliza `--color-primary`: azul implica "es clicable", info no lo es | 5.80:1 sobre `-container` |
+| `--color-error` | `#B91C1C` | Sin cambio — ya verificado en `ACC-001`, el rojo se mantiene reconocible sin importar la calidez de la paleta alrededor | 5.30:1 sobre `-container` |
+| `--color-terracotta` | `#B47B48` | Solo decorativo/gráfico (ilustración, tipografía grande) — **no** válido como texto normal (3.35:1) | — |
+| `--color-terracotta-text` | `#8B5E36` | Terracota cuando sí es texto/ícono real (badge "destacado") | 4.84:1 |
+| `--color-surface` | `#F5EEDF` | Fondo de página (`body`, `.content` de `AppShell`) | — |
+| `--color-surface-variant` | `#FFFCF6` | Tarjetas — más clara que `--color-surface` a propósito, para que la tarjeta "flote" sobre la página (antes eran casi el mismo tono) | — |
+| `--color-border` | `#6E8192` | Borde funcional real | 3.48:1 sobre `--color-surface` (el peor caso — pasa incluso ahí) |
+| `--color-text` | `#2C425B` | Texto principal | 8.92:1 sobre `--color-surface` |
+| `--color-text-secondary` | `#556479` | Texto secundario | 5.22:1 sobre `--color-surface` (el peor caso) |
+
+**Corrección real de accesibilidad, no solo estética:** al migrar `LoginPage.module.css` a estos tokens, dos de sus colores originales quedaron reemplazados automáticamente — `.welcome p` (`#64768f`, 4.34:1, fallaba AA de texto normal) y `.footerText` (`#7488a2`, 3.40:1, fallaba con más margen) ahora usan `--color-text-secondary` (verificado ≥4.5:1). No fue una pasada de accesibilidad separada — fue un efecto directo de centralizar en tokens ya auditados.
+
+**Inversión de jerarquía, dos ajustes puntuales:** como `--color-surface` (página) pasó a ser más oscuro que `--color-surface-variant` (tarjeta) — al revés que antes, cuando ambos eran casi blancos — dos usos que tomaban `--color-surface` por ser "el tono neutro disponible" (no porque fueran literalmente "la página") se movieron a `--color-surface-variant` para no perder definición de borde: el `input` global (`index.css`) y `FilterChip`. Documentado inline en ambos archivos, no un cambio silencioso.
+
+### Tipografía — Fraunces reemplaza 'Brush Script MT'
+
+**Hallazgo real, no cosmético:** `'Brush Script MT'`/`'Segoe Script'` (el acento cursivo del diseño original de `LoginPage.tsx`) son fuentes de Windows — no existen en macOS/Linux/Android/iOS, donde el navegador cae al genérico `cursive` (resultado impredecible por sistema/navegador). Para un elemento de marca repetido en cada pantalla, eso no es un detalle menor.
+
+Corregido auto-hospedando **Fraunces** vía `@fontsource/fraunces` (`main.tsx`, pesos 500/600 + itálicas) — mismo patrón y misma justificación de minimización de datos que ya se usó para Inter (`design-system.md` §2, no una dependencia nueva en espíritu). `--font-serif` (`index.css`) para encabezados (incluido el `h1` global de toda la app); la itálica real de Fraunces reemplaza el script — mismo carácter cálido-editorial, renderiza igual en cualquier sistema. Inter se mantiene para cuerpo/UI — separar "marca" (serif) de "interfaz" (sans) es la jerarquía que evita que un formulario largo se sienta fuera de lugar.
+
+### Modo oscuro — pausado, no perdido
+
+**DECISION (usuario):** solo modo claro por ahora. La app tenía un modo oscuro real y completo (paleta índigo, `UX-006`); se removió el bloque `@media (prefers-color-scheme: dark)` de `index.css` (`color-scheme: light`, no `light dark`) en vez de dejarlo con la paleta vieja mezclada con la nueva — una mezcla índigo-oscuro + beige-claro se habría visto como un bug, no como una decisión. Diseñar una variante oscura cálida coherente con esta identidad es del mismo tamaño de esfuerzo que el modo claro — queda como **TBD** en `05-v2-plan.md`, tarea aparte, no a medio hacer aquí.
+
+### Sidebar/header — neutro, no cálido
+
+**DECISION (usuario):** `AppShell`'s `.sidebar`/`.topBar` usan `--color-surface-variant` (casi blanco) explícitamente, mientras `.content` hereda el `--color-surface` (beige) de `.shell` sin cambios — el chrome de navegación no compite visualmente con el contenido; el beige queda reservado al lienzo de trabajo.
+
+### Qué no se tocó en esta pasada
+
+El tema de Keycloak (`infra/keycloak/themes/vida-cotidiana-web/`, homologado visualmente en una tarea previa el mismo día) usa sus propios valores hex — no se resincronizó con esta segunda ronda de correcciones de contraste porque el pedido de esta tarea fue específicamente "centralizar en un archivo y que lo reutilicen los componentes" de la app React, no el theme de Keycloak (server-rendered, fuera del build de Vite). Sus valores ya pasaban AA de forma independiente cuando se verificaron. Sincronizarlo exactamente con esta paleta final es un ajuste menor pendiente, no urgente.

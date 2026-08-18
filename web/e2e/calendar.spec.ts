@@ -14,7 +14,7 @@ test('month grid, legend and pendientes render; real and mock checkboxes both wo
   const title = `Calendar test ${Math.random().toString(36).slice(2, 10)}`
 
   await page.goto('/')
-  await page.getByRole('button', { name: 'Log in' }).click()
+  await page.getByRole('button', { name: 'Iniciar sesión' }).click()
   await page.waitForURL(/realms\/vida-cotidiana/)
   await page.getByLabel('Username or email').fill('testuser')
   await page.getByRole('textbox', { name: 'Password' }).fill('TestPass123!')
@@ -62,7 +62,7 @@ test('month grid, legend and pendientes render; real and mock checkboxes both wo
 
 test('home page shows Hoy/Próximos días before metric cards', async ({ page }) => {
   await page.goto('/')
-  await page.getByRole('button', { name: 'Log in' }).click()
+  await page.getByRole('button', { name: 'Iniciar sesión' }).click()
   await page.waitForURL(/realms\/vida-cotidiana/)
   await page.getByLabel('Username or email').fill('testuser')
   await page.getByRole('textbox', { name: 'Password' }).fill('TestPass123!')

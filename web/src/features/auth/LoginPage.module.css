@@ -1,18 +1,334 @@
+/* =====================================================
+   UX-008: migrated to the centralized "Agenda" tokens
+   (index.css) — this file used to be the one CSS Module in
+   the whole app with its own hardcoded palette (see
+   Documentacion/02-ux-ui/design-system.md §9 for why that
+   mattered). Same visual design, same layout — every color/
+   font below now derives from var(--color-*)/var(--font-*)
+   via color-mix() instead of a hand-picked hex, so it stays
+   in sync automatically if the shared tokens ever change.
+   Two real AA contrast failures (.welcome p, .footerText —
+   4.34:1/3.40:1 against the card) are fixed as a side effect
+   of this migration, not a separate pass: --color-text-secondary
+   is verified ≥4.5:1 where these render.
+   ===================================================== */
+
 .container {
-  min-height: 60vh;
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(420px, 0.85fr);
+
+  background:
+    radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.55), transparent 32%),
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--color-surface) 65%, white) 0%,
+      var(--color-surface) 48%,
+      color-mix(in srgb, var(--color-surface) 82%, var(--color-terracotta)) 100%
+    );
+
+  color: var(--color-text-secondary);
+}
+
+/* =====================================================
+   LEFT / BRAND AREA
+   ===================================================== */
+
+.hero {
+  position: relative;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: var(--space-6);
+
+  padding: 80px;
+
+  overflow: hidden;
+}
+
+.hero::before {
+  content: '';
+  position: absolute;
+  inset: 40px;
+  border: 1px solid color-mix(in srgb, var(--color-text) 15%, transparent);
+  border-radius: 28px;
+}
+
+.heroContent {
+  position: relative;
+  z-index: 1;
+  max-width: 620px;
   text-align: center;
 }
 
-.title {
-  font-size: 2rem;
+.homeIcon {
+  margin-bottom: 12px;
+  color: color-mix(in srgb, var(--color-primary) 75%, white);
+  font-family: var(--font-serif);
+  font-size: 3rem;
+}
+
+.hero h1 {
   margin: 0;
+  color: var(--color-text);
+  font-family: var(--font-serif);
+  font-size: clamp(5rem, 8vw, 8rem);
+  font-weight: 500;
+  line-height: 0.85;
+  letter-spacing: -0.055em;
+}
+
+.script {
+  margin: 18px 0 0;
+  color: var(--color-terracotta);
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: clamp(2rem, 3vw, 3rem);
+}
+
+.heroDivider {
+  width: 180px;
+  height: 1px;
+  margin: 35px auto;
+  background: color-mix(in srgb, var(--color-primary) 40%, var(--color-surface-variant));
+}
+
+.heroText {
+  color: var(--color-text-secondary);
+  font-family: var(--font-serif);
+  font-size: 1.15rem;
+  line-height: 1.8;
+}
+
+.houseIllustration {
+  width: 210px;
+  height: 130px;
+  margin: 42px auto 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-bottom: 3px solid color-mix(in srgb, var(--color-primary) 75%, white);
+  color: color-mix(in srgb, var(--color-primary) 75%, white);
+  font-family: var(--font-serif);
+  font-size: 7rem;
+  opacity: 0.75;
+}
+
+.heroQuote {
+  color: var(--color-terracotta);
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 1.6rem;
+}
+
+/* =====================================================
+   RIGHT / LOGIN AREA
+   ===================================================== */
+
+.loginSection {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 60px;
+}
+
+.loginCard {
+  width: min(100%, 470px);
+  padding: 55px 52px;
+  background: color-mix(in srgb, var(--color-surface-variant) 94%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-text) 15%, transparent);
+  border-radius: 24px;
+  box-shadow:
+    0 30px 70px color-mix(in srgb, var(--color-text) 12%, transparent),
+    0 5px 15px color-mix(in srgb, var(--color-text) 6%, transparent);
+}
+
+/* =====================================================
+   BRAND
+   ===================================================== */
+
+.brand {
+  margin-bottom: 45px;
+  text-align: center;
+}
+
+.brand h2 {
+  margin: 0;
+  color: var(--color-text);
+  font-family: var(--font-serif);
+  font-size: 3.2rem;
+  font-weight: 500;
+}
+
+.brand span {
+  display: block;
+  margin-top: 5px;
+  color: var(--color-terracotta);
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 1.8rem;
+}
+
+/* =====================================================
+   WELCOME
+   ===================================================== */
+
+.welcome {
+  margin-bottom: 32px;
+}
+
+.welcome h3 {
+  margin: 0;
+  color: var(--color-text);
+  font-family: var(--font-serif);
+  font-size: 2rem;
+  font-weight: 500;
+}
+
+.welcome p {
+  margin: 8px 0 0;
+  color: var(--color-text-secondary);
+  font-size: 0.95rem;
+}
+
+/* =====================================================
+   ACTIONS
+   ===================================================== */
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.loginButton,
+.registerButton {
+  width: 100%;
+  min-height: 54px;
+  border-radius: 12px;
+  font-family: inherit;
+  font-size: 0.98rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease,
+    background-color 160ms ease;
+}
+
+.loginButton {
+  border: 1px solid var(--color-primary);
+  background: linear-gradient(135deg, var(--color-primary), color-mix(in srgb, var(--color-primary) 70%, white));
+  color: var(--color-on-primary);
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--color-primary) 22%, transparent);
+}
+
+.loginButton:hover {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--color-primary) 85%, black), var(--color-primary));
+  transform: translateY(-1px);
+  box-shadow: 0 12px 25px color-mix(in srgb, var(--color-primary) 30%, transparent);
 }
 
 .registerButton {
-  margin-top: calc(var(--space-6) * -1 + var(--space-2));
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-primary);
+}
+
+.registerButton:hover {
+  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+  transform: translateY(-1px);
+}
+
+/* =====================================================
+   FOOTER
+   ===================================================== */
+
+.footerText {
+  margin: 35px 0 0;
+  color: var(--color-text-secondary);
+  text-align: center;
+  font-family: var(--font-serif);
+  font-size: 0.82rem;
+}
+
+/* =====================================================
+   ACCESSIBILITY
+   ===================================================== */
+
+.loginButton:focus-visible,
+.registerButton:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-primary) 25%, transparent);
+  outline-offset: 3px;
+}
+
+/* =====================================================
+   TABLET
+   ===================================================== */
+
+@media (max-width: 1000px) {
+  .container {
+    grid-template-columns: 1fr;
+  }
+
+  .hero {
+    min-height: 45vh;
+    padding: 60px 40px;
+  }
+
+  .hero::before {
+    inset: 25px;
+  }
+
+  .hero h1 {
+    font-size: clamp(4rem, 10vw, 6rem);
+  }
+
+  .houseIllustration {
+    margin: 25px auto 15px;
+  }
+
+  .loginSection {
+    padding: 40px 30px 70px;
+  }
+}
+
+/* =====================================================
+   MOBILE
+   ===================================================== */
+
+@media (max-width: 600px) {
+  .hero {
+    min-height: 42vh;
+    padding: 45px 25px;
+  }
+
+  .hero::before {
+    inset: 15px;
+    border-radius: 20px;
+  }
+
+  .hero h1 {
+    font-size: 4rem;
+  }
+
+  .script {
+    font-size: 1.8rem;
+  }
+
+  .heroText {
+    font-size: 1rem;
+  }
+
+  .houseIllustration {
+    display: none;
+  }
+
+  .loginSection {
+    padding: 25px 18px 45px;
+  }
+
+  .loginCard {
+    padding: 40px 28px;
+    border-radius: 20px;
+  }
 }

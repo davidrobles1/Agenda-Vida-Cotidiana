@@ -1,16 +1,23 @@
-<#-- UX-005: copy of keycloak.v2's real template.ftl (extracted from the
-     running quay.io/keycloak/keycloak:25.0 image), with exactly one addition:
-     the <aside class="vc-hero"> block below, inserted as a sibling of <main>
-     inside .pf-v5-c-login__container. It is aria-hidden and purely
-     decorative (the real, accessible page title stays in the <h1> that
-     already existed inside <main>/<#nested "header">), which is why this is
-     the one file — besides login.ftl's single-line addition — that needed a
-     real override instead of parent=keycloak.v2 inheritance: the split-panel
-     look needs an extra DOM element that the stock single-column template
-     doesn't have, and CSS alone (::before/generated content) can't add real,
-     ignorable-by-AT decorative markup the way an aria-hidden element can.
-     Every macro parameter, every <#nested> call and the Alpine.js wiring
-     below are byte-for-byte the original — only the one <aside> is new. -->
+<#-- UX-005/UX-008: copy of keycloak.v2's real template.ftl (extracted from
+     the running quay.io/keycloak/keycloak:25.0 image), with two additions:
+     the <aside class="vc-hero"> block below (a sibling of <main> inside
+     .pf-v5-c-login__container) and a <div class="vc-card"> wrapping
+     <header>/.pf-v5-c-login__main-body/<footer> inside <main>. Both are
+     purely presentational — the real, accessible page title/content stays
+     exactly where it was (the <h1>/<#nested> calls are untouched, just now
+     one level deeper inside the .vc-card wrapper div) — which is why this is
+     the one file — besides login.ftl's/register.ftl's header-section
+     additions — that needed a real override instead of parent=keycloak.v2
+     inheritance: this layout needs DOM elements the stock single-column
+     template doesn't have, and CSS alone (::before/generated content) can't
+     add real, ignorable-by-AT decorative markup or a shared card background
+     spanning three sibling elements the way real wrapper elements can.
+     UX-008 (2026-08-17): homologated colors/typography/card look to match
+     the current LoginPage.tsx (Web) redesign — see login.css for the
+     restyle, login-theme.md §10 for the before/after. Every macro parameter,
+     every <#nested> call and the Alpine.js wiring below are byte-for-byte
+     the original — only the <aside> and the <div class="vc-card"> wrapper
+     are new. -->
 <#macro registrationLayout bodyClass="" displayInfo=false displayMessage=true displayRequiredFields=false>
 <!DOCTYPE html>
 <html class="${properties.kcHtmlClass!}"<#if realm.internationalizationEnabled> lang="${locale.currentLanguageTag}"</#if>>
@@ -100,21 +107,19 @@
 >
   <div class="pf-v5-c-login__container vc-split-container">
     <aside class="vc-hero" aria-hidden="true">
-      <#-- Abstract ornament only — not a logo/icon. No brand mark has been
-           approved anywhere in Documentacion/02-ux-ui/, so this deliberately
-           stays non-representational (soft overlapping circles) instead of
-           inventing one. See login-theme.md §9 for why. -->
-      <svg class="vc-hero-ornament" viewBox="0 0 400 400" aria-hidden="true" focusable="false">
-        <circle cx="320" cy="80" r="140" fill="#ffffff" fill-opacity="0.08" />
-        <circle cx="60" cy="340" r="110" fill="#ffffff" fill-opacity="0.06" />
-        <circle cx="260" cy="330" r="60" fill="#ffffff" fill-opacity="0.10" />
-      </svg>
+      <div class="vc-hero-frame"></div>
       <div class="vc-hero-inner">
-        <div class="vc-hero-brand">Vida Cotidiana</div>
-        <p class="vc-hero-tagline">Organiza tu día a día: recordatorios, mantenimiento y lo que compartes con tu familia.</p>
+        <div class="vc-hero-icon">&#8962;</div>
+        <h2 class="vc-hero-title">Agenda</h2>
+        <p class="vc-hero-script">vida Cotidiana</p>
+        <div class="vc-hero-divider"></div>
+        <p class="vc-hero-text">Un lugar para organizar tus d&iacute;as,<br>tus momentos y tu hogar.</p>
+        <div class="vc-hero-house"><span>&#8962;</span></div>
+        <p class="vc-hero-quote">&ldquo;Cada d&iacute;a tiene su propia historia.&rdquo;</p>
       </div>
     </aside>
     <main class="pf-v5-c-login__main">
+     <div class="vc-card">
       <header class="pf-v5-c-login__main-header">
         <h1 class="pf-v5-c-title pf-m-3xl"><#nested "header"></h1>
         <#if realm.internationalizationEnabled  && locale.supported?size gt 1>
@@ -235,6 +240,7 @@
       <footer class="pf-v5-c-login__main-footer">
         <#nested "socialProviders">
       </footer>
+     </div>
     </main>
   </div>
 </div>

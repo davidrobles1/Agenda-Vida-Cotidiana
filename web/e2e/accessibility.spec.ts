@@ -11,7 +11,7 @@ import AxeBuilder from '@axe-core/playwright'
 test.describe('axe-core accessibility scan', () => {
   test('login page has no real WCAG 2.1 A/AA violations', async ({ page }) => {
     await page.goto('/')
-    await expect(page.getByRole('button', { name: 'Log in' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Iniciar sesión' })).toBeVisible()
 
     const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze()
     expect(results.violations, JSON.stringify(results.violations, null, 2)).toEqual([])
@@ -19,7 +19,7 @@ test.describe('axe-core accessibility scan', () => {
 
   test('authenticated screens have no real WCAG 2.1 A/AA violations', async ({ page }) => {
     await page.goto('/')
-    await page.getByRole('button', { name: 'Log in' }).click()
+    await page.getByRole('button', { name: 'Iniciar sesión' }).click()
     await page.waitForURL(/realms\/vida-cotidiana/)
     await page.getByLabel('Username or email').fill('testuser')
     await page.getByRole('textbox', { name: 'Password' }).fill('TestPass123!')

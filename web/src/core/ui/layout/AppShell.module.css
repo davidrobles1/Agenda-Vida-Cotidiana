@@ -7,6 +7,10 @@
 .sidebar {
   width: 232px;
   flex-shrink: 0;
+  /* UX-008 (user decision, 2026-08-17): chrome stays neutral/near-white so
+     it never competes with the warm beige content canvas (.content, which
+     inherits .shell's --color-surface unchanged). */
+  background: var(--color-surface-variant);
   border-right: 1px solid var(--color-border);
   display: flex;
   flex-direction: column;
@@ -117,6 +121,8 @@
   justify-content: space-between;
   gap: var(--space-4);
   padding: var(--space-4) var(--space-6);
+  /* UX-008: same neutral-chrome decision as .sidebar. */
+  background: var(--color-surface-variant);
   border-bottom: 1px solid var(--color-border);
   flex-wrap: wrap;
 }
@@ -128,7 +134,7 @@
 .greetingTitle {
   margin: 0;
   font-size: 1.375rem;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .greetingSubtitle {

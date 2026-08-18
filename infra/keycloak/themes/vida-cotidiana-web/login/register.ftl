@@ -1,17 +1,22 @@
-<#-- UX-006/Documentacion/02-ux-ui/login-theme.md: copy of keycloak.v2's real
-     register.ftl (extracted from the running quay.io/keycloak/keycloak:25.0
-     image's org.keycloak.keycloak-themes-25.0.6.jar), same minimal-diff
-     discipline already used for login.ftl — exactly one addition, the
-     "vc-brand" div, placed in the header section the same way. Everything
-     else (imports, form fields, user-profile-driven fields, password/
-     password-confirm, terms acceptance, submit) is untouched, so the real
-     registration flow behaves identically to the stock theme. -->
+<#-- UX-006/UX-008/Documentacion/02-ux-ui/login-theme.md: copy of
+     keycloak.v2's real register.ftl (extracted from the running
+     quay.io/keycloak/keycloak:25.0 image's
+     org.keycloak.keycloak-themes-25.0.6.jar), same minimal-diff discipline
+     already used for login.ftl — exactly one addition, the "vc-brand" div
+     (restyled 2026-08-17 to match login.ftl/LoginPage.tsx, see login.css),
+     placed in the header section the same way. Everything else (imports,
+     form fields, user-profile-driven fields, password/password-confirm,
+     terms acceptance, submit) is untouched, so the real registration flow
+     behaves identically to the stock theme. -->
 <#import "template.ftl" as layout>
 <#import "user-profile-commons.ftl" as userProfileCommons>
 <#import "register-commons.ftl" as registerCommons>
 <@layout.registrationLayout displayMessage=messagesPerField.exists('global') displayRequiredFields=true; section>
     <#if section = "header">
-        <div class="vc-brand" aria-hidden="true">Vida Cotidiana</div>
+        <div class="vc-brand" aria-hidden="true">
+            <span class="vc-brand-title">Agenda</span>
+            <span class="vc-brand-script">vida Cotidiana</span>
+        </div>
         <#if messageHeader??>
             ${kcSanitize(msg("${messageHeader}"))?no_esc}
         <#else>

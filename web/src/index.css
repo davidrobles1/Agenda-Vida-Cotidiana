@@ -1,43 +1,62 @@
-/* UX-001/Documentacion/02-ux-ui/design-system.md — single source of truth for
-   these values; a component should reference a var(--*) here, never a raw
-   hex/px. Light palette on :root, dark overrides only where they differ. */
+/* UX-008/Documentacion/02-ux-ui/design-system.md §9 — single source of truth
+   for these values; a component should reference a var(--*) here, never a
+   raw hex/px. "Agenda" identity (warm beige + elegant blue + terracotta
+   accent), generalized from LoginPage.tsx's redesign to the whole app —
+   replaces UX-001/UX-006's indigo palette. Every value below is WCAG 2.1 AA
+   verified against the real surface it renders on (relative-luminance
+   formula, same method as ACC-001), not eyeballed — see design-system.md §9
+   for the full pair-by-pair table.
+
+   DECISION (user, 2026-08-17): light-only for now — see the removed
+   `@media (prefers-color-scheme: dark)` block below. The app had a real,
+   complete dark theme (indigo-era); re-doing it with this warm palette is
+   real design work of its own, not a value swap, so it's deferred as a
+   separate task rather than shipped half-considered. `color-scheme: light`
+   (not `light dark`) so native browser chrome (date pickers, scrollbars)
+   doesn't mismatch the forced-light app UI. */
 :root {
-  --color-primary: #4f46e5;
-  --color-primary-container: #e0e7ff;
+  --color-primary: #2c5f8c;
+  --color-primary-container: #e4eef6;
   --color-on-primary: #ffffff;
 
-  --color-success: #059669;
-  --color-success-text: #047857;
-  --color-success-container: #d1fae5;
+  --color-success: #4d6b46;
+  --color-success-text: #4d6b46;
+  --color-success-container: #e4ead9;
 
-  /* ACC-001 (2026-08-17 accessibility audit): #d97706/#b45309 recalculated
-     against their own container (#fef3c7, not white) — the icon role failed
-     the 3:1 graphical threshold (2.86:1) and the text role passed by too
-     thin a margin (4.51:1) to trust. design-system.md §1 has the full
-     recalculated table. */
-  --color-warning: #c2670a;
-  --color-warning-text: #92400e;
-  --color-warning-container: #fef3c7;
+  --color-warning: #8a5a12;
+  --color-warning-text: #8a5a12;
+  --color-warning-container: #f3e4c4;
 
-  /* UX-006: new role, added extracting real pixel values from the Web/Android
-     reference dashboards (Documentos badge, "Programada" status pill). */
-  --color-info: #2563eb;
-  --color-info-text: #1d4ed8;
-  --color-info-container: #dbeafe;
+  --color-info: #2f5f66;
+  --color-info-text: #2f5f66;
+  --color-info-container: #dcebe9;
 
-  /* ACC-001: #dc2626 recalculated against error-container (#fee2e2, the real
-     background role="alert" and error pills render on) — 3.95:1, failed AA. */
+  /* Unchanged from ACC-001 — already verified (5.30:1 on its container), and
+     red stays the universally-recognized error color regardless of the
+     surrounding palette's warmth. */
   --color-error: #b91c1c;
   --color-error-container: #fee2e2;
 
-  --color-surface: #ffffff;
-  --color-surface-variant: #f9fafb;
-  /* ACC-001: #e5e7eb recalculated against surface — 1.24:1, failed the 3:1
-     graphical threshold (SC 1.4.11). This is a real component boundary (see
-     `input` below), not purely decorative, so it needs to actually meet it. */
-  --color-border: #8b909a;
-  --color-text: #111827;
-  --color-text-secondary: #6b7280;
+  /* UX-008: terracotta is a *rare* accent (featured/highlighted items only —
+     design-system.md §9), never a second action color competing with
+     --color-primary. `terracotta` alone is decorative/graphical-only
+     (3.35:1 — below 4.5:1 text AA); `terracotta-text` is the corrected value
+     for when it's real text/icon (a "destacado" badge). */
+  --color-terracotta: #b47b48;
+  --color-terracotta-text: #8b5e36;
+  --color-terracotta-container: #f3e3d2;
+
+  /* --color-surface = page canvas (body, AppShell content) — the warm beige.
+     --color-surface-variant = cards/elevated panels — lighter cream, so a
+     card visually "floats" above the page, matching LoginPage.tsx's
+     card-on-gradient look. This inverts the old relationship (surface used
+     to be the lightest tone); see input/FilterChip below for the two
+     places that needed to move to the other token because of that. */
+  --color-surface: #f5eedf;
+  --color-surface-variant: #fffcf6;
+  --color-border: #6e8192;
+  --color-text: #2c425b;
+  --color-text-secondary: #556479;
 
   --space-1: 4px;
   --space-2: 8px;
@@ -50,68 +69,25 @@
   --radius-control: 8px;
 
   --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  /* UX-008: display/heading typeface — self-hosted the same way as Inter
+     (below). Replaces 'Brush Script MT'/'Segoe Script' from the original
+     LoginPage.tsx redesign: those are Windows-only and silently fall back to
+     the browser's generic `cursive` (unpredictable per OS/browser) on
+     Mac/Linux/Android/iOS. Fraunces' real italic stands in for the script
+     accent instead — same warm/editorial character, renders identically
+     everywhere. Headings only — never body text or form controls. */
+  --font-serif: 'Fraunces', Georgia, 'Times New Roman', serif;
 
   font-family: var(--font-sans);
   font-size: 16px;
   line-height: 1.5;
-  color-scheme: light dark;
+  color-scheme: light;
   color: var(--color-text);
   background: var(--color-surface);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    /* ACC-001 (2026-08-17): #818cf8 recalculated against primary-container
-       (#312e81) — a pair that didn't exist until UX-006 introduced the
-       active sidebar item/selected chip. 3.83:1, failed AA. Lightening it
-       also improved the pre-existing on-primary/primary button pair
-       (5.36:1 -> 8.02:1), confirmed, not just assumed unaffected. */
-    --color-primary: #a5b4fc;
-    --color-primary-container: #312e81;
-    --color-on-primary: #1e1b4b;
-
-    --color-success: #34d399;
-    --color-success-text: #34d399;
-    --color-success-container: #064e3b;
-
-    --color-warning: #fbbf24;
-    --color-warning-text: #fbbf24;
-    --color-warning-container: #78350f;
-
-    /* ACC-001: --color-info-text recalculated against info-container
-       (#1e3a8a) specifically — the number this token used to cite (7.28:1)
-       was actually computed against --color-surface, not the container a
-       StatusPill text actually renders on. 4.07:1 against the real
-       background, failed AA. --color-info (icon role) still passes the 3:1
-       graphical threshold against its container unchanged. */
-    --color-info: #60a5fa;
-    --color-info-text: #93c5fd;
-    --color-info-container: #1e3a8a;
-
-    /* ACC-001: #f87171 recalculated against error-container (#7f1d1d) —
-       3.62:1, failed AA (same "checked vs surface, not vs container" gap
-       as info-text above). */
-    --color-error: #fca5a5;
-    --color-error-container: #7f1d1d;
-
-    /* UX-006: darkened from #16171d/#1f2028 — the Android reference
-       dashboard sampled at real pixel level (docs/Ejemplo APK vida
-       Cotidiana.png) is closer to near-black (~#0f1516 background, ~#141a1f
-       cards) than the original guess. Text tokens re-verified against these
-       darker values (F3F4F6 on #101418: 16.81:1; 9CA3AF: 7.29:1 — both still
-       comfortably pass AA, not just carried over assuming they still would). */
-    --color-surface: #101418;
-    --color-surface-variant: #171d22;
-    /* ACC-001: #2e343b recalculated as the real graphical component it is
-       (the `input` border below) — 1.47:1, failed the 3:1 threshold badly. */
-    --color-border: #616b79;
-    --color-text: #f3f4f6;
-    --color-text-secondary: #9ca3af;
-  }
 }
 
 * {
@@ -132,8 +108,9 @@ body {
 }
 
 h1 {
+  font-family: var(--font-serif);
   font-size: 1.75rem;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.25;
   margin: 0 0 var(--space-6);
   color: var(--color-text);
@@ -185,7 +162,11 @@ input {
   border-radius: var(--radius-control);
   padding: var(--space-2) var(--space-3);
   min-height: 44px;
-  background: var(--color-surface);
+  /* UX-008: surface-variant (cream), not surface (page beige) — an input
+     filled the same tone as the page behind it would only be legible as a
+     field via its border; the crisper cream reads as an editable field at a
+     glance, same reasoning as FilterChip.module.css. */
+  background: var(--color-surface-variant);
   color: var(--color-text);
 }
 

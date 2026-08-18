@@ -1,37 +1,50 @@
-/* UX-005/Documentacion/02-ux-ui/login-theme.md — Web split-panel login.
-   Same token values as web/src/index.css's :root custom properties
-   (design-system.md); re-declared here because this page is Keycloak's own
-   server-rendered HTML, outside the Vite build that owns index.css. */
+/* UX-005/UX-008/Documentacion/02-ux-ui/login-theme.md — Web split-panel login.
+   UX-008 (2026-08-17): homologated to match the current LoginPage.tsx (Web)
+   redesign — warm beige hero + elegant-blue accents + serif/script
+   typography, replacing UX-005/UX-006's original indigo dark-mode-token
+   palette. LoginPage.tsx is the source of truth for these values (its own
+   .module.css) — re-declared here because this page is Keycloak's own
+   server-rendered HTML, outside the Vite build that owns LoginPage.tsx.
+   Error tokens are the one exception: kept as the app's real, WCAG-AA
+   verified `--color-error`/`--color-error-container` (design-system.md §1,
+   ACC-001) rather than inventing a new warm-palette red — legibility of a
+   real error message matters more than palette purity here. */
 :root {
-  --vc-primary: #4f46e5;
-  --vc-on-primary: #ffffff;
-  --vc-error: #dc2626;
+  --vc-ink: #2c425b;
+  --vc-ink-soft: #3a4758;
+  --vc-text-secondary: #54657c;
+  --vc-text-muted: #64768f;
+  --vc-accent: #2c5f8c;
+  --vc-accent-hover: #255077;
+  --vc-accent-light: #3f72a6;
+  --vc-accent-soft: #9ab4cc;
+  --vc-terracotta: #b47b48;
+  --vc-card-bg: rgba(251, 248, 240, 0.94);
+  --vc-card-border: rgba(66, 99, 133, 0.15);
+  --vc-input-border: rgba(66, 99, 133, 0.3);
+  /* Reused as-is from design-system.md — already WCAG AA verified (ACC-001). */
+  --vc-error: #b91c1c;
   --vc-error-container: #fee2e2;
-  --vc-surface: #ffffff;
-  --vc-surface-variant: #f9fafb;
-  --vc-border: #e5e7eb;
-  --vc-text: #111827;
-  --vc-text-secondary: #6b7280;
   --vc-radius-control: 8px;
 }
 
-/* Same font-hosting decision as vida-cotidiana-mobile's login.css — see
-   that file's comment. */
 body.vc-theme-web {
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  background: var(--vc-surface);
-  color: var(--vc-text);
+  color: var(--vc-ink-soft);
   margin: 0;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.55), transparent 32%),
+    linear-gradient(135deg, #e5d9c2 0%, #f3eadb 48%, #dcd0bc 100%);
 }
 
-/* Real bug found verifying this (Playwright boundingBox() on .vc-hero came
-   out 64px short of the container edge): PatternFly's own base styles.css
-   puts real horizontal padding on .pf-v5-c-login and .pf-v5-c-login__container
-   (for the stock centered-card layout, where it's wanted) and never sets
-   box-sizing:border-box, so that inherited padding was silently eating into
-   the grid's content box instead of being part of the 480px/1fr split.
-   Confirmed the fix against getComputedStyle before treating it as final,
-   not just re-eyeballing the screenshot. */
+/* Real bug found verifying this in UX-005 (Playwright boundingBox() on
+   .vc-hero came out short of the container edge): PatternFly's own base
+   styles.css puts real horizontal padding on .pf-v5-c-login and
+   .pf-v5-c-login__container (for the stock centered-card layout, where it's
+   wanted) and never sets box-sizing:border-box, so that inherited padding
+   was silently eating into the grid's content box. Confirmed against
+   getComputedStyle before treating it as final, not just re-eyeballing the
+   screenshot — kept unchanged in this restyle, still needed. */
 body.vc-theme-web,
 body.vc-theme-web * {
   box-sizing: border-box;
@@ -45,21 +58,17 @@ body.vc-theme-web .pf-v5-c-login {
   padding: 0;
 }
 
-/* Split panel: the hero <aside> (added in template.ftl) sits left of the
-   real <main> login card. min(45vw, 480px) keeps the hero from swallowing
-   the whole viewport on very wide monitors. Collapses to one column under
-   860px — web-spa isn't a responsive target per platform-guidelines.md,
-   but the login page is reachable standalone (direct link, bookmarked
-   /realms/... URL) so it still needs to not break on a narrow window. */
+/* =====================================================
+   SPLIT LAYOUT
+   ===================================================== */
+
 body.vc-theme-web .vc-split-container {
   display: grid;
-  grid-template-columns: min(45vw, 480px) 1fr;
+  grid-template-columns: minmax(0, 1.15fr) minmax(420px, 0.85fr);
   /* PatternFly's own base .pf-v5-c-login__container sets a 64px column-gap
-     for its own (unused-by-us) internal responsive grid — found for real via
-     getComputedStyle after the split panel rendered a mystery 64px gap that
-     didn't match the 480/1fr math. Zeroing it here, not just overriding the
-     properties we care about, since PatternFly could still set it after us
-     in a `stylesCommon` reload. */
+     for its own (unused-by-us) internal responsive grid — zeroing it here,
+     not just overriding the properties we care about, since PatternFly could
+     still set it after us in a `stylesCommon` reload. */
   gap: 0;
   min-height: 100vh;
   max-width: none;
@@ -67,124 +76,389 @@ body.vc-theme-web .vc-split-container {
   margin: 0;
 }
 
-@media (max-width: 860px) {
+body.vc-theme-web .pf-v5-c-login__container {
+  align-items: stretch;
+}
+
+@media (max-width: 1000px) {
   body.vc-theme-web .vc-split-container {
     grid-template-columns: 1fr;
   }
   body.vc-theme-web .vc-hero {
-    display: none;
+    min-height: 45vh;
+    padding: 60px 40px;
+  }
+  body.vc-theme-web .vc-hero-frame {
+    inset: 25px;
+  }
+  body.vc-theme-web .vc-hero-title {
+    font-size: clamp(3.5rem, 10vw, 5rem);
   }
 }
 
+@media (max-width: 600px) {
+  body.vc-theme-web .vc-hero {
+    min-height: 40vh;
+    padding: 45px 25px;
+  }
+  body.vc-theme-web .vc-hero-frame {
+    inset: 15px;
+    border-radius: 20px;
+  }
+  body.vc-theme-web .vc-hero-title {
+    font-size: 3.5rem;
+  }
+  body.vc-theme-web .vc-hero-script {
+    font-size: 1.5rem;
+  }
+  body.vc-theme-web .vc-hero-house {
+    display: none;
+  }
+  body.vc-theme-web .pf-v5-c-login__main {
+    padding: 25px 18px 45px;
+  }
+  body.vc-theme-web .vc-card {
+    padding: 40px 28px;
+    border-radius: 20px;
+  }
+}
+
+/* =====================================================
+   HERO (left) — matches LoginPage.module.css's .hero
+   ===================================================== */
+
 body.vc-theme-web .vc-hero {
-  background: linear-gradient(160deg, #4f46e5 0%, #4338ca 100%);
+  position: relative;
   display: flex;
   align-items: center;
-  padding: 48px;
-  position: relative;
+  justify-content: center;
+  padding: 80px;
   overflow: hidden;
 }
 
-/* Abstract ornament (login-theme.md §9) — absolutely positioned behind the
-   text, never allowed to overlap it enough to hurt legibility (the tagline's
-   own background is the solid gradient underneath, not the SVG). */
-body.vc-theme-web .vc-hero-ornament {
+body.vc-theme-web .vc-hero-frame {
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
+  inset: 40px;
+  border: 1px solid rgba(58, 83, 114, 0.15);
+  border-radius: 28px;
+  pointer-events: none;
 }
 
 body.vc-theme-web .vc-hero-inner {
-  max-width: 320px;
   position: relative;
+  z-index: 1;
+  max-width: 620px;
+  text-align: center;
 }
 
-body.vc-theme-web .vc-hero-brand {
-  color: #ffffff;
-  font-size: 1.75rem;
-  font-weight: 700;
-  margin-bottom: 16px;
+body.vc-theme-web .vc-hero-icon {
+  margin-bottom: 12px;
+  color: var(--vc-accent-light);
+  font-family: Georgia, serif;
+  font-size: 3rem;
 }
 
-body.vc-theme-web .vc-hero-tagline {
-  color: #e0e7ff;
-  font-size: 1rem;
-  line-height: 1.5;
+body.vc-theme-web .vc-hero-title {
+  margin: 0;
+  color: var(--vc-ink);
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(4rem, 7vw, 6.5rem);
+  font-weight: 500;
+  line-height: 0.85;
+  letter-spacing: -0.05em;
 }
+
+body.vc-theme-web .vc-hero-script {
+  margin: 18px 0 0;
+  color: var(--vc-terracotta);
+  font-family: 'Brush Script MT', 'Segoe Script', cursive;
+  font-size: clamp(1.75rem, 2.5vw, 2.5rem);
+}
+
+body.vc-theme-web .vc-hero-divider {
+  width: 180px;
+  height: 1px;
+  margin: 35px auto;
+  background: var(--vc-accent-soft);
+}
+
+body.vc-theme-web .vc-hero-text {
+  margin: 0;
+  color: var(--vc-text-secondary);
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 1.1rem;
+  line-height: 1.8;
+}
+
+body.vc-theme-web .vc-hero-house {
+  width: 190px;
+  height: 110px;
+  margin: 42px auto 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-bottom: 3px solid var(--vc-accent-light);
+  color: var(--vc-accent-light);
+  font-family: Georgia, serif;
+  font-size: 6rem;
+  opacity: 0.75;
+}
+
+body.vc-theme-web .vc-hero-quote {
+  margin: 0;
+  color: var(--vc-terracotta);
+  font-family: 'Brush Script MT', 'Segoe Script', cursive;
+  font-size: 1.5rem;
+}
+
+/* =====================================================
+   RIGHT — login card, matches LoginPage.module.css's
+   .loginSection/.loginCard
+   ===================================================== */
 
 body.vc-theme-web .pf-v5-c-login__main {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
-  /* Without this, .vc-hero (a sibling grid item) stretches to the row's
-     full height by default but this one didn't — found for real via
-     boundingBox() reporting 356px instead of the viewport height, leaving
-     the login card pinned to the top instead of vertically centered. */
+  padding: 60px;
+  /* Without this, .vc-hero (a sibling grid item) stretches to the row's full
+     height by default but this one didn't — found for real via
+     boundingBox() in UX-005, still needed with the new card layout. */
   align-self: stretch;
   height: 100%;
 }
 
-body.vc-theme-web .pf-v5-c-login__container {
-  align-items: stretch;
+body.vc-theme-web .vc-card {
+  width: min(100%, 470px);
+  padding: 55px 52px;
+  background: var(--vc-card-bg);
+  border: 1px solid var(--vc-card-border);
+  border-radius: 24px;
+  box-shadow:
+    0 30px 70px rgba(44, 66, 91, 0.12),
+    0 5px 15px rgba(44, 66, 91, 0.06);
 }
 
+/* Brand block (login.ftl/register.ftl's "vc-brand" div, nested inside the
+   real <h1>) — matches LoginPage.module.css's .brand. */
 body.vc-theme-web .vc-brand {
-  display: none; /* redundant with the hero panel's brand mark on this theme */
+  display: block;
+  margin: 0 0 20px;
+  text-align: center;
 }
 
+body.vc-theme-web .vc-brand-title {
+  display: block;
+  color: var(--vc-ink);
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 2.6rem;
+  font-weight: 500;
+}
+
+body.vc-theme-web .vc-brand-script {
+  display: block;
+  margin-top: 4px;
+  color: var(--vc-terracotta);
+  font-family: 'Brush Script MT', 'Segoe Script', cursive;
+  font-size: 1.5rem;
+}
+
+/* The real, accessible title text (${msg("loginAccountTitle")}) — sits right
+   after .vc-brand inside the same <h1>. Styled to read like LoginPage's
+   "Bienvenido" welcome line; the exact copy still comes from Keycloak's own
+   message bundle (login-theme.md §10 — see the note on why the wording
+   itself wasn't hardcoded to match "Bienvenido"/"Inicia sesión para
+   continuar" verbatim). */
 body.vc-theme-web .pf-v5-c-title {
-  color: var(--vc-text);
-  /* Real bug found verifying the register page (Task B §2): PatternFly's base
+  display: block;
+  text-align: center;
+  color: var(--vc-ink-soft);
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 1.6rem;
+  font-weight: 500;
+  margin: 0 0 28px;
+  /* Real bug found verifying the register page in UX-005: PatternFly's base
      styles.css inherits word-break:break-word on this title, and the narrow
-     form column (already-shipped, intentional on the login page — see
-     .vc-split-container above) shrinks a flex child below its own content
-     width. A multi-word heading like "Sign in to your account" just wraps at
-     spaces so this never showed before, but a single unbreakable word like
-     "Register" broke mid-word ("Regi"/"ster") — confirmed via
-     getComputedStyle/boundingBox() before treating it as fixed, not just a
-     re-eyeballed screenshot. Scoped to the title only, not the whole page. */
+     form column shrinks a flex child below its own content width. A
+     multi-word heading wraps at spaces so this never showed before, but a
+     single unbreakable word ("Register") broke mid-word — confirmed via
+     getComputedStyle/boundingBox() before treating it as fixed. Kept. */
   word-break: normal;
   overflow-wrap: normal;
 }
 
+body.vc-theme-web .pf-v5-c-login__main-header {
+  text-align: center;
+}
+
 body.vc-theme-web .pf-v5-c-form__label-text {
-  color: var(--vc-text);
+  color: var(--vc-ink-soft);
   font-weight: 500;
+  font-size: 0.9375rem;
 }
 
 body.vc-theme-web input[type='text'],
 body.vc-theme-web input[type='password'] {
-  border: 1px solid var(--vc-border);
+  border: 1px solid var(--vc-input-border);
   border-radius: var(--vc-radius-control);
   padding: 8px 12px;
-  min-height: 44px; /* accessibility.md: 44px Web touch-target minimum */
+  min-height: 44px; /* accessibility.md: 44px Web touch-target minimum — kept */
   width: 100%;
   box-sizing: border-box;
   font-size: 0.9375rem;
+  background: #ffffff;
+  color: var(--vc-ink-soft);
 }
 
+body.vc-theme-web input[type='text']:focus-visible,
+body.vc-theme-web input[type='password']:focus-visible {
+  outline: 3px solid rgba(44, 95, 140, 0.25);
+  outline-offset: 2px;
+}
+
+body.vc-theme-web .checkbox label,
+body.vc-theme-web #kc-form-options span {
+  color: var(--vc-text-secondary);
+  font-size: 0.875rem;
+}
+
+body.vc-theme-web input[type='checkbox'] {
+  accent-color: var(--vc-accent);
+}
+
+/* =====================================================
+   BUTTONS — matches LoginPage.module.css's
+   .loginButton/.registerButton
+   ===================================================== */
+
 body.vc-theme-web #kc-login {
-  background: var(--vc-primary);
-  color: var(--vc-on-primary);
-  border: none;
-  border-radius: var(--vc-radius-control);
-  min-height: 44px;
-  font-weight: 500;
+  width: 100%;
+  min-height: 54px;
+  border: 1px solid #2c5f8c;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #2c5f8c, #3f72a6);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 0.98rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(44, 95, 140, 0.22);
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease,
+    background-color 160ms ease;
 }
 
 body.vc-theme-web #kc-login:hover {
-  background: #4338ca;
+  background: linear-gradient(135deg, #255077, #346290);
+  transform: translateY(-1px);
+  box-shadow: 0 12px 25px rgba(44, 95, 140, 0.3);
+}
+
+body.vc-theme-web #kc-login:focus-visible {
+  outline: 3px solid rgba(44, 95, 140, 0.25);
+  outline-offset: 3px;
+}
+
+/* The real registration link (#kc-registration a, url.registrationUrl) —
+   restyled as a full-width outlined button to match .registerButton, same
+   href/behavior, no HTML tag change (still a real <a>, not a fake button). */
+body.vc-theme-web #kc-registration {
+  margin-top: 14px;
+  text-align: center;
+}
+
+body.vc-theme-web #kc-registration span {
+  display: block;
+}
+
+body.vc-theme-web #kc-registration a {
+  display: block;
+  width: 100%;
+  min-height: 54px;
+  line-height: 54px;
+  margin-top: 6px;
+  border: 1px solid var(--vc-accent-soft);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--vc-accent);
+  font-weight: 600;
+  text-decoration: none;
+  transition: background-color 160ms ease, transform 160ms ease;
+}
+
+body.vc-theme-web #kc-registration a:hover {
+  background: rgba(44, 95, 140, 0.08);
+  transform: translateY(-1px);
 }
 
 body.vc-theme-web a {
-  color: var(--vc-primary);
+  color: var(--vc-accent);
 }
+
+body.vc-theme-web a:focus-visible,
+body.vc-theme-web button:focus-visible {
+  outline: 3px solid rgba(44, 95, 140, 0.25);
+  outline-offset: 3px;
+}
+
+/* Password show/hide toggle (passwordVisibility.js) — icon only, same
+   button/behavior, just tinted to the new palette instead of default black. */
+body.vc-theme-web .pf-v5-c-form-control__utilities button,
+body.vc-theme-web [data-password-toggle] {
+  color: var(--vc-text-muted);
+}
+
+/* =====================================================
+   FOOTER TAGLINE (login.ftl's decorative "vc-form-footer")
+   — matches LoginPage.module.css's .footerText
+   ===================================================== */
+
+body.vc-theme-web .vc-form-footer {
+  margin: 35px 0 0;
+  color: var(--vc-text-muted);
+  text-align: center;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 0.82rem;
+}
+
+/* =====================================================
+   ERROR MESSAGES — real WCAG-AA verified tokens (ACC-001),
+   not the decorative palette
+   ===================================================== */
 
 body.vc-theme-web .pf-v5-c-alert.pf-m-danger {
   background: var(--vc-error-container);
   color: var(--vc-error);
   border-radius: var(--vc-radius-control);
   border: none;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+}
+
+body.vc-theme-web #input-error {
+  color: var(--vc-error);
+}
+
+/* =====================================================
+   SOCIAL PROVIDERS — no identityProviders configured today
+   (realm-vida-cotidiana*.json), styled for when one is added
+   so it doesn't land unstyled/off-palette.
+   ===================================================== */
+
+body.vc-theme-web .pf-v5-c-login__main-footer-links a,
+body.vc-theme-web [id^='social-'] {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid var(--vc-card-border);
+  border-radius: var(--vc-radius-control);
+  color: var(--vc-ink-soft);
+  text-decoration: none;
+  text-align: center;
+  line-height: 42px;
+}
+
+body.vc-theme-web [id^='social-']:hover {
+  background: rgba(44, 95, 140, 0.06);
 }

@@ -1,58 +1,198 @@
-.loading {
-  color: var(--color-text-secondary);
-}
+/* =========================================================
+   HOME — Agenda · Vida Cotidiana
+   ========================================================= */
 
 .page {
+  position: relative;
+
   display: flex;
   flex-direction: column;
-  gap: var(--space-6);
-  padding: var(--space-4);
-  border-radius: var(--radius-card);
+
+  gap: var(--space-5);
+
+  padding: var(--space-5);
+
+  /*
+   * El fondo principal pertenece al AppShell.
+   * Aquí únicamente dejamos respirar el contenido.
+   */
 }
+
+/* =========================================================
+   LOADING
+   ========================================================= */
+
+.loading {
+  margin: 0;
+
+  color: var(--color-text-secondary);
+
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+/* =========================================================
+   EMPTY STATE
+   ========================================================= */
 
 .emptyToday {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: 14px;
+
+  min-height: 58px;
+
+  padding: 14px 20px;
+
+  border: 1px solid rgba(82, 112, 72, 0.08);
+  border-radius: 16px;
+
   background: var(--color-success-container);
+
   color: var(--color-success-text);
-  border-radius: var(--radius-card);
-  padding: var(--space-4);
+
+  box-shadow:
+    0 2px 8px rgba(44, 66, 91, 0.03);
+
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.emptyToday:hover {
+  transform: translateY(-1px);
+
+  box-shadow:
+    0 5px 16px rgba(44, 66, 91, 0.06);
 }
 
 .emptyToday p {
   margin: 0;
+
+  font-size: 0.96rem;
+  font-weight: 500;
+  line-height: 1.5;
 }
+
+/* =========================================================
+   METRICS
+   ========================================================= */
 
 .metricsRow {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: var(--space-4);
+
+  grid-template-columns:
+    repeat(auto-fit, minmax(260px, 1fr));
+
+  gap: 16px;
+
+  width: 100%;
 }
+
+/*
+ * Los MetricCard internos deberían ser homologados
+ * posteriormente con el mismo lenguaje visual:
+ *
+ * - fondo #fbf8f0
+ * - radius 16px
+ * - sombras muy suaves
+ * - azul como color principal
+ * - iconos dentro de pequeños contenedores
+ *
+ * No intentamos forzarlo desde aquí porque MetricCard
+ * es un componente reutilizable.
+ */
+
+/* =========================================================
+   PROGRESS
+   ========================================================= */
 
 .progressRow {
   display: flex;
   align-items: center;
-  gap: var(--space-6);
+
+  gap: 32px;
+
+  min-height: 150px;
 }
+
+/* =========================================================
+   LEGEND
+   ========================================================= */
 
 .legend {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+
+  gap: 12px;
 }
 
 .legendRow {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  font-size: 0.875rem;
+
+  gap: 10px;
+
   color: var(--color-text-secondary);
+
+  font-size: 0.9rem;
+  line-height: 1.4;
 }
 
 .legendDot {
   width: 10px;
   height: 10px;
-  border-radius: 50%;
+
   flex-shrink: 0;
+
+  border-radius: 50%;
+}
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 900px) {
+  .page {
+    gap: 20px;
+    padding: 20px;
+  }
+
+  .metricsRow {
+    grid-template-columns: 1fr;
+  }
+
+  .progressRow {
+    gap: 24px;
+  }
+}
+
+@media (max-width: 600px) {
+  .page {
+    gap: 16px;
+    padding: 16px;
+  }
+
+  .emptyToday {
+    align-items: flex-start;
+
+    padding: 14px 16px;
+
+    border-radius: 14px;
+  }
+
+  .emptyToday p {
+    font-size: 0.9rem;
+  }
+
+  .progressRow {
+    flex-direction: column;
+    align-items: flex-start;
+
+    gap: 20px;
+  }
+
+  .legend {
+    width: 100%;
+  }
 }

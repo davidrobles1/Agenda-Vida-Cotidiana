@@ -36,7 +36,7 @@ test('a reminder with a near-future due date fires a real browser Notification',
   const reminderTitle = `WEB-007 local notification test ${Math.random().toString(36).slice(2, 8)}`
 
   await page.goto('/')
-  await page.getByRole('button', { name: 'Log in' }).click()
+  await page.getByRole('button', { name: 'Iniciar sesión' }).click()
 
   await page.waitForURL(/realms\/vida-cotidiana/)
   await page.getByLabel('Username or email').fill('testuser')
