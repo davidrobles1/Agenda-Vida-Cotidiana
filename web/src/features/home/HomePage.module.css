@@ -1,77 +1,300 @@
 /* =========================================================
-   HOME — Agenda · Vida Cotidiana
+   HOME
+   Agenda · Vida Cotidiana
    ========================================================= */
 
 .page {
-  position: relative;
+  width: 100%;
+  max-width: 1440px;
+
+  margin: 0 auto;
 
   display: flex;
   flex-direction: column;
 
-  gap: var(--space-5);
+  gap: 28px;
 
-  padding: var(--space-5);
+  padding: 28px 32px 48px;
 
-  /*
-   * El fondo principal pertenece al AppShell.
-   * Aquí únicamente dejamos respirar el contenido.
-   */
+  box-sizing: border-box;
 }
 
 /* =========================================================
-   LOADING
+   TYPOGRAPHY
    ========================================================= */
 
-.loading {
+.eyebrow {
+  display: block;
+
+  margin-bottom: 7px;
+
+  color: var(--color-primary, #2c5f8c);
+
+  font-size: 0.72rem;
+  font-weight: 700;
+
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.sectionHeading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+
+  gap: 20px;
+
+  margin-bottom: 14px;
+}
+
+.sectionHeading h2 {
   margin: 0;
 
-  color: var(--color-text-secondary);
+  color: #304b68;
+
+  font-family:
+    Georgia,
+    'Times New Roman',
+    serif;
+
+  font-size: 1.65rem;
+  font-weight: 500;
+
+  line-height: 1.2;
+}
+
+.textButton {
+  border: 0;
+
+  background: transparent;
+
+  color: #2c5f8c;
+
+  font-size: 0.9rem;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  padding: 8px 10px;
+
+  border-radius: 9px;
+
+  transition:
+    background 160ms ease,
+    transform 160ms ease;
+}
+
+.textButton:hover {
+  background: rgba(44, 95, 140, 0.07);
+
+  transform: translateY(-1px);
+}
+
+/* =========================================================
+   DAY SUMMARY
+   ========================================================= */
+
+.daySummary {
+  position: relative;
+
+  overflow: hidden;
+
+  padding: 26px 30px;
+
+  border-radius: 22px;
+
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.82),
+      rgba(251, 248, 240, 0.92)
+    );
+
+  border: 1px solid rgba(44, 95, 140, 0.08);
+
+  box-shadow:
+    0 8px 28px rgba(44, 66, 91, 0.055);
+}
+
+.daySummary::after {
+  content: '';
+
+  position: absolute;
+
+  width: 180px;
+  height: 180px;
+
+  right: -70px;
+  top: -90px;
+
+  border-radius: 50%;
+
+  background: rgba(180, 123, 72, 0.06);
+
+  pointer-events: none;
+}
+
+.daySummaryContent {
+  position: relative;
+
+  z-index: 1;
+
+  display: flex;
+
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 30px;
+}
+
+.daySummary h2 {
+  margin: 0;
+
+  color: #304b68;
+
+  font-family:
+    Georgia,
+    'Times New Roman',
+    serif;
+
+  font-size: clamp(1.7rem, 2.4vw, 2.25rem);
+
+  font-weight: 500;
+
+  line-height: 1.15;
+}
+
+.daySummary p {
+  max-width: 650px;
+
+  margin: 9px 0 0;
+
+  color: #5b6c7f;
 
   font-size: 0.95rem;
-  line-height: 1.5;
+
+  line-height: 1.6;
+}
+
+.dayIcon {
+  width: 62px;
+  height: 62px;
+
+  flex-shrink: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 18px;
+
+  background: #e4ecd9;
+
+  color: #58794e;
+
+  box-shadow:
+    0 6px 18px rgba(82, 112, 72, 0.08);
+}
+
+/* UX-009: replaces .dayIcon's plain checkmark with the hand-built
+   HomeIllustration (SVG, no photo/AI image — design-system.md §9). */
+.dayIllustration {
+  width: 160px;
+  height: 110px;
+
+  flex-shrink: 0;
+}
+
+/* =========================================================
+   ERROR
+   ========================================================= */
+
+.errorMessage {
+  display: flex;
+  align-items: center;
+
+  gap: 12px;
+
+  padding: 13px 17px;
+
+  border-radius: 14px;
+
+  background: #fff0ef;
+
+  color: #b43b37;
+
+  border: 1px solid rgba(180, 59, 55, 0.08);
+
+  font-size: 0.9rem;
+}
+
+/* =========================================================
+   ACTIVITY
+   ========================================================= */
+
+.activitySection,
+.overviewSection {
+  width: 100%;
 }
 
 /* =========================================================
    EMPTY STATE
    ========================================================= */
 
-.emptyToday {
+.emptyState {
+  display: flex;
+
+  align-items: center;
+
+  gap: 15px;
+
+  min-height: 90px;
+
+  padding: 20px 22px;
+
+  border-radius: 18px;
+
+  background: rgba(251, 248, 240, 0.88);
+
+  border: 1px solid rgba(44, 66, 91, 0.06);
+
+  box-shadow:
+    0 5px 18px rgba(44, 66, 91, 0.035);
+}
+
+.emptyIcon {
+  width: 44px;
+  height: 44px;
+
+  flex-shrink: 0;
+
   display: flex;
   align-items: center;
-  gap: 14px;
+  justify-content: center;
 
-  min-height: 58px;
+  border-radius: 14px;
 
-  padding: 14px 20px;
+  background: #e4ecd9;
 
-  border: 1px solid rgba(82, 112, 72, 0.08);
-  border-radius: 16px;
-
-  background: var(--color-success-container);
-
-  color: var(--color-success-text);
-
-  box-shadow:
-    0 2px 8px rgba(44, 66, 91, 0.03);
-
-  transition:
-    transform 160ms ease,
-    box-shadow 160ms ease;
+  color: #58794e;
 }
 
-.emptyToday:hover {
-  transform: translateY(-1px);
+.emptyState strong {
+  display: block;
 
-  box-shadow:
-    0 5px 16px rgba(44, 66, 91, 0.06);
+  margin-bottom: 3px;
+
+  color: #344e69;
+
+  font-size: 0.98rem;
 }
 
-.emptyToday p {
+.emptyState p {
   margin: 0;
 
-  font-size: 0.96rem;
-  font-weight: 500;
-  line-height: 1.5;
+  color: #515c6d;
+
+  font-size: 0.87rem;
 }
 
 /* =========================================================
@@ -82,117 +305,369 @@
   display: grid;
 
   grid-template-columns:
-    repeat(auto-fit, minmax(260px, 1fr));
+    minmax(150px, 1fr)
+    minmax(150px, 1fr)
+    minmax(150px, 1fr)
+    minmax(300px, 1.25fr);
 
   gap: 16px;
 
-  width: 100%;
+  align-items: stretch;
 }
 
-/*
- * Los MetricCard internos deberían ser homologados
- * posteriormente con el mismo lenguaje visual:
- *
- * - fondo #fbf8f0
- * - radius 16px
- * - sombras muy suaves
- * - azul como color principal
- * - iconos dentro de pequeños contenedores
- *
- * No intentamos forzarlo desde aquí porque MetricCard
- * es un componente reutilizable.
- */
-
 /* =========================================================
-   PROGRESS
+   PROGRESS CARD
    ========================================================= */
 
-.progressRow {
+.progressCard {
+  min-height: 150px;
+
+  padding: 22px;
+
+  border-radius: 20px;
+
+  background: rgba(251, 248, 240, 0.96);
+
+  border: 1px solid rgba(44, 66, 91, 0.06);
+
+  box-shadow:
+    0 7px 24px rgba(44, 66, 91, 0.05);
+
+  box-sizing: border-box;
+}
+
+.progressHeader {
   display: flex;
+
+  align-items: flex-start;
+  justify-content: space-between;
+
+  margin-bottom: 18px;
+}
+
+.cardLabel {
+  display: block;
+
+  margin-bottom: 5px;
+
+  color: #5b6c7f;
+
+  font-size: 0.86rem;
+}
+
+.progressHeader strong {
+  display: block;
+
+  color: #304b68;
+
+  font-size: 1.8rem;
+
+  line-height: 1;
+}
+
+.progressHeader small {
+  margin-left: 5px;
+
+  color: #5b6570;
+
+  font-size: 0.75rem;
+
+  font-weight: 400;
+}
+
+.progressCaption {
+  color: #58794e;
+
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.progressContent {
+  display: flex;
+
   align-items: center;
 
-  gap: 32px;
-
-  min-height: 150px;
+  gap: 20px;
 }
-
-/* =========================================================
-   LEGEND
-   ========================================================= */
 
 .legend {
   display: flex;
+
   flex-direction: column;
 
-  gap: 12px;
+  gap: 9px;
 }
 
 .legendRow {
   display: flex;
+
   align-items: center;
 
-  gap: 10px;
+  gap: 9px;
 
-  color: var(--color-text-secondary);
+  color: #5b697a;
 
-  font-size: 0.9rem;
-  line-height: 1.4;
+  font-size: 0.82rem;
+}
+
+.legendRow span:last-child {
+  display: flex;
+
+  gap: 6px;
+}
+
+.legendRow strong {
+  color: #354f6a;
 }
 
 .legendDot {
-  width: 10px;
-  height: 10px;
+  width: 9px;
+  height: 9px;
 
   flex-shrink: 0;
 
   border-radius: 50%;
 }
 
+.noProgress {
+  display: flex;
+
+  align-items: center;
+
+  gap: 10px;
+
+  min-height: 55px;
+
+  color: #505963;
+
+  font-size: 0.84rem;
+}
+
+/* =========================================================
+   ACTIVIDAD RECIENTE + ACCESOS RÁPIDOS
+   ========================================================= */
+
+.quickRow {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.quickPanel {
+  padding: 22px;
+
+  border-radius: 20px;
+
+  background: rgba(251, 248, 240, 0.96);
+
+  border: 1px solid rgba(44, 66, 91, 0.06);
+
+  box-shadow: 0 7px 24px rgba(44, 66, 91, 0.05);
+
+  box-sizing: border-box;
+}
+
+.activityList,
+.quickList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.activityItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+
+  padding: 10px 4px;
+}
+
+.activityIcon {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 10px;
+
+  background: var(--color-primary-container);
+  color: var(--color-primary);
+}
+
+.activityText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  min-width: 0;
+
+  color: var(--color-text);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.activityTime {
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
+}
+
+.quickLink {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+
+  padding: 10px 8px;
+
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+
+  min-height: 0;
+
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  transition: background 160ms ease, transform 160ms ease;
+}
+
+.quickLink:hover {
+  background: rgba(44, 95, 140, 0.06);
+  transform: translateX(2px);
+}
+
+.quickLinkIcon {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 10px;
+
+  background: var(--color-terracotta-container);
+  color: var(--color-terracotta-text);
+}
+
+.quickLinkLabel {
+  flex: 1;
+  min-width: 0;
+
+  color: var(--color-text);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.quickChevron {
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+}
+
 /* =========================================================
    RESPONSIVE
    ========================================================= */
 
-@media (max-width: 900px) {
+@media (max-width: 1100px) {
+  .metricsRow {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+
+  .progressCard {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 860px) {
+  .quickRow {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
   .page {
-    gap: 20px;
-    padding: 20px;
+    padding: 20px 16px 36px;
+
+    gap: 22px;
+  }
+
+  .daySummary {
+    padding: 22px;
+
+    border-radius: 18px;
+  }
+
+  .daySummaryContent {
+    align-items: flex-start;
+  }
+
+  .dayIcon {
+    width: 52px;
+    height: 52px;
+
+    border-radius: 15px;
+  }
+
+  .sectionHeading {
+    align-items: flex-start;
+  }
+
+  .sectionHeading h2 {
+    font-size: 1.4rem;
   }
 
   .metricsRow {
     grid-template-columns: 1fr;
   }
 
-  .progressRow {
-    gap: 24px;
+  .progressCard {
+    grid-column: auto;
   }
 }
 
-@media (max-width: 600px) {
+@media (max-width: 480px) {
   .page {
-    gap: 16px;
-    padding: 16px;
+    padding: 16px 12px 28px;
   }
 
-  .emptyToday {
-    align-items: flex-start;
-
-    padding: 14px 16px;
-
-    border-radius: 14px;
+  .daySummary {
+    padding: 20px;
   }
 
-  .emptyToday p {
-    font-size: 0.9rem;
+  .daySummary h2 {
+    font-size: 1.55rem;
   }
 
-  .progressRow {
+  .daySummaryContent {
+    gap: 15px;
+  }
+
+  .dayIcon,
+  .dayIllustration {
+    display: none;
+  }
+
+  .sectionHeading {
     flex-direction: column;
-    align-items: flex-start;
 
-    gap: 20px;
+    gap: 6px;
   }
 
-  .legend {
-    width: 100%;
+  .textButton {
+    padding-left: 0;
+  }
+
+  .progressContent {
+    gap: 15px;
   }
 }

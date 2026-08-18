@@ -1,18 +1,45 @@
 .calendar {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-4);
 }
 
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.todayButton {
+  min-height: 34px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-primary);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  transition: background-color 160ms ease, transform 160ms ease;
+}
+
+.todayButton:hover {
+  background: var(--color-primary-container);
+}
+
+.monthNav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
 }
 
 .monthLabel {
-  font-size: 1rem;
-  font-weight: 600;
+  min-width: 148px;
+  text-align: center;
+  font-family: var(--font-serif);
+  font-size: 1.125rem;
+  font-weight: 500;
   color: var(--color-text);
 }
 
@@ -28,22 +55,26 @@
   background: transparent;
   color: var(--color-text-secondary);
   border: none;
+  transition: background-color 160ms ease, color 160ms ease;
 }
 
 .navButton:hover {
   background: var(--color-surface);
+  color: var(--color-primary);
 }
 
 .grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   gap: 4px;
+  animation: fadeIn 220ms ease;
 }
 
 .weekday {
   text-align: center;
   font-size: 0.75rem;
-  font-weight: 500;
+  font-weight: 600;
+  letter-spacing: 0.02em;
   color: var(--color-text-secondary);
   padding-bottom: var(--space-1);
 }
@@ -53,28 +84,72 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
+  gap: 3px;
   aspect-ratio: 1;
   border-radius: var(--radius-control);
+}
+
+.dayButton {
+  border: none;
+  background: transparent;
+  min-height: 0;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  position: relative;
+  transition: background-color 160ms ease, transform 120ms ease;
+}
+
+.dayButton:hover {
+  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+}
+
+.dayButton:active {
+  transform: scale(0.96);
+}
+
+.dayButton:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
 .dayNumber {
   font-size: 0.8125rem;
   color: var(--color-text);
+  transition: color 160ms ease;
 }
 
-.today {
+/* Today: a ring around the number, not a filled cell — reserves "filled"
+   for the selected state so the two never read as the same thing. */
+.today .dayNumber {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 1.5px solid var(--color-terracotta);
+  border-radius: 50%;
+  color: var(--color-terracotta-text);
+  font-weight: 700;
+}
+
+.selected {
   background: var(--color-primary-container);
 }
 
-.today .dayNumber {
+.selected .dayNumber {
   color: var(--color-primary);
   font-weight: 700;
 }
 
+.selected.today .dayNumber {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
 .markers {
   display: flex;
-  gap: 2px;
+  gap: 3px;
 }
 
 .marker {
@@ -101,4 +176,37 @@
 
 .marker[data-tone='success'] {
   background: var(--color-success);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .grid {
+    animation: none;
+  }
+  .dayButton,
+  .dayNumber,
+  .navButton,
+  .todayButton {
+    transition: none;
+  }
+}
+
+@media (max-width: 420px) {
+  .monthLabel {
+    min-width: 0;
+    font-size: 1rem;
+  }
+  .dayNumber {
+    font-size: 0.75rem;
+  }
 }

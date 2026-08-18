@@ -10,6 +10,127 @@
   border-radius: var(--radius-card);
 }
 
+/* =====================================================
+   LAYOUT — grid pane + day-detail pane. Mobile/tablet: stacked
+   (the day panel always right under the grid, no side-scrolling).
+   Desktop: side by side, so picking a day doesn't push the grid
+   off-screen. Deliberately not two separate cards — a single
+   hairline divider keeps this reading as ONE calendar, not two
+   boxes glued together.
+   ===================================================== */
+
+.layout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.gridPane {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.divider {
+  display: none;
+}
+
+.dayPane {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+  animation: dayFadeIn 200ms ease;
+}
+
+@keyframes dayFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dayPane {
+    animation: none;
+  }
+}
+
+@media (min-width: 860px) {
+  .layout {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+
+  .gridPane {
+    flex: 1 1 60%;
+  }
+
+  .divider {
+    display: block;
+    align-self: stretch;
+    width: 1px;
+    background: var(--color-border-soft, var(--color-border));
+    opacity: 0.4;
+  }
+
+  .dayPane {
+    flex: 1 1 320px;
+    max-width: 360px;
+  }
+}
+
+.dayTitle {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 1.15rem;
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.dayItems {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.dayEmpty {
+  margin: 0;
+  padding: var(--space-4) 0;
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+}
+
+.quickAdd {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+
+.quickAddInput {
+  flex: 1;
+  min-width: 0;
+}
+
+.quickAddButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  min-height: 44px;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+/* =====================================================
+   LEGEND
+   ===================================================== */
+
 .legend {
   display: flex;
   flex-wrap: wrap;
@@ -42,6 +163,14 @@
 
 .legendDot[data-tone='info'] {
   background: var(--color-info);
+}
+
+.legendDot[data-tone='error'] {
+  background: var(--color-error);
+}
+
+.legendDot[data-tone='success'] {
+  background: var(--color-success);
 }
 
 /* UX-007: the global `input` rule (index.css) sizes every <input> as a

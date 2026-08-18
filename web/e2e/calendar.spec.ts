@@ -1,11 +1,11 @@
 import { test, expect } from '@playwright/test'
 
 /**
- * UX-007 real verification: logs in through the real Keycloak login page,
- * creates a real reminder with a due date, then completes it from
- * Calendario's "Pendientes" checkbox — proving that action goes through the
- * exact same real `POST /reminders/{id}/complete` RemindersPage uses (the
- * row only disappears once the backend call succeeds and the list
+ * UX-007/UX-010 real verification: logs in through the real Keycloak login
+ * page, creates a real reminder with a due date, then completes it from
+ * Calendario's "Todos los pendientes" checkbox — proving that action goes
+ * through the exact same real `POST /reminders/{id}/complete` RemindersPage
+ * uses (the row only disappears once the backend call succeeds and the list
  * refetches, not on click alone). Also checks a mock Garantía's checkbox
  * (local-only — no backend call, disappears immediately) to verify the two
  * behaviors are genuinely different, not just visually labeled differently.
@@ -40,6 +40,10 @@ test('month grid, legend and pendientes render; real and mock checkboxes both wo
   await expect(page.getByText('Vista mensual')).toBeVisible()
   await expect(page.getByText('Garantías (simulado)')).toBeVisible()
   await expect(page.getByText('Mantenimiento (simulado)')).toBeVisible()
+  // UX-010: real day-selection interaction, not just static render — "Hoy"
+  // is selected by default, so today's own real reminders/mock items show
+  // in the day panel immediately.
+  await expect(page.getByRole('button', { name: 'Hoy' })).toBeVisible()
 
   await page.screenshot({ path: 'e2e/screenshots/calendar.png', fullPage: true })
 
@@ -48,16 +52,44 @@ test('month grid, legend and pendientes render; real and mock checkboxes both wo
   // update lands (the mock one synchronously), which can race Playwright's
   // own post-.check() "is it now checked" poll; toBeHidden() below is the
   // actual assertion that matters.
-  const realCheckbox = page.getByRole('checkbox', { name: `Marcar "${title}" como completada` })
+  const realCheckbox = page.getByRole('checkbox', { name: `Marcar "${title}" como completada` }).first()
   await expect(realCheckbox).toBeVisible({ timeout: 10_000 })
   await realCheckbox.click()
   await expect(realCheckbox).toBeHidden({ timeout: 10_000 })
 
   // Mock garantía: checking is a local-only toggle, no backend involved.
-  const mockCheckbox = page.getByRole('checkbox', { name: 'Marcar "Laptop Dell XPS 13" como completada (dato simulado)' })
+  const mockCheckbox = page.getByRole('checkbox', { name: 'Marcar "Laptop Dell XPS 13" como completada (dato simulado)' }).first()
   await expect(mockCheckbox).toBeVisible()
   await mockCheckbox.click()
   await expect(mockCheckbox).toBeHidden()
+})
+
+/**
+ * UX-010 real verification: the day-detail panel's quick-add calls the same
+ * real POST /reminders RemindersPage's own form uses — a brand-new
+ * reminder, created from Calendario itself (not Tareas), must actually
+ * exist afterward (confirmed by it showing up in "Todos los pendientes",
+ * which only ever reflects the real backend list).
+ */
+test('selecting a day and quick-adding a task creates a real reminder', async ({ page }) => {
+  const title = `Quick add test ${Math.random().toString(36).slice(2, 8)}`
+
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Iniciar sesión' }).click()
+  await page.waitForURL(/realms\/vida-cotidiana/)
+  await page.getByLabel('Username or email').fill('testuser')
+  await page.getByRole('textbox', { name: 'Password' }).fill('TestPass123!')
+  await page.getByRole('button', { name: 'Sign In' }).click()
+  await expect(page.getByPlaceholder('New reminder')).toBeVisible({ timeout: 20_000 })
+
+  await page.getByRole('link', { name: 'Calendario' }).click()
+  await expect(page.getByRole('button', { name: 'Hoy' })).toBeVisible()
+
+  await page.getByPlaceholder('Agregar tarea para este día…').fill(title)
+  await page.getByRole('button', { name: 'Agregar tarea' }).click()
+
+  await expect(page.getByText(title).first()).toBeVisible({ timeout: 10_000 })
+  await expect(page.locator('section', { hasText: 'Todos los pendientes' }).getByText(title)).toBeVisible()
 })
 
 test('home page shows Hoy/Próximos días before metric cards', async ({ page }) => {

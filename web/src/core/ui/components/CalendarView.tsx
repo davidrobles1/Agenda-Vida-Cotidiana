@@ -1,4 +1,5 @@
 import { IconChevronLeft, IconChevronRight } from '../icons'
+import { dateKey } from './calendarDate'
 import styles from './CalendarView.module.css'
 import type { Tone } from './MetricCard'
 
@@ -14,15 +15,14 @@ export interface CalendarLegendEntry {
 interface CalendarViewProps {
   month: Date
   markersByDay: Record<string, CalendarMarker[]>
+  selectedDateKey: string
+  onSelectDate: (dateKey: string) => void
   onPrevMonth: () => void
   onNextMonth: () => void
+  onToday: () => void
 }
 
 const WEEKDAYS = ['L', 'M', 'M', 'J', 'V', 'S', 'D']
-
-function dateKey(year: number, month: number, day: number): string {
-  return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-}
 
 function monthLabel(date: Date): string {
   const label = date.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })
@@ -30,22 +30,32 @@ function monthLabel(date: Date): string {
 }
 
 /**
- * UX-007: reusable month-grid calendar — Web counterpart of Android's
- * `CalendarView.kt` (`design-system.md` §7). Purely presentational: month
- * navigation + a 7-column day grid with up to 3 small tone-colored dots per
- * day. The caller (`CalendarPage.tsx`) owns what a marker *means* (real
- * reminder vs. mock garantía/mantenimiento) — this component only draws
- * dots, it never fetches or interprets data. No date-library dependency:
- * plain `Date` math, the same call already made for the rest of Web
- * (`useHomeData.ts`, `RemindersPage.tsx`).
+ * UX-007/UX-010: reusable month-grid calendar — Web counterpart of Android's
+ * `CalendarView.kt` (`design-system.md` §7/§10). Purely presentational: month
+ * navigation + a "Hoy" shortcut + a 7-column day grid, each day a real button
+ * (keyboard/AT accessible, not just a styled `<span>`) that can be selected.
+ * Up to 3 tone-colored dots per day mark what's happening. The caller
+ * (`CalendarPage.tsx`) owns what a marker/selection *means* — this component
+ * only renders the grid and reports interaction, it never fetches or
+ * interprets data. No date-library dependency: plain `Date` math, same as
+ * the rest of Web.
  */
-export function CalendarView({ month, markersByDay, onPrevMonth, onNextMonth }: CalendarViewProps) {
+export function CalendarView({
+  month,
+  markersByDay,
+  selectedDateKey,
+  onSelectDate,
+  onPrevMonth,
+  onNextMonth,
+  onToday,
+}: CalendarViewProps) {
   const year = month.getFullYear()
   const monthIndex = month.getMonth()
   const firstOfMonth = new Date(year, monthIndex, 1)
   const leadingBlanks = (firstOfMonth.getDay() + 6) % 7 // Sunday=0..Saturday=6 -> Monday-first 0..6
   const daysInMonth = new Date(year, monthIndex + 1, 0).getDate()
-  const todayKey = dateKey(new Date().getFullYear(), new Date().getMonth(), new Date().getDate())
+  const now = new Date()
+  const todayKey = dateKey(now.getFullYear(), now.getMonth(), now.getDate())
 
   const cells: Array<{ day: number; key: string } | null> = []
   for (let i = 0; i < leadingBlanks; i++) cells.push(null)
@@ -55,16 +65,21 @@ export function CalendarView({ month, markersByDay, onPrevMonth, onNextMonth }: 
   return (
     <div className={styles.calendar}>
       <div className={styles.header}>
-        <button type="button" className={styles.navButton} onClick={onPrevMonth} aria-label="Mes anterior">
-          <IconChevronLeft width={18} height={18} />
+        <button type="button" className={styles.todayButton} onClick={onToday}>
+          Hoy
         </button>
-        <span className={styles.monthLabel}>{monthLabel(month)}</span>
-        <button type="button" className={styles.navButton} onClick={onNextMonth} aria-label="Mes siguiente">
-          <IconChevronRight width={18} height={18} />
-        </button>
+        <div className={styles.monthNav}>
+          <button type="button" className={styles.navButton} onClick={onPrevMonth} aria-label="Mes anterior">
+            <IconChevronLeft width={18} height={18} />
+          </button>
+          <span className={styles.monthLabel}>{monthLabel(month)}</span>
+          <button type="button" className={styles.navButton} onClick={onNextMonth} aria-label="Mes siguiente">
+            <IconChevronRight width={18} height={18} />
+          </button>
+        </div>
       </div>
 
-      <div className={styles.grid}>
+      <div className={styles.grid} key={`${year}-${monthIndex}`}>
         {WEEKDAYS.map((weekday, i) => (
           <span key={i} className={styles.weekday}>
             {weekday}
@@ -74,8 +89,16 @@ export function CalendarView({ month, markersByDay, onPrevMonth, onNextMonth }: 
           if (!cell) return <span key={i} className={styles.dayCell} />
           const markers = markersByDay[cell.key] ?? []
           const isToday = cell.key === todayKey
+          const isSelected = cell.key === selectedDateKey
           return (
-            <span key={i} className={`${styles.dayCell} ${isToday ? styles.today : ''}`}>
+            <button
+              type="button"
+              key={i}
+              className={`${styles.dayCell} ${styles.dayButton} ${isToday ? styles.today : ''} ${isSelected ? styles.selected : ''}`}
+              onClick={() => onSelectDate(cell.key)}
+              aria-pressed={isSelected}
+              aria-current={isToday ? 'date' : undefined}
+            >
               <span className={styles.dayNumber}>{cell.day}</span>
               {markers.length > 0 && (
                 <span className={styles.markers}>
@@ -84,7 +107,7 @@ export function CalendarView({ month, markersByDay, onPrevMonth, onNextMonth }: 
                   ))}
                 </span>
               )}
-            </span>
+            </button>
           )
         })}
       </div>

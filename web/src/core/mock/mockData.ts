@@ -104,3 +104,37 @@ export const familyMembers: MockFamilyMember[] = [
   { id: 'fam-2', name: 'María García', relationship: 'Hija' },
   { id: 'fam-3', name: 'Carlos García', relationship: 'Hijo' },
 ]
+
+/**
+ * UX-009: Home's "Resumen de actividades" — mock only, on the user's
+ * explicit instruction ("genera el mock, luego implementamos la lógica").
+ * There is no activity-feed endpoint today (the backend's audit log,
+ * BE-029, is server-side/security-only, never exposed to the client) — this
+ * is presentation scaffolding for a feature that doesn't exist yet, same
+ * spirit as the other 6 mock modules. Every consumer must show these as
+ * clearly simulated (subtitle ends in "· simulado"), never indistinguishable
+ * from a real event.
+ */
+export type MockActivityKind = 'task' | 'share' | 'warranty' | 'document'
+
+export interface MockActivity {
+  id: string
+  kind: MockActivityKind
+  text: string
+  timeLabel: string
+}
+
+export const homeActivities: MockActivity[] = [
+  { id: 'act-1', kind: 'task', text: 'Completaste "Pagar servicio de luz"', timeLabel: 'Hace 2 horas' },
+  { id: 'act-2', kind: 'share', text: 'Compartiste "Revisión del auto" con Ana', timeLabel: 'Ayer' },
+  { id: 'act-3', kind: 'warranty', text: 'Agregaste la garantía de "Lavadora Samsung"', timeLabel: 'Hace 3 días' },
+]
+
+/**
+ * UX-009: Home's third metric card, "Próximos eventos" — mock (same
+ * instruction as above). "Evento" isn't a real concept in the API today
+ * (reminders are "tareas", not "eventos") — this stays a static mock number
+ * until a real events concept exists, not silently reinterpreted as
+ * upcoming reminders.
+ */
+export const homeUpcomingEventsCount = 2
