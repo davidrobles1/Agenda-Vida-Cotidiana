@@ -36,5 +36,8 @@ backend/bin/
 # OS
 .DS_Store
 
+#Claude
+.md
+
 # Generated executive artifacts are tracked intentionally (docs/generated/)
 # — do not ignore them.

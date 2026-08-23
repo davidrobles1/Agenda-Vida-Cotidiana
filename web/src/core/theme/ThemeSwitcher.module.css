@@ -1,0 +1,89 @@
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 0;
+  padding: 6px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 160ms ease, border-color 160ms ease;
+}
+
+.trigger:hover {
+  background: var(--color-surface-variant);
+}
+
+.swatch {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.popover {
+  z-index: 100000;
+}
+
+.menu {
+  width: 236px;
+  padding: 6px;
+  border-radius: 28px;;
+  background: var(--color-surface-variant);
+  border: 1px solid var(--color-border);
+  box-shadow: 0 16px 40px rgba(44, 66, 91, 0.2);
+  outline: none;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: 20px;;
+  cursor: pointer;
+  outline: none;
+}
+
+.item[data-hovered],
+.item[data-focused] {
+  background: var(--color-surface);
+}
+
+.item[data-selected] {
+  background: var(--color-primary-container);
+}
+
+.dot {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.itemText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.itemLabel {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.itemTagline {
+  font-size: 0.68rem;
+  color: var(--color-text-secondary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trigger {
+    transition: none;
+  }
+}

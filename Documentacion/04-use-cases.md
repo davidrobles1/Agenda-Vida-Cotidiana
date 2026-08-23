@@ -7,7 +7,8 @@ Actor: visitante.
 3. Es redirigido a Keycloak (Authorization Code + PKCE) e introduce sus datos.
 4. Keycloak valida y, si aplica, gestiona la verificación de email mediante su propio flujo (DEC-014) — la aplicación no implementa verificación propia.
 5. Cuenta queda creada.
-6. Usuario entra a Home.
+6. **(ADR-015, FR-014)** La app pregunta el propósito de uso: casillas independientes y opcionales "Personal" y "Laboral". El usuario marca una, ambas o ninguna.
+7. Usuario entra a Calendario (vista por defecto, FR-015) — no a Home.
 
 ## UC-02 Iniciar sesión
 1. Usuario selecciona iniciar sesión.
@@ -99,6 +100,20 @@ Actor: usuario autenticado.
 3. Durante el periodo de gracia, la cuenta permanece inaccesible para nuevas sesiones (comportamiento exacto de bloqueo/reversión: `TBD`, no bloqueante para V1).
 4. Un job periódico purga definitivamente los datos personales de las cuentas cuyo `purge_at` ya venció.
 
+## UC-15 Activar modo adicional desde Ajustes (ADR-015, FR-016)
+Actor: usuario autenticado.
+1. Usuario abre Ajustes.
+2. Selecciona activar el modo no habilitado (Personal o Laboral).
+3. Backend actualiza el modo habilitado del usuario (ver `09-data-model.md`).
+4. El modo activado aparece en el selector de navegación superior.
+
+## UC-16 Ver Calendario general (ADR-015, FR-017)
+Actor: usuario autenticado.
+1. Usuario abre la app o selecciona "Calendario" en el selector superior.
+2. Sistema agrega los recordatorios de todos los modos habilitados del usuario.
+3. Cada recordatorio se muestra con el color de su modo de origen (Personal o Laboral).
+4. Usuario puede alternar entre vista diaria, semanal y mensual.
+
 ## UC-14 Cancelar invitación pendiente
 Actor: propietario (quien creó la invitación).
 **DECISION (DEC-003):** este caso de uso actúa exclusivamente sobre `INVITATION` en estado `PENDING`, antes de que el destinatario responda. Es distinto de `UC-10` (que revoca una colaboración ya aceptada, sobre `REMINDER_SHARE`).
@@ -107,3 +122,87 @@ Actor: propietario (quien creó la invitación).
 3. Backend valida autorización (solo quien creó la invitación puede cancelarla) y ejecuta `DELETE /invitations/{invitationId}`, marcando `INVITATION.status = CANCELLED` mediante una actualización condicional (`WHERE status = 'PENDING'`) para evitar una condición de carrera con una aceptación/rechazo casi simultánea (ver `09-data-model.md`).
 4. Si la invitación ya no está `PENDING` (fue aceptada, rechazada o expiró en el ínterin), el backend responde `410` sin efecto.
 5. Se registra el evento de auditoría "invitación cancelada".
+
+## UC-17 Crear tarea vinculada a Persona y Proyecto (ADR-016, FR-023)
+Actor: usuario autenticado, contexto Laboral.
+1. Usuario abre "Tareas" y selecciona "Nueva tarea".
+2. Introduce título y fecha.
+3. Opcionalmente asocia una Persona existente y/o un Proyecto existente.
+4. Confirma.
+5. Backend persiste el `REMINDER` (`context = LABORAL`) con `person_id`/`project_id` si se enviaron.
+6. La tarea aparece en "Hoy"/"Agenda" y, si tiene Proyecto, en la pestaña "Tareas" de ese Proyecto.
+
+## UC-18 Crear seguimiento desde una Persona (ADR-016, FR-025)
+Actor: usuario autenticado.
+1. Usuario abre el detalle de una Persona.
+2. Selecciona "Crear seguimiento".
+3. Describe la próxima acción y elige quién debe actuar ("Yo debo actuar" / "Espero a la otra persona" — `direction`).
+4. Define fecha y, opcionalmente, Proyecto.
+5. Backend persiste el Compromiso (`COMMITMENT`).
+6. El Compromiso aparece en "Seguimientos" (pestaña correspondiente a su dirección) y en el detalle de esa Persona.
+
+## UC-19 Ver contexto de un Proyecto (ADR-016, FR-022)
+Actor: usuario autenticado.
+1. Usuario abre "Proyectos" y selecciona uno.
+2. Sistema muestra Tareas, Personas, Reuniones (`REMINDER` con `location`/participantes) y Actividad del Proyecto (Notas/Documentos: `FUTURE`, V4).
+3. Usuario puede crear una nueva Tarea directamente vinculada a este Proyecto.
+
+## UC-20 Resolver un compromiso "Esperando" (ADR-016, FR-025/FR-027)
+Actor: usuario autenticado.
+1. Usuario abre "Seguimientos" → pestaña "Esperando".
+2. Selecciona un Compromiso con `direction = THEIRS`.
+3. Sistema muestra el contexto de origen (`REMINDER`/reunión del que surgió, si existe).
+4. Usuario marca el Compromiso como resuelto (`status = DONE`), o lo reprograma (nueva `due_at`) si sigue pendiente.
+5. Backend persiste el cambio.
+
+## UC-21 Reunión genera tareas y compromisos (ADR-016, FR-024/FR-023/FR-025)
+Actor: usuario autenticado.
+1. Usuario abre un `REMINDER` de tipo reunión (`context = LABORAL`, con `location` y/o participantes vía `REMINDER_SHARE`).
+2. Consulta la `NOTE` asociada (si existe) con lo discutido.
+3. Selecciona "Crear tarea" y/o "Crear seguimiento" directamente desde la reunión.
+4. El nuevo `REMINDER`/`COMMITMENT` queda vinculado al mismo Proyecto y Persona que la reunión de origen.
+
+## UC-22 Crear nota vinculada desde Persona o Proyecto (ADR-016 Fase 3a, FR-029)
+Actor: usuario autenticado.
+1. Usuario abre el detalle de una Persona o un Proyecto.
+2. Selecciona "Nueva nota".
+3. Escribe el texto.
+4. Backend persiste la `NOTE` con `personId`/`projectId` según corresponda.
+5. La nota aparece en la sección "Notas" de ese detalle.
+
+## UC-23 Ver documentos vinculados desde Persona o Proyecto (ADR-016 Fase 3b, FR-030)
+Actor: usuario autenticado.
+1. Usuario abre el detalle de una Persona o un Proyecto.
+2. Ve la sección "Documentos" con los documentos ya vinculados (nombre únicamente, solo lectura).
+**TBD:** no existe todavía un paso "3. Subir/vincular un documento nuevo desde aquí" — ver FR-030.
+
+## UC-24 Crear y marcar un Objetivo como cumplido (ADR-016 Fase 3e1, FR-031)
+Actor: usuario autenticado.
+1. Usuario crea un Objetivo con `title` y, opcionalmente, `targetValue`/`deadline`.
+2. Conforme avanza, actualiza `currentValue` manualmente.
+3. Cuando lo considera logrado, marca `completed = true`.
+4. Mientras `completed = false`, el Objetivo aparece en el resumen de "Hoy".
+**No implementado todavía** — alcance definido, ver `08-laboral-module-plan.md` Fase 3e1.
+
+## UC-25 Marcar una Rutina como realizada (ADR-016 Fase 3e2, FR-032)
+Actor: usuario autenticado.
+1. Usuario crea una Rutina con `title` y `frequency` (`DAILY`/`WEEKLY`/`MONTHLY`).
+2. Desde la lista de Rutinas, marca la ejecución actual como realizada.
+3. El sistema avanza `nextExecutionDate` a la siguiente ocurrencia según `frequency`.
+4. No se crea ningún `REMINDER`/`COMMITMENT` — la Rutina sigue siendo la misma entidad, solo cambia su próxima fecha.
+**No implementado todavía** — alcance definido, ver `08-laboral-module-plan.md` Fase 3e2.
+
+## UC-26 Reutilizar un Lugar guardado al crear una Tarea (ADR-016 Fase 3e3, FR-033)
+Actor: usuario autenticado.
+1. Usuario crea un Lugar (`name` + `address` opcional), opcionalmente vinculado a una Persona.
+2. Al crear una Tarea, elige un Lugar guardado (o crea uno nuevo inline) en `CreateTaskDialog`.
+3. El nombre/dirección del Lugar se copia como texto al campo de ubicación de la Tarea (`REMINDER.location`, FR-024).
+**No implementado todavía** — alcance definido, ver `08-laboral-module-plan.md` Fase 3e3.
+
+## UC-27 Vincular un Recurso a una Persona o Proyecto (ADR-016 Fase 3e4, FR-034)
+Actor: usuario autenticado.
+1. Usuario crea un Recurso (`name` + `type` + referencia de texto, opcionalmente `description`).
+2. Opcionalmente lo vincula a una Persona y/o un Proyecto propios.
+3. El Recurso aparece en la sección correspondiente del detalle de esa Persona/Proyecto.
+4. Ningún archivo se almacena — solo metadatos y una referencia de texto/URL (`DOCUMENT` sigue siendo responsable de documentos reales).
+**No implementado todavía** — alcance definido, ver `08-laboral-module-plan.md` Fase 3e4.

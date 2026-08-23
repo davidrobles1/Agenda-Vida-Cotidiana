@@ -63,6 +63,14 @@ Each deliverable exists in two languages, as separate files (`-EN` / `-ES` suffi
 
 No API documentation (Redoc/Swagger UI output) has been generated yet — see `Documentacion/openapi/API-DOCS-GENERATION.md` for the recommended process once the backend project exists.
 
+## Addendum — Módulo Laboral (ADR-016, 2026-08-22)
+
+Propuesta de evolución del modo Laboral (ADR-015) hacia un espacio profesional universal (Personas/Proyectos/Compromisos), aprobada por el Product Owner. No forma parte del pack V1 original de arriba; se documenta por separado porque V1 ya estaba cerrado cuando se aprobó.
+
+- **Fuente de verdad:** `Documentacion/22-decision-log.md` ADR-016; `Documentacion/34-laboral-module-proposal.md` (análisis completo); `Documentacion/03-prd.md` FR-021 a FR-028/NFR-011; `Documentacion/09-data-model.md` §"V3 — Módulo Laboral"; `Documentacion/11-auth-security.md` SEC-004; `Documentacion/04-use-cases.md` UC-17 a UC-21; `Documentacion/05-user-flows.md`.
+- **Plan de trabajo:** `docs/development/08-laboral-module-plan.md`.
+- **Generado:** `docs/generated/Modulo-Laboral-Propuesta-V3-ES.pptx` — resumen ejecutivo condensado de `34-laboral-module-proposal.md`, mismo criterio que el pack V1 (sin métricas/KPIs/cifras de negocio inventadas, todo dato trazable a un documento fuente).
+
 ## Regenerating the artifacts
 
 The generated artifacts were produced by scripts (`pptxgenjs` for the deck, the `docx` npm package for the Word document) that read the current state of the source Markdown/YAML files. There is no automated regeneration pipeline yet — this is a manual step, run whenever the source documentation changes materially enough to warrant a refreshed handoff package. Regenerating does not modify any file under `Documentacion/`.

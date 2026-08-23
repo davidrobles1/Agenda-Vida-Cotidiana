@@ -1,10 +1,14 @@
 .card {
   background: var(--color-surface-variant);
-  border-radius: var(--radius-card);
+  border-radius: 28px;;
   padding: var(--space-4);
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+  /* UX-014: unset (initial value) outside the 4 visual themes — only
+     .theme-* on AppShell's .shell defines --shadow-card, so this is a no-op
+     everywhere else (LoginPage never renders this component anyway). */
+  box-shadow: var(--shadow-card, none);
 }
 
 .header {
@@ -35,4 +39,62 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+}
+
+/* =====================================================
+   UX-014 — VISUAL THEME SYSTEM
+   Used by Warranties/Maintenance/Home's overdue-upcoming sections and any
+   other list-of-ListItemRow screen — themed once here instead of per page.
+   ===================================================== */
+
+:global(.theme-editorial) .title {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 500;
+}
+
+:global(.theme-minimal) .card {
+  position: relative;
+  box-shadow: none;
+  border: 1px solid var(--color-border);
+  border-radius: 2px;
+}
+:global(.theme-minimal) .card::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  width: 11px;
+  height: 11px;
+  border-top: 1.5px solid var(--color-primary);
+  border-left: 1.5px solid var(--color-primary);
+}
+:global(.theme-minimal) .card::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  right: -1px;
+  width: 11px;
+  height: 11px;
+  border-bottom: 1.5px solid var(--color-primary);
+  border-right: 1.5px solid var(--color-primary);
+}
+:global(.theme-minimal) .title {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+:global(.theme-productivity) .card {
+  border-top: 3px solid var(--color-primary);
+  border-radius: 4px 4px 10px 10px;
+}
+:global(.theme-productivity) .title {
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+:global(.theme-organic) .card {
+  border-radius: 24px 24px 24px 6px;
 }

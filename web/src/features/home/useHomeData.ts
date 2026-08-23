@@ -11,6 +11,13 @@ export interface HomeState {
   sharedCount: number
   upcoming: Reminder[]
   overdue: Reminder[]
+  /** Pedido explícito del usuario (2026-08-22): widget de calendario en
+      Inicio, "mostrar únicamente la semana actual y sus pendientes" —
+      pendientes (status PENDING) cuyo dueAt cae dentro de la semana
+      actual (lunes-domingo, mismo `firstDayOfWeek="mon"` que
+      CalendarView.tsx ya usa), derivado del mismo array de recordatorios
+      que `upcoming`/`overdue` ya calculan — ningún fetch nuevo. */
+  thisWeek: Reminder[]
   loading: boolean
   error: string | null
 }
@@ -23,8 +30,20 @@ const initialState: HomeState = {
   sharedCount: 0,
   upcoming: [],
   overdue: [],
+  thisWeek: [],
   loading: true,
   error: null,
+}
+
+/** Lunes 00:00 de la semana que contiene `date`, y el domingo
+    correspondiente a las 23:59:59.999 — mismo criterio "semana empieza en
+    lunes" que CalendarView.tsx (`firstDayOfWeek="mon"`). */
+function currentWeekRange(now: Date): { start: Date; end: Date } {
+  const day = now.getDay() // 0 = domingo ... 6 = sábado
+  const diffToMonday = day === 0 ? -6 : 1 - day
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diffToMonday, 0, 0, 0, 0)
+  const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6, 23, 59, 59, 999)
+  return { start, end }
 }
 
 /**
@@ -63,6 +82,11 @@ export function useHomeData(): HomeState {
           .slice(0, 4)
         const sharedCount = invitations.filter((i) => i.status === 'PENDING').length
 
+        const { start: weekStart, end: weekEnd } = currentWeekRange(new Date(now))
+        const thisWeek = pending
+          .filter((r) => r.dueAt && new Date(r.dueAt) >= weekStart && new Date(r.dueAt) <= weekEnd)
+          .sort((a, b) => new Date(a.dueAt!).getTime() - new Date(b.dueAt!).getTime())
+
         setState({
           greetingName: user.username,
           pendingCount: pending.length,
@@ -71,6 +95,7 @@ export function useHomeData(): HomeState {
           sharedCount,
           upcoming,
           overdue,
+          thisWeek,
           loading: false,
           error: null,
         })

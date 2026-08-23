@@ -108,6 +108,108 @@ class ReminderControllerIntegrationTest {
     }
 
     @Test
+    void createReminder_withIconAndSticker_persistsBoth() throws Exception {
+        UUID userId = UUID.randomUUID();
+        var principal = jwt().jwt(jwtFor(userId, "olga@example.com").build());
+        String createBody = objectMapper.writeValueAsString(
+                Map.of("title", "Cumpleaños de mamá 🎂", "iconId", "birthday", "stickerId", "celebration"));
+
+        mockMvc.perform(post("/api/v1/reminders")
+                        .with(principal)
+                        .contentType("application/json")
+                        .content(createBody))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.title", is("Cumpleaños de mamá 🎂")))
+                .andExpect(jsonPath("$.iconId", is("birthday")))
+                .andExpect(jsonPath("$.stickerId", is("celebration")))
+                // TEST-API-001: representative contract check for POST /reminders (icon/sticker) against the real openapi.yaml.
+                .andExpect(openApi().isValid(VALIDATOR));
+    }
+
+    @Test
+    void createReminder_withPersonAndProjectLinks_persistsBoth() throws Exception {
+        UUID userId = UUID.randomUUID();
+        var principal = jwt().jwt(jwtFor(userId, "quinn@example.com").build());
+
+        String personJson = mockMvc.perform(post("/api/v1/people")
+                        .with(principal).contentType("application/json")
+                        .content(objectMapper.writeValueAsString(Map.of("name", "Carlos Martínez"))))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        String personId = objectMapper.readTree(personJson).get("id").asText();
+
+        String projectJson = mockMvc.perform(post("/api/v1/projects")
+                        .with(principal).contentType("application/json")
+                        .content(objectMapper.writeValueAsString(Map.of("name", "Implementación ERP"))))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        String projectId = objectMapper.readTree(projectJson).get("id").asText();
+
+        String createBody = objectMapper.writeValueAsString(Map.of(
+                "title", "Reunión kickoff ACME", "context", "LABORAL",
+                "personId", personId, "projectId", projectId, "location", "Oficina ACME"));
+
+        mockMvc.perform(post("/api/v1/reminders")
+                        .with(principal)
+                        .contentType("application/json")
+                        .content(createBody))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.personId", is(personId)))
+                .andExpect(jsonPath("$.projectId", is(projectId)))
+                .andExpect(jsonPath("$.location", is("Oficina ACME")))
+                // ADR-016/FR-023/FR-024: representative contract check for POST /reminders (person/project/location) against the real openapi.yaml.
+                .andExpect(openApi().isValid(VALIDATOR));
+    }
+
+    @Test
+    void createReminder_personIdOwnedByAnotherUserReturnsNotFound() throws Exception {
+        UUID ownerId = UUID.randomUUID();
+        UUID strangerId = UUID.randomUUID();
+        var owner = jwt().jwt(jwtFor(ownerId, "rachel@example.com").build());
+        var stranger = jwt().jwt(jwtFor(strangerId, "sam@example.com").build());
+
+        String personJson = mockMvc.perform(post("/api/v1/people")
+                        .with(stranger).contentType("application/json")
+                        .content(objectMapper.writeValueAsString(Map.of("name", "Ajeno"))))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        String strangersPersonId = objectMapper.readTree(personJson).get("id").asText();
+
+        String createBody = objectMapper.writeValueAsString(Map.of("title", "x", "personId", strangersPersonId));
+
+        mockMvc.perform(post("/api/v1/reminders")
+                        .with(owner)
+                        .contentType("application/json")
+                        .content(createBody))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code", is("PERSON_NOT_FOUND")));
+    }
+
+    @Test
+    void updateReminder_omittingIconIdClearsIt() throws Exception {
+        UUID userId = UUID.randomUUID();
+        var principal = jwt().jwt(jwtFor(userId, "peter@example.com").build());
+        String createBody = objectMapper.writeValueAsString(Map.of("title", "Con icono", "iconId", "home"));
+
+        String createdJson = mockMvc.perform(post("/api/v1/reminders")
+                        .with(principal)
+                        .contentType("application/json")
+                        .content(createBody))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String reminderId = objectMapper.readTree(createdJson).get("id").asText();
+
+        // iconId/stickerId no son parciales (a diferencia de title/description/
+        // dueAt): omitirlos en el PATCH los limpia, no los deja intactos.
+        String updateBody = objectMapper.writeValueAsString(Map.of("title", "Sin icono", "version", 0));
+
+        mockMvc.perform(patch("/api/v1/reminders/" + reminderId)
+                        .with(principal)
+                        .contentType("application/json")
+                        .content(updateBody))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title", is("Sin icono")))
+                .andExpect(jsonPath("$.iconId").doesNotExist());
+    }
+
+    @Test
     void createReminder_blankTitleIsRejected() throws Exception {
         UUID userId = UUID.randomUUID();
         var principal = jwt().jwt(jwtFor(userId, "bob@example.com").build());

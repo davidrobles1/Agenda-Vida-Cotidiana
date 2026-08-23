@@ -5,16 +5,20 @@ import { ShareDialog } from '../sharing/ShareDialog'
 import { cancelLocalReminder, scheduleLocalReminder } from '../../core/notifications/localReminderTimer'
 import { AppShell } from '../../core/ui/layout/AppShell'
 import { IconCheckCircle, IconTasks } from '../../core/ui/icons'
+import { useActiveMode } from '../../core/user/ActiveModeContext'
 import styles from './RemindersPage.module.css'
 
 export function RemindersPage() {
+  // FR-019/ADR-015: context is inferred from which navbar this screen was
+  // reached through — null when reached via the legacy bare /reminders
+  // route (no context sent, backend defaults to PERSONAL, same as today).
+  const activeMode = useActiveMode()
   const [reminders, setReminders] = useState<Reminder[]>([])
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [title, setTitle] = useState('')
   const [dueAtLocal, setDueAtLocal] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const [sharingReminderId, setSharingReminderId] = useState<string | null>(null)
   const [debugCrash, setDebugCrash] = useState(false)
 
   // WEB-006 real verification: thrown during render (not inside the click
@@ -54,7 +58,11 @@ export function RemindersPage() {
       // correctly parses it as the browser's local time — matches what the
       // user actually picked, not UTC.
       const dueAtDate = dueAtLocal ? new Date(dueAtLocal) : null
-      const created = await createReminder(title.trim(), dueAtDate ? dueAtDate.toISOString() : undefined)
+      const created = await createReminder({
+        title: title.trim(),
+        dueAt: dueAtDate ? dueAtDate.toISOString() : undefined,
+        context: activeMode ?? undefined,
+      })
       // WEB-007: best-effort, tab-must-stay-open local reminder — see
       // core/notifications/localReminderTimer.ts for the real platform limit.
       if (dueAtDate) scheduleLocalReminder(created.id, created.title, dueAtDate.getTime())
@@ -125,15 +133,7 @@ export function RemindersPage() {
                 reminder={reminder}
                 isOwner={reminder.ownerUserId === currentUserId}
                 onComplete={() => handleComplete(reminder)}
-                onShareToggle={() =>
-                  setSharingReminderId(sharingReminderId === reminder.id ? null : reminder.id)
-                }
               />
-              {sharingReminderId === reminder.id && (
-                <div className={styles.shareSlot}>
-                  <ShareDialog reminderId={reminder.id} />
-                </div>
-              )}
             </li>
           ))}
         </ul>
@@ -146,11 +146,10 @@ interface ReminderCardProps {
   reminder: Reminder
   isOwner: boolean
   onComplete: () => void
-  onShareToggle: () => void
 }
 
 /** UX-001: reminder card — priority #1 of the design-system.md rollout. */
-function ReminderCard({ reminder, isOwner, onComplete, onShareToggle }: ReminderCardProps) {
+function ReminderCard({ reminder, isOwner, onComplete }: ReminderCardProps) {
   return (
     <div className={styles.card}>
       <div className={styles.cardTop}>
@@ -170,11 +169,7 @@ function ReminderCard({ reminder, isOwner, onComplete, onShareToggle }: Reminder
               Complete
             </button>
           )}
-          {isOwner && (
-            <button type="button" data-variant="secondary" onClick={onShareToggle}>
-              Share
-            </button>
-          )}
+          {isOwner && <ShareDialog reminderId={reminder.id} />}
         </div>
       )}
     </div>

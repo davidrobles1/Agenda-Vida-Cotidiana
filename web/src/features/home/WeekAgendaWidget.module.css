@@ -1,0 +1,237 @@
+.widget {
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface-variant);
+  /* Bordes súper redondeados y orgánicos */
+  border-radius: 28px;
+  padding: calc(var(--space-4) + 4px);
+  max-width: 500px;
+  margin: 0 auto;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.04);
+}
+
+/* ─────────────────────────────────────────────
+   CABECERA SEMANAL (SELECTOR EN CAPSULA)
+   ───────────────────────────────────────────── */
+
+.weekHeader {
+  padding-bottom: var(--space-3);
+  margin-bottom: var(--space-3);
+  border-bottom: 1px dashed rgba(0, 0, 0, 0.08);
+}
+
+.days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+
+.dayCell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 4px;
+  min-height: 68px;
+  /* Forma de cápsula/píldora */
+  border-radius: 20px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 220ms cubic-bezier(0.4, 0, 0.2, 1);
+  outline: none;
+}
+
+.dayCell:hover {
+  background: rgba(0, 0, 0, 0.03);
+  transform: translateY(-2px);
+}
+
+.dayCellToday {
+  color: var(--color-primary);
+  font-weight: 700;
+}
+
+/* Estado Seleccionado: Efecto flotante curvo */
+.dayCellSelected {
+  background: #ffffff !important;
+  border-color: rgba(0, 0, 0, 0.05);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
+  transform: translateY(-3px);
+}
+
+.dayLabel {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.6;
+}
+
+.dayCellToday .dayLabel,
+.dayCellSelected .dayLabel {
+  color: var(--color-primary);
+  opacity: 1;
+}
+
+.dayNumber {
+  margin-top: 3px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.dayCellToday .dayNumber,
+.dayCellSelected .dayNumber {
+  color: var(--color-primary);
+}
+
+.dayDots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 6px;
+  margin-top: 5px;
+}
+
+.dayDot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--color-warning);
+}
+
+.dayDotToday {
+  background: var(--color-primary);
+}
+
+/* ─────────────────────────────────────────────
+   DETALLE DEL DÍA SELECCIONADO
+   ───────────────────────────────────────────── */
+
+.agenda {
+  display: flex;
+  flex-direction: column;
+}
+
+.selectedDayHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-3);
+  padding: 0 6px;
+}
+
+.selectedDateGroup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.selectedWeekday {
+  color: var(--color-text);
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.selectedDayNumber {
+  background: var(--color-primary-container);
+  color: var(--color-primary);
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+.groupCount {
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  opacity: 0.7;
+}
+
+/* ─────────────────────────────────────────────
+   LISTA DE PENDIENTES REDONDEADA
+   ───────────────────────────────────────────── */
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px; /* Espaciado entre tarjetas redondas en lugar de bordes lisos */
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.listItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.6);
+  /* Cada elemento es una pequeña píldora suave */
+  border-radius: 16px;
+  border: 1px solid rgba(0, 0, 0, 0.02);
+  transition: transform 150ms ease, background 150ms ease;
+}
+
+.listItem:hover {
+  background: #ffffff;
+  transform: translateX(2px);
+}
+
+.itemMarker {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.listItemTitle {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--color-text);
+  font-size: 0.875rem;
+  line-height: 1.4;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ─────────────────────────────────────────────
+   ESTADO VACÍO Y RESPONSIVE
+   ───────────────────────────────────────────── */
+
+.emptyHint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: var(--space-4) 0;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 16px;
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+}
+
+.emptyHint svg {
+  color: var(--color-primary);
+}
+
+@media (max-width: 600px) {
+  .widget {
+    border-radius: 20px;
+    padding: var(--space-3);
+  }
+
+  .dayCell {
+    border-radius: 14px;
+    min-height: 60px;
+    padding: 6px 1px;
+  }
+}

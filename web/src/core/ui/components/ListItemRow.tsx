@@ -10,6 +10,10 @@ interface ListItemRowProps {
   pillLabel?: string
   pillTone?: Tone
   trailing?: ReactNode
+  /** ADR-015/FR-017: general Calendario's per-item origin-mode accent — see
+      CalendarView.tsx's `CalendarMarker.contextColor` doc for the same
+      reasoning. A left-edge stripe, independent of `tone`. */
+  contextColor?: string
 }
 
 /**
@@ -17,9 +21,21 @@ interface ListItemRowProps {
  * reference's list-item pattern, repeated across Próximas tareas,
  * Documentos, Garantías, Inventario, Mantenimiento, Suscripciones, Familia.
  */
-export function ListItemRow({ title, subtitle, icon: Icon, tone, pillLabel, pillTone, trailing }: ListItemRowProps) {
+export function ListItemRow({
+  title,
+  subtitle,
+  icon: Icon,
+  tone,
+  pillLabel,
+  pillTone,
+  trailing,
+  contextColor,
+}: ListItemRowProps) {
   return (
-    <div className={styles.row}>
+    <div
+      className={styles.row}
+      style={contextColor ? { borderLeft: `3px solid ${contextColor}`, paddingLeft: 'var(--space-2)' } : undefined}
+    >
       <span className={styles.iconBadge} data-tone={tone}>
         <Icon width={18} height={18} />
       </span>

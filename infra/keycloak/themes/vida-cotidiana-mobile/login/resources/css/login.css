@@ -17,7 +17,7 @@
   --vc-text: #111827;
   --vc-text-secondary: #6b7280;
   --vc-radius-card: 12px;
-  --vc-radius-control: 8px;
+  --vc-radius-control: 16px;
 }
 
 /* RECOMMENDATION (login-theme.md #4): the login page is rendered by

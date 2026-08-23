@@ -100,6 +100,16 @@ export function IconRepeat(props: IconProps) {
   )
 }
 
+/** ADR-016 (Módulo Laboral) — Inbox de captura rápida (FR-028). Bandeja con flecha de entrada, sin precedente en el set existente. */
+export function IconInbox(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M3.5 12.5h5l1.7 3h3.6l1.7-3h5" />
+      <path d="M6 5h12l2 7.5V18a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18v-5.5Z" />
+    </svg>
+  )
+}
+
 export function IconUsers(props: IconProps) {
   return (
     <svg {...base(props)}>
@@ -187,6 +197,125 @@ export function IconChevronLeft(props: IconProps) {
   return (
     <svg {...base(props)}>
       <path d="m15 5-7 7 7 7" />
+    </svg>
+  )
+}
+
+export function IconMenu(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M4 6h16M4 12h16M4 18h16" />
+    </svg>
+  )
+}
+
+export function IconHeart(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M12 20.5s-7.5-4.6-10-9.3C.5 8 2 4.5 5.5 4a5 5 0 0 1 6.5 3 5 5 0 0 1 6.5-3c3.5.5 5 4 3.5 7.2-2.5 4.7-10 9.3-10 9.3Z" />
+    </svg>
+  )
+}
+
+export function IconLeaf(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M20 4c.5 8-3 15-14 16C5 9 12 4.5 20 4Z" />
+      <path d="M7 19c2-4 5-8 12-13" />
+    </svg>
+  )
+}
+
+export function IconSparkle(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M12 3c.6 3.4 1.6 5.4 3 6.8 1.4 1.4 3.4 2.4 6.8 3-3.4.6-5.4 1.6-6.8 3-1.4 1.4-2.4 3.4-3 6.8-.6-3.4-1.6-5.4-3-6.8-1.4-1.4-3.4-2.4-6.8-3 3.4-.6 5.4-1.6 6.8-3 1.4-1.4 2.4-3.4 3-6.8Z" />
+    </svg>
+  )
+}
+
+export function IconUser(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 20c0-4.4 3.6-7 8-7s8 2.6 8 7" />
+    </svg>
+  )
+}
+
+export function IconUserPlus(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <circle cx="9" cy="8" r="4" />
+      <path d="M2 20c0-4.4 3.1-7 7-7s7 2.6 7 7" />
+      <path d="M18 8v6M15 11h6" />
+    </svg>
+  )
+}
+
+export function IconArrowRight(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M5 12h14" />
+      <path d="m13 6 6 6-6 6" />
+    </svg>
+  )
+}
+
+export function IconLock(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <rect x="5" y="11" width="14" height="9" rx="2" />
+      <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+    </svg>
+  )
+}
+
+/** FASE 3 (Vision Board): sidebar nav item, replacing IconTasks now that
+    "Tareas" points at the Vision Board canvas instead of RemindersPage. */
+export function IconLayoutGrid(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <rect x="3.5" y="3.5" width="7.5" height="7.5" rx="1.5" />
+      <rect x="13" y="3.5" width="7.5" height="7.5" rx="1.5" />
+      <rect x="3.5" y="13" width="7.5" height="7.5" rx="1.5" />
+      <rect x="13" y="13" width="7.5" height="7.5" rx="1.5" />
+    </svg>
+  )
+}
+
+/** UX-012/ADR-015: Ajustes (Settings) link in AppShell's account area. */
+export function IconSettings(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+    </svg>
+  )
+}
+
+/** Canvas de notas por día (2026-08-22): mini-toolbar de edición inline. */
+export function IconBold(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M7 4h6a3.5 3.5 0 0 1 0 7H7z" />
+      <path d="M7 11h7a3.5 3.5 0 0 1 0 7H7z" />
+    </svg>
+  )
+}
+
+export function IconItalic(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M11 4h6M5 20h6M14 4 8 20" />
+    </svg>
+  )
+}
+
+export function IconTrash(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M4 7h16M9 7V4h6v3M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13" />
     </svg>
   )
 }

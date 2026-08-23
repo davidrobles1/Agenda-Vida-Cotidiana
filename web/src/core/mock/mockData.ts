@@ -1,10 +1,18 @@
 /**
- * UX-006: mock data for the 6 scaffolding-only modules (Documentos,
- * Inventario, Garantías, Mantenimiento, Suscripciones, Familia) — zero
- * business logic, zero endpoints. Values match the reference images'
- * sample data (docs/Ejemplo Web vida Cotidiana .png). Kept in its own
- * module and imported by each page's hook, never inlined into a component —
- * mirrors android/.../core/mock/MockData.kt.
+ * UX-006: mock data for the scaffolding-only modules (Documentos,
+ * Inventario, Suscripciones, Familia) — zero business logic, zero
+ * endpoints. Values match the reference images' sample data
+ * (docs/Ejemplo Web vida Cotidiana .png). Kept in its own module and
+ * imported by each page's hook, never inlined into a component — mirrors
+ * android/.../core/mock/MockData.kt.
+ *
+ * BE-037/WEB-009: Garantías and Mantenimiento graduated from this file to
+ * real backend data (web/src/features/warranties/api.ts,
+ * web/src/features/maintenance/api.ts) — the WarrantyStatus/MockWarranty/
+ * warranties and MaintenanceStatus/MockMaintenanceRecord/maintenanceRecords
+ * exports below are now dead (no remaining importer) but kept as-is rather
+ * than deleted, since removing them isn't necessary to complete BE-037/
+ * WEB-009 and this file still backs the other four still-mock modules.
  */
 
 export interface MockDocumentCategory {

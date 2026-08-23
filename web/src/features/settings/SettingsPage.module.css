@@ -1,0 +1,41 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.mockNotice {
+  margin: 0;
+  padding: var(--space-3);
+  border-radius: 20px;;
+  background: var(--color-warning-container);
+  color: var(--color-warning-text);
+  font-size: 0.875rem;
+}
+
+.modesList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.modeRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  background: var(--color-surface-variant);
+  border: 1px solid var(--color-border);
+  border-radius: 28px;;
+}
+
+.modeRow strong {
+  color: var(--color-text);
+}
+
+.modeRow p {
+  margin: 2px 0 0;
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+}

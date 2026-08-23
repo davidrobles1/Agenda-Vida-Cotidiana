@@ -1,17 +1,54 @@
 .panel {
+  width: 320px;
+  max-width: calc(100vw - 32px);
   background: var(--color-primary-container);
-  border-radius: var(--radius-card);
+  border-radius: 28px;;
   padding: var(--space-4);
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
   text-align: left;
+  /* Floats over content now (real Popover, portalled to <body>), unlike
+     the old inline panel — needs its own shadow to read as elevated. */
+  box-shadow: 0 12px 32px rgba(44, 66, 91, 0.16);
+  outline: none;
+}
+
+.headerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
 }
 
 .heading {
   font-size: 1.125rem;
   font-weight: 600;
   margin: 0;
+}
+
+.closeButton {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  min-height: 0;
+  padding: 0;
+  border: none;
+  border-radius: 20px;;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.closeButton:hover {
+  background: var(--color-surface);
+  color: var(--color-text);
 }
 
 .inviteForm {
@@ -71,5 +108,49 @@
   padding: 0;
   display: flex;
   flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* UX-011 Fase 4: real Modal (blocking) backdrop — deliberately separate
+   from .panel (the non-modal Popover above), a confirmation must interrupt
+   the page, a share panel shouldn't. Headless by default, so all visual
+   styling (position/backdrop/centering) lives here. */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  background: rgba(44, 66, 91, 0.32);
+  /* React Aria's own Popover sets z-index:100000 inline (real, verified —
+     not a guess) — a confirmation must render above any open Popover, so
+     this needs real margin above that, not an arbitrary small value. */
+  z-index: 100001;
+}
+
+.confirmPanel {
+  width: 340px;
+  max-width: 100%;
+  background: var(--color-surface-variant);
+  border-radius: 28px;;
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  box-shadow: 0 16px 40px rgba(44, 66, 91, 0.24);
+  outline: none;
+}
+
+.confirmBody {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
+.confirmActions {
+  display: flex;
+  justify-content: flex-end;
   gap: var(--space-2);
 }

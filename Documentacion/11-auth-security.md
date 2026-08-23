@@ -74,3 +74,8 @@ Ningún endpoint relacionado con invitaciones (`POST /reminders/{id}/shares`, y 
 - Eliminación de cuenta: soft delete con periodo de gracia de 30 días (`PENDING_DELETION` → purga). Los datos personales solo se purgan definitivamente al vencer el plazo.
 - Invitaciones sin cuenta asociada (`invited_user_id` nulo) en estado `REJECTED`/`EXPIRED`/`CANCELLED`: purgar el email tras un plazo corto de retención (ASSUMPTION: 90 días) — minimización de datos de terceros que nunca usaron el servicio (NFR-002/NFR-010).
 - Los tokens de push (`DEVICE_PUSH_TOKEN`) deben eliminarse al cerrar sesión o al purgar la cuenta asociada.
+
+## SEC-004 Autorización de Persona/Proyecto/Compromiso (ADR-016)
+- Mismo patrón dueño-únicamente que `REMINDER`/`WARRANTY`/`MAINTENANCE_RECORD` (`owner_user_id`): sin colaboradores sobre `PERSON`/`PROJECT`/`COMMITMENT` en V1 de este módulo. Todo endpoint sobre estos recursos debe responder `404` (nunca `403`) sobre un recurso ajeno, igual que el resto de la API.
+- Compartir el contexto de una reunión (participantes) sigue viviendo en `REMINDER_SHARE` (ADR-006) — no se introduce un mecanismo de permisos nuevo para `PERSON`/`PROJECT`/`COMMITMENT`.
+- `PERSON` representa a una persona real que no necesariamente es usuaria del sistema: aplican los mismos principios de minimización que a `INVITATION.invited_email` (NFR-002/NFR-011) — no almacenar más datos de terceros que los estrictamente necesarios.

@@ -85,6 +85,127 @@ Además de las notificaciones locales (FR-005), el backend podrá emitir notific
 
 **FUTURE (V2/V3):** preferencias de notificación por usuario, múltiples dispositivos por usuario, recordatorios recurrentes, reglas de notificación, digest/resúmenes. No se implementan en V1.
 
+## FR-014 Selección de propósito de uso en registro (ADR-015)
+**Version: V3 (implementación adelantada en paralelo con V2 desde 2026-08-18 — ver ADR-015).**
+
+**DECISION (ADR-015):** durante el registro, se pregunta al usuario el propósito de uso mediante dos casillas independientes: "Personal" y "Laboral". El usuario debe marcar **al menos una** para completar el registro (no se permite continuar con ambas vacías). El resultado determina qué modos aparecen habilitados en el selector de navegación (FR-015). El Calendario general queda disponible siempre, sin importar la respuesta.
+
+## FR-015 Selector de modo y navegación condicional (ADR-015)
+**Version: V3 (implementación adelantada en paralelo con V2 desde 2026-08-18 — ver ADR-015).**
+
+**DECISION (ADR-015):** la navegación superior muestra "Calendario" más únicamente los modos habilitados por el usuario (Personal y/o Laboral, según FR-014/FR-016). Cada modo habilitado tiene su propio conjunto de opciones de navegación (Inicio, Calendario del modo, Tareas, Compartidos — lista exacta TBD). Al abrir la aplicación, la vista por defecto es Calendario (no Inicio).
+
+## FR-016 Activar modo adicional desde Ajustes (ADR-015)
+**Version: V3 (implementación adelantada en paralelo con V2 desde 2026-08-18 — ver ADR-015).**
+
+**DECISION (ADR-015):** un usuario que no habilitó un modo (Personal o Laboral) durante el registro puede activarlo posteriormente desde Ajustes. Al activarlo, el modo aparece en el selector de navegación (FR-015).
+
+**TBD:** si Ajustes también permite desactivar un modo ya habilitado (ver ADR-015).
+
+## FR-017 Calendario general (ADR-015)
+**Version: V3 (implementación adelantada en paralelo con V2 desde 2026-08-18 — ver ADR-015).**
+
+**DECISION (ADR-015):** el Calendario general agrega los recordatorios de todos los modos habilitados por el usuario, mostrando cada uno con el color asociado a su modo de origen (no un tercer color neutral). Admite vistas diario, semanal y mensual, seleccionables por el usuario.
+
+## FR-018 Calendario por modo (ADR-015)
+**Version: V3 (implementación adelantada en paralelo con V2 desde 2026-08-18 — ver ADR-015).**
+
+**DECISION (ADR-015):** cada modo habilitado (Personal, Laboral) incluye su propio Calendario, específico de ese modo, dentro de su navbar — distinto del Calendario general (FR-017), que agrega ambos.
+
+## FR-019 Contexto de recordatorio inferido por navbar de origen (ADR-015)
+**Version: V3 (implementación adelantada en paralelo con V2 desde 2026-08-18 — ver ADR-015).**
+
+**DECISION (ADR-015):** cuando un usuario tiene ambos modos habilitados, el `context` (`PERSONAL`/`LABORAL`) de un recordatorio nuevo se infiere automáticamente del navbar desde el que se creó — no existe un selector de contexto explícito en el formulario de creación (FR-004).
+
+## FR-020 Garantías y Mantenimiento reales (`BE-037`/`WEB-009`)
+**Version: V2 — aprobado y entregado 2026-08-18, mismo ciclo de trabajo que `UX-013` y `ADR-015` (ver `05-v2-plan.md`, nota de alcance en paralelo).**
+
+**DECISION (usuario, 2026-08-18):** Garantías y Mantenimiento, hasta ahora 100% simulados (`core/mock/mockData.ts`, `UX-006`), pasan a tener persistencia real, mismo patrón de autorización y CRUD que `REMINDER` (dueño-únicamente, 404 nunca 403 sobre recurso ajeno). Los campos son exactamente los que la UI mock ya mostraba — no se inventó ninguno nuevo (ver `09-data-model.md`). Reemplaza el toggle de "completado" local-only (`mockCompletedIds`, se perdía al recargar) por una acción real persistida.
+
+## FR-021 Personas — contactos profesionales (ADR-016)
+**Version: V3.**
+
+**DECISION (ADR-016):** en el contexto Laboral, el usuario podrá crear, consultar, editar y eliminar Personas: nombre, rol (texto libre), organización (texto libre — ver ADR-016(c), no es una entidad propia en esta fase). Cada Persona pertenece a un único dueño (`owner_user_id`); sin colaboradores en V1 de este módulo.
+
+## FR-022 Proyectos (ADR-016)
+**Version: V3.**
+
+**DECISION (ADR-016):** el usuario podrá crear, consultar, editar y eliminar Proyectos: nombre, estado (texto libre en V1; `TBD` si se cierra a un enum fijo), fecha límite opcional, Persona cliente opcional. El vocabulario mostrado ("Proyecto"/"Obra"/"Caso"/"Oportunidad") es una capa de presentación (UX-014), no cambia el esquema.
+
+## FR-023 Vínculo de Tarea con Persona y Proyecto (ADR-016)
+**Version: V3.**
+
+**DECISION (ADR-016):** un `REMINDER` con `context = LABORAL` podrá vincularse opcionalmente a una Persona y/o un Proyecto ya existentes (`person_id`, `project_id`, ambos nullable). No se crea una entidad Tarea independiente de `REMINDER` — ver `09-data-model.md`.
+
+## FR-024 Reunión: ubicación y participantes sobre Tarea (ADR-016)
+**Version: V3.**
+
+**DECISION (ADR-016):** un `REMINDER` con `context = LABORAL` podrá registrar `location` (texto libre) y compartirse con participantes mediante el mecanismo ya existente de compartir (FR-007/ADR-006, `REMINDER_SHARE`). No se crea una entidad Evento/Reunión independiente.
+
+## FR-025 Compromisos: Seguimientos y Esperando (ADR-016)
+**Version: V3.**
+
+**DECISION (ADR-016):** el usuario podrá crear, consultar, resolver y reprogramar Compromisos: Persona asociada, descripción, dirección (`MINE` = el usuario debe actuar; `THEIRS` = el usuario espera una acción de la otra persona), fecha, Proyecto opcional, origen opcional (el `REMINDER`/reunión del que surgió). "Seguimientos" y "Esperando" son la misma entidad filtrada por dirección, no dos entidades — ver ADR-016, Alternativas.
+
+## FR-026 Vista "Hoy" del contexto Laboral (ADR-016)
+**Version: V3.**
+
+El usuario verá, en una sola pantalla: los `REMINDER` con `context = LABORAL` que vencen hoy, los Compromisos con fecha de hoy o vencidos, y un resumen (sin mezclar datos) de sus eventos `PERSONAL` del mismo día, para no perder de vista el total de su tiempo disponible. Mismo principio agregador que el Calendario general (FR-017), aplicado a un resumen diario en vez de al Calendario completo.
+
+## FR-027 Vista "Seguimientos" con pestañas Mías / Esperando (ADR-016)
+**Version: V3.**
+
+El usuario podrá ver sus Compromisos abiertos agrupados en dos pestañas: "Mías" (`direction = MINE`) y "Esperando" (`direction = THEIRS`), cada uno mostrando Persona, descripción, fecha y antigüedad cuando está vencido.
+
+## FR-028 Inbox de captura rápida (ADR-016)
+**Version: V3.**
+
+**DECISION (ADR-016):** el usuario podrá capturar una nota rápida sin clasificarla (reutiliza la entidad `NOTE` existente, sin vínculo a Persona/Proyecto/Reminder) y, después, convertirla en Tarea, en Compromiso, o descartarla. No introduce una entidad nueva.
+
+**FUTURE (V4, candidatos — ver `34-laboral-module-proposal.md` §14):** Notas y Documentos vinculados a Persona/Proyecto; "última interacción" derivada automáticamente por Persona; automatizaciones simples deterministas (vencimiento → Hoy; nota de reunión → sugerencia de tarea); Objetivos, Rutinas, Lugares, Recursos; vista Kanban de Proyecto.
+
+## FR-029 Notas vinculadas a Persona/Proyecto (ADR-016 Fase 3a)
+**Version: V4 candidato (RECOMMENDATION, no comprometido como alcance de versión — ver `34-laboral-module-proposal.md` §14). Implementado el 2026-08-22 como incremento aislado sobre la Fase 1/2 ya cerradas, sin reabrirlas.**
+
+**DECISION (ADR-016 Fase 3a):** una `NOTE` (entidad ya existente, reutilizada — ver FR "Notas" de `26-v1-backlog.md`) podrá vincularse opcionalmente a una Persona y/o un Proyecto propios (`personId`/`projectId`, ambos nullable), visibles desde el detalle de esa Persona/Proyecto. No se crea una entidad nueva. Mismo contrato de autorización que FR-023 (404 sobre un recurso ajeno).
+
+## FR-030 Documentos vinculados a Persona/Proyecto (ADR-016 Fase 3b)
+**Version: V4 candidato (RECOMMENDATION, no comprometido — ver `34-laboral-module-proposal.md` §14). Backend implementado el 2026-08-22; Web solo lectura (ver TBD abajo).**
+
+**DECISION (ADR-016 Fase 3b):** un `DOCUMENT` (entidad ya existente, módulo `document`, reutilizada) podrá vincularse opcionalmente a una Persona y/o un Proyecto propios (`personId`/`projectId`, ambos nullable) al subirlo o al editarlo. Mismo contrato de autorización que FR-023/FR-029.
+
+**TBD (no bloqueante, alcance de UI):** el detalle de Persona/Proyecto solo **lista** los documentos ya vinculados (solo lectura) — no existe todavía en la Web un flujo para subir/vincular un documento nuevo desde ahí (requiere una pantalla de subida de archivo con validación MIME/tamaño, deliberadamente no construida en este incremento para no expandir su alcance sin pedirlo explícitamente). Vincular un documento existente hoy requiere `PATCH /documents/{id}` directamente.
+
+**FUTURE (Post-V4, candidatos — fuera de alcance hasta validación explícita):** CRM avanzado/pipeline de ventas con etapas, gestión de casos legales, gestión de obra con planos, historiales clínicos, automatización proactiva basada en patrones/IA, asistente conversacional. No se implementan ni se documentan como endpoints reales (regla IA/Finanzas de `CLAUDE.md`).
+
+## FR-031 Objetivos (ADR-016 Fase 3e1)
+**Version: V4 candidato (RECOMMENDATION, no comprometido — ver `34-laboral-module-proposal.md` §14). Alcance definido el 2026-08-22, listo para desarrollo, todavía no implementado.**
+
+**DECISION (ADR-016 adenda Fase 3e, 2026-08-22):** un Objetivo (`OBJECTIVE`, entidad nueva) representa una meta laboral que el usuario quiere conseguir: `title` (requerido), `targetValue`/`currentValue` (enteros opcionales, progreso numérico actualizado manualmente por el usuario, sin cálculo automático), `deadline` (opcional), `completed` (marcado manualmente, nunca derivado). Entidad independiente en este incremento, sin vínculo a `PROJECT`/`PERSON`. CRUD dueño-únicamente, mismo patrón de autorización que `PERSON`/`PROJECT` (404 sobre uno ajeno, nunca 403). UI: resumen en "Hoy" + página dedicada; no se agrega un ítem al navbar de Laboral (ya cerrado en Fase 2/`WEB-010`).
+
+**FUERA DE ALCANCE explícito (3e1):** relación con Proyectos/Personas, sub-objetivos, cálculo automático de progreso, notificaciones de vencimiento, gráficas, cualquier automatización (eso pertenece a 3d, que sigue `BLOCKED` por separado).
+
+## FR-032 Rutinas (ADR-016 Fase 3e2)
+**Version: V4 candidato (RECOMMENDATION, no comprometido — ver `34-laboral-module-proposal.md` §14). Alcance definido el 2026-08-22, listo para desarrollo, todavía no implementado.**
+
+**DECISION (ADR-016 adenda Fase 3e, 2026-08-22):** una Rutina (`ROUTINE`, entidad nueva) representa una actividad laboral recurrente que el usuario marca manualmente como realizada. **Decisión explícita del Product Owner: una Rutina NO genera automáticamente `REMINDER` ni `COMMITMENT`** — esto mantiene 3e2 deliberadamente separada de FR "Automatizaciones simples" (3d, sigue `BLOCKED`). Campos: `title` (requerido), `description` (opcional), `frequency` (`DAILY`/`WEEKLY`/`MONTHLY`), `nextExecutionDate`, `active`. Una acción marca la ejecución actual como realizada y avanza `nextExecutionDate` a la siguiente ocurrencia según `frequency`. `completed` **no** se usa como estado permanente de la Rutina (a diferencia de Objetivo) — la misma Rutina se completa repetidamente.
+
+**FUERA DE ALCANCE explícito (3e2):** generación automática de `REMINDER`/`COMMITMENT`, jobs/background workers, notificaciones, recurrencias avanzadas (p. ej. "cada 2 semanas", días específicos del mes), excepciones por ocurrencia.
+
+## FR-033 Lugares (ADR-016 Fase 3e3)
+**Version: V4 candidato (RECOMMENDATION, no comprometido — ver `34-laboral-module-proposal.md` §14). Alcance definido el 2026-08-22, listo para desarrollo, todavía no implementado.**
+
+**DECISION (ADR-016 adenda Fase 3e, 2026-08-22):** un Lugar (`PLACE`, entidad nueva) representa una ubicación laboral reutilizable: `name` (requerido), `address` (opcional), `personId` (FK opcional a `PERSON`, mismo patrón que `PROJECT.clientPersonId`). Se integra con Tareas únicamente como catálogo de autocompletado en `CreateTaskDialog`: elegir un Lugar copia su nombre/dirección como texto al campo `REMINDER.location` ya existente (FR-024). **No se agrega `REMINDER.place_id`** — se prefiere esta integración sin modificar de nuevo el esquema de `REMINDER`.
+
+**FUERA DE ALCANCE explícito (3e3):** `REMINDER.place_id` (FK real), geolocalización, coordenadas, mapas, navegación, reportes por ubicación.
+
+## FR-034 Recursos (ADR-016 Fase 3e4)
+**Version: V4 candidato (RECOMMENDATION, no comprometido — ver `34-laboral-module-proposal.md` §14). Alcance definido el 2026-08-22, listo para desarrollo, todavía no implementado.**
+
+**DECISION (ADR-016 adenda Fase 3e, 2026-08-22):** un Recurso (`RESOURCE`, entidad nueva) representa un material o referencia reutilizable que ayuda al usuario a realizar su trabajo: `name` (requerido), `type` (enum `DOCUMENTO`/`ENLACE`/`PLANTILLA`/`MANUAL`/`HERRAMIENTA`/`OTRO`, requerido), una referencia de texto libre (URL o descripción, ver TBD técnico en `09-data-model.md`), `description` (opcional), `personId`/`projectId` (FKs opcionales, mismo patrón que `NOTE`/`DOCUMENT` en FR-029/FR-030). **No sustituye a `DOCUMENT`** (FR-030): sin almacenamiento de archivos nuevo, sin versionado, sin permisos compartidos.
+
+**FUERA DE ALCANCE explícito (3e4):** almacenamiento de archivos nuevo, versionado documental, permisos compartidos, buscador avanzado, IA, cualquier forma de gestión documental que duplique a `DOCUMENT`.
+
 ## NFR-001 Seguridad
 Toda API deberá usar HTTPS. La autorización se validará por recurso.
 
@@ -117,3 +238,6 @@ Android, iOS y Web deben ofrecer un modelo funcional y de datos coherente (mismo
 
 ## NFR-010 Retención y eliminación de datos
 **DECISION (DEC-015):** las cuentas eliminadas por el usuario pasan a `PENDING_DELETION` con purga definitiva a los 30 días (soft delete). Los emails de personas invitadas sin cuenta se purgan tras expiración, rechazo o cancelación de la invitación, siguiendo una política de retención corta (ASSUMPTION: 90 días — ver `09-data-model.md`).
+
+## NFR-011 Minimización de datos del módulo Laboral (ADR-016)
+**DECISION (ADR-016):** `PERSON` no incluye campos más allá de nombre/rol/organización en V1 de este módulo (sin teléfono, dirección postal ni otros datos personales de terceros no estrictamente necesarios); `PROJECT` y `COMMITMENT` no almacenan información financiera (montos, facturación, datos bancarios) — consistente con ADR-004 y con el límite de alcance de `34-laboral-module-proposal.md`.

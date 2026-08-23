@@ -1,0 +1,260 @@
+/* BLOQUE F (post-MVP): raised into its own floating panel — a "premium
+   toolbar with clearer hierarchy" reads as a distinct control surface set
+   above the canvas, not a bare row of buttons sharing the page background.
+   Margin (not the old bare `padding: 0 var(--space-6)`) is what keeps this
+   panel visually inset from the page edge instead of spanning it edge to
+   edge; the tablet/mobile rules below already fully override padding for
+   their own layouts (a horizontally-scrollable strip, then a fixed dock)
+   and get their own border/shadow treatment, so neither inherits this
+   panel look verbatim. */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 var(--space-6);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: 28px;;
+  background: var(--color-surface-variant);
+  box-shadow:
+    0 1px 2px color-mix(in srgb, var(--color-text) 6%, transparent),
+    0 10px 24px color-mix(in srgb, var(--color-text) 8%, transparent);
+}
+
+/* Same shape as core/theme/ThemeSwitcher.module.css's .trigger — small
+   pill button with icon + label, already the established look for a row
+   of independent chrome actions in this app. */
+.actionButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 0;
+  padding: 6px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 160ms ease, border-color 160ms ease;
+}
+
+.actionButton:hover {
+  background: var(--color-surface-variant);
+}
+
+/* FASE 7: the Editar action, disabled while nothing is selected. */
+.actionButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.actionButton:disabled:hover {
+  background: var(--color-surface);
+}
+
+/* FASE 23: Templates/Elementos/Exportar are the editor's three primary
+   creative actions (not equal in weight to Duplicar/Bloquear/Deshacer) —
+   a filled, `--color-primary`-tinted pill instead of the plain outlined
+   one every other `.actionButton` uses, same "primary vs. secondary
+   action" distinction already used elsewhere in this app (e.g. a
+   dialog's own submit vs. `data-variant="secondary"` cancel button). App
+   tokens only — this row sits outside `.canvas`, never sees `--vb-*`. */
+.actionButtonPrimary {
+  border-color: color-mix(in srgb, var(--color-primary) 45%, var(--color-border));
+  background: var(--color-primary-container);
+  color: var(--color-primary);
+}
+
+.actionButtonPrimary:hover {
+  border-color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary-container) 70%, var(--color-primary) 15%);
+}
+
+.popover {
+  z-index: 100000;
+}
+
+.popoverDialog {
+  width: 280px;
+  max-width: calc(100vw - 32px);
+  padding: var(--space-4);
+  border-radius: 28px;;
+  background: var(--color-surface-variant);
+  border: 1px solid var(--color-border);
+  box-shadow: 0 16px 40px rgba(44, 66, 91, 0.2);
+  outline: none;
+}
+
+/* FASE 7: IMAGE edit's URL live preview. */
+.imagePreview {
+  width: 100%;
+  max-height: 140px;
+  margin-top: var(--space-2);
+  object-fit: contain;
+  border-radius: 20px;;
+  background: var(--color-surface);
+}
+
+/* FASE 7 fix (Fase 6 pendiente): SHAPE variant picker, same radiogroup-of-
+   buttons shape as core/ui/pickers/StickerPicker.tsx. */
+.shapeVariantGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.shapeVariantButton {
+  padding: 6px 10px;
+  border: 1.5px solid var(--color-border);
+  border-radius: 20px;;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 0.8125rem;
+  cursor: pointer;
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+
+.shapeVariantButton:hover {
+  color: var(--color-primary);
+}
+
+.shapeVariantButtonActive {
+  border-color: var(--color-primary);
+  background: var(--color-primary-container);
+  color: var(--color-primary);
+}
+
+/* FASE 8 (capas) + FASE 10 (zoom): a compact pill housing a few icon-only
+   buttons — same border/radius/surface language as .actionButton, just
+   grouped instead of each one standing alone. */
+.buttonGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+}
+
+.iconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  min-height: 0;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-text);
+  cursor: pointer;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+
+.iconButton:hover {
+  background: var(--color-surface-variant);
+  color: var(--color-primary);
+}
+
+.iconButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background: transparent;
+  color: var(--color-text);
+}
+
+/* FASE 22 audit fix: same real axe-core contrast finding as
+   VisionBoardSaveIndicator.module.css's own doc comment — fixed the same
+   way (--color-text instead of --color-text-secondary), same reasoning. */
+.zoomValue {
+  min-width: 40px;
+  padding: 0 4px;
+  text-align: center;
+  color: var(--color-text);
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* FASE 17: Tablet — real responsive behavior, not just smaller sizes. The
+   toolbar was already `flex-wrap: wrap`, which on a narrow desktop window
+   just wraps to more rows and eats vertical space the canvas should have
+   ("el canvas sigue siendo el protagonista"). Below 900px (the same
+   breakpoint AppShell.module.css already uses for its own sidebar) it
+   becomes a single-row, horizontally-scrollable strip instead — every
+   existing action/component stays exactly as-is, only the row's own
+   overflow behavior changes, so nothing about React Aria focus/keyboard
+   handling inside any popover is touched. */
+@media (max-width: 900px) {
+  .toolbar {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin: 0 var(--space-4);
+    padding: var(--space-2) var(--space-4);
+    gap: var(--space-1);
+    /* FASE 20 audit fix: at this width the strip holds far more controls
+       (board switcher, save indicator, ~10 actions, zoom) than fit on
+       screen at once, with nothing previously indicating there's more to
+       scroll to — Undo/Redo and Zoom in particular could scroll fully out
+       of view unnoticed. A static edge fade (not scroll-position-aware,
+       just a permanent "there's more here" hint, the same convention
+       horizontally-scrollable chip rows commonly use) needs no JS and
+       doesn't touch any child component. */
+    mask-image: linear-gradient(to right, transparent, black 14px, black calc(100% - 14px), transparent);
+    -webkit-mask-image: linear-gradient(to right, transparent, black 14px, black calc(100% - 14px), transparent);
+  }
+
+  .actionButton,
+  .buttonGroup {
+    flex-shrink: 0;
+  }
+}
+
+/* FASE 17: Mobile — the toolbar docks to the bottom of the viewport
+   instead of floating above the canvas at the top, matching "Canvas /
+   Bottom toolbar" — same 600px breakpoint CalendarPage/HomePage/LoginPage
+   already use for their own mobile layout. Still the same horizontally-
+   scrollable strip as tablet, just anchored differently; nothing hidden or
+   removed, everything stays reachable by swiping the strip. */
+@media (max-width: 600px) {
+  .toolbar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 500;
+    margin: 0;
+    border-radius: 0;
+    border: none;
+    background: var(--color-surface-variant);
+    border-top: 1px solid var(--color-border);
+    padding: var(--space-2);
+    box-shadow: 0 -4px 16px rgba(44, 66, 91, 0.12);
+  }
+}
+
+/* BLOQUE G (post-MVP): larger touch targets on a coarse (touch) pointer —
+   `pointer: coarse` targets the actual input mechanism, never screen
+   width, so a touch laptop at desktop width still gets this and a narrow
+   desktop browser window never does; "sin romper desktop" holds because
+   an actual mouse/trackpad always matches `pointer: fine` regardless of
+   viewport size. Visual size (icon, label) is untouched — only the
+   tappable area grows, via padding/min sizing, so the toolbar's own
+   layout/density doesn't visually change for touch users, it just
+   becomes easier to hit. */
+@media (pointer: coarse) {
+  .actionButton {
+    padding: 10px 14px;
+  }
+
+  .iconButton {
+    width: 40px;
+    height: 40px;
+  }
+}

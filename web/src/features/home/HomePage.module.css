@@ -77,7 +77,7 @@
 
   padding: 8px 10px;
 
-  border-radius: 9px;
+  border-radius: 16px;
 
   transition:
     background 160ms ease,
@@ -196,8 +196,6 @@
     0 6px 18px rgba(82, 112, 72, 0.08);
 }
 
-/* UX-009: replaces .dayIcon's plain checkmark with the hand-built
-   HomeIllustration (SVG, no photo/AI image — design-system.md §9). */
 .dayIllustration {
   width: 160px;
   height: 110px;
@@ -317,6 +315,7 @@
 
 /* =========================================================
    PROGRESS CARD
+   NO MODIFICAR
    ========================================================= */
 
 .progressCard {
@@ -444,16 +443,283 @@
 }
 
 /* =========================================================
-   ACTIVIDAD RECIENTE + ACCESOS RÁPIDOS
+   METRIC CARDS — DECORACIÓN VISUAL
+   No modifica el progressCard / DonutChart
+   ========================================================= */
+
+.metricsRow > *:not(.progressCard) {
+  position: relative;
+
+  overflow: hidden;
+
+  isolation: isolate;
+
+  min-width: 0;
+
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    border-color 180ms ease;
+}
+
+/* Halo principal */
+.metricsRow > *:not(.progressCard)::before {
+  content: '';
+
+  position: absolute;
+
+  width: 150px;
+  height: 150px;
+
+  right: -58px;
+  top: -68px;
+
+  border-radius: 50%;
+
+  pointer-events: none;
+
+  opacity: 0.9;
+
+  z-index: -1;
+
+  transition:
+    transform 260ms ease,
+    opacity 200ms ease;
+}
+
+/* Órbita secundaria */
+.metricsRow > *:not(.progressCard)::after {
+  content: '';
+
+  position: absolute;
+
+  width: 74px;
+  height: 74px;
+
+  right: 26px;
+  top: 26px;
+
+  border-radius: 50%;
+
+  border: 1px solid currentColor;
+
+  opacity: 0.06;
+
+  pointer-events: none;
+
+  z-index: -1;
+
+  transition:
+    transform 260ms ease,
+    opacity 200ms ease;
+}
+
+/* Hover */
+.metricsRow > *:not(.progressCard):hover {
+  transform: translateY(-3px);
+
+  box-shadow:
+    0 14px 34px rgba(44, 66, 91, 0.09);
+}
+
+.metricsRow > *:not(.progressCard):hover::before {
+  transform: scale(1.18);
+
+  opacity: 1;
+}
+
+.metricsRow > *:not(.progressCard):hover::after {
+  transform: scale(1.12);
+
+  opacity: 0.1;
+}
+
+/* =========================================================
+   TAREAS
+   ========================================================= */
+
+.metricsRow > *:nth-child(2)::before {
+  background:
+    radial-gradient(
+      circle at center,
+      rgba(44, 95, 140, 0.18),
+      rgba(44, 95, 140, 0.015) 70%
+    );
+}
+
+.metricsRow > *:nth-child(2)::after {
+  border-color: rgba(44, 95, 140, 0.35);
+}
+
+/* Patrón de pequeños puntos */
+.metricsRow > *:nth-child(2) {
+  background-image:
+    radial-gradient(
+      circle,
+      rgba(44, 95, 140, 0.075) 1px,
+      transparent 1.5px
+    );
+
+  background-size: 14px 14px;
+
+  background-position:
+    calc(100% - 18px) 18px;
+
+  background-repeat: no-repeat;
+}
+
+/* =========================================================
+   COMPARTIDOS
+   ========================================================= */
+
+.metricsRow > *:nth-child(3)::before {
+  background:
+    radial-gradient(
+      circle at center,
+      rgba(76, 125, 143, 0.18),
+      rgba(76, 125, 143, 0.015) 70%
+    );
+}
+
+.metricsRow > *:nth-child(3)::after {
+  width: 88px;
+  height: 88px;
+
+  border-color: rgba(76, 125, 143, 0.28);
+
+  opacity: 0.45;
+}
+
+/* Segunda órbita visual */
+.metricsRow > *:nth-child(3) {
+  background-image:
+    radial-gradient(
+      circle at calc(100% - 22px) 24px,
+      transparent 18px,
+      rgba(76, 125, 143, 0.06) 18px,
+      rgba(76, 125, 143, 0.06) 19px,
+      transparent 19px
+    );
+
+  background-repeat: no-repeat;
+}
+
+/* =========================================================
+   PRÓXIMOS EVENTOS
+   ========================================================= */
+
+.metricsRow > *:nth-child(4)::before {
+  background:
+    radial-gradient(
+      circle at center,
+      rgba(180, 123, 72, 0.20),
+      rgba(180, 123, 72, 0.015) 70%
+    );
+}
+
+.metricsRow > *:nth-child(4)::after {
+  width: 86px;
+  height: 86px;
+
+  border-color: rgba(180, 123, 72, 0.30);
+
+  opacity: 0.45;
+}
+
+/* Pequeños puntos terracota */
+.metricsRow > *:nth-child(4) {
+  background-image:
+    radial-gradient(
+      circle,
+      rgba(180, 123, 72, 0.10) 1px,
+      transparent 1.5px
+    );
+
+  background-size: 13px 13px;
+
+  background-position:
+    calc(100% - 17px) 17px;
+
+  background-repeat: no-repeat;
+}
+
+/* =========================================================
+   INDICADOR INFERIOR DE LAS METRIC CARDS
+   ========================================================= */
+
+.metricsRow > *:not(.progressCard) {
+  --metric-accent: var(--color-primary, #2c5f8c);
+}
+
+.metricsRow > *:nth-child(3) {
+  --metric-accent: var(--color-info, #6d8fa0);
+}
+
+.metricsRow > *:nth-child(4) {
+  --metric-accent: var(--color-terracotta, #b47b48);
+}
+
+.metricsRow > *:not(.progressCard) {
+  border-bottom:
+    2px solid
+    color-mix(
+      in srgb,
+      var(--metric-accent) 18%,
+      transparent
+    );
+}
+
+/* =========================================================
+   ACTIVIDAD RECIENTE + TUS PENDIENTES + ACCESOS RÁPIDOS
    ========================================================= */
 
 .quickRow {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+
+  grid-template-columns:
+    minmax(0, 1fr)
+    minmax(0, 1fr);
+
+  grid-template-rows:
+    auto
+    auto;
+
   gap: 16px;
+
+  align-items: start;
+}
+
+/* ---------------------------------------------------------
+   01 — ACTIVIDAD RECIENTE
+   --------------------------------------------------------- */
+
+.quickPanel:nth-child(1) {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+/* ---------------------------------------------------------
+   02 — TUS PENDIENTES
+   Ocupa las dos filas de la segunda columna.
+   --------------------------------------------------------- */
+
+.quickPanel:nth-child(2) {
+  grid-column: 2;
+  grid-row: 1 / 3;
+}
+
+/* ---------------------------------------------------------
+   03 — ACCESOS RÁPIDOS
+   --------------------------------------------------------- */
+
+.quickPanel:nth-child(3) {
+  grid-column: 1;
+  grid-row: 2;
 }
 
 .quickPanel {
+  align-self: start;
+
   padding: 22px;
 
   border-radius: 20px;
@@ -462,7 +728,8 @@
 
   border: 1px solid rgba(44, 66, 91, 0.06);
 
-  box-shadow: 0 7px 24px rgba(44, 66, 91, 0.05);
+  box-shadow:
+    0 7px 24px rgba(44, 66, 91, 0.05);
 
   box-sizing: border-box;
 }
@@ -470,17 +737,22 @@
 .activityList,
 .quickList {
   list-style: none;
+
   margin: 0;
   padding: 0;
 
   display: flex;
+
   flex-direction: column;
+
   gap: 4px;
 }
 
 .activityItem {
   display: flex;
+
   align-items: flex-start;
+
   gap: 12px;
 
   padding: 10px 4px;
@@ -489,87 +761,112 @@
 .activityIcon {
   width: 30px;
   height: 30px;
+
   flex-shrink: 0;
 
   display: flex;
+
   align-items: center;
   justify-content: center;
 
   border-radius: 10px;
 
   background: var(--color-primary-container);
+
   color: var(--color-primary);
 }
 
 .activityText {
   display: flex;
+
   flex-direction: column;
+
   gap: 2px;
 
   min-width: 0;
 
   color: var(--color-text);
+
   font-size: 0.9rem;
+
   line-height: 1.4;
 }
 
 .activityTime {
   color: var(--color-text-secondary);
+
   font-size: 0.78rem;
 }
 
 .quickLink {
   display: flex;
+
   align-items: center;
+
   gap: 12px;
+
   width: 100%;
 
   padding: 10px 8px;
 
   border: none;
+
   border-radius: 12px;
+
   background: transparent;
 
   min-height: 0;
 
   font: inherit;
+
   text-align: left;
+
   cursor: pointer;
 
-  transition: background 160ms ease, transform 160ms ease;
+  transition:
+    background 160ms ease,
+    transform 160ms ease;
 }
 
 .quickLink:hover {
   background: rgba(44, 95, 140, 0.06);
+
   transform: translateX(2px);
 }
 
 .quickLinkIcon {
   width: 30px;
   height: 30px;
+
   flex-shrink: 0;
 
   display: flex;
+
   align-items: center;
   justify-content: center;
 
   border-radius: 10px;
 
   background: var(--color-terracotta-container);
+
   color: var(--color-terracotta-text);
 }
 
 .quickLinkLabel {
   flex: 1;
+
   min-width: 0;
 
   color: var(--color-text);
+
   font-size: 0.9rem;
+
   font-weight: 500;
 }
 
 .quickChevron {
   flex-shrink: 0;
+
   color: var(--color-text-secondary);
 }
 
@@ -591,6 +888,16 @@
 @media (max-width: 860px) {
   .quickRow {
     grid-template-columns: 1fr;
+
+    grid-template-rows: auto;
+  }
+
+  .quickPanel:nth-child(1),
+  .quickPanel:nth-child(2),
+  .quickPanel:nth-child(3) {
+    grid-column: auto;
+
+    grid-row: auto;
   }
 }
 
@@ -669,5 +976,341 @@
 
   .progressContent {
     gap: 15px;
+  }
+}
+
+/* =========================================================
+   UX-014 — VISUAL THEME SYSTEM
+
+   EDITORIAL
+   ========================================================= */
+
+:global(.theme-editorial) .page {
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.35'/%3E%3C/svg%3E");
+
+  background-blend-mode: multiply;
+}
+
+:global(.theme-editorial) .eyebrow {
+  color: var(--color-terracotta-text);
+}
+
+:global(.theme-editorial) .sectionHeading h2,
+:global(.theme-editorial) .daySummary h2 {
+  font-family: var(--font-serif);
+
+  font-style: italic;
+
+  font-weight: 500;
+
+  color: var(--color-text);
+}
+
+:global(.theme-editorial) .daySummary,
+:global(.theme-editorial) .progressCard,
+:global(.theme-editorial) .quickPanel,
+:global(.theme-editorial) .emptyState {
+  background: var(--color-surface-variant);
+
+  border: none;
+
+  border-radius: 16px;
+
+  box-shadow: var(--shadow-card);
+}
+
+:global(.theme-editorial) .daySummary::after {
+  background: rgba(163, 74, 58, 0.08);
+}
+
+:global(.theme-editorial) .textButton {
+  color: var(--color-primary);
+}
+
+:global(.theme-editorial) .activityIcon,
+:global(.theme-editorial) .quickLinkIcon,
+:global(.theme-editorial) .emptyIcon {
+  border-radius: 16px;
+}
+
+/* ---------- PREMIUM MINIMAL ---------- */
+
+:global(.theme-minimal) .page {
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 39px,
+      rgba(35, 66, 95, 0.04) 39px,
+      rgba(35, 66, 95, 0.04) 40px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 39px,
+      rgba(35, 66, 95, 0.04) 39px,
+      rgba(35, 66, 95, 0.04) 40px
+    );
+}
+
+:global(.theme-minimal) .eyebrow {
+  color: var(--color-text-secondary);
+
+  letter-spacing: 0.18em;
+}
+
+:global(.theme-minimal) .sectionHeading h2 {
+  font-family: var(--font-sans);
+
+  font-weight: 300;
+
+  font-size: 2.1rem;
+
+  color: var(--color-text);
+}
+
+:global(.theme-minimal) .daySummary h2 {
+  font-family: var(--font-sans);
+
+  font-weight: 300;
+
+  color: var(--color-text);
+}
+
+:global(.theme-minimal) .daySummary {
+  background: var(--color-surface-variant);
+
+  border: 1px solid var(--color-border);
+
+  border-radius: 16px;
+
+  box-shadow: none;
+}
+
+:global(.theme-minimal) .daySummary::after {
+  display: none;
+}
+
+:global(.theme-minimal) .progressCard,
+:global(.theme-minimal) .quickPanel,
+:global(.theme-minimal) .emptyState {
+  background: transparent;
+
+  border: 1px solid var(--color-border);
+
+  border-radius: 16px;
+
+  box-shadow: none;
+}
+
+:global(.theme-minimal) .textButton {
+  color: var(--color-primary);
+
+  border-radius: 16px;
+}
+
+:global(.theme-minimal) .activityIcon,
+:global(.theme-minimal) .quickLinkIcon,
+:global(.theme-minimal) .emptyIcon,
+:global(.theme-minimal) .dayIcon {
+  border-radius: 16px;
+
+  background: var(--color-surface);
+
+  color: var(--color-primary);
+}
+
+/* ---------- MODERN PRODUCTIVITY ---------- */
+
+:global(.theme-productivity) .eyebrow {
+  color: var(--color-terracotta-text);
+}
+
+:global(.theme-productivity) .sectionHeading h2,
+:global(.theme-productivity) .daySummary h2 {
+  font-family: var(--font-sans);
+
+  font-weight: 800;
+
+  letter-spacing: -0.01em;
+
+  color: var(--color-text);
+}
+
+:global(.theme-productivity) .daySummary,
+:global(.theme-productivity) .progressCard,
+:global(.theme-productivity) .quickPanel,
+:global(.theme-productivity) .emptyState {
+  background: var(--color-surface-variant);
+
+  border: 1px solid var(--color-border);
+
+  box-shadow: var(--shadow-card);
+
+  border-radius: 10px;
+}
+
+:global(.theme-productivity) .daySummary {
+  border-top: 3px solid var(--color-primary);
+}
+
+:global(.theme-productivity) .progressCard {
+  border-top: 3px solid var(--color-terracotta);
+}
+
+/* Bento metrics */
+:global(.theme-productivity) .metricsRow {
+  display: grid;
+
+  grid-template-columns:
+    repeat(4, minmax(0, 1fr));
+
+  grid-template-rows:
+    repeat(2, minmax(90px, auto));
+
+  gap: 14px;
+}
+
+:global(.theme-productivity) .metricsRow > *:nth-child(1) {
+  grid-column: 1 / 3;
+  grid-row: 1 / 3;
+}
+
+:global(.theme-productivity) .metricsRow > *:nth-child(2) {
+  grid-column: 3 / 5;
+  grid-row: 1;
+}
+
+:global(.theme-productivity) .metricsRow > *:nth-child(3) {
+  grid-column: 3 / 4;
+  grid-row: 2;
+}
+
+:global(.theme-productivity) .metricsRow > *:nth-child(4) {
+  grid-column: 4 / 5;
+  grid-row: 2;
+}
+
+/*
+ * Se mantiene el layout 2x2 de quickRow.
+ */
+:global(.theme-productivity) .quickRow {
+  grid-template-columns:
+    minmax(0, 1fr)
+    minmax(0, 1fr);
+
+  grid-template-rows:
+    auto
+    auto;
+}
+
+:global(.theme-productivity) .activityIcon,
+:global(.theme-productivity) .quickLinkIcon,
+:global(.theme-productivity) .emptyIcon {
+  border-radius: 16px;
+}
+
+/* ---------- ORGANIC / HUMAN ---------- */
+
+:global(.theme-organic) .eyebrow {
+  color: var(--color-terracotta-text);
+}
+
+:global(.theme-organic) .sectionHeading h2,
+:global(.theme-organic) .daySummary h2 {
+  font-family: var(--font-serif);
+
+  font-weight: 500;
+
+  color: var(--color-text);
+}
+
+:global(.theme-organic) .daySummary {
+  background: var(--color-surface-variant);
+
+  border: none;
+
+  border-radius: 28px;
+
+  box-shadow: var(--shadow-card);
+}
+
+:global(.theme-organic) .daySummary::after {
+  background: rgba(91, 122, 94, 0.12);
+}
+
+:global(.theme-organic) .progressCard,
+:global(.theme-organic) .quickPanel {
+  background: var(--color-surface-variant);
+
+  border: none;
+
+  border-radius: 24px 24px 24px 6px;
+
+  box-shadow: var(--shadow-card);
+}
+
+:global(.theme-organic) .emptyState {
+  background: var(--color-surface-variant);
+
+  border: none;
+
+  border-radius: 999px;
+
+  box-shadow: var(--shadow-card);
+}
+
+:global(.theme-organic) .textButton {
+  color: var(--color-primary);
+
+  border-radius: 999px;
+}
+
+:global(.theme-organic) .activityIcon,
+:global(.theme-organic) .quickLinkIcon,
+:global(.theme-organic) .emptyIcon,
+:global(.theme-organic) .dayIcon {
+  border-radius: 50%;
+}
+
+:global(.theme-organic) .quickLink:hover {
+  transform: scale(1.01);
+}
+
+/* =========================================================
+   MODERN PRODUCTIVITY — RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 1100px) {
+  :global(.theme-productivity) .metricsRow {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+
+    grid-template-rows: auto;
+  }
+
+  :global(.theme-productivity) .metricsRow > *:nth-child(1) {
+    grid-column: 1 / 3;
+
+    grid-row: auto;
+  }
+
+  :global(.theme-productivity) .metricsRow > *:nth-child(2) {
+    grid-column: 1;
+
+    grid-row: auto;
+  }
+
+  :global(.theme-productivity) .metricsRow > *:nth-child(3) {
+    grid-column: 2;
+
+    grid-row: auto;
+  }
+
+  :global(.theme-productivity) .metricsRow > *:nth-child(4) {
+    grid-column: 1 / 3;
+
+    grid-row: auto;
   }
 }

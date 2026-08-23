@@ -16,6 +16,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 /**
  * Uniform error handling (AC-006, NFR-006): every error response uses the
@@ -70,6 +71,16 @@ public class GlobalExceptionHandler {
     @ExceptionHandler({MethodArgumentNotValidException.class, ConstraintViolationException.class})
     public ResponseEntity<ErrorResponse> handleValidation(Exception ex) {
         return build(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "One or more fields are invalid.");
+    }
+
+    /** BLOQUE B: a multipart request over `spring.servlet.multipart.max-file-size`
+        (application.yml) throws this before VisionBoardImageController/
+        VisionBoardImageService's own, lower, domain-level size check ever
+        runs — without this handler it falls through to the generic 500
+        below, which is wrong for something this ordinary. */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ErrorResponse> handleMaxUploadSizeExceeded(MaxUploadSizeExceededException ex) {
+        return build(HttpStatus.PAYLOAD_TOO_LARGE, "FILE_TOO_LARGE", "The uploaded file is too large.");
     }
 
     @ExceptionHandler(Exception.class)

@@ -40,6 +40,13 @@ public class User {
     @Column(name = "purge_at")
     private Instant purgeAt;
 
+    /** ADR-015/FR-014/FR-016: independent, only-additive booleans — "activar" a mode, never "desactivar" (open TBD in ADR-015). */
+    @Column(name = "personal_enabled", nullable = false)
+    private boolean personalEnabled = false;
+
+    @Column(name = "laboral_enabled", nullable = false)
+    private boolean laboralEnabled = false;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -87,6 +94,14 @@ public class User {
         return purgeAt;
     }
 
+    public boolean isPersonalEnabled() {
+        return personalEnabled;
+    }
+
+    public boolean isLaboralEnabled() {
+        return laboralEnabled;
+    }
+
     public Instant getCreatedAt() {
         return createdAt;
     }
@@ -109,6 +124,25 @@ public class User {
         if (changed) {
             this.updatedAt = Instant.now();
         }
+    }
+
+    /**
+     * UC-15/FR-016/ADR-015: enables a mode — only-additive by design, there
+     * is no matching "disable" (ADR-015 lists this as an open, explicitly
+     * non-blocking TBD; not implemented here since it isn't decided). Not
+     * enum-typed on purpose: "PERSONAL"/"LABORAL" are validated once at the
+     * API boundary (see user.api.dto.EnableModeRequest), matching how
+     * Reminder.status/ReminderContext are handled elsewhere in this
+     * codebase — a domain-level IllegalArgumentException here is a safety
+     * net, not the primary validation.
+     */
+    public void enableMode(String mode) {
+        switch (mode) {
+            case "PERSONAL" -> this.personalEnabled = true;
+            case "LABORAL" -> this.laboralEnabled = true;
+            default -> throw new IllegalArgumentException("Unknown mode: " + mode);
+        }
+        this.updatedAt = Instant.now();
     }
 
     /** UC-13/AC-015/DEC-015: 30-day grace period before purge. */

@@ -210,3 +210,123 @@ Corregido auto-hospedando **Fraunces** vía `@fontsource/fraunces` (`main.tsx`, 
 ### Qué no se tocó en esta pasada
 
 El tema de Keycloak (`infra/keycloak/themes/vida-cotidiana-web/`, homologado visualmente en una tarea previa el mismo día) usa sus propios valores hex — no se resincronizó con esta segunda ronda de correcciones de contraste porque el pedido de esta tarea fue específicamente "centralizar en un archivo y que lo reutilicen los componentes" de la app React, no el theme de Keycloak (server-rendered, fuera del build de Vite). Sus valores ya pasaban AA de forma independiente cuando se verificaron. Sincronizarlo exactamente con esta paleta final es un ajuste menor pendiente, no urgente.
+
+## 10. UX-011 — React Aria Components + Motion (Fase 0 + Fase 1: Calendario)
+
+**DECISION (usuario, 2026-08-17).** Tras dos rondas de evaluación explícita (ver `05-v2-plan.md`), se adoptó **React Aria Components** (primitivos headless/accesibles) + **Motion** (antes Framer Motion) como base de interacción/microinteracción de toda la Web — ambos MIT/Apache-2.0, sin capa de pago. Regla no negociable del usuario: **"no animaciones por animar"** — cada animación debe orientar, comunicar cambio de estado o dar continuidad visual, nunca decorar. **Alcance de esta pasada: solo Calendario (Fase 1), solo Web.** El resto de la app y otros módulos (ShareDialog, etc.) quedan para fases siguientes, módulo por módulo, según lo pedido explícitamente.
+
+**Por qué Calendario primero:** validado contra un gap real, no una preferencia estética — el grid de días anterior (botones HTML sueltos, sin relación de grid entre sí) no tenía navegación real por teclado entre celdas (flechas, Home/End, PageUp/PageDown). El `<Calendar>` de React Aria implementa el patrón ARIA grid completo de fábrica; verificado con un test e2e real (`e2e/calendar.spec.ts` → *"arrow keys move focus between day cells in the accessible grid"*) que ArrowRight/ArrowDown mueven el foco a la celda correcta, algo que antes no existía.
+
+**Cero cambio de apariencia impuesto por las librerías:** React Aria es headless (sin CSS propio) y Motion solo anima propiedades que el propio `CalendarView.module.css` ya definía — la paleta, tipografía y forma de `UX-008` quedan intactas. La única diferencia estructural real: `<CalendarGrid>` renderiza una `<table>` (patrón ARIA grid accesible: `<thead>/<tbody>/<tr>/<td>`) en vez del `display:grid` anterior — el elemento interactivo real es un `<div>` con `tabindex` dentro de cada `<td>` (no el `<td>` mismo), y todos los estados visuales (hoy/seleccionado/hover/fuera-de-mes/foco) se manejan vía atributos `[data-*]` que React Aria expone, no clases calculadas a mano.
+
+**Corrección real, no buscada:** el encabezado de días de la semana usaba un array fijo `['L','M','M','J','V','S','D']` con una ambigüedad real (martes y miércoles ambos "M"). `weekdayStyle="narrow"` de React Aria usa los datos CLDR reales de `es-ES`, que sí distinguen miércoles como "X" — la ambigüedad desapareció como efecto de usar datos reales de internacionalización en vez de un array hardcodeado.
+
+### Motion Design System — categorías nombradas (`web/src/core/motion/tokens.ts`)
+
+Para que la animación no quede a criterio ad-hoc de cada desarrollador, per pedido explícito del usuario:
+
+| Token | Transición | Uso real (no especulativo) |
+|---|---|---|
+| `quick` | 150ms ease-out | Tap/press, checkbox |
+| `base` | spring 380/32 | Entrada/salida de contenido — panel de día en Calendario |
+| `smooth` | spring 300/30 | Apertura/cierre de diálogos/popovers (fases siguientes) |
+| `spatial` | spring 260/28 (la más larga a propósito) | Cambio de mes en Calendario — debe sentirse como desplazamiento real, no un fade genérico |
+| `feedbackSuccess` | spring 500/25 | Confirmación de tarea completada (fases siguientes) |
+| `feedbackError` | 400ms shake, no-spring | Error de validación (fases siguientes) |
+
+Reglas fijas (aplicadas en cada punto de uso, no en los tipos): hover/foco se quedan en CSS puro, nunca Motion; una salida siempre es más rápida/rígida que su entrada correspondiente; `prefers-reduced-motion` se resuelve una sola vez a nivel global — `<MotionConfig reducedMotion="user">` envuelve `<App />` en `main.tsx` — ningún componente lo comprueba individualmente.
+
+### Qué se implementó en Calendario (Fase 1)
+
+- **Navegación real por teclado** entre celdas del grid (el gap que justificó empezar aquí).
+- **Transición espacial de mes**, consciente de dirección (izquierda/derecha según se avance o retroceda), disparada por los botones, por teclado (cruce de mes en los bordes del grid) y por **gesto de swipe** en móvil (`drag="x"` sobre el grid, con umbral de 60px) — los tres caminos usan el mismo estado de foco controlado, no lógica duplicada.
+- **Continuidad día → panel**: al seleccionar un día distinto, el contenido del panel de detalle (título + items o estado vacío) hace un fade+shift sutil (`base`) en vez de un salto brusco — el formulario de alta rápida se queda fuera de esa animación a propósito (no es "contenido del día", es una acción siempre presente).
+- Botón "Hoy" y navegación prev/next simplificados: React Aria maneja el estado de mes/foco internamente (controlado vía `focusedValue`/`onFocusChange`), así que `CalendarPage.tsx` ya no necesita `displayedMonth`/`shiftMonth`/`goToday` propios — menos estado duplicado, no una regresión de funcionalidad.
+
+### Verificación real
+
+`npx tsc --noEmit`, `npm run build`, `npm run lint` limpios. Suite completa de Playwright (10/10, `--reporter=line`, 1 worker) pasando, incluyendo el nuevo test de navegación por teclado. Capturas reales en `Documentacion/02-ux-ui/screenshots/` (`web-calendar-ux011-*`).
+
+### Fase 2 — ShareDialog: de panel inline a Popover real
+
+**Análisis real antes de tocar código:** pese a llamarse "ShareDialog", el componente (`src/features/sharing/ShareDialog.tsx`) no era un diálogo real — era un `<div>` que se insertaba en el flujo de la lista al hacer clic en "Share" (sin overlay, sin backdrop). Inspeccionado el código antes de decidir cómo migrarlo (regla del usuario: "no migrar porque sí"), se identificaron **3 gaps reales, no cosméticos**: (1) sin focus trap — el foco no entraba al panel al abrirlo; (2) sin cierre con Escape; (3) sin semántica `role="dialog"` real ni retorno de foco al botón "Share" al cerrar. Estos tres son exactamente el tipo de "complejidad de interacción difícil de construir a mano correctamente" que el usuario definió como criterio válido para usar React Aria.
+
+**Decisión de diseño explícita, no heredada del plan genérico de Fase 2:** el plan original decía "Dialog/Modal", pero el comportamiento real existente era de panel flotante/desplegable, no de modal bloqueante con backdrop — convertirlo en un modal centrado habría sido un cambio visual/de interacción mayor al pedido. Se usó en su lugar `DialogTrigger` + `Popover` (no `Modal`/`ModalOverlay`) — no bloqueante, anclado al botón "Share", con la misma apariencia de panel flotante que ya tenía, ahora con semántica y comportamiento de diálogo reales.
+
+**Integración real Motion + React Aria, verificada, no asumida:** React Aria detecta el fin de una animación de salida vía `Element.getAnimations()` sobre el nodo DOM real del `Popover` — una API estándar del navegador que también detecta animaciones iniciadas por Motion (usa Web Animations API de forma nativa para propiedades `transform`/`opacity`, exactamente las que se animan aquí). Se usó `motion.create(Popover)` para que Motion anime el nodo del propio `Popover` (no un `motion.div` anidado, que `getAnimations()` no vería) — sin `AnimatePresence`, el `animate` de Motion simplemente apunta al estado `isOpen` controlado por la propia app, y React Aria decide cuándo desmontar de verdad una vez que esa animación real termina. **Verificado, no solo razonado:** un test real confirma que tras cerrar (Escape/botón/clic afuera) el panel desaparece por completo del DOM, sin quedar "atascado" a medio cerrar.
+
+**Simplificación de estado como efecto secundario correcto, no un objetivo en sí:** `RemindersPage.tsx` tenía `sharingReminderId`/`onShareToggle` para coordinar qué tarjeta mostraba su panel — ya no hace falta, cada `ShareDialog` es autónomo (`DialogTrigger` controlado con su propio `isOpen`), así que ese estado se eliminó sin pérdida de funcionalidad, igual que `displayedMonth`/`shiftMonth`/`goToday` en Calendario (Fase 1).
+
+**Mejora real de usabilidad, encontrada haciendo este trabajo, no buscada aparte:** el panel anterior no tenía botón de cierre — la única forma de cerrarlo era volver a pulsar "Share". Se agregó un botón "×" real (usa el `close()` que `Dialog` expone a sus hijos), consistente con lo que cualquier diálogo/popover necesita y ahora sí tiene.
+
+**Reposicionamiento automático, gratis por usar `Popover` real:** al flotar sobre el contenido (antes vivía en el flujo normal de la lista), React Aria calcula colisión con el viewport y cambia de "abajo" a "arriba" del botón cuando no hay espacio — confirmado visualmente en la captura real (`web-sharedialog-ux011-open-after.png`, el panel del primer recordatorio de la lista se abre hacia arriba porque no cabía hacia abajo).
+
+**1 ajuste real de test, no un bug de producto:** al portar a un `Popover` real (que se renderiza en un portal a `<body>`, comportamiento correcto — evita que quede recortado por el `overflow` de algún contenedor ancestro), el diálogo dejó de estar dentro del `<li>` de la fila en el DOM. `sharing.spec.ts` buscaba el diálogo con `row.locator(...)`; corregido a `page.locator(...)` (solo puede haber un panel abierto a la vez, sin ambigüedad).
+
+**Verificado real:** `npx tsc --noEmit`, `npm run build`, `npm run lint` limpios. Suite completa de Playwright **10/10 en verde**, más un test nuevo y permanente (`sharing.spec.ts`, "share popover: focus moves in on open, Escape closes it, focus returns to the trigger") que confirma los 3 gaps reales quedaron cerrados — no solo que el código compila. Captura real: `Documentacion/02-ux-ui/screenshots/web-sharedialog-ux011-open-after.png`.
+
+### Fase 3 — Filtro de categoría en Inventario: de botones sueltos a `ToggleButtonGroup` real
+
+**Análisis real, mismo método que las fases anteriores:** un subagente exploró todo `src/` buscando otros candidatos reales (no solo Inventario) antes de decidir — resultado honesto: el resto de la superficie interactiva de la app (Documentos/Familia/Mantenimiento/Suscripciones/Garantías) son listas mock sin interacción real, y todos los botones existentes ya son `<button>` reales con foco/teclado correctos. El único gap real y citable encontrado: `FilterChip` (`core/ui/components/FilterChip.tsx`) — N botones `aria-pressed` independientes dentro de un `<div>` sin rol de grupo ni navegación por flechas entre ellos.
+
+**Resultado real, mejor que lo asumido inicialmente:** `ToggleButtonGroup` con `selectionMode="single"` no renderiza `role="group"`/`role="button"` (lo que se asumió al planear) sino `role="radiogroup"`/`role="radio"` — semánticamente más preciso para "exactamente una opción entre N mutuamente excluyentes", confirmado real revisando el DOM, no supuesto de la documentación. `disallowEmptySelection` porque "Todos" es en sí mismo siempre una opción seleccionable, nunca un estado de "nada elegido".
+
+**Único consumidor, blast radius mínimo:** `FilterChip` solo se usaba en `InventoryPage.tsx` (confirmado por grep antes de tocarlo) — cero riesgo de romper otro módulo.
+
+**Verificado real:** `tsc`/`build`/`lint` limpios; test nuevo y permanente (`e2e/inventory.spec.ts`) confirma que el filtrado real sigue funcionando (mismos datos mock de siempre) y que la navegación por flechas entre chips —el gap concreto— ahora existe. Captura real: `Documentacion/02-ux-ui/screenshots/web-inventory-ux011-filter-after.png` (idéntica visualmente a antes — cero cambio de apariencia).
+
+### Fase 4 — Confirmación real antes de revocar acceso de un colaborador activo
+
+**Alcance deliberadamente angosto, decisión explícita:** el barrido de Fase 3 no encontró ningún otro componente hecho a mano con semántica rota que migrar — el único gap real restante identificado fue de otro tipo: acciones destructivas sin ningún paso de confirmación (`ShareDialog.tsx`: Revoke/Cancel; `InvitationsPage.tsx`: Accept/Reject). Se decidió **no** agregar confirmación a las cuatro por igual — eso habría sido inventar fricción no pedida en toda la app. Se agregó **solo** para "Revoke" (`ShareDialog.tsx`) — la única con una consecuencia real e inmediata sobre el acceso de *otra persona*; "Cancel" (invitación aún pendiente) y Accept/Reject quedan de un solo clic a propósito, documentado inline en el código.
+
+**`Modal` (bloqueante), no `Popover` — decisión de diseño correcta para este caso, a diferencia de Fase 2:** una confirmación debe interrumpir; el panel de compartir no debía. `role="alertdialog"` real.
+
+**Bug real encontrado y corregido durante la verificación visual, no solo funcional:** el patrón `motion.create(Modal)` (igual al usado con éxito en `Popover`, Fase 2) dejaba el diálogo de confirmación **funcionalmente interactivo pero visualmente invisible** — atascado en sus valores `initial` (`opacity:0`, `scale:0.95`) para siempre. Un test que solo revisara presencia en el DOM (`toBeVisible()` de Playwright no chequea `opacity`) lo habría dado por bueno — se detectó únicamente **inspeccionando el estilo computado real** (`getComputedStyle`) tras el "cierre exitoso" de un test funcional que sí pasaba. Causa real: a diferencia de `Popover`, `Modal` de React Aria trackea animaciones de entrada/salida por separado sobre dos refs distintos (backdrop y contenido) y su propio ciclo de re-render interno pisaba el estilo en línea que Motion acababa de aplicar. **Corrección:** animar el `Dialog` interno (`motion.create(Dialog)`) en vez de `Modal` — `Dialog` no tiene esa maquinaria de animación propia compitiendo, es un objetivo seguro para Motion; el backdrop (`Modal`) se dejó sin animar (aparece/desaparece al instante, aceptable — lo que necesitaba leerse como intencional era el panel, no el fondo). **Segundo bug real, mismo origen (verificación visual, no solo funcional):** el backdrop se renderizaba *detrás* del `Popover` de `ShareDialog` (`z-index:100000`, real, puesto por React Aria) porque el `z-index` propio era solo `100` — subido a `100001`, con el valor real de React Aria documentado inline como referencia, no un número arbitrario.
+
+**Verificación real de la corrección, no solo re-ejecutar el test que ya pasaba:** se comprobó `getComputedStyle(...).opacity` real (>0.9 tras asentarse) y que el panel es realmente el elemento más al frente en su propia posición (`document.elementFromPoint`) — no solo que el rol ARIA está presente. Flujo completo real contra el backend real: crear recordatorio → invitar → (aceptar simulado a nivel de BD con las mismas dos escrituras que hace el endpoint real de aceptar, documentado en el test — la contraseña real de Keycloak de `userb` no se conoce en este entorno y no se intentó adivinar para no disparar la protección real de fuerza bruta) → Cancelar dentro del diálogo deja el share intacto → confirmar Revoke sí llama al backend real y la fila desaparece, confirmado además consultando Postgres directamente (`status = 'REVOKED'`).
+
+**Sin test automatizado permanente para este flujo específico, documentado como limitación real, no ocultado:** verificar el camino completo requiere un colaborador con estado `ACTIVE` real, que solo se logra aceptando una invitación — no hay forma de automatizarlo sin la contraseña real de `userb` o un mecanismo de datos de prueba con fixtures (no existe todavía). Verificado real y a fondo en esta sesión (arriba); un test end-to-end permanente para este camino específico queda como TBD en `05-v2-plan.md`.
+
+**Verificado real:** `tsc`/`build`/`lint` limpios; suite completa de Playwright reverificada en verde tras ambas correcciones. Captura real (post-corrección, diálogo genuinamente visible por encima del panel): `Documentacion/02-ux-ui/screenshots/web-sharedialog-ux011-revoke-confirm-after.png`.
+
+## 11. UX-012 — Navegación Personal/Laboral (ADR-015): paleta Laboral
+
+**DECISION (Product Owner, ADR-015).** El modo Laboral necesita distinguirse visualmente del modo Personal (que reutiliza la paleta cálida/terracota existente de `UX-008` sin cambios) — el Product Owner referenció un navy `#1E3F5C` como base, más un acento verde "foco" profesional. Los tokens semánticos (`success`/`warning`/`info`/`error`) se quedan compartidos entre ambos modos a propósito: una tarea completada es verde sin importar en qué modo se creó — solo los roles "de marca" (`primary`/`surface`/`text`/`border`) tienen versión Laboral propia.
+
+### Paleta — `--color-laboral-*` (`web/src/index.css`)
+
+| Token | Valor | Uso | Contraste real (WCAG 2.1, mismo método de luminancia relativa que §9/ACC-001) |
+|---|---|---|---|
+| `--color-laboral-primary` | `#1E3F5C` | Acción primaria, nav activo, foco | `--color-laboral-on-primary` encima: **10.93:1** |
+| `--color-laboral-primary-container` | `#DCE6EC` | Fondo de chip/ítem activo de baja énfasis | `--color-laboral-primary` encima: **8.63:1** |
+| `--color-laboral-on-primary` | `#FFFFFF` | Texto/ícono sobre `-primary` | (ver arriba) |
+| `--color-laboral-accent` | `#2F6B4F` | Acento "foco" — anillo de color por origen de modo en el Calendario general (`FR-017`), no reemplaza ningún estado semántico | Sobre `-accent-container`: **5.07:1**; sobre `-surface`: **5.43:1** |
+| `--color-laboral-accent-container` | `#DCEAE2` | Fondo de baja énfasis para el acento | (ver arriba) |
+| `--color-laboral-surface` | `#EAEFF2` | Fondo de página/sidebar en modo Laboral | `--color-laboral-text` encima: **11.53:1** |
+| `--color-laboral-surface-variant` | `#F7FAFB` | Fondo de card/superficie elevada | `--color-laboral-text` encima: **12.73:1** |
+| `--color-laboral-border` | `#5B6B78` | Bordes/divisores | Sobre `-surface`: **4.75:1** (pasa como texto — usado también en iconografía fina) |
+| `--color-laboral-text` | `#20313F` | Texto principal | (ver arriba) |
+| `--color-laboral-text-secondary` | `#4C5C68` | Texto secundario/metadatos | Sobre `-surface`: **5.97:1** |
+
+Los 8 pares con implicación de texto/AT pasan **4.5:1** (texto normal); todos superan cómodamente 3:1 (texto grande/UI no textual). Ningún par se dejó sin verificar antes de fijar el valor final — a diferencia del hallazgo real de `UX-002` (10 pares nunca verificados antes de esa auditoría), este juego de tokens nació ya verificado.
+
+### Mecanismo de aplicación — remapeo de custom properties, no CSS por componente
+
+`.laboral-theme` (`index.css`, aplicada a la raíz `.shell` de `AppShell` solo cuando `activeMode === 'LABORAL'`, ver `AppShell.tsx`) redefine los **mismos nombres genéricos** (`--color-primary`, `--color-primary-container`, `--color-on-primary`, `--color-surface`, `--color-surface-variant`, `--color-border`, `--color-text`, `--color-text-secondary`) para apuntar al juego `--color-laboral-*`. Como cada `.module.css` de la app ya lee exclusivamente `var(--color-*)` (inventario confirmado en `§9`), todo componente descendiente (cards, botones, inputs, nav, checkboxes) se re-tematiza automáticamente sin ningún cambio a nivel de componente — el mismo patrón, aplicado a un caso de "modo" en vez de "tema claro/oscuro".
+
+**Bug real encontrado y corregido durante la integración de este bloque a un solo árbol** (no en el desarrollo aislado): `.modePill:hover` (2 clases, especificidad 0,2,0) superaba a `.modePillActive` (1 clase, 0,1,0) — pasar el mouse sobre el pill de modo ya activo devolvía su color de texto a `--color-text` sobre el fondo `--color-primary`, **1.53:1** real (confirmado con axe-core), muy por debajo de 4.5:1. Corregido con una regla `.modePillActive:hover` explícita que mantiene `--color-on-primary`. Encontrado por el mismo mecanismo que los hallazgos de `ACC-001`: escaneo axe-core real contra la pantalla ya renderizada, no una revisión visual.
+
+## 12. UX-014 — Módulo Laboral: vocabulario adaptable por perfil, mismo sistema visual (ADR-016)
+
+**RECOMMENDATION, no una decisión de negocio nueva.** El Módulo Laboral (`22-decision-log.md` ADR-016) no introduce ningún token, color ni componente nuevo — reutiliza íntegramente la paleta `--color-laboral-*` y el fondo `notebook-bg` ya definidos en `§11` (UX-012). Lo único nuevo es una capa de **vocabulario de presentación**, resuelta 100% en el cliente:
+
+| Concepto interno (esquema, igual para todos) | Consultor tecnológico | Arquitecto | Abogado | Vendedor |
+|---|---|---|---|---|
+| `PROJECT` | "Proyecto" | "Obra" | "Caso" | "Oportunidad" |
+| `PERSON` | "Persona" | "Contacto" | "Persona" | "Prospecto" |
+
+Este mapeo vive en el cliente (una tabla de strings por perfil, sin lógica condicional de negocio) y no afecta el esquema de datos ni la API — `PROJECT`/`PERSON` son las mismas tablas para cualquier perfil (ver ADR-016(d)). Un perfil puede además mostrar un elemento contextual opcional sin agregar un módulo nuevo al menú: por ejemplo, el perfil "Vendedor" muestra una etiqueta de etapa sobre un `PROJECT` (`status`, ya existente, sin columna nueva) a modo de "pipeline ligero"; el perfil "Arquitecto" resalta el campo `REMINDER.location` de una reunión. Ninguno de los dos es un componente nuevo — son variaciones de presentación sobre campos que ya existen.
+
+**Prototipo de referencia (no autoritativo, solo para validar navegación):** un artefacto navegable construido con estos mismos tokens (paleta Laboral, Inter/Fraunces, `notebook-bg`) demostró la arquitectura de información de 7 secciones núcleo (Hoy, Agenda, Tareas, Personas, Proyectos, Seguimientos, Inbox) y los 5 flujos principales — ver `34-laboral-module-proposal.md` para el enlace y el detalle. El prototipo no es código de producto ni fija ningún componente; solo valida navegación y relaciones entre entidades.
+
+**Verificado real:** `e2e/mode-navigation.spec.ts` confirma con `getComputedStyle` real (no solo la presencia de la clase `laboral-theme`) que `--color-laboral-primary` resuelve a `#1e3f5c` y que el `background-color` computado del logo-mark (que usa `--color-primary`) es literalmente `rgb(30, 63, 92)` en una pantalla Laboral — la cascada de custom properties funciona de extremo a extremo, no solo en el token declarado. `e2e/accessibility.spec.ts` (axe-core, WCAG 2.1 A/AA) en verde sobre las pantallas de modo Laboral tras la corrección de `.modePillActive:hover`.

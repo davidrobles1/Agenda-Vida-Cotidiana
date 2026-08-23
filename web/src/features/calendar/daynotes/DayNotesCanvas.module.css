@@ -1,0 +1,309 @@
+/* =====================================================
+   Canvas de notas por día (pedido explícito del usuario, 2026-08-22)
+   ===================================================== */
+
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  height: 100%;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.toolbarTitle {
+  font-weight: 600;
+  font-size: 0.9375rem;
+  color: var(--color-text);
+}
+
+.toolbarActions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.addButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 20px;;
+  background: var(--color-surface-variant);
+  color: var(--color-text);
+  font-size: 0.8125rem;
+  cursor: pointer;
+  transition: background-color 150ms ease, border-color 150ms ease;
+}
+
+.addButton:hover {
+  background: var(--color-primary-container);
+  border-color: var(--color-primary);
+}
+
+.error {
+  color: var(--color-error);
+  font-size: 0.8125rem;
+}
+
+.hint {
+  color: var(--color-text-secondary);
+  font-size: 0.8125rem;
+  padding: var(--space-2) 0;
+}
+
+/* Mismo tinte de "mesa de trabajo" que VisionBoardCanvas.module.css's
+   .viewport, generalizado a un canvas mucho más pequeño. */
+.canvas {
+  position: relative;
+  min-width: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 20px;;
+  background: color-mix(in srgb, var(--color-text) 3%, var(--color-surface));
+  padding: var(--space-2);
+}
+
+.guideVertical {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--color-primary);
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.guideHorizontal {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--color-primary);
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* =====================================================
+   ELEMENTOS — solo 2 tipos, pedido explícito ("1 tipo de forma:
+   sticker/banner. 1 tipo de texto").
+   ===================================================== */
+
+/* Hallazgo real (2026-08-23): `.deleteButton` se posiciona A PROPÓSITO
+   fuera de la caja (`top:-8px; right:-8px`, para leerse como una insignia
+   en la esquina) y antes vivía como hijo directo de este mismo nodo con
+   `overflow: hidden` — así que la mitad del botón (y, en formas más
+   angostas, hasta la propia forma del banner) se recortaba sin importar
+   dónde estuviera el elemento. Mismo split que Vision Board ya usa
+   (VisionBoardCanvas.module.css's `.element` vs `.elementContent`): esta
+   caja externa ahora solo posiciona/arrastra (`overflow` normal, nunca
+   recorta), y `.elementInner` de abajo es la que recorta el contenido
+   real (forma del banner + texto) contra su propio borde. */
+.elementBanner,
+.elementText {
+  position: absolute;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+
+.elementBanner:active,
+.elementText:active {
+  cursor: grabbing;
+}
+
+.elementInner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 var(--space-3);
+  text-align: center;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+.bannerShape {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+}
+
+.bannerShape path {
+  fill: var(--color-terracotta-container);
+  stroke: var(--color-terracotta);
+  stroke-width: 2;
+}
+
+.elementBanner {
+  color: var(--color-terracotta-text);
+}
+
+.elementText {
+  background: var(--color-surface-variant);
+  border: 1px solid var(--color-border);
+  border-radius: 20px;;
+  color: var(--color-text);
+  box-shadow: 0 1px 4px rgba(44, 66, 91, 0.08);
+}
+
+.textLabel {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  max-width: 100%;
+  font-size: 0.875rem;
+  line-height: 1.3;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  pointer-events: none;
+}
+
+.deleteButton {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  z-index: 2;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-variant);
+  color: var(--color-error);
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity 150ms ease;
+}
+
+.elementBanner:hover .deleteButton,
+.elementText:hover .deleteButton {
+  opacity: 1;
+}
+
+/* =====================================================
+   EDICIÓN INLINE — clic directo sobre el texto/forma, pedido explícito.
+   ===================================================== */
+
+.editorLayer {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  background: var(--color-surface-variant);
+  border-radius: 20px;;
+  box-shadow: 0 4px 14px rgba(44, 66, 91, 0.18);
+}
+
+.editorToolbar {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  z-index: 6;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 3px;
+  max-width: 236px;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: var(--color-surface-variant);
+  box-shadow: 0 2px 8px rgba(44, 66, 91, 0.14);
+}
+
+.formatButton,
+.formatButtonActive {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.formatButtonActive {
+  background: var(--color-primary-container);
+  color: var(--color-primary);
+}
+
+.fontSelect {
+  height: 24px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 0.6875rem;
+  padding: 0 4px;
+  cursor: pointer;
+}
+
+.shapeSwatches {
+  display: flex;
+  gap: 3px;
+}
+
+.shapeSwatch,
+.shapeSwatchActive {
+  width: 22px;
+  height: 22px;
+  padding: 3px;
+  border: 1px solid var(--color-border);
+  border-radius: 5px;
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.shapeSwatch svg,
+.shapeSwatchActive svg {
+  width: 100%;
+  height: 100%;
+  fill: currentColor;
+}
+
+.shapeSwatchActive {
+  border-color: var(--color-primary);
+  background: var(--color-primary-container);
+  color: var(--color-primary);
+}
+
+.editorTextarea {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  resize: none;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.875rem;
+  text-align: center;
+  padding: var(--space-1) var(--space-2);
+}
+
+@media (max-width: 859px) {
+  .canvas {
+    max-height: 360px;
+  }
+}

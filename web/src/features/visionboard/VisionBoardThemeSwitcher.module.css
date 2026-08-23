@@ -1,0 +1,76 @@
+/* FASE 16: same shape as core/theme/ThemeSwitcher.module.css's own
+   trigger/menu/item/dot — this is the Board Theme's equivalent picker, so
+   it reuses that exact visual language rather than inventing a second one.
+   Only the trigger differs, matching VisionBoardToolbar's own
+   .actionButton pill instead of AppShell topbar chrome. */
+.popover {
+  z-index: 100000;
+}
+
+.swatch {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 1px solid rgba(44, 66, 91, 0.15);
+}
+
+.menu {
+  width: 240px;
+  max-width: calc(100vw - 32px);
+  padding: 6px;
+  border-radius: 28px;;
+  background: var(--color-surface-variant);
+  border: 1px solid var(--color-border);
+  box-shadow: 0 16px 40px rgba(44, 66, 91, 0.2);
+  outline: none;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: 20px;;
+  cursor: pointer;
+  outline: none;
+}
+
+.item[data-hovered],
+.item[data-focused] {
+  background: var(--color-surface);
+}
+
+.item[data-selected] {
+  background: var(--color-primary-container);
+}
+
+.item[data-disabled] {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.dot {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 1px solid rgba(44, 66, 91, 0.15);
+}
+
+.itemText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.itemLabel {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.itemTagline {
+  font-size: 0.68rem;
+  color: var(--color-text-secondary);
+}

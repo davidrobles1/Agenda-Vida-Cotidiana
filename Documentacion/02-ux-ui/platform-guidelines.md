@@ -31,3 +31,16 @@ Válido para `UX-001`..`UX-005` (pasada estrictamente visual, sin tocar flujo/l�
 - Cualquier funcionalidad no visual — esta pasada es estrictamente presentación sobre lo que ya funciona (`01-technical-backlog.md`, `AND-002`..`WEB-006`).
 
 **`UX-006` es la excepción documentada a la primera regla de arriba:** sí añade rutas/pantallas nuevas (Home, sidebar/bottom nav, 6 módulos de maqueta) — pero sobre las pantallas reales existentes (Tareas/Compartidos/Notificaciones) sigue aplicando la misma regla: solo presentación, ninguna llamada de red/lógica de esas tres pantallas cambió. Detalle completo en `01-technical-backlog.md` (`UX-006`) y `design-system.md` §7.
+
+## UX-012 Navegación condicional por modo (ADR-015) — implementado (Web)
+
+**DONE, Web** (2026-08-18, ver `01-technical-backlog.md` UX-012). La navegación descrita arriba (`NavigationBar`/sidebar única de Inicio/Tareas/Compartidos/Más) queda **ampliada, no reemplazada**, por ADR-015:
+
+- Un selector superior (Calendario / Personal / Laboral) es el nivel de navegación más alto, por encima de la navegación existente — Calendario no tiene el navbar de Inicio/Tareas/Compartidos (FR-015); Personal y Laboral sí, cada uno con su propia instancia de ese navbar (real: `AppShell.tsx`'s `modeSwitcher`/`modeNavItems`).
+- El selector muestra solo Calendario + los modos habilitados (FR-014/FR-016) — 2 o 3 opciones según el usuario, confirmado real en `e2e/mode-navigation.spec.ts` (solo "Calendario"+"Personal" antes de activar Laboral desde Ajustes; "Laboral" aparece después, sin reload).
+- Tema de color: Personal reutiliza la paleta cálida existente sin cambios; Laboral usa la paleta fría real (`--color-laboral-*`, navy `#1E3F5C` + verde/gris de foco, WCAG 2.1 AA-verificada) documentada en `design-system.md` §11 — ya no TBD.
+- **TBD sin cambios, no decidido en esta pasada:** si Android replica el mismo selector superior o usa una convención nativa distinta (p. ej. un segmented control del sistema) para el mismo propósito — Android sigue pausado hasta que Web tenga beta (decisión del usuario), esta pasada fue Web-only.
+
+## UX-014 Módulo Laboral (ADR-016) — sin divergencia de plataforma declarada todavía
+
+El Módulo Laboral (Personas/Proyectos/Compromisos) reutiliza la sidebar/AppShell y la paleta Laboral ya existentes (UX-012) — no introduce ningún patrón de navegación nuevo a nivel de plataforma. Las 7 secciones núcleo (Hoy, Agenda, Tareas, Personas, Proyectos, Seguimientos, Inbox) se documentan como una lista plana, igual que el navbar actual de Personal/Laboral; no se decide todavía si en Android esa lista vive en un `NavigationBar` de 5 slots con "Más" (como ya ocurre hoy) o en otro patrón — `TBD`, sin bloquear el diseño (Android sigue pausado, ver `§UX-012`).

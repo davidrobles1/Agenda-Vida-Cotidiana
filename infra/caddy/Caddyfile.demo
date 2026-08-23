@@ -1,0 +1,37 @@
+# Demo-only reverse proxy: fronts frontend/backend/Keycloak under one public
+# hostname (see Documentacion/18-dev-environment.md, "public demo" section),
+# so a single free ngrok static domain is enough — no domain purchase needed.
+# NOT used for regular local dev; run only for a controlled/invited demo.
+#
+# Usage:
+#   1. Build the frontend once (see runbook) so WEB_DIST_PATH below exists.
+#   2. caddy run --config infra/caddy/Caddyfile.demo
+#   3. ngrok http --domain=<your-static-domain>.ngrok-free.app 8888
+#
+# /auth/admin/* is intentionally NOT proxied — it 404s here on purpose, so the
+# Keycloak admin console is never reachable through the public tunnel. Manage
+# Keycloak only via http://localhost:8081/admin directly on this machine.
+
+{$CADDY_DEMO_LISTEN:http://:8888} {
+	route {
+		@keycloak_admin path /auth/admin*
+		respond @keycloak_admin 404
+
+		@keycloak path /auth/*
+		reverse_proxy @keycloak {$CADDY_DEMO_KEYCLOAK_UPSTREAM:localhost:8081} {
+			# ngrok always terminates TLS before this hop, so the true client-facing
+			# scheme is always https even though this Caddy->ngrok hop is plain HTTP.
+			# Keycloak (KC_PROXY_HEADERS=xforwarded) trusts this to build the
+			# https issuer/redirect URLs — without it the issuer comes out as
+			# http://... and token validation on the backend fails.
+			header_up X-Forwarded-Proto https
+		}
+
+		@api path /api/*
+		reverse_proxy @api {$CADDY_DEMO_BACKEND_UPSTREAM:localhost:8080}
+
+		root * {$CADDY_DEMO_WEB_DIST:../../web/dist}
+		try_files {path} /index.html
+		file_server
+	}
+}

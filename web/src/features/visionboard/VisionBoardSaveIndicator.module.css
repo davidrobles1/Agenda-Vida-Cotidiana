@@ -1,0 +1,72 @@
+/* FASE 18: small, passive status readout — never a button-shaped pill like
+   the rest of the toolbar (this isn't an action), never a modal, never
+   blocks the canvas. Sized to stay legible without competing with the
+   real actions around it ("no distraer, no ocupar demasiado espacio"). */
+.indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  padding: 0 6px;
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* FASE 22 audit fix: a real axe-core run (WCAG 2.1 AA) found
+   --color-text-secondary on --color-surface fails contrast (3.58:1,
+   needs 4.5:1) in the app's "Editorial" theme — a pre-existing core
+   token pairing issue, not something specific to this component, but
+   fixed locally here (--color-text passes at 8.62:1) rather than
+   changing the shared token, which would ripple into every other
+   feature using that same pairing — out of scope for a Vision-Board
+   testing phase. */
+.indicatorSaved {
+  color: var(--color-text);
+}
+
+.indicatorSaving {
+  color: var(--color-text);
+}
+
+.indicatorError {
+  color: var(--color-error);
+}
+
+.retryButton {
+  padding: 0;
+  min-height: 0;
+  border: none;
+  background: none;
+  color: var(--color-error);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* FASE 5's own `.resizeHandle::after`-style small dot, reused for the
+   "saving" spinner — a plain CSS rotation, not a Motion loop (Motion is
+   reserved for the discrete saving→saved/error crossfade below, per "no
+   crear animaciones llamativas"). */
+.spinner {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 1.5px solid var(--color-border);
+  border-top-color: var(--color-text-secondary);
+  animation: spin 800ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}

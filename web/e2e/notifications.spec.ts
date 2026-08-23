@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { loginAsTestuserAndGoToReminders } from './helpers'
 
 /**
  * WEB-005 real verification: owner (testuser) logs in and reaches the
@@ -25,15 +26,7 @@ import { test, expect } from '@playwright/test'
 test('notifications page loads real device data and enable button is reachable', async ({ page, context }) => {
   await context.grantPermissions(['notifications'], { origin: 'http://localhost:5173' })
 
-  await page.goto('/')
-  await page.getByRole('button', { name: 'Iniciar sesión' }).click()
-
-  await page.waitForURL(/realms\/vida-cotidiana/)
-  await page.getByLabel('Username or email').fill('testuser')
-  await page.getByRole('textbox', { name: 'Password' }).fill('TestPass123!')
-  await page.getByRole('button', { name: 'Sign In' }).click()
-
-  await expect(page.getByPlaceholder('New reminder')).toBeVisible({ timeout: 20_000 })
+  await loginAsTestuserAndGoToReminders(page)
   await page.getByRole('link', { name: 'Notifications' }).click()
 
   // Real GET /me/devices — the WEB device registered manually earlier this

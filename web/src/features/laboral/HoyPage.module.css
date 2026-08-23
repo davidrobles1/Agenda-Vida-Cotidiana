@@ -1,0 +1,43 @@
+.error {
+  margin: 0 0 var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: 20px;;
+  background: var(--color-error-container);
+  color: var(--color-error);
+  font-size: 0.8125rem;
+}
+
+.emptyHint {
+  margin: 0;
+  padding: var(--space-4) 0;
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+
+@media (max-width: 900px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.captureForm {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.captureInput {
+  flex: 1;
+}
+
+.captureHint {
+  margin: var(--space-2) 0 0;
+  color: var(--color-text-secondary);
+  font-size: 0.8125rem;
+}

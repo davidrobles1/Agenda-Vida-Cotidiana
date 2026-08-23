@@ -1,323 +1,806 @@
-import { useMemo, useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import {
+  useMemo,
+  useState,
+  type DragEvent,
+} from 'react'
+
+import {
+  ToggleButtonGroup,
+  type Key,
+} from 'react-aria-components'
+
 import { AppShell } from '../../core/ui/layout/AppShell'
 import { ListSectionCard } from '../../core/ui/components/ListSectionCard'
-import { ListItemRow } from '../../core/ui/components/ListItemRow'
-import { CalendarView, type CalendarMarker } from '../../core/ui/components/CalendarView'
+import { FilterChip } from '../../core/ui/components/FilterChip'
+
+import {
+  CalendarView,
+  type CalendarMarker,
+} from '../../core/ui/components/CalendarView'
+
+import { MonthSelector } from '../../core/ui/components/MonthSelector'
+
 import { dateKey } from '../../core/ui/components/calendarDate'
-import { IconAlert, IconCheckCircle, IconPlus, IconShared, IconShield, IconTasks, IconWrench } from '../../core/ui/icons'
+
+import { getLocalTimeZone, today } from '@internationalized/date'
+
+import {
+  IconChevronLeft,
+  IconChevronRight,
+} from '../../core/ui/icons'
+
 import { useCalendarData } from './useCalendarData'
+import { DayAgenda } from './DayAgenda'
+import { useActiveMode } from '../../core/user/ActiveModeContext'
+
+import { DayNotesCanvas } from './daynotes/DayNotesCanvas'
+
+import { CreateReminderDialog } from './reminders/CreateReminderDialog'
+import { ReminderDrawer } from './reminders/ReminderDrawer'
+
+import {
+  buildDateTime,
+  isoDateKey,
+  reminderTone,
+  shiftDateKey,
+  weekDatesFor,
+} from './calendarHelpers'
+
 import type { Reminder } from '../reminders/api'
+
 import styles from './CalendarPage.module.css'
 
-function isoDateKey(iso: string): string {
-  return iso.slice(0, 10)
+/* =====================================================
+   REMINDER PRESENTATION
+   ===================================================== */
+
+function reminderContextColor(
+  reminder: Reminder,
+): string | undefined {
+  if (
+    reminder.context === 'PERSONAL'
+  ) {
+    return 'var(--color-terracotta-text)'
+  }
+
+  if (
+    reminder.context === 'LABORAL'
+  ) {
+    return 'var(--color-laboral-accent)'
+  }
+
+  return undefined
 }
 
-function formatDueAtTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+/* =====================================================
+   RANGE LABELS
+   ===================================================== */
+
+function formatWeekRangeLabel(
+  weekDates: string[],
+): string {
+  const start =
+    new Date(
+      `${weekDates[0]}T12:00:00`,
+    )
+
+  const end =
+    new Date(
+      `${weekDates[6]}T12:00:00`,
+    )
+
+  const startLabel =
+    start.toLocaleDateString(
+      'es-MX',
+      {
+        day: 'numeric',
+        month: 'short',
+      },
+    )
+
+  const endLabel =
+    end.toLocaleDateString(
+      'es-MX',
+      {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      },
+    )
+
+  return `${startLabel} – ${endLabel}`
 }
 
-function formatLongDate(key: string): string {
-  const [y, m, d] = key.split('-').map(Number)
-  const label = new Date(y, m - 1, d).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })
-  return label.charAt(0).toUpperCase() + label.slice(1)
+function formatDayNavLabel(
+  dateKeyValue: string,
+): string {
+  return new Date(
+    `${dateKeyValue}T12:00:00`,
+  ).toLocaleDateString(
+    'es-MX',
+    {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+    },
+  )
 }
 
-/** UX-010: a reminder's real visual state — pending/overdue/completed, all
-    derived from data GET /reminders already returns, nothing invented. */
-function reminderTone(r: Reminder): CalendarMarker['tone'] {
-  if (r.status === 'COMPLETED') return 'success'
-  if (r.dueAt && new Date(r.dueAt).getTime() < Date.now()) return 'error'
-  return 'primary'
-}
+type CalendarRange =
+  | 'day'
+  | 'week'
+  | 'month'
 
-function reminderIcon(r: Reminder) {
-  const tone = reminderTone(r)
-  if (tone === 'success') return IconCheckCircle
-  if (tone === 'error') return IconAlert
-  return IconTasks
-}
+/* =====================================================
+   PAGE
+   ===================================================== */
 
-function reminderPillLabel(r: Reminder): string {
-  const tone = reminderTone(r)
-  if (tone === 'success') return 'Completada'
-  if (tone === 'error') return 'Vencida'
-  return 'Pendiente'
-}
-
-const LEGEND: Array<{ label: string; tone: CalendarMarker['tone'] }> = [
-  { label: 'Pendiente', tone: 'primary' },
-  { label: 'Vencida', tone: 'error' },
-  { label: 'Completada', tone: 'success' },
-  { label: 'Garantías (simulado)', tone: 'warning' },
-  { label: 'Mantenimiento (simulado)', tone: 'info' },
-]
-
-/**
- * UX-010: Calendario — rediseñado para que organizar el día sea la
- * experiencia principal, no un grid administrativo. Mismo dato real de
- * siempre (`useCalendarData`): recordatorios reales (`GET /reminders`,
- * ahora incluyendo completados para mostrar ese estado también — antes se
- * descartaban), invitaciones pendientes reales (solo listadas), Garantías/
- * Mantenimiento mock. Lo nuevo es 100% interacción/presentación:
- * selección de día (estado de cliente), un panel de detalle del día
- * elegido, y una creación rápida que llama al mismo POST /reminders real
- * que ya usa RemindersPage — no hay backend nuevo.
- */
 export function CalendarPage() {
-  const navigate = useNavigate()
-  const state = useCalendarData()
-  const today = new Date()
-  const [displayedMonth, setDisplayedMonth] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1))
-  const [selectedDateKey, setSelectedDateKey] = useState(() => dateKey(today.getFullYear(), today.getMonth(), today.getDate()))
-  const [quickAddTitle, setQuickAddTitle] = useState('')
-  const [adding, setAdding] = useState(false)
+  const activeMode =
+    useActiveMode()
 
-  const markersByDay = useMemo(() => {
-    const map: Record<string, CalendarMarker[]> = {}
-    const add = (key: string, tone: CalendarMarker['tone']) => {
-      if (!map[key]) map[key] = []
-      map[key].push({ tone })
+  const state =
+    useCalendarData()
+
+  // Pedido explícito del usuario (2026-08-22): selector de mes junto a
+  // "Vista mensual" — estado levantado hasta aquí (antes vivía solo
+  // dentro de CalendarView) para que el nuevo MonthSelector pueda
+  // saltar directo a un mes elegido; CalendarView sigue funcionando
+  // exactamente igual para todo lo demás (flechas, swipe, "Hoy").
+  const [focusedMonthDate, setFocusedMonthDate] = useState(() => today(getLocalTimeZone()))
+
+  const [activeReminderId, setActiveReminderId] = useState<string | null>(null)
+  const activeReminder = state.reminders.find((reminder) => reminder.id === activeReminderId) ?? null
+
+  const scopedReminders =
+    useMemo(
+      () =>
+        activeMode
+          ? state.reminders.filter(
+              (reminder) =>
+                !reminder.context ||
+                reminder.context ===
+                  activeMode,
+            )
+          : state.reminders,
+      [
+        state.reminders,
+        activeMode,
+      ],
+    )
+
+  const todayDate =
+    new Date()
+
+  const todayKey =
+    dateKey(
+      todayDate.getFullYear(),
+      todayDate.getMonth(),
+      todayDate.getDate(),
+    )
+
+  const [
+    selectedDateKey,
+    setSelectedDateKey,
+  ] = useState(
+    () => todayKey,
+  )
+
+  const [
+    rangeSelection,
+    setRangeSelection,
+  ] = useState<Set<Key>>(
+    () =>
+      new Set(['month']),
+  )
+
+  const activeRange: CalendarRange =
+    rangeSelection.has('day')
+      ? 'day'
+      : rangeSelection.has(
+            'week',
+          )
+        ? 'week'
+        : 'month'
+
+  const [
+    draggedReminderId,
+    setDraggedReminderId,
+  ] = useState<
+    string | null
+  >(null)
+
+  const [
+    dragOverSlot,
+    setDragOverSlot,
+  ] = useState<
+    string | null
+  >(null)
+
+  /* =====================================================
+     MONTH MARKERS
+     ===================================================== */
+
+  const markersByDay =
+    useMemo(() => {
+      const map: Record<
+        string,
+        CalendarMarker[]
+      > = {}
+
+      const add = (
+        key: string,
+        tone: CalendarMarker['tone'],
+        label: string,
+        contextColor?: string,
+      ) => {
+        if (!map[key]) {
+          map[key] = []
+        }
+
+        map[key].push({
+          tone,
+          label,
+          contextColor,
+        })
+      }
+
+      scopedReminders.forEach(
+        (reminder) => {
+          const dueAt = reminder.dueAt
+
+          if (!dueAt) {
+            return
+          }
+
+          add(
+            isoDateKey(dueAt),
+            reminderTone(
+              reminder,
+            ),
+            reminder.title,
+            activeMode
+              ? undefined
+              : reminderContextColor(
+                  reminder,
+                ),
+          )
+        },
+      )
+
+      state.warranties.forEach(
+        (warranty) => {
+          if (
+            warranty.status !==
+            'COMPLETADO'
+          ) {
+            add(
+              warranty.expiresAt,
+              'warning',
+              warranty.item,
+            )
+          }
+        },
+      )
+
+      state.maintenanceRecords.forEach(
+        (record) => {
+          if (
+            record.status !==
+            'COMPLETADO'
+          ) {
+            add(
+              record.nextDueAt,
+              'info',
+              record.item,
+            )
+          }
+        },
+      )
+
+      return map
+    }, [
+      scopedReminders,
+      state.warranties,
+      state.maintenanceRecords,
+      activeMode,
+    ])
+
+  /* =====================================================
+     DRAG & DROP — MOCK
+     ===================================================== */
+
+  function handleDragStart(
+    event: DragEvent<HTMLDivElement>,
+    reminderId: string,
+  ) {
+    setDraggedReminderId(
+      reminderId,
+    )
+
+    event.dataTransfer.effectAllowed =
+      'move'
+
+    event.dataTransfer.setData(
+      'text/plain',
+      reminderId,
+    )
+  }
+
+  function handleDragEnd() {
+    setDraggedReminderId(null)
+    setDragOverSlot(null)
+  }
+
+  function handleDragOver(
+    event: DragEvent<HTMLDivElement>,
+    slotKey: string,
+  ) {
+    event.preventDefault()
+
+    event.dataTransfer.dropEffect =
+      'move'
+
+    setDragOverSlot(slotKey)
+  }
+
+  function handleDrop(
+    event: DragEvent<HTMLDivElement>,
+    dateKeyValue: string,
+    hour: number,
+    minute: number,
+  ) {
+    event.preventDefault()
+
+    const reminderId =
+      event.dataTransfer.getData(
+        'text/plain',
+      )
+
+    if (!reminderId) {
+      return
     }
-    state.reminders.forEach((r) => r.dueAt && add(isoDateKey(r.dueAt), reminderTone(r)))
-    state.warranties.forEach((w) => {
-      if (!state.mockCompletedIds.has(w.id)) add(w.expiresAt, 'warning')
-    })
-    state.maintenanceRecords.forEach((m) => {
-      if (!state.mockCompletedIds.has(m.id)) add(m.nextDueAt, 'info')
-    })
-    return map
-  }, [state.reminders, state.warranties, state.maintenanceRecords, state.mockCompletedIds])
 
-  function shiftMonth(delta: number) {
-    setDisplayedMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + delta, 1))
-  }
+    const reminder =
+      state.reminders.find(
+        (item) =>
+          item.id ===
+          reminderId,
+      )
 
-  function goToday() {
-    const now = new Date()
-    setDisplayedMonth(new Date(now.getFullYear(), now.getMonth(), 1))
-    setSelectedDateKey(dateKey(now.getFullYear(), now.getMonth(), now.getDate()))
-  }
-
-  const dayReminders = state.reminders.filter((r) => r.dueAt && isoDateKey(r.dueAt) === selectedDateKey)
-  const dayWarranties = state.warranties.filter((w) => w.expiresAt === selectedDateKey && !state.mockCompletedIds.has(w.id))
-  const dayMaintenance = state.maintenanceRecords.filter((m) => m.nextDueAt === selectedDateKey && !state.mockCompletedIds.has(m.id))
-  const hasDayItems = dayReminders.length > 0 || dayWarranties.length > 0 || dayMaintenance.length > 0
-
-  const pendingReminders = state.reminders
-    .filter((r) => r.status === 'PENDING')
-    .sort((a, b) => (a.dueAt ?? '').localeCompare(b.dueAt ?? ''))
-  const pendingWarranties = state.warranties.filter((w) => !state.mockCompletedIds.has(w.id))
-  const pendingMaintenance = state.maintenanceRecords.filter((m) => !state.mockCompletedIds.has(m.id))
-  const hasPendientes = pendingReminders.length > 0 || pendingWarranties.length > 0 || pendingMaintenance.length > 0
-
-  async function handleQuickAdd(e: FormEvent) {
-    e.preventDefault()
-    if (!quickAddTitle.trim() || adding) return
-    setAdding(true)
-    try {
-      await state.createReminderForDay(quickAddTitle, selectedDateKey)
-      setQuickAddTitle('')
-    } finally {
-      setAdding(false)
+    if (!reminder) {
+      return
     }
+
+    const newDueAt =
+      buildDateTime(
+        dateKeyValue,
+        hour,
+        minute,
+      )
+
+    // Real reschedule: same update endpoint the Drawer's edit-save flow
+    // already uses (PUT /reminders/{id}, `dueAt` included) — no separate
+    // "reschedule" endpoint exists or is needed. Other fields are passed
+    // through unchanged since the backend always overwrites the full set.
+    state.updateReminderAction(
+      reminder,
+      {
+        title: reminder.title,
+        description: reminder.description,
+        dueAt: newDueAt,
+        iconId: reminder.iconId,
+        stickerId: reminder.stickerId,
+      },
+    )
+
+    setDraggedReminderId(null)
+    setDragOverSlot(null)
   }
+
+  /* =====================================================
+     WEEK
+     ===================================================== */
+
+  const weekDates =
+    useMemo(
+      () =>
+        weekDatesFor(
+          selectedDateKey,
+        ),
+      [selectedDateKey],
+    )
+
+  /* =====================================================
+     QUICK ADD SECTION — ahora abre el diálogo completo de creación
+     (título, descripción, fecha/hora, icono, emoji, sticker) en vez de
+     capturar solo un título suelto.
+     ===================================================== */
+
+  const quickAddSection = (
+    <>
+      <div className={styles.quickAdd}>
+        <CreateReminderDialog
+          defaultDateKey={selectedDateKey}
+          onCreate={state.createReminderAction}
+        />
+      </div>
+    </>
+  )
+
+  /* =====================================================
+     RENDER
+     ===================================================== */
 
   return (
-    <AppShell title="Calendario" subtitle="Organiza tu día, tus garantías y tu mantenimiento en un solo lugar.">
-      <div className={`${styles.page} notebook-bg`}>
-        {state.loading && <p className={styles.loading}>Loading…</p>}
-        {state.error && <p role="alert">{state.error}</p>}
+    <AppShell
+      title="Calendario"
+      subtitle="Organiza tu día, tus garantías y tu mantenimiento en un solo lugar."
+    >
+      <div
+        className={`${styles.page} notebook-bg`}
+      >
+        {state.loading && (
+          <p
+            className={
+              styles.loading
+            }
+          >
+            Cargando…
+          </p>
+        )}
 
-        {/* UX-010: title stays "Vista mensual", distinct from AppShell's own
-            "Calendario" page heading above it — a duplicate "Calendario"
-            text node here made getByText('Calendario')-style lookups
-            ambiguous (real regression caught running the real e2e specs). */}
-        <ListSectionCard title="Vista mensual">
-          <div className={styles.layout}>
-            <div className={styles.gridPane}>
-              <CalendarView
-                month={displayedMonth}
-                markersByDay={markersByDay}
-                selectedDateKey={selectedDateKey}
-                onSelectDate={setSelectedDateKey}
-                onPrevMonth={() => shiftMonth(-1)}
-                onNextMonth={() => shiftMonth(1)}
-                onToday={goToday}
+        {state.error && (
+          <p role="alert">
+            {state.error}
+          </p>
+        )}
+
+        <ToggleButtonGroup
+          aria-label="Vista de calendario"
+          selectionMode="single"
+          disallowEmptySelection
+          selectedKeys={
+            rangeSelection
+          }
+          onSelectionChange={
+            setRangeSelection
+          }
+          className={
+            styles.viewSelector
+          }
+        >
+          <FilterChip
+            id="day"
+            label="Día"
+          />
+
+          <FilterChip
+            id="week"
+            label="Semana"
+          />
+
+          <FilterChip
+            id="month"
+            label="Mes"
+          />
+        </ToggleButtonGroup>
+
+        {/* =====================================================
+            MONTH
+            ===================================================== */}
+
+        {activeRange ===
+          'month' && (
+          <ListSectionCard
+            title="Vista mensual"
+            action={
+              <MonthSelector
+                focusedDate={focusedMonthDate}
+                onSelectMonth={setFocusedMonthDate}
               />
-              <div className={styles.legend}>
-                {LEGEND.map((entry) => (
-                  <span key={entry.label} className={styles.legendEntry}>
-                    <span className={styles.legendDot} data-tone={entry.tone} />
-                    {entry.label}
-                  </span>
-                ))}
+            }
+          >
+            <div
+              className={
+                styles.gridPaneFull
+              }
+            >
+              <CalendarView
+                markersByDay={
+                  markersByDay
+                }
+                selectedDateKey={
+                  selectedDateKey
+                }
+                onSelectDate={
+                  setSelectedDateKey
+                }
+                focusedDate={focusedMonthDate}
+                onFocusedDateChange={setFocusedMonthDate}
+              />
+            </div>
+
+            {quickAddSection}
+          </ListSectionCard>
+        )}
+
+        {/* =====================================================
+            WEEK
+            ===================================================== */}
+
+        {activeRange ===
+          'week' && (
+          <ListSectionCard title="Vista semanal">
+            <div
+              className={
+                styles.rangeNav
+              }
+            >
+              <button
+                type="button"
+                className={
+                  styles.rangeNavButton
+                }
+                aria-label="Semana anterior"
+                onClick={() =>
+                  setSelectedDateKey(
+                    shiftDateKey(
+                      selectedDateKey,
+                      -7,
+                    ),
+                  )
+                }
+              >
+                <IconChevronLeft
+                  width={16}
+                  height={16}
+                />
+              </button>
+
+              <span
+                className={
+                  styles.rangeNavLabel
+                }
+              >
+                {formatWeekRangeLabel(
+                  weekDates,
+                )}
+              </span>
+
+              <button
+                type="button"
+                className={
+                  styles.rangeNavButton
+                }
+                aria-label="Semana siguiente"
+                onClick={() =>
+                  setSelectedDateKey(
+                    shiftDateKey(
+                      selectedDateKey,
+                      7,
+                    ),
+                  )
+                }
+              >
+                <IconChevronRight
+                  width={16}
+                  height={16}
+                />
+              </button>
+            </div>
+
+            <div
+              className={
+                styles.weekGrid
+              }
+            >
+              {weekDates.map(
+                (day) => (
+                  <DayAgenda
+                    key={day}
+                    dateKey={day}
+                    reminders={
+                      scopedReminders
+                    }
+                    warranties={
+                      state.warranties
+                    }
+                    maintenanceRecords={
+                      state.maintenanceRecords
+                    }
+                    draggedReminderId={
+                      draggedReminderId
+                    }
+                    dragOverSlot={
+                      dragOverSlot
+                    }
+                    onDragStart={
+                      handleDragStart
+                    }
+                    onDragOver={
+                      handleDragOver
+                    }
+                    onDrop={
+                      handleDrop
+                    }
+                    onDragEnd={
+                      handleDragEnd
+                    }
+                    completeReminderAction={
+                      state.completeReminderAction
+                    }
+                    onOpenReminder={(reminder) =>
+                      setActiveReminderId(reminder.id)
+                    }
+                    compact
+                    selected={
+                      day ===
+                      selectedDateKey
+                    }
+                    onSelect={() =>
+                      setSelectedDateKey(
+                        day,
+                      )
+                    }
+                  />
+                ),
+              )}
+            </div>
+
+            <p
+              className={
+                styles.rangeNavHint
+              }
+            >
+              Agregando para{' '}
+              <strong>
+                {formatDayNavLabel(
+                  selectedDateKey,
+                )}
+              </strong>{' '}
+              — toca otro día de la
+              semana para cambiarlo.
+            </p>
+
+            {quickAddSection}
+          </ListSectionCard>
+        )}
+
+        {/* =====================================================
+            DAY
+            ===================================================== */}
+
+        {activeRange ===
+          'day' && (
+          <ListSectionCard title="Vista diaria">
+            <div
+              className={
+                styles.rangeNav
+              }
+            >
+              <button
+                type="button"
+                className={
+                  styles.rangeNavButton
+                }
+                aria-label="Día anterior"
+                onClick={() =>
+                  setSelectedDateKey(
+                    shiftDateKey(
+                      selectedDateKey,
+                      -1,
+                    ),
+                  )
+                }
+              >
+                <IconChevronLeft
+                  width={16}
+                  height={16}
+                />
+              </button>
+
+              <button
+                type="button"
+                className={
+                  styles.rangeNavToday
+                }
+                onClick={() =>
+                  setSelectedDateKey(
+                    todayKey,
+                  )
+                }
+              >
+                Ir a hoy
+              </button>
+
+              <button
+                type="button"
+                className={
+                  styles.rangeNavButton
+                }
+                aria-label="Día siguiente"
+                onClick={() =>
+                  setSelectedDateKey(
+                    shiftDateKey(
+                      selectedDateKey,
+                      1,
+                    ),
+                  )
+                }
+              >
+                <IconChevronRight
+                  width={16}
+                  height={16}
+                />
+              </button>
+            </div>
+
+            <div
+              className={
+                styles.dayFullPane
+              }
+            >
+              <div className={styles.dayAgendaColumn}>
+                <DayAgenda
+                  dateKey={
+                    selectedDateKey
+                  }
+                  reminders={
+                    scopedReminders
+                  }
+                  warranties={
+                    state.warranties
+                  }
+                  maintenanceRecords={
+                    state.maintenanceRecords
+                  }
+                  draggedReminderId={
+                    draggedReminderId
+                  }
+                  dragOverSlot={
+                    dragOverSlot
+                  }
+                  onDragStart={
+                    handleDragStart
+                  }
+                  onDragOver={
+                    handleDragOver
+                  }
+                  onDrop={
+                    handleDrop
+                  }
+                  onDragEnd={
+                    handleDragEnd
+                  }
+                  completeReminderAction={
+                    state.completeReminderAction
+                  }
+                  onOpenReminder={(reminder) =>
+                    setActiveReminderId(reminder.id)
+                  }
+                />
+
+                {quickAddSection}
+              </div>
+
+              {/* Pedido explícito del usuario (2026-08-22): "reservar
+                  aproximadamente el 40% del espacio derecho para las
+                  notas" — Canvas único, reemplaza la vista de notas
+                  anterior por completo (ver daynotes/DayNotesCanvas.tsx). */}
+              <div className={styles.dayNotesColumn}>
+                <DayNotesCanvas dateKey={selectedDateKey} />
               </div>
             </div>
-
-            <div className={styles.divider} aria-hidden="true" />
-
-            <div className={styles.dayPane} key={selectedDateKey}>
-              <h3 className={styles.dayTitle}>{formatLongDate(selectedDateKey)}</h3>
-
-              {hasDayItems ? (
-                <div className={styles.dayItems}>
-                  {dayReminders.map((reminder) => (
-                    <ListItemRow
-                      key={reminder.id}
-                      title={reminder.title}
-                      subtitle={reminder.dueAt ? formatDueAtTime(reminder.dueAt) : ''}
-                      icon={reminderIcon(reminder)}
-                      tone={reminderTone(reminder)}
-                      pillLabel={reminderPillLabel(reminder)}
-                      pillTone={reminderTone(reminder)}
-                      trailing={
-                        reminder.status === 'PENDING' ? (
-                          <input
-                            type="checkbox"
-                            className={styles.checkbox}
-                            aria-label={`Marcar "${reminder.title}" como completada`}
-                            onChange={() => state.completeReminderAction(reminder)}
-                          />
-                        ) : undefined
-                      }
-                    />
-                  ))}
-                  {dayWarranties.map((warranty) => (
-                    <ListItemRow
-                      key={warranty.id}
-                      title={warranty.item}
-                      subtitle="Garantía · dato simulado"
-                      icon={IconShield}
-                      tone="warning"
-                      pillLabel="Simulado"
-                      pillTone="warning"
-                      trailing={
-                        <input
-                          type="checkbox"
-                          className={styles.checkbox}
-                          aria-label={`Marcar "${warranty.item}" como completada (dato simulado)`}
-                          onChange={() => state.toggleMockComplete(warranty.id)}
-                        />
-                      }
-                    />
-                  ))}
-                  {dayMaintenance.map((record) => (
-                    <ListItemRow
-                      key={record.id}
-                      title={record.item}
-                      subtitle="Mantenimiento · dato simulado"
-                      icon={IconWrench}
-                      tone="info"
-                      pillLabel="Simulado"
-                      pillTone="info"
-                      trailing={
-                        <input
-                          type="checkbox"
-                          className={styles.checkbox}
-                          aria-label={`Marcar "${record.item}" como completado (dato simulado)`}
-                          onChange={() => state.toggleMockComplete(record.id)}
-                        />
-                      }
-                    />
-                  ))}
-                </div>
-              ) : (
-                <p className={styles.dayEmpty}>Nada programado para este día. Aprovecha para planear algo.</p>
-              )}
-
-              <form className={styles.quickAdd} onSubmit={handleQuickAdd}>
-                <input
-                  className={styles.quickAddInput}
-                  value={quickAddTitle}
-                  onChange={(e) => setQuickAddTitle(e.target.value)}
-                  placeholder="Agregar tarea para este día…"
-                  aria-label="Agregar tarea para este día"
-                />
-                <button type="submit" className={styles.quickAddButton} aria-label="Agregar tarea" disabled={adding}>
-                  <IconPlus width={16} height={16} />
-                </button>
-              </form>
-            </div>
-          </div>
-        </ListSectionCard>
-
-        {hasPendientes && (
-          <ListSectionCard title="Todos los pendientes">
-            {pendingReminders.map((reminder) => (
-              <ListItemRow
-                key={reminder.id}
-                title={reminder.title}
-                subtitle={reminder.dueAt ? `Vence: ${formatDueAtTime(reminder.dueAt)} · ${isoDateKey(reminder.dueAt)}` : ''}
-                icon={reminderIcon(reminder)}
-                tone={reminderTone(reminder)}
-                trailing={
-                  <input
-                    type="checkbox"
-                    className={styles.checkbox}
-                    aria-label={`Marcar "${reminder.title}" como completada`}
-                    onChange={() => state.completeReminderAction(reminder)}
-                  />
-                }
-              />
-            ))}
-            {pendingWarranties.map((warranty) => (
-              <ListItemRow
-                key={warranty.id}
-                title={warranty.item}
-                subtitle={`Garantía · vence ${warranty.expiresAt} · dato simulado`}
-                icon={IconShield}
-                tone="warning"
-                pillLabel="Simulado"
-                pillTone="warning"
-                trailing={
-                  <input
-                    type="checkbox"
-                    className={styles.checkbox}
-                    aria-label={`Marcar "${warranty.item}" como completada (dato simulado)`}
-                    onChange={() => state.toggleMockComplete(warranty.id)}
-                  />
-                }
-              />
-            ))}
-            {pendingMaintenance.map((record) => (
-              <ListItemRow
-                key={record.id}
-                title={record.item}
-                subtitle={`Mantenimiento · próximo ${record.nextDueAt} · dato simulado`}
-                icon={IconWrench}
-                tone="info"
-                pillLabel="Simulado"
-                pillTone="info"
-                trailing={
-                  <input
-                    type="checkbox"
-                    className={styles.checkbox}
-                    aria-label={`Marcar "${record.item}" como completado (dato simulado)`}
-                    onChange={() => state.toggleMockComplete(record.id)}
-                  />
-                }
-              />
-            ))}
           </ListSectionCard>
         )}
 
-        {state.invitations.length > 0 && (
-          <ListSectionCard title="Invitaciones pendientes" onSeeAll={() => navigate('/invitations')}>
-            {state.invitations.map((invitation) => (
-              <ListItemRow
-                key={invitation.id}
-                title={invitation.invitedEmail ?? ''}
-                subtitle="Invitación a compartir un recordatorio"
-                icon={IconShared}
-                tone="info"
-                pillLabel="Pendiente"
-                pillTone="warning"
-              />
-            ))}
-          </ListSectionCard>
-        )}
+        <ReminderDrawer
+          reminder={activeReminder}
+          onClose={() => setActiveReminderId(null)}
+          onSave={state.updateReminderAction}
+          onDelete={state.deleteReminderAction}
+        />
       </div>
     </AppShell>
   )

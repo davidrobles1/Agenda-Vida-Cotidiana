@@ -1,27 +1,97 @@
 .shell {
   display: flex;
-  min-height: 100vh;
+  width: 100%;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
   background: var(--color-surface);
 }
 
 .sidebar {
   width: 232px;
   flex-shrink: 0;
+
   /* UX-008 (user decision, 2026-08-17): chrome stays neutral/near-white so
      it never competes with the warm beige content canvas (.content, which
      inherits .shell's --color-surface unchanged). */
   background: var(--color-surface-variant);
   border-right: 1px solid var(--color-border);
+
   display: flex;
   flex-direction: column;
+
   padding: var(--space-4);
   gap: var(--space-6);
+
+  overflow: hidden;
+
+  position: relative;
+  z-index: 0;
+
+  transition:
+    width 220ms ease,
+    padding 220ms ease,
+    opacity 180ms ease,
+    border-color 220ms ease;
+}
+
+/* --------------------------------------------------------------------------
+   Decorative sidebar image
+
+   Large decorative leaves anchored to the bottom-left of the sidebar.
+   The image lives behind all sidebar content while remaining completely
+   non-interactive.
+   -------------------------------------------------------------------------- */
+
+.sidebar::after {
+  content: '';
+
+  position: absolute;
+  left: 0;
+  bottom: 0;
+
+  width: 450px;
+  height: 630px;
+
+  background-image: url('./assets/hojas.png');
+  background-repeat: no-repeat;
+  background-position: left bottom;
+  background-size: contain;
+
+  pointer-events: none;
+  z-index: -1;
+}
+
+/*
+ * Everything inside the sidebar stays above the decorative image.
+ * This prevents the enlarged leaves from covering navigation links,
+ * buttons, logo, account controls, etc.
+ */
+.sidebar > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* UX-011: hamburger-toggled closed state */
+.sidebarClosed {
+  width: 0;
+  padding-left: 0;
+  padding-right: 0;
+  opacity: 0;
+  border-right-color: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar {
+    transition: none;
+  }
 }
 
 .logo {
   display: flex;
   align-items: center;
   gap: var(--space-2);
+
   font-weight: 700;
   font-size: 1.0625rem;
   color: var(--color-primary);
@@ -30,15 +100,70 @@
 .logoMark {
   width: 28px;
   height: 28px;
-  border-radius: var(--radius-control);
+
+  border-radius: 20px;;
   background: var(--color-primary);
   color: var(--color-on-primary);
+
   display: inline-flex;
   align-items: center;
   justify-content: center;
+
   font-weight: 700;
   flex-shrink: 0;
 }
+
+/* --------------------------------------------------------------------------
+   Top-level mode navigation
+   -------------------------------------------------------------------------- */
+
+.modeSwitcher {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+
+  padding: var(--space-1);
+  background: transparent;
+  border-radius: 20px;;
+
+  flex: 1 1 auto;
+  justify-content: center;
+}
+
+.modePill {
+  flex: 0 0 auto;
+
+  text-align: center;
+
+  padding: var(--space-1) var(--space-4);
+
+  border-radius: 20px;;
+  border: 1px solid var(--color-border);
+
+  color: var(--color-text-secondary);
+  text-decoration: none;
+
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.modePill:hover {
+  color: var(--color-text);
+}
+
+.modePillActive {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+.modePillActive:hover {
+  color: var(--color-on-primary);
+}
+
+/* --------------------------------------------------------------------------
+   Sidebar navigation
+   -------------------------------------------------------------------------- */
 
 .nav {
   display: flex;
@@ -51,12 +176,19 @@
   display: flex;
   align-items: center;
   gap: var(--space-3);
+
   padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-control);
+
+  border-radius: 20px;;
+
   color: var(--color-text-secondary);
   text-decoration: none;
+
   font-size: 0.9375rem;
   font-weight: 500;
+
+  position: relative;
+  z-index: 1;
 }
 
 .navLink:hover {
@@ -68,23 +200,33 @@
   color: var(--color-primary);
 }
 
+/* --------------------------------------------------------------------------
+   Account
+   -------------------------------------------------------------------------- */
+
 .account {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  border-top: 1px solid var(--color-border);
-  padding-top: var(--space-4);
+
+  padding-left: var(--space-3);
+
+  border-left: 1px solid var(--color-border);
 }
 
 .avatar {
   width: 32px;
   height: 32px;
+
   border-radius: 50%;
+
   background: var(--color-primary-container);
   color: var(--color-primary);
+
   display: inline-flex;
   align-items: center;
   justify-content: center;
+
   font-weight: 600;
   flex-shrink: 0;
 }
@@ -92,39 +234,125 @@
 .accountName {
   font-size: 0.875rem;
   font-weight: 600;
+
   color: var(--color-text);
+
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+
+  max-width: 120px;
+}
+
+.settingsButton {
+  display: inline-flex;
+
+  color: var(--color-text-secondary);
+
+  padding: var(--space-1);
+
+  flex-shrink: 0;
 }
 
 .logoutButton {
   background: none;
   border: none;
+
   color: var(--color-text-secondary);
+
   min-height: 0;
   padding: var(--space-1);
+
   cursor: pointer;
   flex-shrink: 0;
 }
 
+/* --------------------------------------------------------------------------
+   Main application area
+   -------------------------------------------------------------------------- */
+
 .main {
   flex: 1;
+
   min-width: 0;
+  min-height: 0;
+
   display: flex;
   flex-direction: column;
+
+  /*
+   * Prevents the main area itself from becoming the scrolling container.
+   * The scroll belongs exclusively to .content.
+   */
+  overflow: hidden;
 }
+
+/* --------------------------------------------------------------------------
+   Top navigation bar
+   -------------------------------------------------------------------------- */
 
 .topBar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: var(--space-4);
+
   padding: var(--space-4) var(--space-6);
-  /* UX-008: same neutral-chrome decision as .sidebar. */
+
   background: var(--color-surface-variant);
   border-bottom: 1px solid var(--color-border);
+
   flex-wrap: wrap;
+
+  /*
+   * The top bar must never shrink into the scrolling content.
+   */
+  flex-shrink: 0;
+}
+
+.titleGroup {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.menuButton {
+  flex-shrink: 0;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 36px;
+  height: 36px;
+  min-height: 0;
+
+  padding: 0;
+
+  border: none;
+  border-radius: 20px;;
+
+  background: transparent;
+  color: var(--color-text-secondary);
+
+  cursor: pointer;
+
+  transition:
+    background-color 160ms ease,
+    color 160ms ease;
+}
+
+.menuButton:hover {
+  background: var(--color-surface);
+  color: var(--color-primary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menuButton {
+    transition: none;
+  }
 }
 
 .greeting {
@@ -133,12 +361,14 @@
 
 .greetingTitle {
   margin: 0;
+
   font-size: 1.375rem;
   font-weight: 600;
 }
 
 .greetingSubtitle {
   margin: 0;
+
   color: var(--color-text-secondary);
   font-size: 0.875rem;
 }
@@ -146,19 +376,21 @@
 .topBarActions {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: var(--space-3);
+
+  flex: 1 1 auto;
 }
 
-/* Decorative only — no server-side search exists yet for any V1 resource
-   (see design-system.md's note on this). Not focusable/interactive so it
-   never implies functionality that isn't there. */
 .searchIcon {
   color: var(--color-text-secondary);
 }
 
 .bellLink {
   position: relative;
+
   display: inline-flex;
+
   color: var(--color-text-secondary);
 }
 
@@ -166,23 +398,58 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
+
   text-decoration: none;
+
   background: var(--color-primary);
   color: var(--color-on-primary);
-  border-radius: var(--radius-control);
+
+  border-radius: 20px;;
+
   padding: var(--space-2) var(--space-4);
+
   min-height: 44px;
+
   font-size: 0.9375rem;
   font-weight: 500;
 }
 
+/* --------------------------------------------------------------------------
+   Main scroll container
+   -------------------------------------------------------------------------- */
+
 .content {
   flex: 1;
+
+  min-height: 0;
+  min-width: 0;
+
   padding: var(--space-6);
+
   display: flex;
   flex-direction: column;
   gap: var(--space-6);
+
+  /*
+   * THIS is the only vertical scroll container.
+   */
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  /*
+   * Prevents scroll chaining from this application area into the browser.
+   */
+  overscroll-behavior: contain;
+
+  /*
+   * Keeps layout width stable when the scrollbar appears.
+   */
+  scrollbar-gutter: stable;
 }
+
+/* --------------------------------------------------------------------------
+   Responsive
+   -------------------------------------------------------------------------- */
 
 @media (max-width: 900px) {
   .shell {
@@ -191,12 +458,54 @@
 
   .sidebar {
     width: 100%;
+
     flex-direction: row;
     align-items: center;
+
     overflow-x: auto;
+
     border-right: none;
     border-bottom: 1px solid var(--color-border);
+
     gap: var(--space-4);
+
+    transition:
+      height 220ms ease,
+      padding 220ms ease,
+      opacity 180ms ease,
+      border-color 220ms ease;
+  }
+
+  /*
+   * The content remains the only vertical scroll container on mobile.
+   */
+  .content {
+    min-height: 0;
+
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  /*
+   * The decorative leaves are intentionally hidden in the horizontal
+   * mobile sidebar because the tall decoration does not fit this layout.
+   */
+  .sidebar::after {
+    display: none;
+  }
+
+  /*
+   * Mobile sidebar collapse:
+   * collapse height instead of width because the sidebar becomes a row.
+   */
+  .sidebarClosed {
+    width: 100%;
+    height: 0;
+
+    padding-top: 0;
+    padding-bottom: 0;
+
+    border-bottom-color: transparent;
   }
 
   .nav {
@@ -215,5 +524,230 @@
 
   .accountName {
     display: none;
+  }
+}
+
+/* =====================================================
+   UX-014 — VISUAL THEME SYSTEM (Sidebar + Topbar)
+   ===================================================== */
+
+/* --------------------------------------------------------------------------
+   EDITORIAL / MINIMAL
+   -------------------------------------------------------------------------- */
+
+:global(.theme-editorial) .sidebar,
+:global(.theme-minimal) .sidebar {
+  width: 66px;
+}
+
+:global(.theme-editorial) .sidebarClosed,
+:global(.theme-minimal) .sidebarClosed {
+  width: 0;
+}
+
+:global(.theme-editorial) .navLink span:last-child,
+:global(.theme-minimal) .navLink span:last-child,
+:global(.theme-editorial) .logo span:last-child,
+:global(.theme-minimal) .logo span:last-child {
+  display: none;
+}
+
+:global(.theme-editorial) .navLink,
+:global(.theme-minimal) .navLink,
+:global(.theme-editorial) .logo {
+  justify-content: center;
+}
+
+:global(.theme-editorial) .navLinkActive {
+  background: transparent;
+  box-shadow: inset 3px 0 0 var(--color-terracotta);
+}
+
+/* --------------------------------------------------------------------------
+   MODERN PRODUCTIVITY — dark command center chrome
+   -------------------------------------------------------------------------- */
+
+:global(.theme-productivity) .sidebar {
+  background:
+    radial-gradient(
+      120% 140% at 15% -10%,
+      #007ff7 0%,
+      #16273a 55%,
+      #0d1824 100%
+    );
+
+  border-right: none;
+
+  position: relative;
+}
+
+:global(.theme-productivity) .sidebar::before {
+  content: '';
+
+  position: absolute;
+  inset: 0;
+
+  opacity: 0.5;
+
+  pointer-events: none;
+
+  background:
+    radial-gradient(
+      50% 40% at 80% 90%,
+      rgba(224, 138, 62, 0.18),
+      transparent 70%
+    );
+
+  z-index: 0;
+}
+
+:global(.theme-productivity) .logo {
+  color: #8fb4d6;
+  position: relative;
+  z-index: 1;
+}
+
+:global(.theme-productivity) .navLink {
+  color: #000000;
+  position: relative;
+  z-index: 1;
+}
+
+:global(.theme-productivity) .navLink:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+:global(.theme-productivity) .navLinkActive {
+  background: rgba(94, 162, 230, 0.14);
+  color: #b5d0f1;
+
+  box-shadow:
+    inset 3px 0 0 #5ea2e6,
+    0 0 16px rgba(94, 162, 230, 0.12);
+}
+
+:global(.theme-productivity) .newButton {
+  background: linear-gradient(
+    135deg,
+    var(--color-primary),
+    #1e4a70
+  );
+
+  box-shadow: 0 4px 14px rgba(44, 95, 140, 0.28);
+}
+
+/* --------------------------------------------------------------------------
+   EDITORIAL BUTTON
+   -------------------------------------------------------------------------- */
+
+:global(.theme-editorial) .newButton {
+  background:
+    linear-gradient(
+      135deg,
+      var(--color-primary),
+      color-mix(
+        in srgb,
+        var(--color-primary) 65%,
+        white
+      )
+    );
+}
+
+/* --------------------------------------------------------------------------
+   ORGANIC BUTTON
+   -------------------------------------------------------------------------- */
+
+:global(.theme-organic) .newButton {
+  border-radius:
+    255px 15px 225px 15px /
+    15px 225px 15px 255px;
+}
+
+/* --------------------------------------------------------------------------
+   ORGANIC / HUMAN — floating rounded panel
+   -------------------------------------------------------------------------- */
+
+:global(.theme-organic) .shell {
+  padding: 14px;
+  gap: 14px;
+}
+
+:global(.theme-organic) .sidebar {
+  border-radius: 24px;
+  border-right: none;
+}
+
+:global(.theme-organic) .main {
+  border-radius: 24px;
+  overflow: hidden;
+}
+
+:global(.theme-organic) .topBar {
+  border-bottom: none;
+}
+
+:global(.theme-organic) .shell {
+  position: relative;
+  overflow: hidden;
+}
+
+:global(.theme-organic) .shell::before,
+:global(.theme-organic) .shell::after {
+  content: '';
+
+  position: absolute;
+
+  z-index: 0;
+
+  pointer-events: none;
+
+  border-radius:
+    60% 40% 55% 45% /
+    45% 55% 40% 60%;
+
+  filter: blur(2px);
+  opacity: 0.4;
+}
+
+:global(.theme-organic) .shell::before {
+  width: 240px;
+  height: 240px;
+
+  top: -70px;
+  left: -70px;
+
+  background:
+    radial-gradient(
+      circle,
+      rgba(91, 122, 94, 0.35),
+      transparent 70%
+    );
+}
+
+:global(.theme-organic) .shell::after {
+  width: 280px;
+  height: 280px;
+
+  bottom: -100px;
+  right: -80px;
+
+  background:
+    radial-gradient(
+      circle,
+      rgba(193, 122, 74, 0.28),
+      transparent 70%
+    );
+}
+
+:global(.theme-organic) .sidebar,
+:global(.theme-organic) .main {
+  position: relative;
+  z-index: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :global(.theme-productivity) .sidebar,
+  :global(.theme-organic) .sidebar {
+    transition: none;
   }
 }

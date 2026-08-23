@@ -1,0 +1,92 @@
+.uploadButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: var(--space-2) var(--space-4);
+  border: none;
+  border-radius: 20px;;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.uploadButton:hover {
+  background: color-mix(in srgb, var(--color-primary) 88%, black);
+}
+
+/* Mismo patrón que VisionBoardElementLibrary.module.css's .imageDropzone —
+   `<label>` envolviendo un `<input type="file">` visualmente oculto pero
+   accesible (foco/teclado nativos, sin reimplementar nada). */
+.dropzone {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 100px;
+  margin-bottom: var(--space-3);
+  padding: var(--space-3);
+  border: 1.5px dashed var(--color-border);
+  border-radius: 28px;;
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: 0.8125rem;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 150ms ease, background-color 150ms ease;
+}
+
+.dropzone:hover,
+.dropzone:has(.dropzoneInput:focus-visible) {
+  border-color: var(--color-primary);
+}
+
+.dropzoneActive {
+  border-color: var(--color-primary);
+  background: var(--color-primary-container);
+}
+
+.dropzoneFileName {
+  font-weight: 600;
+  color: var(--color-text);
+  word-break: break-all;
+}
+
+.dropzoneInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  clip: rect(0 0 0 0);
+}
+
+.categoryGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.categoryButton {
+  padding: 6px 12px;
+  border: 1.5px solid var(--color-border);
+  border-radius: 20px;;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 0.8125rem;
+  cursor: pointer;
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+
+.categoryButton:hover {
+  color: var(--color-primary);
+}
+
+.categoryButtonActive {
+  border-color: var(--color-primary);
+  background: var(--color-primary-container);
+  color: var(--color-primary);
+}

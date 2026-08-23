@@ -5,9 +5,23 @@ import com.vidacotidiana.user.domain.User;
 import java.util.UUID;
 
 /** Aligned with components.schemas.User in Documentacion/openapi/openapi.yaml. */
-public record UserResponse(UUID id, String email, String username, String deletionStatus) {
+public record UserResponse(
+        UUID id,
+        String email,
+        String username,
+        String deletionStatus,
+        boolean personalEnabled,
+        boolean laboralEnabled
+) {
 
     public static UserResponse from(User user) {
-        return new UserResponse(user.getId(), user.getEmail(), user.getUsername(), user.getDeletionStatus());
+        return new UserResponse(
+                user.getId(),
+                user.getEmail(),
+                user.getUsername(),
+                user.getDeletionStatus(),
+                user.isPersonalEnabled(),
+                user.isLaboralEnabled()
+        );
     }
 }

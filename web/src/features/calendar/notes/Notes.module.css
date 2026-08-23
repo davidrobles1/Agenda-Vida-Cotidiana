@@ -1,0 +1,226 @@
+/* =====================================================
+   LIST — "Notas" section on CalendarPage
+   Layout de Modal/Drawer/formulario vive en
+   core/ui/dialogs/DialogShell.module.css (compartido con Agenda) — aquí
+   solo lo específico de la lista de tarjetas de Notas.
+   ===================================================== */
+
+.notesHeader {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--space-3);
+}
+
+.newNoteButton {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.notesEmpty {
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+}
+
+.notesList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.noteCard {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-3);
+  border: 1px solid rgba(58, 66, 78, 0.09);
+  border-radius: 20px;;
+  background: var(--color-surface-variant);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 150ms ease, border-color 150ms ease, transform 150ms ease;
+}
+
+.noteCard:hover {
+  background: var(--color-primary-container);
+  border-color: rgba(74, 114, 150, 0.18);
+}
+
+.noteCard:active {
+  transform: scale(0.995);
+}
+
+.noteCardBadges {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.noteCardSticker {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.noteCardIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--color-primary-container);
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.noteCardText {
+  min-width: 0;
+  flex: 1;
+}
+
+.noteCardTitle {
+  display: block;
+  overflow: hidden;
+  color: var(--color-text);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.noteCardSubtitle {
+  display: block;
+  overflow: hidden;
+  margin-top: 2px;
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* =====================================================
+   UX-014 — VISUAL THEME SYSTEM
+   All four themes turn the list into a wrapping grid of tiles (the
+   composition the approved artifact/prototype used for every one of them)
+   instead of the base full-width row above — same click-to-open-Drawer
+   behavior, only the container/card layout changes. Kept theme-scoped
+   (not promoted to the shared default) so the existing row layout stays as
+   a safety net if a theme block below is ever removed.
+   ===================================================== */
+
+:global(.theme-editorial) .notesList,
+:global(.theme-minimal) .notesList,
+:global(.theme-productivity) .notesList,
+:global(.theme-organic) .notesList {
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+
+:global(.theme-editorial) .noteCard,
+:global(.theme-minimal) .noteCard,
+:global(.theme-productivity) .noteCard,
+:global(.theme-organic) .noteCard {
+  flex-direction: column;
+  align-items: flex-start;
+  width: 152px;
+  box-shadow: var(--shadow-card, none);
+}
+
+/* Bug real encontrado en vivo (pedido explícito del usuario, 2026-08-22:
+   "el texto se sale del widget malformándose") — `white-space: normal`
+   activa el ajuste de línea, pero sin `overflow-wrap`/`word-break` un
+   token sin espacios (una URL larga, una palabra larga) no tiene dónde
+   partirse: sigue como una sola línea y desborda el ancho fijo de la
+   tarjeta (152px, línea 129), rompiendo el layout de la grilla en vez de
+   solo truncarse como en el resto de temas. */
+:global(.theme-editorial) .noteCardTitle,
+:global(.theme-editorial) .noteCardSubtitle,
+:global(.theme-organic) .noteCardTitle {
+  white-space: normal;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+/* ---------- EDITORIAL — sticky note, torn edge, slight rotation ---------- */
+:global(.theme-editorial) .noteCard {
+  border: none;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--color-surface-variant) 95%, var(--color-terracotta) 5%);
+  font-family: var(--font-serif);
+  font-style: italic;
+  clip-path: polygon(1% 2%, 20% 0%, 45% 2%, 70% 0%, 99% 3%, 100% 20%, 98% 48%, 100% 75%, 99% 97%, 75% 100%, 50% 98%, 25% 100%, 1% 97%, 0% 70%, 2% 42%, 0% 18%);
+}
+:global(.theme-editorial) .noteCard:nth-child(odd) {
+  transform: rotate(-2.2deg);
+}
+:global(.theme-editorial) .noteCard:nth-child(even) {
+  transform: rotate(1.6deg);
+}
+:global(.theme-editorial) .noteCard:hover {
+  transform: translateY(-3px) rotate(0deg);
+  background: color-mix(in srgb, var(--color-surface-variant) 95%, var(--color-terracotta) 5%);
+  border-color: transparent;
+}
+
+/* ---------- PREMIUM MINIMAL — hairline, no shadow ---------- */
+:global(.theme-minimal) .noteCard {
+  border: none;
+  border-bottom: 1px solid var(--color-border);
+  border-radius: 0;
+  background: transparent;
+  width: 160px;
+}
+:global(.theme-minimal) .noteCard:hover {
+  background: transparent;
+  transform: none;
+}
+
+/* ---------- MODERN PRODUCTIVITY — accent-topped compact tile ---------- */
+:global(.theme-productivity) .noteCard {
+  border-top: 3px solid var(--color-terracotta);
+  border-radius: 8px 8px 10px 10px;
+  padding: var(--space-2);
+  width: 144px;
+}
+
+/* ---------- ORGANIC / HUMAN — asymmetric leaf corner ---------- */
+:global(.theme-organic) .noteCard {
+  border: none;
+  border-radius: 24px 24px 24px 6px;
+}
+:global(.theme-organic) .noteCard:nth-child(even) {
+  border-radius: 24px 24px 6px 24px;
+}
+
+/* ---------- shared "Nueva nota"/"Nueva tarea" trigger (React Aria Button,
+   not <button type="submit">, so index.css's form-submit gradient rule
+   never reaches it — same gradient/blob treatment applied here instead). */
+:global(.theme-editorial) .newNoteButton,
+:global(.theme-productivity) .newNoteButton {
+  background: linear-gradient(135deg, var(--color-primary), color-mix(in srgb, var(--color-primary) 65%, white));
+}
+:global(.theme-productivity) .newNoteButton {
+  box-shadow: 0 4px 14px rgba(44, 95, 140, 0.28);
+}
+:global(.theme-organic) .newNoteButton {
+  border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
+}
+/* Decorative-only power-user hint — CSS `content`, not a real <kbd>, so no
+   JSX change is needed; screen readers get the button's existing plain
+   text name, this never becomes part of it (`content` on ::after is not
+   exposed in the accessible name). */
+:global(.theme-productivity) .newNoteButton::after {
+  content: '⌘N';
+  margin-left: 6px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+

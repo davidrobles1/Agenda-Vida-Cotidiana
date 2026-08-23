@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
+import { loginAsTestuserAndGoToReminders } from './helpers'
 
 /**
  * ACC-001 (05-v2-plan.md §3, 02-ux-ui/accessibility.md): real automated
@@ -18,21 +19,23 @@ test.describe('axe-core accessibility scan', () => {
   })
 
   test('authenticated screens have no real WCAG 2.1 A/AA violations', async ({ page }) => {
-    await page.goto('/')
-    await page.getByRole('button', { name: 'Iniciar sesión' }).click()
-    await page.waitForURL(/realms\/vida-cotidiana/)
-    await page.getByLabel('Username or email').fill('testuser')
-    await page.getByRole('textbox', { name: 'Password' }).fill('TestPass123!')
-    await page.getByRole('button', { name: 'Sign In' }).click()
-    await expect(page.getByPlaceholder('New reminder')).toBeVisible({ timeout: 20_000 })
+    await loginAsTestuserAndGoToReminders(page)
 
+    // UX-012/ADR-015: "Documentos" (a legacy UX-006 scaffolding module) is no
+    // longer reachable from the Personal navbar (only Inicio/Calendario/
+    // Tareas/Compartidos, CLAUDE.md's "no agregues más") — its route is
+    // still real, just no longer linked from here, so it's reached directly.
     const screens: Array<[string, () => Promise<void>]> = [
-      ['Tareas', async () => {}],
-      ['Inicio', async () => {
+      ['Tareas (Personal)', async () => {}],
+      ['Inicio (Personal)', async () => {
         await page.getByRole('link', { name: 'Inicio', exact: true }).click()
         await page.waitForTimeout(1000)
       }],
-      ['Compartidos', async () => {
+      ['Calendario personal', async () => {
+        await page.getByRole('link', { name: 'Calendario personal', exact: true }).click()
+        await page.waitForTimeout(500)
+      }],
+      ['Compartidos (Personal)', async () => {
         await page.getByRole('link', { name: 'Compartidos', exact: true }).click()
         await page.waitForTimeout(500)
       }],
@@ -40,7 +43,29 @@ test.describe('axe-core accessibility scan', () => {
         await page.getByRole('link', { name: 'Notifications' }).click()
         await page.waitForTimeout(500)
       }],
+      ['Calendario general', async () => {
+        // Disambiguate from a legacy-route navbar's own "Calendario" entry
+        // (both can be on screen at once outside a mode-scoped route, e.g.
+        // right after "Notificaciones") — the top-level mode selector is
+        // the one place "Calendario" always resolves to the general view.
+        await page
+          .getByRole('navigation', { name: 'Selector de modo' })
+          .getByRole('link', { name: 'Calendario', exact: true })
+          .click()
+        await page.waitForTimeout(500)
+      }],
+      ['Ajustes', async () => {
+        // WEB-*: the app keeps its OIDC token in memory only — page.goto()
+        // is a real browser navigation and would log the session out. The
+        // gear icon in the account area is a real client-side link, always
+        // rendered regardless of mode.
+        await page.getByRole('link', { name: 'Ajustes' }).click()
+        await page.waitForTimeout(500)
+      }],
       ['Documentos (mock module)', async () => {
+        // Being on /settings (not a mode route) already renders the legacy
+        // sidebar (Documentos included) — a real client-side link, not
+        // page.goto(), for the same in-memory-token reason as above.
         await page.getByRole('link', { name: 'Documentos', exact: true }).click()
         await page.waitForTimeout(500)
       }],

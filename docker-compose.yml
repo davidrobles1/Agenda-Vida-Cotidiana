@@ -38,6 +38,15 @@ services:
     environment:
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
+      # Unset by default (regular local/LAN dev is unaffected). Export these
+      # before `docker compose up` only for a public single-hostname demo via
+      # infra/caddy/Caddyfile.demo (see 18-dev-environment.md demo section) —
+      # KC_HTTP_RELATIVE_PATH must match the path Caddy mounts Keycloak under
+      # (/auth) so Keycloak's issuer/redirect URLs come out correct, and
+      # KC_PROXY_HEADERS=xforwarded tells Keycloak to trust Caddy's
+      # X-Forwarded-* headers for hostname/scheme detection.
+      KC_HTTP_RELATIVE_PATH: ${KC_HTTP_RELATIVE_PATH:-}
+      KC_PROXY_HEADERS: ${KC_PROXY_HEADERS:-}
     ports:
       - "8081:8080"
     volumes:

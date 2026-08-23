@@ -1,0 +1,139 @@
+/* FASE 12: the Templates popover — grid of cards (step 1) and a single
+   larger preview + Aplicar/Cancelar (step 2). Reuses .popover/.popoverDialog
+   sizing conventions from VisionBoardToolbar.module.css but needs its own
+   width (wider, to fit a grid) so it stays a sibling stylesheet rather than
+   growing that one with template-specific rules. */
+.templatePopover {
+  z-index: 100000;
+}
+
+.templateDialog {
+  width: 620px;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 96px);
+  overflow-y: auto;
+  padding: var(--space-4);
+  border-radius: 28px;;
+  background: var(--color-surface-variant);
+  border: 1px solid var(--color-border);
+  box-shadow: 0 16px 40px rgba(44, 66, 91, 0.2);
+  outline: none;
+}
+
+.templateIntro {
+  margin: 0 0 var(--space-3);
+  color: var(--color-text-secondary);
+  font-size: 0.8125rem;
+}
+
+.templateGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--space-3);
+}
+
+.templateCard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--space-2);
+  border: 1.5px solid var(--color-border);
+  border-radius: 28px;;
+  background: var(--color-surface);
+  color: var(--color-text);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 150ms ease, transform 150ms ease;
+}
+
+.templateCard:hover {
+  border-color: var(--color-primary);
+  transform: translateY(-1px);
+}
+
+.templateCardName {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.templateCardDescription {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+/* FASE 12: the preview canvas itself — a small fixed-aspect box standing
+   in for the real board, positioned children come from
+   fitTemplateToSize's own x/y/width/height in that same box's coordinate
+   space, so it inherits the exact composition ratio the real apply will
+   produce (see visionBoardTemplates.ts). */
+.previewBox {
+  position: relative;
+  overflow: hidden;
+  border-radius: 20px;;
+  background: var(--color-surface-variant);
+  border: 1px solid var(--color-border);
+}
+
+.previewElement {
+  position: absolute;
+  overflow: hidden;
+  border-radius: 3px;
+  font-size: 0.5rem;
+  line-height: 1.2;
+  padding: 2px 3px;
+  color: var(--color-text);
+}
+
+.previewText {
+  background: transparent;
+  font-weight: 600;
+}
+
+.previewNote {
+  background: var(--color-warning-container);
+}
+
+.previewShape {
+  background: var(--color-primary-container);
+}
+
+.previewShapeCircle {
+  border-radius: 50%;
+}
+
+.previewShapeLine {
+  background: var(--color-primary);
+}
+
+.previewSticker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.previewStickerImage {
+  width: 70%;
+  height: 70%;
+  object-fit: contain;
+}
+
+.previewStep {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.previewHeading {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.previewActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}

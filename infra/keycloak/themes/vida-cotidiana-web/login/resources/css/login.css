@@ -25,7 +25,7 @@
   /* Reused as-is from design-system.md — already WCAG AA verified (ACC-001). */
   --vc-error: #b91c1c;
   --vc-error-container: #fee2e2;
-  --vc-radius-control: 8px;
+  --vc-radius-control: 16px;
 }
 
 body.vc-theme-web {

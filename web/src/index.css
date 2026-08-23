@@ -58,6 +58,29 @@
   --color-text: #2c425b;
   --color-text-secondary: #556479;
 
+  /* UX-012/ADR-015 (Documentacion/02-ux-ui/design-system.md §11): Laboral
+     mode's cool palette — same "color roles" pattern as the tokens above
+     (primary/container/on-primary, surface/surface-variant, border,
+     text/text-secondary), just a distinct namespace so both palettes can be
+     live at once (AppShell switches which set a mode-scoped screen reads via
+     a wrapper class, see AppShell.module.css). Base is the navy the Product
+     Owner referenced (#1E3F5C) + a professional green "foco" accent, per the
+     ADR-015 mockup — success/warning/info/error stay the shared, mode-
+     agnostic semantic tokens above (a completed task is green regardless of
+     which mode created it). Every value WCAG 2.1 AA-verified against the
+     real surface it renders on, same relative-luminance method as §9/ACC-001
+     (see design-system.md §11 for the full pair table): */
+  --color-laboral-primary: #1e3f5c;
+  --color-laboral-primary-container: #dce6ec;
+  --color-laboral-on-primary: #ffffff;
+  --color-laboral-accent: #2f6b4f;
+  --color-laboral-accent-container: #dceae2;
+  --color-laboral-surface: #eaeff2;
+  --color-laboral-surface-variant: #f7fafb;
+  --color-laboral-border: #5b6b78;
+  --color-laboral-text: #20313f;
+  --color-laboral-text-secondary: #4c5c68;
+
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -77,6 +100,10 @@
      accent instead — same warm/editorial character, renders identically
      everywhere. Headings only — never body text or form controls. */
   --font-serif: 'Fraunces', Georgia, 'Times New Roman', serif;
+  /* LoginPage "Meraki" wordmark only — self-hosted (see main.tsx), so it
+     doesn't reintroduce the OS-fallback risk Fraunces-italic was chosen to
+     avoid. Never use for body text or form controls. */
+  --font-script: 'Alex Brush', var(--font-serif);
 
   font-family: var(--font-sans);
   font-size: 16px;
@@ -90,12 +117,131 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* UX-012/ADR-015: re-theming for Laboral without touching every consuming
+   component — every existing `.module.css` already reads exclusively
+   `var(--color-*)` (design-system.md §9's own inventory), so redefining the
+   generic role names on this class (applied to AppShell's root `.shell` div
+   only when the active mode is Laboral — see AppShell.tsx) makes every
+   descendant (cards, buttons, inputs, nav) pick up the cool palette
+   automatically. Semantic states (success/warning/info/error) intentionally
+   stay untouched — see the Laboral token block above for why. */
+.laboral-theme {
+  --color-primary: var(--color-laboral-primary);
+  --color-primary-container: var(--color-laboral-primary-container);
+  --color-on-primary: var(--color-laboral-on-primary);
+  --color-surface: var(--color-laboral-surface);
+  --color-surface-variant: var(--color-laboral-surface-variant);
+  --color-border: var(--color-laboral-border);
+  --color-text: var(--color-laboral-text);
+  --color-text-secondary: var(--color-laboral-text-secondary);
+}
+
+/* ==========================================================================
+   UX-014 — VISUAL THEME SYSTEM (post-login portal only)
+
+   Applied as a class on AppShell's `.shell` root (see AppShell.tsx +
+   VisualThemeContext.tsx) — exactly the same mechanism `.laboral-theme`
+   above already uses. Never touches `:root`, so LoginPage/Keycloak stay
+   completely unaffected; `.laboral-theme` can still combine with any of
+   these (both classes coexist on `.shell`) since Laboral only overrides
+   color, never radius/shadow/font.
+
+   Every component already reads these roles via var(--color-*) etc., so
+   redefining them here is enough for the base palette/shape shift — the
+   signature per-theme effects (paper grain, ribbon, deckle notes, dark
+   sidebar, blueprint grid, breathing "today", blob button…) live beside the
+   component they decorate, each guarded by `:global(.theme-x)` in that
+   component's own .module.css, not duplicated here. --shadow-card and
+   --font-mono are new tokens introduced by this system (no theme currently
+   maps to shadow:none across the board — Minimal is the one exception, by
+   design, matching its "hairlines only" language).
+   ========================================================================== */
+
+.theme-editorial {
+  --color-primary: #2c5f8c;
+  --color-primary-container: #e4eef6;
+  --color-on-primary: #ffffff;
+  --color-terracotta: #a34a3a;
+  --color-terracotta-text: #7a3226;
+  --color-terracotta-container: #f3ded8;
+  --color-surface: #f3ead8;
+  --color-surface-variant: #fdf8ee;
+  --color-border: #6e8192;
+  --color-text: #2c425b;
+  --color-text-secondary: #6b7c8f;
+  --radius-card: 4px;
+  --radius-control: 6px;
+  --shadow-card: 0 10px 22px rgba(44, 66, 91, 0.14), 0 2px 6px rgba(44, 66, 91, 0.09);
+  --font-mono: 'Courier Prime', monospace;
+}
+
+.theme-minimal {
+  --color-primary: #23425f;
+  --color-primary-container: #eef1f4;
+  --color-on-primary: #ffffff;
+  --color-terracotta: #23425f;
+  --color-terracotta-text: #23425f;
+  --color-terracotta-container: #eef1f4;
+  --color-surface: #faf8f3;
+  --color-surface-variant: #ffffff;
+  --color-border: #e4dfd3;
+  --color-text: #1a232e;
+  --color-text-secondary: #7a8290;
+  --radius-card: 2px;
+  --radius-control: 2px;
+  --shadow-card: none;
+  --font-mono: 'Courier Prime', monospace;
+}
+
+.theme-productivity {
+  --color-primary: #2c5f8c;
+  --color-primary-container: #e4eef6;
+  --color-on-primary: #ffffff;
+  --color-terracotta: #e08a3e;
+  --color-terracotta-text: #8b5e36;
+  --color-terracotta-container: #f7e6d3;
+  --color-surface: #f2ede1;
+  --color-surface-variant: #fffdf8;
+  --color-border: #6e8192;
+  --color-text: #1b2a3a;
+  --color-text-secondary: #5c6c80;
+  --radius-card: 10px;
+  --radius-control: 8px;
+  --shadow-card: 0 3px 10px rgba(38, 55, 74, 0.1);
+  --font-mono: 'Courier Prime', monospace;
+}
+
+.theme-organic {
+  --color-primary: #5b7a5e;
+  --color-primary-container: #dfe6d7;
+  --color-on-primary: #ffffff;
+  --color-terracotta: #c17a4a;
+  --color-terracotta-text: #8b5e36;
+  --color-terracotta-container: #f2e2d3;
+  --color-surface: #eef0df;
+  --color-surface-variant: #fbfaf1;
+  --color-border: #7d8a72;
+  --color-text: #33402f;
+  --color-text-secondary: #6d7860;
+  --radius-card: 22px;
+  --radius-control: 999px;
+  --shadow-card: 0 12px 26px rgba(51, 64, 47, 0.13);
+  --font-mono: 'Courier Prime', monospace;
+}
+
 * {
   box-sizing: border-box;
 }
 
+html,
+body,
+#root {
+  height: 100%;
+}
+
 body {
   margin: 0;
+  overflow: hidden;
   background: var(--color-surface);
 }
 
@@ -104,7 +250,7 @@ body {
    Narrow single-column pages (login) get their own constraint locally
    instead — see LoginPage.module.css. */
 #root {
-  min-height: 100vh;
+  min-height: 100%;
 }
 
 h1 {
@@ -120,7 +266,7 @@ button {
   font-family: inherit;
   font-size: 0.9375rem;
   font-weight: 500;
-  border-radius: var(--radius-control);
+  border-radius: 20px;;
   border: 1px solid transparent;
   padding: var(--space-2) var(--space-4);
   min-height: 44px;
@@ -155,11 +301,35 @@ button:disabled {
   cursor: not-allowed;
 }
 
+/* UX-014: primary-action buttons only — real form submit actions
+   (Guardar/Guardar cambios), never every bare `<button>` in the app (week
+   headers, nav arrows, FilterChip, picker cells are all `type="button"`
+   with no submit semantics, so `[type='submit']` is the correct, narrow
+   signal here — a plain `:not([data-variant])` catches all of those too,
+   confirmed for real in a screenshot during this feature's own validation
+   and corrected). "Nueva nota"/"Nueva tarea"/"+ Nuevo" get the same
+   treatment where they're defined (`.newNoteButton` in Notes.module.css,
+   `.newButton` in AppShell.module.css) since those render as React Aria
+   `Button`/`NavLink`, not `<button type="submit">`. */
+.theme-editorial button[type='submit']:not([data-variant]),
+.theme-productivity button[type='submit']:not([data-variant]) {
+  background: linear-gradient(135deg, var(--color-primary), color-mix(in srgb, var(--color-primary) 65%, white));
+}
+
+.theme-productivity button[type='submit']:not([data-variant]) {
+  box-shadow: 0 4px 14px rgba(44, 95, 140, 0.28);
+}
+
+/* Organic's single "uneven blob" CTA shape. */
+.theme-organic button[type='submit']:not([data-variant]) {
+  border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
+}
+
 input {
   font-family: inherit;
   font-size: 0.9375rem;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-control);
+  border-radius: 20px;;
   padding: var(--space-2) var(--space-3);
   min-height: 44px;
   /* UX-008: surface-variant (cream), not surface (page beige) — an input
@@ -177,7 +347,7 @@ a {
 [role='alert'] {
   color: var(--color-error);
   background: var(--color-error-container);
-  border-radius: var(--radius-control);
+  border-radius: 20px;;
   padding: var(--space-2) var(--space-3);
   font-size: 0.875rem;
 }

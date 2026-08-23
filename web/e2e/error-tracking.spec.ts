@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { loginAsTestuserAndGoToReminders } from './helpers'
 
 /**
  * WEB-006 real verification: owner (testuser) logs in, clicks "Debug: trigger
@@ -38,15 +39,7 @@ const GLITCHTIP_API_TOKEN = process.env.GLITCHTIP_API_TOKEN
 test('a real thrown error reaches GlitchTip, confirmed via its API', async ({ page, request }) => {
   const marker = `WEB-006 debug crash: manually triggered from RemindersPage`
 
-  await page.goto('/')
-  await page.getByRole('button', { name: 'Iniciar sesión' }).click()
-
-  await page.waitForURL(/realms\/vida-cotidiana/)
-  await page.getByLabel('Username or email').fill('testuser')
-  await page.getByRole('textbox', { name: 'Password' }).fill('TestPass123!')
-  await page.getByRole('button', { name: 'Sign In' }).click()
-
-  await expect(page.getByPlaceholder('New reminder')).toBeVisible({ timeout: 20_000 })
+  await loginAsTestuserAndGoToReminders(page)
 
   // Catch the page crash Playwright would otherwise surface as a test failure —
   // it's expected here, caught by our own ErrorBoundary, not a real test bug.

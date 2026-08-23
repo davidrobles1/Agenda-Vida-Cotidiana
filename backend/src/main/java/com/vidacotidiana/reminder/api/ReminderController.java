@@ -47,7 +47,8 @@ public class ReminderController {
     @PostMapping
     public ResponseEntity<ReminderResponse> create(@Valid @RequestBody CreateReminderRequest request) {
         Reminder created = reminderService.create(
-                currentUser.userId(), request.title(), request.description(), request.dueAt());
+                currentUser.userId(), request.title(), request.description(), request.dueAt(), request.context(),
+                request.iconId(), request.stickerId(), request.personId(), request.projectId(), request.location());
         return ResponseEntity.status(HttpStatus.CREATED).body(ReminderResponse.from(created));
     }
 
@@ -77,7 +78,9 @@ public class ReminderController {
     @PatchMapping("/{id}")
     public ReminderResponse update(@PathVariable UUID id, @Valid @RequestBody UpdateReminderRequest request) {
         Reminder reminder = reminderService.edit(
-                id, currentUser.userId(), request.title(), request.description(), request.dueAt(), request.version());
+                id, currentUser.userId(), request.title(), request.description(), request.dueAt(),
+                request.iconId(), request.stickerId(), request.personId(), request.projectId(), request.location(),
+                request.version());
         return ReminderResponse.from(reminder);
     }
 

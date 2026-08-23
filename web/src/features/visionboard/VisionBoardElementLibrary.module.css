@@ -1,0 +1,194 @@
+/* FASE 13: "Elementos" — a small visual gallery (step 1) that transitions,
+   inside the same popover, to that type's own quick-create step (step 2).
+   Wider than the plain single-field popovers (VisionBoardToolbar.module.css's
+   .popoverDialog, 280px) since a gallery needs room to read as a grid, not
+   a cramped list. */
+.libraryPopover {
+  z-index: 100000;
+}
+
+.libraryDialog {
+  width: 360px;
+  max-width: calc(100vw - 32px);
+  padding: var(--space-4);
+  border-radius: 28px;;
+  background: var(--color-surface-variant);
+  border: 1px solid var(--color-border);
+  box-shadow: 0 16px 40px rgba(44, 66, 91, 0.2);
+  outline: none;
+}
+
+.libraryIntro {
+  margin: 0 0 var(--space-3);
+  color: var(--color-text-secondary);
+  font-size: 0.8125rem;
+}
+
+.libraryGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-2);
+}
+
+/* Icon-forward tile, not a plain menu row — this is meant to read as a
+   small library of things you can pick up, same spirit as
+   core/ui/pickers/StickerPicker.tsx's own grid of options. */
+.libraryTile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: var(--space-3) var(--space-2);
+  border: 1.5px solid var(--color-border);
+  border-radius: 28px;;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 150ms ease, transform 150ms ease, color 150ms ease;
+}
+
+.libraryTile:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  transform: translateY(-1px);
+}
+
+.libraryStepHeader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: var(--space-2);
+}
+
+/* FASE 14: icon + visible "Volver" label — was icon-only (aria-label
+   only), made visible per the phase's explicit "mostrar botón ← Volver". */
+.libraryBackButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 0;
+  padding: 4px 8px 4px 6px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+
+.libraryBackButton:hover {
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+/* BLOQUE B (post-MVP): file-picker + drag & drop target for IMAGE's
+   "Subir archivo" mode — a real <label> wrapping a visually-hidden (but
+   still focusable/keyboard-operable, see .imageDropzoneInput below)
+   <input type="file">, so click-to-open and Tab+Enter/Space both work via
+   native label/input semantics, nothing manually reimplemented. */
+.imageDropzone {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 120px;
+  padding: var(--space-3);
+  border: 1.5px dashed var(--color-border);
+  border-radius: 28px;;
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: 0.8125rem;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 150ms ease, background-color 150ms ease;
+}
+
+.imageDropzone:hover,
+.imageDropzone:has(.imageDropzoneInput:focus-visible) {
+  border-color: var(--color-primary);
+}
+
+.imageDropzoneActive {
+  border-color: var(--color-primary);
+  background: var(--color-primary-container);
+}
+
+.imageDropzonePreview {
+  max-width: 100%;
+  max-height: 140px;
+  border-radius: 20px;;
+  object-fit: contain;
+}
+
+/* BLOQUE D (post-MVP): "😊 Emojis" — grouped-by-category grid, scrollable
+   as a whole (120 entries across 20 categories) instead of one flat,
+   un-scannable grid. */
+.emojiCategories {
+  max-height: 280px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.emojiCategoryLabel {
+  display: block;
+  margin: var(--space-2) 0 4px;
+  color: var(--color-text-secondary);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.emojiGrid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 4px;
+  margin-bottom: var(--space-2);
+}
+
+.emojiTile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border: none;
+  border-radius: 20px;;
+  background: transparent;
+  cursor: pointer;
+  transition: background-color 150ms ease;
+}
+
+.emojiTile:hover {
+  background: var(--color-surface);
+}
+
+.emojiTileActive {
+  background: var(--color-primary-container);
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+.emojiBadge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  color: #fff;
+}
+
+.imageDropzoneInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  clip: rect(0 0 0 0);
+}

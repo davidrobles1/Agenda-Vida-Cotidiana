@@ -18,6 +18,13 @@ let renewTimer: number | undefined
 let listeners: Array<() => void> = []
 
 const CODE_VERIFIER_KEY = 'vc_pkce_code_verifier'
+// ADR-015/FR-014: CallbackPage needs to know whether this login just came
+// from Keycloak's *registration* form (→ show onboarding) vs. an ordinary
+// login (→ go straight to Calendario). The backend doesn't expose a
+// "brand-new account" signal on GET /me, so this session-scoped flag is the
+// bridge: register() sets it right before the redirect, CallbackPage
+// consumes (reads + clears) it once, right after the token exchange.
+const JUST_REGISTERED_KEY = 'vc_just_registered'
 
 function notify() {
   for (const listener of listeners) listener()
@@ -73,6 +80,7 @@ export async function register(): Promise<void> {
   const verifier = generateCodeVerifier()
   const challenge = await generateCodeChallenge(verifier)
   sessionStorage.setItem(CODE_VERIFIER_KEY, verifier)
+  sessionStorage.setItem(JUST_REGISTERED_KEY, '1')
 
   window.location.assign(
     registrationUrl({
@@ -109,6 +117,14 @@ async function exchangeCode(code: string, verifier: string): Promise<TokenSet> {
   }
 }
 
+/** See JUST_REGISTERED_KEY above — reads and clears the flag; single-use,
+    same reasoning as the PKCE code_verifier. */
+export function consumeJustRegistered(): boolean {
+  const value = sessionStorage.getItem(JUST_REGISTERED_KEY)
+  sessionStorage.removeItem(JUST_REGISTERED_KEY)
+  return value === '1'
+}
+
 export async function handleCallback(): Promise<void> {
   const params = new URLSearchParams(window.location.search)
   const code = params.get('code')
@@ -118,6 +134,7 @@ export async function handleCallback(): Promise<void> {
   tokenSet = await exchangeCode(code, verifier)
   sessionStorage.removeItem(CODE_VERIFIER_KEY)
   scheduleSilentRenew()
+  attachActivityListeners()
   notify()
 }
 
@@ -126,6 +143,43 @@ function scheduleSilentRenew(): void {
   if (!tokenSet) return
   const msUntilRenew = Math.max(tokenSet.expiresAt - Date.now() - 30_000, 5_000)
   renewTimer = window.setTimeout(silentRenew, msUntilRenew)
+}
+
+// Pedido explícito del usuario (2026-08-21): "me saca el aplicativo... que
+// empiece a contar mientras haya navegación que no me saque" — el único
+// timer que existía (scheduleSilentRenew, arriba) es un `setTimeout` de
+// ~4.5 minutos que los navegadores retrasan o pausan por completo mientras
+// la pestaña está en segundo plano o el equipo duerme (una pestaña
+// "congelada" así es la causa real de "me saca" pese a haber estado
+// activo: el timer simplemente no llega a dispararse a tiempo, y para
+// cuando la pestaña vuelve a primer plano, el token ya expiró y la sesión
+// de Keycloak puede haber superado su propio `ssoSessionIdleTimeout`
+// mientras tanto — ver infra/keycloak/realm-vida-cotidiana*.json, ahora
+// extendido). Esto no reemplaza ese timer — lo complementa: cualquier
+// interacción real (clic, tecla, toque, scroll) o que la pestaña vuelva a
+// ser visible dispara una verificación inmediata; si el token ya venció o
+// está a punto de hacerlo, renueva ahí mismo en vez de esperar al
+// `setTimeout` que pudo haberse retrasado. Mientras haya navegación real,
+// esto mantiene la sesión viva de forma continua; solo la inactividad
+// genuina (sin estos eventos, con la pestaña visible o no) deja que la
+// sesión expire con normalidad.
+const ACTIVITY_EVENTS = ['mousedown', 'keydown', 'touchstart', 'scroll'] as const
+let activityListenersAttached = false
+
+function renewIfDueOrExpired(): void {
+  if (!tokenSet) return
+  if (Date.now() >= tokenSet.expiresAt - 30_000) void silentRenew()
+}
+
+function attachActivityListeners(): void {
+  if (activityListenersAttached) return
+  activityListenersAttached = true
+  for (const event of ACTIVITY_EVENTS) {
+    window.addEventListener(event, renewIfDueOrExpired, { passive: true })
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') renewIfDueOrExpired()
+  })
 }
 
 // prompt=none in a hidden iframe: renews the token without ever showing the

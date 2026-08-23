@@ -39,6 +39,34 @@ paths:
           description: Deletion requested; account moves to PENDING_DELETION, purged after 30 days
         '401':
           $ref: '#/components/responses/Unauthorized'
+  /me/modes:
+    post:
+      summary: Enable a mode (Personal or Laboral) for the current user (ADR-015/FR-016/UC-15)
+      description: >
+        Only-additive — enables the given mode, there is no way to disable
+        one yet (open, non-blocking TBD in ADR-015). Idempotent: enabling an
+        already-enabled mode is a no-op that still returns 200. POST rather
+        than PATCH /me — this is an action ("activate this mode"), the same
+        style already used by POST /reminders/{id}/complete.
+      security:
+        - keycloakBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnableModeRequest'
+      responses:
+        '200':
+          description: Mode enabled; returns the updated user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
   /me/devices:
     get:
       summary: List devices registered for push notifications for the authenticated user
@@ -465,6 +493,1220 @@ paths:
           $ref: '#/components/responses/NotFound'
         '410':
           $ref: '#/components/responses/Gone'
+  /warranties:
+    get:
+      summary: List own warranties (paginated) — BE-037/WEB-009, V2 (see 22-decision-log.md ADR-015 refinamiento 2026-08-18).
+      security:
+        - keycloakBearer: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+      responses:
+        '200':
+          description: Paginated warranty list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PageMeta'
+                  - type: object
+                    additionalProperties: true # BE-035, see PageMeta
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Warranty'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      summary: Create a warranty (caller becomes owner)
+      security:
+        - keycloakBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWarrantyRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Warranty'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /warranties/{id}:
+    get:
+      summary: Get a warranty (owner only — no sharing/collaborator concept for this entity)
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Warranty
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Warranty'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      summary: Update warranty (owner only). Requires the current version for optimistic locking.
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateWarrantyRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Warranty'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Version conflict (optimistic locking) — the warranty was modified concurrently; refetch and retry.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      summary: Delete warranty (owner only)
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /warranties/{id}/complete:
+    post:
+      summary: Toggle the completion state (owner only). Optionally accepts the expected version for optimistic locking.
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompleteWarrantyRequest'
+      responses:
+        '200':
+          description: Completion state toggled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Warranty'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Version conflict (optimistic locking)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /maintenance-records:
+    get:
+      summary: List own maintenance records (paginated) — BE-037/WEB-009, V2 (see 22-decision-log.md ADR-015 refinamiento 2026-08-18).
+      security:
+        - keycloakBearer: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+      responses:
+        '200':
+          description: Paginated maintenance record list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PageMeta'
+                  - type: object
+                    additionalProperties: true # BE-035, see PageMeta
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/MaintenanceRecord'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      summary: Create a maintenance record (caller becomes owner)
+      security:
+        - keycloakBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateMaintenanceRecordRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MaintenanceRecord'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /maintenance-records/{id}:
+    get:
+      summary: Get a maintenance record (owner only — no sharing/collaborator concept for this entity)
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: MaintenanceRecord
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MaintenanceRecord'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      summary: Update maintenance record (owner only). Requires the current version for optimistic locking.
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateMaintenanceRecordRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MaintenanceRecord'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Version conflict (optimistic locking) — the maintenance record was modified concurrently; refetch and retry.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      summary: Delete maintenance record (owner only)
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /maintenance-records/{id}/complete:
+    post:
+      summary: Toggle the completion state (owner only). Optionally accepts the expected version for optimistic locking.
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompleteMaintenanceRecordRequest'
+      responses:
+        '200':
+          description: Completion state toggled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MaintenanceRecord'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Version conflict (optimistic locking)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /people:
+    get:
+      summary: List own people (paginated) — ADR-016/FR-021, V3. Módulo Laboral.
+      security:
+        - keycloakBearer: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+      responses:
+        '200':
+          description: Paginated person list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PageMeta'
+                  - type: object
+                    additionalProperties: true
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Person'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      summary: Create a person (caller becomes owner)
+      security:
+        - keycloakBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePersonRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Person'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /people/{id}:
+    get:
+      summary: Get a person (owner only)
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Person
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Person'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      summary: Update person (owner only). Requires the current version for optimistic locking.
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePersonRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Person'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Version conflict (optimistic locking)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      summary: Delete person (owner only)
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /projects:
+    get:
+      summary: List own projects (paginated) — ADR-016/FR-022, V3. Módulo Laboral.
+      security:
+        - keycloakBearer: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+      responses:
+        '200':
+          description: Paginated project list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PageMeta'
+                  - type: object
+                    additionalProperties: true
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Project'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      summary: Create a project (caller becomes owner)
+      security:
+        - keycloakBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProjectRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: clientPersonId does not reference a person owned by the caller.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /projects/{id}:
+    get:
+      summary: Get a project (owner only)
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Project
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      summary: Update project (owner only). Requires the current version for optimistic locking.
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProjectRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Version conflict (optimistic locking)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      summary: Delete project (owner only)
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /commitments:
+    get:
+      summary: List own commitments (paginated), optionally filtered by direction — ADR-016/FR-025/FR-027, V3. Módulo Laboral.
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: query
+          name: direction
+          required: false
+          schema:
+            type: string
+            enum: [MINE, THEIRS]
+          description: >
+            "Seguimientos" (MINE) / "Esperando" (THEIRS) — misma entidad,
+            filtrada. Omitido devuelve ambas direcciones juntas.
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+      responses:
+        '200':
+          description: Paginated commitment list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PageMeta'
+                  - type: object
+                    additionalProperties: true
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Commitment'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      summary: Create a commitment (caller becomes owner)
+      security:
+        - keycloakBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCommitmentRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Commitment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: personId/projectId/originReminderId does not reference a resource owned by the caller.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /commitments/{id}:
+    get:
+      summary: Get a commitment (owner only)
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Commitment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Commitment'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      summary: Update commitment (owner only). Requires the current version for optimistic locking.
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCommitmentRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Commitment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Version conflict (optimistic locking)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      summary: Delete commitment (owner only)
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /commitments/{id}/resolve:
+    post:
+      summary: Mark a commitment resolved (owner only, UC-20). Optionally accepts the expected version for optimistic locking.
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResolveCommitmentRequest'
+      responses:
+        '200':
+          description: Commitment resolved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Commitment'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Version conflict (optimistic locking)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /notes:
+    get:
+      summary: List own notes (paginated) — funcionalidad Agenda+Notas completa, V2.
+      security:
+        - keycloakBearer: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+      responses:
+        '200':
+          description: Paginated note list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PageMeta'
+                  - type: object
+                    additionalProperties: true # BE-035, see PageMeta
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Note'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      summary: Create a note (caller becomes owner)
+      security:
+        - keycloakBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateNoteRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Note'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /notes/{id}:
+    get:
+      summary: Get a note (owner only — no sharing/collaborator concept for this entity)
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Note
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Note'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      summary: Update note (owner only). Requires the current version for optimistic locking.
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateNoteRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Note'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Version conflict (optimistic locking) — the note was modified concurrently; refetch and retry.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      summary: Delete note (owner only)
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /vision-boards:
+    get:
+      summary: List own vision boards (paginated). Items omit `elements` — see GET /vision-boards/{id}.
+      security:
+        - keycloakBearer: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+      responses:
+        '200':
+          description: Paginated vision board list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PageMeta'
+                  - type: object
+                    additionalProperties: true # BE-035, see PageMeta
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/VisionBoard'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      summary: Create a vision board (caller becomes owner)
+      security:
+        - keycloakBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateVisionBoardRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VisionBoard'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /vision-boards/{id}:
+    get:
+      summary: Get a vision board (owner only), including its elements
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Vision board with elements
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VisionBoard'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      summary: Update a vision board (owner only). Requires the current version for optimistic locking.
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateVisionBoardRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VisionBoard'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Version conflict (optimistic locking) — the vision board was modified concurrently; refetch and retry.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      summary: Delete a vision board (owner only). Cascades to its elements at the database level.
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /vision-boards/{id}/elements:
+    post:
+      summary: Add an element to a vision board (owner only)
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateElementRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VisionBoardElement'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /vision-boards/{id}/elements/{elementId}:
+    put:
+      summary: Update an element (owner only, via the board). Requires the current version of the element for optimistic locking — independent of the board's own version.
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: path
+          name: elementId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateElementRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VisionBoardElement'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Version conflict (optimistic locking) — the element was modified concurrently; refetch and retry.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      summary: Delete an element (owner only, via the board)
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: path
+          name: elementId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /vision-boards/{id}/elements/{elementId}/reorder:
+    post:
+      summary: >
+        Move an element exactly one position relative to its immediately
+        adjacent neighbor in paint order (RAISE/LOWER), or to the very
+        front/back (FRONT/BACK). Owner only, via the board. Atomically
+        renumbers every element on the board to a dense zIndex sequence
+        matching the new order and returns all of them, so the caller can
+        sync every affected element without a full board refetch. Requires
+        the target element's current version for optimistic locking — the
+        renumbering of its siblings is a side effect of this one action, not
+        something the caller is expected to have a version for.
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: path
+          name: elementId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReorderElementRequest'
+      responses:
+        '200':
+          description: The board's elements, all reflecting their (possibly new) zIndex.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/VisionBoardElement'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Version conflict (optimistic locking) — the element was modified concurrently; refetch and retry.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /vision-board-images:
+    post:
+      summary: >
+        Upload a Vision Board image (BLOQUE A post-MVP: file picker,
+        drag & drop, or paste). Owned by the caller directly, independent of
+        any one board — not nested under /vision-boards/{id} — so the same
+        upload can back an IMAGE element on more than one board (e.g.
+        duplicating an element) without re-uploading. Stored server-side
+        (Postgres BYTEA — no S3-compatible object storage is provisioned in
+        this environment yet); the response never echoes the original bytes
+        back, only an internal `id` an IMAGE element's `data.imageId`
+        references. Never depends on the original external URL a pasted/
+        dropped image might have come from.
+      security:
+        - keycloakBearer: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: Uploaded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VisionBoardImage'
+        '400':
+          description: Not an image (unsupported content type), or the image exceeds the size limit.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '413':
+          description: The uploaded file exceeds the servlet-level request size ceiling.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /vision-board-images/{id}:
+    get:
+      summary: >
+        Fetch a previously uploaded image's raw bytes (owner only).
+        Requires the same bearer JWT as every other endpoint here — the
+        frontend resolves `<img>` sources via an authenticated fetch + a
+        local object URL, not a plain, unauthenticated `<img src>`.
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: The image bytes, with the original Content-Type.
+          content:
+            image/png: {}
+            image/jpeg: {}
+            image/webp: {}
+            image/gif: {}
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
 components:
   securitySchemes:
     keycloakBearer:
@@ -535,7 +1777,7 @@ components:
           type: integer
     User:
       type: object
-      required: [id, email]
+      required: [id, email, personalEnabled, laboralEnabled]
       properties:
         id:
           type: string
@@ -549,6 +1791,19 @@ components:
         deletionStatus:
           type: string
           enum: [ACTIVE, PENDING_DELETION, DELETED]
+        personalEnabled:
+          type: boolean
+          description: ADR-015/FR-014/FR-016. Only-additive — there is no matching "disable" yet (open, non-blocking TBD in ADR-015).
+        laboralEnabled:
+          type: boolean
+          description: ADR-015/FR-014/FR-016. Only-additive — see personalEnabled.
+    EnableModeRequest:
+      type: object
+      required: [mode]
+      properties:
+        mode:
+          type: string
+          enum: [PERSONAL, LABORAL]
     CreateReminderRequest:
       type: object
       required: [title]
@@ -564,6 +1819,39 @@ components:
           type: string
           format: date-time
           description: ISO-8601 timestamp in UTC.
+        context:
+          type: string
+          enum: [PERSONAL, LABORAL]
+          description: >
+            ADR-015/FR-019. Optional — inferred by the client from the navbar
+            of origin, no selector in the create form. Omitted by every
+            pre-ADR-015 caller; the server defaults to PERSONAL when absent
+            (same reasoning as the REMINDER.context backfill migration).
+        iconId:
+          type: string
+          maxLength: 32
+          description: >
+            Funcionalidad Agenda completa (V2). Opcional — identificador
+            estable de un catálogo que resuelve el frontend
+            (web/src/core/ui/pickers/pickerCatalog.ts), nunca una ruta de
+            asset. Mismo contrato que Note.iconId.
+        stickerId:
+          type: string
+          maxLength: 32
+        personId:
+          type: string
+          format: uuid
+          description: >
+            ADR-016/FR-023. Opcional — debe pertenecer al mismo dueño; si no,
+            404 PERSON_NOT_FOUND (nunca revela existencia de un recurso ajeno).
+        projectId:
+          type: string
+          format: uuid
+          description: ADR-016/FR-023. Opcional — mismo contrato de autorización que personId (404 PROJECT_NOT_FOUND).
+        location:
+          type: string
+          maxLength: 500
+          description: ADR-016/FR-024. Opcional — solo relevante para una "reunión" (context=LABORAL con participantes vía reminders/{id}/shares).
     UpdateReminderRequest:
       type: object
       description: Partial update. version is required to detect concurrent modifications (optimistic locking).
@@ -580,6 +1868,28 @@ components:
           type: string
           format: date-time
           description: ISO-8601 timestamp in UTC.
+        iconId:
+          type: string
+          maxLength: 32
+          description: >
+            NO es parcial como title/description/dueAt — siempre se aplica
+            tal cual se envía (incluida su ausencia, que lo limpia). Mismo
+            contrato que UpdateNoteRequest.iconId.
+        stickerId:
+          type: string
+          maxLength: 32
+        personId:
+          type: string
+          format: uuid
+          description: ADR-016/FR-023. Parcial (null deja el valor sin cambios) — no existe forma de desvincular una vez asignado en V3.
+        projectId:
+          type: string
+          format: uuid
+          description: ADR-016/FR-023. Mismo contrato parcial que personId.
+        location:
+          type: string
+          maxLength: 500
+          description: ADR-016/FR-024. Mismo contrato parcial que title/description.
         version:
           type: integer
           description: Expected current version of the reminder; a mismatch returns 409.
@@ -591,7 +1901,7 @@ components:
           type: integer
     Reminder:
       type: object
-      required: [id, title, status, version]
+      required: [id, title, status, context, version]
       properties:
         id:
           type: string
@@ -614,6 +1924,528 @@ components:
           type: string
           enum: [PENDING, COMPLETED]
           description: Single global completion state shared by owner and all active collaborators (DEC-001).
+        context:
+          type: string
+          enum: [PERSONAL, LABORAL]
+          description: ADR-015/FR-017/FR-018/FR-019. Always present in responses — see CreateReminderRequest.context for how it's set.
+        iconId:
+          type: string
+          maxLength: 32
+        stickerId:
+          type: string
+          maxLength: 32
+        personId:
+          type: string
+          format: uuid
+          description: ADR-016/FR-023. Vínculo opcional a una Persona propia.
+        projectId:
+          type: string
+          format: uuid
+          description: ADR-016/FR-023. Vínculo opcional a un Proyecto propio.
+        location:
+          type: string
+          maxLength: 500
+          description: ADR-016/FR-024. Solo relevante para una "reunión".
+        version:
+          type: integer
+          description: Optimistic locking version, incremented on every update.
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    CreateWarrantyRequest:
+      type: object
+      required: [item, expiresAt]
+      properties:
+        item:
+          type: string
+          minLength: 1
+          maxLength: 200
+        expiresAt:
+          type: string
+          format: date-time
+          description: ISO-8601 timestamp in UTC.
+    UpdateWarrantyRequest:
+      type: object
+      description: Partial update. version is required to detect concurrent modifications (optimistic locking).
+      required: [version]
+      properties:
+        item:
+          type: string
+          minLength: 1
+          maxLength: 200
+        expiresAt:
+          type: string
+          format: date-time
+          description: ISO-8601 timestamp in UTC.
+        version:
+          type: integer
+          description: Expected current version of the warranty; a mismatch returns 409.
+    CompleteWarrantyRequest:
+      type: object
+      description: Optional. If version is provided, the server validates it for optimistic locking; if omitted, the toggle is applied without a concurrency check.
+      properties:
+        version:
+          type: integer
+    Warranty:
+      type: object
+      required: [id, item, expiresAt, status, version]
+      description: >
+        BE-037/WEB-009 (V2, see 22-decision-log.md ADR-015 refinamiento
+        2026-08-18). Owner-only entity — no sharing/collaborator concept.
+      properties:
+        id:
+          type: string
+          format: uuid
+        ownerUserId:
+          type: string
+          format: uuid
+        item:
+          type: string
+          minLength: 1
+          maxLength: 200
+        expiresAt:
+          type: string
+          format: date-time
+          description: ISO-8601 timestamp in UTC.
+        status:
+          type: string
+          enum: [VIGENTE, POR_VENCER, VENCIDA, COMPLETADO]
+          description: >
+            Derived at response time from expiresAt vs "now" (ASSUMPTION:
+            POR_VENCER = within 30 days of expiresAt) unless the warranty was
+            explicitly marked completed, in which case it is always
+            COMPLETADO regardless of expiresAt. Never a stored temporal
+            value — see Documentacion/09-data-model.md.
+        version:
+          type: integer
+          description: Optimistic locking version, incremented on every update.
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    CreateMaintenanceRecordRequest:
+      type: object
+      required: [item, nextDueAt]
+      properties:
+        item:
+          type: string
+          minLength: 1
+          maxLength: 200
+        nextDueAt:
+          type: string
+          format: date-time
+          description: ISO-8601 timestamp in UTC.
+    UpdateMaintenanceRecordRequest:
+      type: object
+      description: Partial update. version is required to detect concurrent modifications (optimistic locking).
+      required: [version]
+      properties:
+        item:
+          type: string
+          minLength: 1
+          maxLength: 200
+        nextDueAt:
+          type: string
+          format: date-time
+          description: ISO-8601 timestamp in UTC.
+        version:
+          type: integer
+          description: Expected current version of the maintenance record; a mismatch returns 409.
+    CompleteMaintenanceRecordRequest:
+      type: object
+      description: Optional. If version is provided, the server validates it for optimistic locking; if omitted, the toggle is applied without a concurrency check.
+      properties:
+        version:
+          type: integer
+    MaintenanceRecord:
+      type: object
+      required: [id, item, nextDueAt, status, version]
+      description: >
+        BE-037/WEB-009 (V2, see 22-decision-log.md ADR-015 refinamiento
+        2026-08-18). Owner-only entity — no sharing/collaborator concept.
+      properties:
+        id:
+          type: string
+          format: uuid
+        ownerUserId:
+          type: string
+          format: uuid
+        item:
+          type: string
+          minLength: 1
+          maxLength: 200
+        nextDueAt:
+          type: string
+          format: date-time
+          description: ISO-8601 timestamp in UTC.
+        status:
+          type: string
+          enum: [AL_DIA, PROXIMO, VENCIDO, COMPLETADO]
+          description: >
+            Derived at response time from nextDueAt vs "now" (ASSUMPTION:
+            PROXIMO = within 30 days of nextDueAt) unless the record was
+            explicitly marked completed, in which case it is always
+            COMPLETADO regardless of nextDueAt. Never a stored temporal
+            value — see Documentacion/09-data-model.md.
+        version:
+          type: integer
+          description: Optimistic locking version, incremented on every update.
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    CreatePersonRequest:
+      type: object
+      required: [name]
+      description: ADR-016/FR-021. Módulo Laboral.
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        role:
+          type: string
+          maxLength: 200
+        organization:
+          type: string
+          maxLength: 200
+          description: Texto libre — ADR-016(c), sin entidad Organization propia en V3.
+    UpdatePersonRequest:
+      type: object
+      description: Partial update. version is required to detect concurrent modifications (optimistic locking).
+      required: [version]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        role:
+          type: string
+          maxLength: 200
+        organization:
+          type: string
+          maxLength: 200
+        version:
+          type: integer
+          description: Expected current version of the person; a mismatch returns 409.
+    Person:
+      type: object
+      required: [id, name, version]
+      description: ADR-016/FR-021. Owner-only entity — no sharing/collaborator concept.
+      properties:
+        id:
+          type: string
+          format: uuid
+        ownerUserId:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        role:
+          type: string
+          maxLength: 200
+        organization:
+          type: string
+          maxLength: 200
+        version:
+          type: integer
+          description: Optimistic locking version, incremented on every update.
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    CreateProjectRequest:
+      type: object
+      required: [name]
+      description: ADR-016/FR-022. Módulo Laboral.
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        clientPersonId:
+          type: string
+          format: uuid
+          description: Opcional — debe pertenecer al mismo dueño; si no, 404 PERSON_NOT_FOUND.
+        status:
+          type: string
+          maxLength: 100
+          description: Texto libre en V3 (ADR-016) — sin valor por defecto inventado; ausente se almacena como null.
+        deadline:
+          type: string
+          format: date-time
+    UpdateProjectRequest:
+      type: object
+      description: Partial update. version is required to detect concurrent modifications (optimistic locking).
+      required: [version]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        clientPersonId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          maxLength: 100
+        deadline:
+          type: string
+          format: date-time
+        version:
+          type: integer
+          description: Expected current version of the project; a mismatch returns 409.
+    Project:
+      type: object
+      required: [id, name, version]
+      description: ADR-016/FR-022. Owner-only entity — no sharing/collaborator concept.
+      properties:
+        id:
+          type: string
+          format: uuid
+        ownerUserId:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        clientPersonId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          maxLength: 100
+        deadline:
+          type: string
+          format: date-time
+        version:
+          type: integer
+          description: Optimistic locking version, incremented on every update.
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    CreateCommitmentRequest:
+      type: object
+      required: [personId, description, direction, dueAt]
+      description: >
+        ADR-016/FR-025. "Seguimientos" (direction=MINE) y "Esperando"
+        (direction=THEIRS) son la misma entidad, distinguida por dirección —
+        no dos recursos separados.
+      properties:
+        personId:
+          type: string
+          format: uuid
+          description: >
+            Obligatorio (ASSUMPTION, no decidida por el Product Owner — ver
+            ADR-016 TBD explícitos). Debe pertenecer al mismo dueño.
+        description:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        direction:
+          type: string
+          enum: [MINE, THEIRS]
+        dueAt:
+          type: string
+          format: date-time
+        projectId:
+          type: string
+          format: uuid
+          description: Opcional — debe pertenecer al mismo dueño; si no, 404 PROJECT_NOT_FOUND.
+        originReminderId:
+          type: string
+          format: uuid
+          description: Opcional — el Reminder/reunión del que surgió (UC-21); debe pertenecer al mismo dueño.
+    UpdateCommitmentRequest:
+      type: object
+      description: >
+        Partial update. version is required to detect concurrent
+        modifications (optimistic locking). Cubre UC-20 "reprogramar"
+        (enviar solo dueAt) y el cambio de dirección (ADR-016: el sentido
+        completo del modelo unificado, no una acción especial).
+      required: [version]
+      properties:
+        personId:
+          type: string
+          format: uuid
+        description:
+          type: string
+          maxLength: 2000
+        direction:
+          type: string
+          enum: [MINE, THEIRS]
+        dueAt:
+          type: string
+          format: date-time
+        projectId:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          description: Expected current version of the commitment; a mismatch returns 409.
+    ResolveCommitmentRequest:
+      type: object
+      description: Optional. If version is provided, the server validates it for optimistic locking; if omitted, resolve is applied without a concurrency check.
+      properties:
+        version:
+          type: integer
+    Commitment:
+      type: object
+      required: [id, personId, description, direction, dueAt, status, version]
+      description: ADR-016/FR-025/FR-027. Owner-only entity — no sharing/collaborator concept.
+      properties:
+        id:
+          type: string
+          format: uuid
+        ownerUserId:
+          type: string
+          format: uuid
+        personId:
+          type: string
+          format: uuid
+        projectId:
+          type: string
+          format: uuid
+        description:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        direction:
+          type: string
+          enum: [MINE, THEIRS]
+        dueAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [OPEN, DONE]
+        originReminderId:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          description: Optimistic locking version, incremented on every update.
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    CreateNoteRequest:
+      type: object
+      required: [title]
+      description: >
+        Funcionalidad Agenda+Notas completa (V2). iconId/stickerId son
+        opcionales — identificadores estables de un catálogo que resuelve
+        el frontend (web/src/core/ui/pickers/pickerCatalog.ts), nunca una
+        ruta de asset ni el emoji en sí.
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 2000
+        iconId:
+          type: string
+          maxLength: 32
+        stickerId:
+          type: string
+          maxLength: 32
+        personId:
+          type: string
+          format: uuid
+          description: ADR-016 Fase 3a/FR-029 (candidato V4). Opcional — debe pertenecer al mismo dueño; si no, 404 PERSON_NOT_FOUND.
+        projectId:
+          type: string
+          format: uuid
+          description: ADR-016 Fase 3a/FR-029 (candidato V4). Opcional — mismo contrato de autorización que personId (404 PROJECT_NOT_FOUND).
+    UpdateNoteRequest:
+      type: object
+      description: >
+        Partial update para title/description (opcionales, null deja el
+        valor guardado sin cambios). iconId/stickerId NO son parciales —
+        siempre se aplican tal cual se envían (incluida su ausencia, que
+        los limpia); el formulario de edición real siempre reenvía su
+        selección completa actual. version es obligatorio (bloqueo
+        optimista).
+      required: [version]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 2000
+        iconId:
+          type: string
+          maxLength: 32
+        stickerId:
+          type: string
+          maxLength: 32
+        personId:
+          type: string
+          format: uuid
+          description: ADR-016 Fase 3a/FR-029 (candidato V4). Parcial (null deja el valor sin cambios).
+        projectId:
+          type: string
+          format: uuid
+          description: ADR-016 Fase 3a/FR-029 (candidato V4). Mismo contrato parcial que personId.
+        version:
+          type: integer
+          description: Expected current version of the note; a mismatch returns 409.
+    Note:
+      type: object
+      required: [id, title, version]
+      description: >
+        Funcionalidad Agenda+Notas completa (V2). Owner-only entity — no
+        sharing/collaborator concept, mismo criterio que Warranty. Sin
+        concepto de status/completado (a diferencia de Reminder/Warranty).
+      properties:
+        id:
+          type: string
+          format: uuid
+        ownerUserId:
+          type: string
+          format: uuid
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 2000
+        iconId:
+          type: string
+          maxLength: 32
+        stickerId:
+          type: string
+          maxLength: 32
+        personId:
+          type: string
+          format: uuid
+          description: ADR-016 Fase 3a/FR-029 (candidato V4). Vínculo opcional a una Persona propia.
+        projectId:
+          type: string
+          format: uuid
+          description: ADR-016 Fase 3a/FR-029 (candidato V4). Vínculo opcional a un Proyecto propio.
         version:
           type: integer
           description: Optimistic locking version, incremented on every update.
@@ -703,6 +2535,235 @@ components:
           type: string
           format: date-time
         lastSeenAt:
+          type: string
+          format: date-time
+    CreateVisionBoardRequest:
+      type: object
+      required: [name, width, height]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 2000
+        width:
+          type: integer
+          minimum: 1
+        height:
+          type: integer
+          minimum: 1
+        theme:
+          type: string
+          enum: [LIGHT, DARK, PAPER, NATURAL, CALM, ENERGY]
+          description: >
+            Board Theme (FASE 16) — independent of the app's own visual
+            theme. Optional on create; defaults to LIGHT when omitted. The
+            actual color palette per theme is defined once, centrally, on
+            the frontend (visionBoardThemes.ts) — this is only ever the
+            stable id, same contract as iconId/stickerId elsewhere in this API.
+    UpdateVisionBoardRequest:
+      type: object
+      description: >
+        Partial update para name/description/width/height/theme
+        (opcionales, null deja el valor guardado sin cambios) — así también
+        se persiste un cambio de Board Theme (FASE 16): el cliente envía
+        solo { theme, version }, no existe un endpoint dedicado para esto.
+        version es obligatorio (bloqueo optimista).
+      required: [version]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 2000
+        width:
+          type: integer
+          minimum: 1
+        height:
+          type: integer
+          minimum: 1
+        theme:
+          type: string
+          enum: [LIGHT, DARK, PAPER, NATURAL, CALM, ENERGY]
+        version:
+          type: integer
+          description: Expected current version of the vision board; a mismatch returns 409.
+    VisionBoard:
+      type: object
+      required: [id, name, width, height, theme, version]
+      description: Owner-only entity — no sharing/collaborator concept, mismo criterio que Note/Warranty.
+      properties:
+        id:
+          type: string
+          format: uuid
+        ownerUserId:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 2000
+        width:
+          type: integer
+        height:
+          type: integer
+        theme:
+          type: string
+          enum: [LIGHT, DARK, PAPER, NATURAL, CALM, ENERGY]
+          description: Board Theme (FASE 16) — always present, defaults to LIGHT.
+        version:
+          type: integer
+          description: Optimistic locking version, incremented on every update.
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        elements:
+          type: array
+          description: Only populated by GET /vision-boards/{id} — omitted on the list endpoint (GET /vision-boards).
+          items:
+            $ref: '#/components/schemas/VisionBoardElement'
+    CreateElementRequest:
+      type: object
+      required: [type, x, y, width, height]
+      properties:
+        type:
+          type: string
+          enum: [TEXT, IMAGE, NOTE, STICKER, SHAPE]
+        x:
+          type: number
+          format: double
+        y:
+          type: number
+          format: double
+        width:
+          type: number
+          format: double
+        height:
+          type: number
+          format: double
+        data:
+          type: object
+          additionalProperties: true
+          description: Type-specific payload (font/color for TEXT, url/crop for IMAGE, etc.) — shape varies per `type`, validated client-side. Optional; defaults to an empty object.
+    UpdateElementRequest:
+      type: object
+      description: >
+        Partial update para x/y/width/height/rotation/zIndex/locked/visible
+        (opcionales, null deja el valor guardado sin cambios). data NO es
+        parcial — siempre se aplica tal cual se envía cuando está presente
+        (mismo contrato que iconId/stickerId en otras entidades). version es
+        obligatorio (bloqueo optimista, independiente del version del board).
+      required: [version]
+      properties:
+        x:
+          type: number
+          format: double
+        y:
+          type: number
+          format: double
+        width:
+          type: number
+          format: double
+        height:
+          type: number
+          format: double
+        rotation:
+          type: number
+          format: double
+        zIndex:
+          type: integer
+        locked:
+          type: boolean
+        visible:
+          type: boolean
+        data:
+          type: object
+          additionalProperties: true
+        version:
+          type: integer
+          description: Expected current version of the element; a mismatch returns 409.
+    ReorderElementRequest:
+      type: object
+      description: >
+        direction is FRONT (al frente), BACK (al fondo), RAISE (subir una
+        capa) o LOWER (bajar una capa) — RAISE/LOWER swap the element with
+        whichever one is immediately above/below it in paint order. version
+        es obligatorio (bloqueo optimista sobre el elemento objetivo).
+      required: [direction, version]
+      properties:
+        direction:
+          type: string
+          enum: [FRONT, BACK, RAISE, LOWER]
+        version:
+          type: integer
+          description: Expected current version of the target element; a mismatch returns 409.
+    VisionBoardImage:
+      type: object
+      required: [id, contentType, sizeBytes]
+      properties:
+        id:
+          type: string
+          format: uuid
+        contentType:
+          type: string
+          enum: [image/png, image/jpeg, image/webp, image/gif]
+        sizeBytes:
+          type: integer
+          format: int64
+    VisionBoardElement:
+      type: object
+      required: [id, boardId, type, x, y, width, height, rotation, zIndex, locked, visible, version]
+      properties:
+        id:
+          type: string
+          format: uuid
+        boardId:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [TEXT, IMAGE, NOTE, STICKER, SHAPE]
+        x:
+          type: number
+          format: double
+        y:
+          type: number
+          format: double
+        width:
+          type: number
+          format: double
+        height:
+          type: number
+          format: double
+        rotation:
+          type: number
+          format: double
+        zIndex:
+          type: integer
+        locked:
+          type: boolean
+        visible:
+          type: boolean
+        data:
+          type: object
+          additionalProperties: true
+        version:
+          type: integer
+          description: Optimistic locking version, incremented on every update — independent of the board's own version.
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
           type: string
           format: date-time
   responses:

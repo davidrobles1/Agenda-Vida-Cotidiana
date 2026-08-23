@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { loginAsTestuserAndGoToReminders } from './helpers'
 
 /**
  * WEB-007 real verification: creates a reminder with a due date a few
@@ -35,15 +36,7 @@ test('a reminder with a near-future due date fires a real browser Notification',
 
   const reminderTitle = `WEB-007 local notification test ${Math.random().toString(36).slice(2, 8)}`
 
-  await page.goto('/')
-  await page.getByRole('button', { name: 'Iniciar sesión' }).click()
-
-  await page.waitForURL(/realms\/vida-cotidiana/)
-  await page.getByLabel('Username or email').fill('testuser')
-  await page.getByRole('textbox', { name: 'Password' }).fill('TestPass123!')
-  await page.getByRole('button', { name: 'Sign In' }).click()
-
-  await expect(page.getByPlaceholder('New reminder')).toBeVisible({ timeout: 20_000 })
+  await loginAsTestuserAndGoToReminders(page)
 
   // datetime-local has minute precision only (no seconds field) — the value
   // gets truncated to its minute. A 6s buffer looked safe on paper but was

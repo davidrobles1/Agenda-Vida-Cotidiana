@@ -21,6 +21,18 @@ spring:
     enabled: true
     locations: classpath:db/migration
 
+  # BLOQUE B (post-MVP): Vision Board image upload
+  # (VisionBoardImageController). A slightly-above-the-domain-limit ceiling
+  # (VisionBoardImageService.MAX_SIZE_BYTES, now 23MB — see that field's own
+  # doc comment on the 2026-08-21 +15MB increase) — the servlet-level cap
+  # exists so an oversized request is rejected before the controller even
+  # runs, the service's own check is what produces the clear, typed
+  # VALIDATION_ERROR response for the more common "just a bit too big" case.
+  servlet:
+    multipart:
+      max-file-size: 25MB
+      max-request-size: 25MB
+
   security:
     oauth2:
       resourceserver:

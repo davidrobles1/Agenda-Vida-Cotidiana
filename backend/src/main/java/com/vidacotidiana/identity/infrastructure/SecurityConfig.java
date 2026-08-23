@@ -86,7 +86,12 @@ public class SecurityConfig {
     private CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(corsAllowedOrigins);
-        configuration.setAllowedMethods(List.of("GET", "POST", "PATCH", "DELETE", "OPTIONS"));
+        // PUT: added for the Vision Board API (FASE 2) — its update endpoints use
+        // PUT rather than PATCH (unlike Reminder/Note), a real gap found via
+        // real-browser testing in FASE 3 (backend integration tests use MockMvc
+        // directly, which never goes through a CORS preflight, so this was
+        // invisible there).
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
         configuration.setAllowCredentials(false);
 

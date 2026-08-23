@@ -1,36 +1,97 @@
 import { login, register } from '../../core/auth/authClient'
+import {
+  IconArrowRight,
+  IconHeart,
+  IconHome,
+  IconLeaf,
+  IconLock,
+  IconSparkle,
+  IconUser,
+  IconUserPlus,
+} from '../../core/ui/icons'
 import styles from './LoginPage.module.css'
+import logo from './assets/libro_hojas.jpeg'
 
 export function LoginPage() {
   return (
     <main className={styles.container}>
-      <section className={styles.hero}>
-        <div className={styles.heroContent}>
-          <div className={styles.homeIcon}>⌂</div>
 
-          <h1>Agenda</h1>
-          <p className={styles.script}>vida Cotidiana</p>
+      {/* =====================================================
+          COLUMN 1 — LIBRO / IMAGEN
+          ===================================================== */}
+      <section className={styles.bookSection}>
+        <div className={styles.bookContent}>
+          <div className={styles.heroLogoStack}>
+            <img
+              src={logo}
+              alt="Agenda vida Cotidiana"
+              className={styles.heroLogo}
+            />
+          </div>
+        </div>
+      </section>
+
+
+      {/* =====================================================
+          COLUMN 2 — ESLOGANES / IDENTIDAD
+          ===================================================== */}
+      <section className={styles.sloganSection}>
+        <div className={styles.sloganContent}>
+
+          <ul className={styles.valueRow}>
+
+            <li>
+              <IconHome className={styles.valueIcon} />
+              <span>Tu hogar</span>
+            </li>
+
+            <li>
+              <IconHeart className={styles.valueIcon} />
+              <span>Tu esencia</span>
+            </li>
+
+            <li>
+              <IconLeaf className={styles.valueIcon} />
+              <span>Tu crecimiento</span>
+            </li>
+
+            <li>
+              <IconSparkle className={styles.valueIcon} />
+              <span>Tu ritmo</span>
+            </li>
+
+          </ul>
 
           <div className={styles.heroDivider} />
-
-          <p className={styles.heroText}>
-            Un lugar para organizar tus días,
-            <br />
-            tus momentos y tu hogar.
-          </p>
-
-          <div className={styles.houseIllustration}>
-            <span>⌂</span>
-          </div>
 
           <p className={styles.heroQuote}>
             “Cada día tiene su propia historia.”
           </p>
+
+          <p className={styles.heroText}>
+            Meraki
+          </p>
+
+          <p className={styles.heroTextUno}>
+            el acto de poner el alma, la creatividad,
+            <br />
+            el amor y la pasión en todo lo que haces.
+            <br />
+            Es dejar una huella de tu esencia en tu trabajo.
+          </p>
+
         </div>
       </section>
 
+
+      {/* =====================================================
+          COLUMN 3 — LOGIN
+          ===================================================== */}
       <section className={styles.loginSection}>
         <div className={styles.loginCard}>
+
+          <IconLeaf className={styles.brandIcon} />
+
           <div className={styles.brand}>
             <h2>Agenda</h2>
             <span>vida Cotidiana</span>
@@ -42,12 +103,15 @@ export function LoginPage() {
           </div>
 
           <div className={styles.actions}>
+
             <button
               type="button"
               className={styles.loginButton}
               onClick={() => login()}
             >
-              Iniciar sesión
+              <IconUser className={styles.buttonIcon} />
+              <span>Iniciar sesión</span>
+              <IconArrowRight className={styles.buttonIcon} />
             </button>
 
             <button
@@ -55,15 +119,23 @@ export function LoginPage() {
               className={styles.registerButton}
               onClick={() => register()}
             >
-              Crear una cuenta
+              <IconUserPlus className={styles.buttonIcon} />
+              <span>Crear una cuenta</span>
+              <IconArrowRight className={styles.buttonIcon} />
             </button>
+
           </div>
 
+          <div className={styles.footerDivider} />
+
           <p className={styles.footerText}>
+            <IconLock className={styles.footerIcon} />
             Tu hogar, tus momentos, tu agenda.
           </p>
+
         </div>
       </section>
+
     </main>
   )
 }

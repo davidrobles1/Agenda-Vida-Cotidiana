@@ -1,113 +1,362 @@
-import { useCallback, useEffect, useState } from 'react'
-import { completeReminder, createReminder, listReminders, type Reminder } from '../reminders/api'
-import { cancelLocalReminder, scheduleLocalReminder } from '../../core/notifications/localReminderTimer'
-import { listMyInvitations, type Invitation } from '../sharing/api'
-import { maintenanceRecords, warranties, type MockMaintenanceRecord, type MockWarranty } from '../../core/mock/mockData'
+import {
+  useCallback,
+  useEffect,
+  useState,
+} from 'react'
+
+import { useActiveMode } from '../../core/user/ActiveModeContext'
+
+import {
+  completeReminder,
+  createReminder,
+  deleteReminder,
+  listReminders,
+  updateReminder,
+  type Reminder,
+} from '../reminders/api'
+
+import {
+  cancelLocalReminder,
+  scheduleLocalReminder,
+} from '../../core/notifications/localReminderTimer'
+
+import {
+  listMyInvitations,
+  type Invitation,
+} from '../sharing/api'
+
+import {
+  completeWarranty,
+  listWarranties,
+  type Warranty,
+} from '../warranties/api'
+
+import {
+  completeMaintenanceRecord,
+  listMaintenanceRecords,
+  type MaintenanceRecord,
+} from '../maintenance/api'
 
 export interface CalendarState {
   loading: boolean
   error: string | null
-  /** UX-010: ALL reminders with a dueAt — pending, overdue AND completed —
-      not filtered to pending-only anymore. Real data already returned by
-      GET /reminders; consumers (CalendarPage) derive each one's visual
-      state (pending/overdue/completed) instead of the fetch silently
-      dropping completed ones, so the month grid can show a real "done"
-      state instead of just disappearing a finished task. */
+
   reminders: Reminder[]
   invitations: Invitation[]
-  warranties: MockWarranty[]
-  maintenanceRecords: MockMaintenanceRecord[]
-  mockCompletedIds: Set<string>
-  completeReminderAction: (reminder: Reminder) => Promise<void>
-  toggleMockComplete: (id: string) => void
-  /** UX-010: creates a real reminder due on a given day (from the day-detail
-      panel's quick-add) — calls the exact same POST /reminders
-      RemindersPage's form uses, just with the selected day's date
-      pre-filled instead of a date the user typed in a separate picker. */
-  createReminderForDay: (title: string, dateKey: string) => Promise<void>
+
+  warranties: Warranty[]
+  maintenanceRecords: MaintenanceRecord[]
+
+  completeReminderAction: (
+    reminder: Reminder,
+  ) => Promise<void>
+
+  completeWarrantyAction: (
+    warranty: Warranty,
+  ) => Promise<void>
+
+  completeMaintenanceAction: (
+    record: MaintenanceRecord,
+  ) => Promise<void>
+
+  createReminderAction: (
+    input: {
+      title: string
+      description?: string
+      dueAt?: string
+      iconId?: string
+      stickerId?: string
+    },
+  ) => Promise<void>
+
+  updateReminderAction: (
+    reminder: Reminder,
+    input: {
+      title: string
+      description?: string
+      dueAt?: string
+      iconId?: string
+      stickerId?: string
+    },
+  ) => Promise<void>
+
+  deleteReminderAction: (
+    reminder: Reminder,
+  ) => Promise<void>
 }
 
-/**
- * UX-007/UX-010: Calendario's data — real reminders (`GET /reminders`, kept
- * whenever they have a `dueAt`, any status) and real pending invitations
- * (`GET /me/invitations`). Zero new backend: every call reuses
- * `features/reminders/api.ts`/`features/sharing/api.ts` exactly as
- * `useHomeData.ts`/`RemindersPage.tsx` already do — `completeReminderAction`/
- * `createReminderForDay` call the same real endpoints RemindersPage's own
- * "Complete" button and creation form use, not reimplementations.
- * Garantías/Mantenimiento are mock (`core/mock/mockData.ts`, imported
- * as-is) — `mockCompletedIds` is the local-only, lost-on-reload "completed"
- * state, never sent anywhere real.
- */
 export function useCalendarData(): CalendarState {
-  const [reminders, setReminders] = useState<Reminder[]>([])
-  const [invitations, setInvitations] = useState<Invitation[]>([])
-  const [mockCompletedIds, setMockCompletedIds] = useState<Set<string>>(new Set())
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const activeMode =
+    useActiveMode()
 
-  const refresh = useCallback(async () => {
-    try {
-      const [remindersPage, invitationsList] = await Promise.all([listReminders(), listMyInvitations()])
-      setReminders(remindersPage.items.filter((r) => r.dueAt))
-      setInvitations(invitationsList.filter((i) => i.status === 'PENDING'))
-      setError(null)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load calendar data')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const [
+    reminders,
+    setReminders,
+  ] = useState<Reminder[]>(
+    [],
+  )
+
+  const [
+    invitations,
+    setInvitations,
+  ] = useState<Invitation[]>(
+    [],
+  )
+
+  const [
+    warranties,
+    setWarranties,
+  ] = useState<Warranty[]>(
+    [],
+  )
+
+  const [
+    maintenanceRecords,
+    setMaintenanceRecords,
+  ] = useState<
+    MaintenanceRecord[]
+  >([])
+
+  const [
+    loading,
+    setLoading,
+  ] = useState(true)
+
+  const [
+    error,
+    setError,
+  ] = useState<
+    string | null
+  >(null)
+
+  /* =====================================================
+     REFRESH
+     ===================================================== */
+
+  const refresh =
+    useCallback(
+      async () => {
+        try {
+          const [
+            remindersPage,
+            invitationsList,
+            warrantiesPage,
+            maintenanceRecordsPage,
+          ] =
+            await Promise.all([
+              listReminders(),
+              listMyInvitations(),
+              listWarranties(),
+              listMaintenanceRecords(),
+            ])
+
+          setReminders(
+            remindersPage.items.filter(
+              (reminder) =>
+                reminder.dueAt,
+            ),
+          )
+
+          setInvitations(
+            invitationsList.filter(
+              (invitation) =>
+                invitation.status ===
+                'PENDING',
+            ),
+          )
+
+          setWarranties(
+            warrantiesPage.items,
+          )
+
+          setMaintenanceRecords(
+            maintenanceRecordsPage.items,
+          )
+
+          setError(null)
+        } catch (e) {
+          setError(
+            e instanceof Error
+              ? e.message
+              : 'Failed to load calendar data',
+          )
+        } finally {
+          setLoading(false)
+        }
+      },
+      [],
+    )
 
   useEffect(() => {
     refresh()
   }, [refresh])
 
-  async function completeReminderAction(reminder: Reminder) {
+  /* =====================================================
+     COMPLETE REMINDER
+     ===================================================== */
+
+  async function completeReminderAction(
+    reminder: Reminder,
+  ) {
     try {
-      await completeReminder(reminder.id, reminder.version)
-      cancelLocalReminder(reminder.id)
+      await completeReminder(
+        reminder.id,
+        reminder.version,
+      )
+
+      cancelLocalReminder(
+        reminder.id,
+      )
+
       await refresh()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to complete reminder')
+      setError(
+        e instanceof Error
+          ? e.message
+          : 'Failed to complete reminder',
+      )
     }
   }
 
-  async function createReminderForDay(title: string, dateKey: string) {
-    if (!title.trim()) return
+  /* =====================================================
+     COMPLETE WARRANTY
+     ===================================================== */
+
+  async function completeWarrantyAction(
+    warranty: Warranty,
+  ) {
     try {
-      // Noon local time on the selected day — matches the day it was
-      // created for regardless of the reader's timezone offset, avoiding
-      // the "created for the 5th, shows up on the 4th" off-by-one a
-      // midnight timestamp risks near a UTC boundary.
-      const dueAt = new Date(`${dateKey}T12:00:00`)
-      const created = await createReminder(title.trim(), dueAt.toISOString())
-      scheduleLocalReminder(created.id, created.title, dueAt.getTime())
+      await completeWarranty(
+        warranty.id,
+        warranty.version,
+      )
+
       await refresh()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to create reminder')
+      setError(
+        e instanceof Error
+          ? e.message
+          : 'Failed to complete warranty',
+      )
     }
   }
 
-  function toggleMockComplete(id: string) {
-    setMockCompletedIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
+  /* =====================================================
+     COMPLETE MAINTENANCE
+     ===================================================== */
+
+  async function completeMaintenanceAction(
+    record: MaintenanceRecord,
+  ) {
+    try {
+      await completeMaintenanceRecord(
+        record.id,
+        record.version,
+      )
+
+      await refresh()
+    } catch (e) {
+      setError(
+        e instanceof Error
+          ? e.message
+          : 'Failed to complete maintenance record',
+      )
+    }
+  }
+
+  /* =====================================================
+     CREATE / UPDATE / DELETE REMINDER
+     ===================================================== */
+
+  /**
+   * A diferencia de `completeReminderAction`/`completeWarrantyAction`
+   * (que atrapan el error y lo dejan en `state.error`), estas tres no
+   * atrapan nada — se propagan a quien llama (`CreateReminderDialog`/
+   * `ReminderDrawer`) para mostrarse inline y mantener el formulario
+   * abierto con los datos intactos, mismo contrato que `useNotes.ts`.
+   */
+
+  async function createReminderAction(input: {
+    title: string
+    description?: string
+    dueAt?: string
+    iconId?: string
+    stickerId?: string
+  }) {
+    const created = await createReminder({
+      title: input.title.trim(),
+      description: input.description,
+      dueAt: input.dueAt,
+      context: activeMode ?? undefined,
+      iconId: input.iconId,
+      stickerId: input.stickerId,
     })
+
+    if (input.dueAt) {
+      scheduleLocalReminder(
+        created.id,
+        created.title,
+        new Date(input.dueAt).getTime(),
+      )
+    }
+
+    await refresh()
+  }
+
+  async function updateReminderAction(
+    reminder: Reminder,
+    input: {
+      title: string
+      description?: string
+      dueAt?: string
+      iconId?: string
+      stickerId?: string
+    },
+  ) {
+    const updated = await updateReminder(reminder.id, {
+      title: input.title.trim(),
+      description: input.description,
+      dueAt: input.dueAt,
+      iconId: input.iconId,
+      stickerId: input.stickerId,
+      version: reminder.version,
+    })
+
+    if (updated.dueAt) {
+      scheduleLocalReminder(
+        updated.id,
+        updated.title,
+        new Date(updated.dueAt).getTime(),
+      )
+    } else {
+      cancelLocalReminder(updated.id)
+    }
+
+    await refresh()
+  }
+
+  async function deleteReminderAction(reminder: Reminder) {
+    await deleteReminder(reminder.id)
+    cancelLocalReminder(reminder.id)
+    await refresh()
   }
 
   return {
     loading,
     error,
+
     reminders,
     invitations,
+
     warranties,
     maintenanceRecords,
-    mockCompletedIds,
+
     completeReminderAction,
-    toggleMockComplete,
-    createReminderForDay,
+    completeWarrantyAction,
+    completeMaintenanceAction,
+
+    createReminderAction,
+    updateReminderAction,
+    deleteReminderAction,
   }
 }

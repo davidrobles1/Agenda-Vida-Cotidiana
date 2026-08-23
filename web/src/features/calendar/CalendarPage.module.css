@@ -5,185 +5,1377 @@
 .page {
   display: flex;
   flex-direction: column;
-  gap: var(--space-6);
+  gap: var(--space-5);
   padding: var(--space-4);
-  border-radius: var(--radius-card);
 }
 
 /* =====================================================
-   LAYOUT — grid pane + day-detail pane. Mobile/tablet: stacked
-   (the day panel always right under the grid, no side-scrolling).
-   Desktop: side by side, so picking a day doesn't push the grid
-   off-screen. Deliberately not two separate cards — a single
-   hairline divider keeps this reading as ONE calendar, not two
-   boxes glued together.
+   RANGE SELECTOR
    ===================================================== */
 
-.layout {
+.viewSelector {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-6);
+  flex-wrap: wrap;
+  gap: var(--space-2);
 }
 
-.gridPane {
+/* =====================================================
+   MONTH
+   ===================================================== */
+
+.gridPaneFull {
+  min-width: 0;
+  width: 100%;
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+}
+
+/* =====================================================
+   DAY COLUMN
+   ===================================================== */
+
+.dayColumn {
   min-width: 0;
 }
 
-.divider {
-  display: none;
+/* Pedido explícito del usuario (2026-08-22): "reservar aproximadamente el
+   40% del espacio derecho para las notas" en la vista diaria. */
+.dayFullPane {
+  min-width: 0;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: var(--space-4);
 }
 
-.dayPane {
+.dayAgendaColumn {
+  flex: 1 1 60%;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+}
+
+.dayNotesColumn {
+  flex: 1 1 40%;
+  min-width: 260px;
+}
+
+/* =====================================================
+   WEEK
+   ===================================================== */
+
+.weekGrid {
+  display: flex;
+  flex-direction: row;
+  gap: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 4px 0 10px;
+  scrollbar-width: thin;
+  border-top: 1px solid rgba(58, 66, 78, 0.08);
+  border-bottom: 1px solid rgba(58, 66, 78, 0.08);
+}
+
+.dayColumnCompact {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-width: 150px;
+  padding: 0 10px;
+  border-left: 1px solid rgba(58, 66, 78, 0.075);
+}
+
+.dayColumnCompact:first-child {
+  border-left: none;
+  padding-left: 4px;
+}
+
+.dayColumnSelected {
+  background:
+    linear-gradient(
+      180deg,
+      rgba(74, 114, 150, 0.045),
+      rgba(74, 114, 150, 0.015)
+    );
+  border-radius: 12px;
+}
+
+.weekColumnHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+
+  width: 100%;
+  min-height: 42px;
+  margin-bottom: 3px;
+  padding: 6px 7px;
+
+  border: 0;
+  border-radius: 9px;
+
+  background: transparent;
+
+  color: var(--color-text);
+
+  font-size: 0.7rem;
+  font-weight: 700;
+
+  text-transform: capitalize;
+  text-align: left;
+
+  cursor: pointer;
+
+  transition:
+    background-color 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.weekColumnHeader:hover {
+  background: rgba(74, 114, 150, 0.055);
+}
+
+.weekColumnHeader:active {
+  transform: scale(0.98);
+}
+
+.weekColumnHeader[aria-pressed='true'] {
+  background: var(--color-primary-container);
+  color: var(--color-primary);
+}
+
+.weekColumnWeekday {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.weekColumnCount {
+  flex-shrink: 0;
+
+  min-width: 19px;
+  padding: 2px 5px;
+
+  border-radius: 999px;
+
+  background: rgba(74, 114, 150, 0.1);
+
+  color: var(--color-primary);
+
+  font-size: 0.6rem;
+  font-weight: 700;
+
+  text-align: center;
+}
+
+/* =====================================================
+   VISTA SEMANAL — lista de agenda (Corrección de visualización, 2026-08-18)
+   Reemplaza la franja horaria fija de 06:00-22:00 (esa estructura sigue
+   existiendo tal cual para Día, ver TIMELINE más abajo) — aquí solo se
+   listan las tareas reales del día, ordenadas por hora, con la hora como
+   parte del texto de cada una ("08:00 — Título"). `max-height` +
+   `overflow-y: auto` significa que el scroll solo aparece si la cantidad
+   real de tareas no cabe — con pocas o una cantidad normal, la columna
+   crece libremente y no hay scroll.
+   ===================================================== */
+
+.agendaList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  width: 100%;
+  max-height: 720px;
+
+  overflow-y: auto;
+
+  scrollbar-width: thin;
+}
+
+.agendaItem {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+
+  padding: 6px 7px;
+
+  border: 1px solid rgba(74, 114, 150, 0.09);
+  border-radius: 7px;
+
+  background: var(--color-surface);
+
+  cursor: pointer;
+}
+
+.agendaItemSticker {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  object-fit: contain;
+  align-self: center;
+}
+
+.agendaItemIcon {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  color: var(--color-primary);
+}
+
+.agendaItemTime {
+  flex-shrink: 0;
+
+  color: var(--color-primary);
+
+  font-size: 0.62rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.agendaItemDash {
+  flex-shrink: 0;
+
+  color: var(--color-text-secondary);
+
+  font-size: 0.62rem;
+}
+
+.agendaItemTitle {
+  flex: 1;
   min-width: 0;
-  animation: dayFadeIn 200ms ease;
+  margin: 0;
+
+  overflow: hidden;
+
+  color: var(--color-text);
+
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.3;
+
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
-@keyframes dayFadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.agendaItemTitleButton {
+  composes: agendaItemTitle;
+
+  min-height: 0;
+  padding: 0;
+
+  border: 0;
+  border-radius: 0;
+
+  background: transparent;
+
+  text-align: left;
+
+  cursor: pointer;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .dayPane {
-    animation: none;
-  }
+.agendaItemTitleButton:hover {
+  text-decoration: underline;
 }
 
-@media (min-width: 860px) {
-  .layout {
-    flex-direction: row;
-    align-items: flex-start;
-  }
+.completeButtonCompact {
+  width: 22px;
+  min-width: 22px;
+  min-height: 22px;
+  padding: 0;
 
-  .gridPane {
-    flex: 1 1 60%;
-  }
+  border-radius: 50%;
 
-  .divider {
-    display: block;
-    align-self: stretch;
-    width: 1px;
-    background: var(--color-border-soft, var(--color-border));
-    opacity: 0.4;
-  }
+  font-size: 0.65rem;
+}
 
-  .dayPane {
-    flex: 1 1 320px;
-    max-width: 360px;
-  }
+/* =====================================================
+   RANGE NAVIGATION
+   ===================================================== */
+
+.rangeNav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.rangeNavButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 34px;
+  height: 34px;
+  min-height: 0;
+  padding: 0;
+
+  flex-shrink: 0;
+
+  border: 1px solid rgba(58, 66, 78, 0.1);
+  border-radius: 50%;
+
+  background: var(--color-surface);
+  color: var(--color-text);
+
+  cursor: pointer;
+
+  transition:
+    background-color 160ms ease,
+    transform 160ms ease,
+    color 160ms ease;
+}
+
+.rangeNavButton:hover {
+  background: var(--color-surface-variant);
+  color: var(--color-primary);
+}
+
+.rangeNavButton:active {
+  transform: scale(0.92);
+}
+
+.rangeNavLabel {
+  min-width: 180px;
+
+  color: var(--color-text);
+
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  font-weight: 500;
+
+  text-align: center;
+  text-transform: capitalize;
+}
+
+.rangeNavToday {
+  padding: 6px 14px;
+
+  border: 1px solid rgba(58, 66, 78, 0.1);
+  border-radius: 999px;
+
+  background: var(--color-surface);
+  color: var(--color-primary);
+
+  font-size: 0.75rem;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  transition:
+    background-color 160ms ease,
+    transform 160ms ease;
+}
+
+.rangeNavToday:hover {
+  background: var(--color-surface-variant);
+}
+
+.rangeNavToday:active {
+  transform: scale(0.96);
+}
+
+.rangeNavHint {
+  margin: 0 0 6px;
+
+  color: var(--color-text-secondary);
+
+  font-size: 0.68rem;
+  text-align: center;
+}
+
+.rangeNavHint strong {
+  color: var(--color-text);
+  text-transform: capitalize;
+}
+
+/* =====================================================
+   DAY HEADER
+   ===================================================== */
+
+.dayHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+
+  padding: 4px 0 18px;
+}
+
+.dayEyebrow {
+  margin: 0 0 5px;
+
+  color: var(--color-primary);
+
+  font-size: 0.62rem;
+  font-weight: 700;
+
+  letter-spacing: 0.14em;
 }
 
 .dayTitle {
   margin: 0;
-  font-family: var(--font-serif);
-  font-size: 1.15rem;
-  font-weight: 500;
+
   color: var(--color-text);
+
+  font-family: var(--font-serif);
+
+  font-size: 1.5rem;
+  font-weight: 500;
+  line-height: 1.15;
 }
 
-.dayItems {
+.dayCount {
+  flex-shrink: 0;
+
+  padding: 5px 9px;
+
+  border-radius: 999px;
+
+  background: rgba(74, 114, 150, 0.07);
+
+  color: var(--color-text-secondary);
+
+  font-size: 0.67rem;
+  font-weight: 600;
+}
+
+/* =====================================================
+   DRAG HINT
+   ===================================================== */
+
+.dragHint {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+
+  margin-bottom: 10px;
+
+  color: var(--color-text-secondary);
+  font-size: 0.67rem;
+}
+
+.dragHint span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 21px;
+  height: 21px;
+
+  border-radius: 50%;
+
+  background: rgba(74, 114, 150, 0.07);
+  color: var(--color-primary);
+
+  font-size: 0.78rem;
+}
+
+/* =====================================================
+   TIMELINE
+   ===================================================== */
+
+.timeline {
+  position: relative;
+
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+
+  max-height: 610px;
+
+  overflow-y: auto;
+
+  padding-right: 5px;
+
+  scrollbar-width: thin;
 }
 
-.dayEmpty {
-  margin: 0;
-  padding: var(--space-4) 0;
-  color: var(--color-text-secondary);
-  font-size: 0.9rem;
+/* =====================================================
+   TIME SLOT
+   ===================================================== */
+
+.timeSlot {
+  position: relative;
+
+  display: grid;
+
+  grid-template-columns:
+    42px
+    16px
+    minmax(0, 1fr);
+
+  min-height: 42px;
+
+  border-radius: 8px;
+
+  transition:
+    background-color 160ms ease,
+    border-radius 160ms ease;
 }
+
+.timeSlot:hover {
+  background: rgba(74, 114, 150, 0.018);
+}
+
+.timeSlotActive {
+  background: rgba(74, 114, 150, 0.085);
+  border-radius: 8px;
+}
+
+/* =====================================================
+   TIME LABEL
+   ===================================================== */
+
+.timeLabel {
+  padding-top: 4px;
+
+  color: var(--color-text-secondary);
+
+  font-size: 0.64rem;
+  font-variant-numeric: tabular-nums;
+
+  text-align: right;
+}
+
+/* =====================================================
+   RAIL
+   ===================================================== */
+
+.timeRail {
+  position: relative;
+
+  display: flex;
+  justify-content: center;
+}
+
+.timeRailLine {
+  width: 1px;
+  height: 100%;
+
+  background:
+    var(
+      --color-border-soft,
+      var(--color-border)
+    );
+
+  opacity: 0.35;
+}
+
+.timeRail::before {
+  content: '';
+
+  position: absolute;
+  top: 5px;
+
+  width: 5px;
+  height: 5px;
+
+  border-radius: 50%;
+
+  background: var(--color-border);
+
+  opacity: 0.5;
+}
+
+/* =====================================================
+   SLOT CONTENT
+   ===================================================== */
+
+.timeContent {
+  min-width: 0;
+  padding: 2px 0 2px 9px;
+}
+
+/* =====================================================
+   TIMELINE CARD
+   ===================================================== */
+
+.timelineCard {
+  position: relative;
+
+  display: flex;
+  align-items: center;
+
+  gap: 9px;
+
+  min-height: 38px;
+  padding: 7px 8px;
+
+  border: 1px solid rgba(74, 114, 150, 0.09);
+  border-radius: 9px;
+
+  background: var(--color-surface);
+
+  box-shadow:
+    0 2px 7px rgba(44, 66, 91, 0.045);
+
+  cursor: grab;
+
+  user-select: none;
+
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease,
+    border-color 160ms ease,
+    opacity 160ms ease;
+}
+
+.timelineCard:hover {
+  transform: translateY(-1px);
+
+  border-color: rgba(74, 114, 150, 0.18);
+
+  box-shadow:
+    0 5px 14px rgba(44, 66, 91, 0.09);
+}
+
+.timelineCard:active {
+  cursor: grabbing;
+}
+
+.timelineCardDragging {
+  opacity: 0.42;
+  transform: scale(0.98);
+}
+
+/* =====================================================
+   DRAG HANDLE
+   ===================================================== */
+
+.timelineCardHandle {
+  flex-shrink: 0;
+
+  color: var(--color-text-secondary);
+
+  font-size: 0.72rem;
+  letter-spacing: -2px;
+
+  opacity: 0.45;
+}
+
+/* =====================================================
+   CARD CONTENT
+   ===================================================== */
+
+.timelineCardContent {
+  min-width: 0;
+  flex: 1;
+
+  display: flex;
+  flex-direction: column;
+
+  gap: 1px;
+}
+
+.timelineCardTime {
+  color: var(--color-primary);
+
+  font-size: 0.62rem;
+  font-weight: 700;
+
+  font-variant-numeric: tabular-nums;
+}
+
+.timelineCardTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.timelineCardSticker {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+}
+
+.timelineCardIcon {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  color: var(--color-primary);
+}
+
+.timelineCard h3,
+.timelineCardTitleButton {
+  overflow: hidden;
+
+  margin: 0;
+  min-height: 0;
+  padding: 0;
+
+  border: 0;
+
+  background: transparent;
+
+  color: var(--color-text);
+
+  font-size: 0.78rem;
+  font-weight: 600;
+
+  line-height: 1.25;
+
+  text-align: left;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.timelineCardTitleButton {
+  cursor: pointer;
+}
+
+.timelineCardTitleButton:hover {
+  text-decoration: underline;
+}
+
+.timelineCardDescription {
+  overflow: hidden;
+
+  margin: 0;
+
+  color: var(--color-text-secondary);
+
+  font-size: 0.68rem;
+  line-height: 1.35;
+
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.timelineCardMeta {
+  color: var(--color-text-secondary);
+  font-size: 0.62rem;
+}
+
+/* =====================================================
+   COMPLETED
+   ===================================================== */
+
+.timelineCompleted {
+  opacity: 0.62;
+}
+
+.timelineCompleted h3 {
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
+/* =====================================================
+   COMPLETE BUTTON
+   ===================================================== */
+
+.completeButton {
+  flex-shrink: 0;
+
+  min-height: 28px;
+  padding: 0 8px;
+
+  border: 0;
+  border-radius: 999px;
+
+  background: rgba(74, 114, 150, 0.07);
+  color: var(--color-primary);
+
+  font-size: 0.61rem;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  transition:
+    background-color 160ms ease,
+    transform 160ms ease;
+}
+
+.completeButton:hover {
+  background: rgba(74, 114, 150, 0.13);
+  transform: translateY(-1px);
+}
+
+.completeButton:active {
+  transform: scale(0.96);
+}
+
+/* =====================================================
+   EMPTY STATE
+   ===================================================== */
+
+.dayEmptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  padding: 40px 20px;
+
+  text-align: center;
+}
+
+.emptyIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 38px;
+  height: 38px;
+
+  margin-bottom: 10px;
+
+  border-radius: 50%;
+
+  background: rgba(80, 140, 100, 0.08);
+  color: var(--color-success);
+
+  font-size: 1rem;
+}
+
+.dayEmptyState h3 {
+  margin: 0;
+
+  color: var(--color-text);
+
+  font-family: var(--font-serif);
+
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.dayEmptyState p {
+  max-width: 260px;
+
+  margin: 6px 0 0;
+
+  color: var(--color-text-secondary);
+
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+/* =====================================================
+   QUICK ADD
+   ===================================================== */
 
 .quickAdd {
   display: flex;
-  gap: var(--space-2);
-  margin-top: var(--space-1);
+  gap: 7px;
+
+  margin-top: 15px;
+  padding-top: 14px;
+
+  border-top: 1px solid rgba(58, 66, 78, 0.07);
 }
 
 .quickAddInput {
   flex: 1;
   min-width: 0;
+  min-height: 40px;
+
+  padding: 0 12px;
+
+  border: 1px solid rgba(58, 66, 78, 0.1);
+  border-radius: 9px;
+
+  background: transparent;
+  color: var(--color-text);
+
+  font-size: 0.78rem;
+
+  outline: none;
+
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.quickAddInput:focus {
+  border-color: rgba(74, 114, 150, 0.35);
+
+  background: var(--color-surface);
+
+  box-shadow:
+    0 0 0 3px rgba(74, 114, 150, 0.06);
 }
 
 .quickAddButton {
+  width: 40px;
+  height: 40px;
+
+  flex-shrink: 0;
+
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  min-height: 44px;
+
+  border: 0;
+  border-radius: 50%;
+
+  background: var(--color-primary);
+  color: #fff;
+
+  font-size: 1.15rem;
+
+  cursor: pointer;
+
+  box-shadow:
+    0 5px 13px rgba(44, 95, 140, 0.16);
+
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease,
+    opacity 160ms ease;
+}
+
+.quickAddButton:hover {
+  transform: translateY(-1px);
+
+  box-shadow:
+    0 8px 17px rgba(44, 95, 140, 0.22);
+}
+
+.quickAddButton:active {
+  transform: scale(0.93);
+}
+
+.quickAddButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* =====================================================
+   CHECKBOX
+   ===================================================== */
+
+.checkbox {
+  min-height: 0;
+
+  width: 20px;
+  height: 20px;
+
   padding: 0;
+
+  border: none;
+  border-radius: 4px;
+
+  accent-color: var(--color-primary);
+
   flex-shrink: 0;
 }
 
 /* =====================================================
-   LEGEND
+   MOBILE
    ===================================================== */
 
-.legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-4);
-  padding-top: var(--space-2);
+@media (max-width: 859px) {
+  .timeline {
+    max-height: 520px;
+  }
+
+  .dayColumnCompact {
+    flex: 0 0 145px;
+    min-width: 145px;
+  }
+
+  .dayFullPane {
+    flex-direction: column;
+  }
+
+  .dayNotesColumn {
+    min-width: 0;
+    width: 100%;
+  }
 }
 
-.legendEntry {
+@media (max-width: 600px) {
+  .page {
+    padding: var(--space-2);
+  }
+
+  .dayHeader {
+    padding-top: 2px;
+  }
+
+  .dayTitle {
+    font-size: 1.25rem;
+  }
+
+  .timeline {
+    max-height: 460px;
+  }
+
+  .timeSlot {
+    grid-template-columns:
+      36px
+      13px
+      minmax(0, 1fr);
+
+    min-height: 40px;
+  }
+
+  .timeContent {
+    padding-left: 7px;
+  }
+
+  .timelineCard {
+    padding: 6px;
+    gap: 6px;
+    border-radius: 8px;
+  }
+
+  .timelineCardHandle {
+    display: none;
+  }
+
+  .timelineCard h3 {
+    font-size: 0.74rem;
+  }
+
+  .completeButton {
+    min-height: 26px;
+    padding: 0 7px;
+    font-size: 0.57rem;
+  }
+
+  .dayColumnCompact {
+    flex-basis: 128px;
+    min-width: 128px;
+    padding: 0 5px;
+  }
+
+  .weekColumnHeader {
+    font-size: 0.64rem;
+  }
+
+  .rangeNav {
+    gap: var(--space-2);
+  }
+
+  .rangeNavLabel {
+    min-width: 0;
+    font-size: 0.85rem;
+  }
+
+  .rangeNavToday {
+    padding: 5px 10px;
+    font-size: 0.68rem;
+  }
+}
+
+/* =====================================================
+   UX-014 — VISUAL THEME SYSTEM (Calendario)
+
+   Baseline component structure/behavior is unchanged — every rule below is
+   `:global(.theme-x) <local-class>`, additive on top of the rules above.
+   `--shadow-card`/`--font-mono` come from index.css's per-theme blocks;
+   `pageDate`/`blooming` are new presentational-only elements added in
+   DayAgenda.tsx (see its own comments) that render in every theme but are
+   only visible where a theme actually uses them.
+   ===================================================== */
+
+.pageDate {
+  display: none;
+}
+
+.pageDateNum {
+  font-family: var(--font-serif);
+  line-height: 0.85;
+  color: var(--color-text);
+}
+
+.pageDateMeta {
   display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  font-size: 0.8125rem;
+  flex-direction: column;
+}
+
+.pageDateDow {
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-terracotta-text);
+}
+
+.pageDateMonth {
+  font-family: var(--font-serif);
+  font-style: italic;
   color: var(--color-text-secondary);
+  text-transform: capitalize;
 }
 
-.legendDot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
+/* ---------- EDITORIAL ---------- */
 
-.legendDot[data-tone='primary'] {
-  background: var(--color-primary);
+/* NB: this page's own root class is `.page` (see CalendarPage.tsx), not
+   `.content` (that name belongs to AppShell.module.css's unrelated <main>
+   wrapper — confirmed by grep after the first version of this rule
+   silently matched nothing real). */
+:global(.theme-editorial) .page {
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.4'/%3E%3C/svg%3E");
+  background-blend-mode: multiply;
 }
-
-.legendDot[data-tone='warning'] {
-  background: var(--color-warning);
+:global(.theme-editorial) .pageDate {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  margin-bottom: 10px;
 }
-
-.legendDot[data-tone='info'] {
-  background: var(--color-info);
+:global(.theme-editorial) .pageDateNum {
+  font-size: clamp(2.6rem, 6vw, 4.4rem);
+  font-weight: 600;
+  transform: rotate(-1.5deg);
 }
-
-.legendDot[data-tone='error'] {
-  background: var(--color-error);
+:global(.theme-editorial) .dayEyebrow,
+:global(.theme-editorial) .dayTitle {
+  display: none;
 }
-
-.legendDot[data-tone='success'] {
-  background: var(--color-success);
+:global(.theme-editorial) .agendaItemTime,
+:global(.theme-editorial) .timelineCardTime {
+  font-family: var(--font-mono);
 }
-
-/* UX-007: the global `input` rule (index.css) sizes every <input> as a
-   44px-tall bordered text field — right for the reminder title/due-date
-   inputs it was written for, wrong for a checkbox. Scoped reset, not a
-   change to the shared rule (other inputs still need it as-is). */
-.checkbox {
-  min-height: 0;
-  width: 20px;
-  height: 20px;
-  padding: 0;
+:global(.theme-editorial) .agendaItemTitle,
+:global(.theme-editorial) .agendaItemTitleButton,
+:global(.theme-editorial) .timelineCardTitleRow h3,
+:global(.theme-editorial) .timelineCardTitleButton {
+  font-family: var(--font-serif);
+  font-style: italic;
+}
+:global(.theme-editorial) .agendaItem,
+:global(.theme-editorial) .timelineCard {
   border: none;
-  border-radius: 4px;
-  accent-color: var(--color-primary);
-  flex-shrink: 0;
+  border-bottom: 1px dotted rgba(44, 66, 91, 0.28);
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+}
+:global(.theme-editorial) .timelineCard:hover {
+  transform: none;
+  box-shadow: none;
+  background: rgba(163, 74, 58, 0.04);
+}
+/* "Today" ribbon — a real fabric-look bookmark clipped onto the column,
+   never a plain color swap. `data-today` comes straight from React Aria's
+   own CalendarCell attribute (Month) or the new isToday check in
+   DayAgenda.tsx (Semana/Día) — no logic duplicated here. */
+:global(.theme-editorial) .weekColumnHeader[data-today]::before,
+:global(.theme-editorial) .dayColumn[data-today]::before {
+  content: '';
+  position: absolute;
+  top: -8px;
+  right: 10px;
+  width: 14px;
+  height: 24px;
+  z-index: 2;
+  background: linear-gradient(180deg, #b85b49, var(--color-terracotta) 60%, #8a3b2d);
+  clip-path: polygon(0 0, 100% 0, 100% 78%, 50% 100%, 0 78%);
+  box-shadow: 1px 3px 6px rgba(44, 66, 91, 0.25);
+}
+:global(.theme-editorial) .dayColumn {
+  position: relative;
+}
+:global(.theme-editorial) .weekColumnHeader {
+  position: relative;
+}
+
+/* ---------- PREMIUM MINIMAL ---------- */
+
+:global(.theme-minimal) .page {
+  background-image:
+    repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(35, 66, 95, 0.045) 39px, rgba(35, 66, 95, 0.045) 40px),
+    repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(35, 66, 95, 0.045) 39px, rgba(35, 66, 95, 0.045) 40px);
+}
+:global(.theme-minimal) .pageDate {
+  display: flex;
+  align-items: baseline;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+:global(.theme-minimal) .pageDateNum {
+  font-size: clamp(3rem, 7vw, 5.6rem);
+  font-weight: 300;
+  letter-spacing: -0.03em;
+}
+:global(.theme-minimal) .pageDateDow {
+  letter-spacing: 0.22em;
+}
+:global(.theme-minimal) .pageDateMonth {
+  font-style: normal;
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+:global(.theme-minimal) .dayEyebrow,
+:global(.theme-minimal) .dayTitle {
+  display: none;
+}
+:global(.theme-minimal) .agendaItem,
+:global(.theme-minimal) .timelineCard {
+  border: none;
+  border-bottom: 1px solid rgba(35, 66, 95, 0.14);
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+}
+:global(.theme-minimal) .timelineCard:hover {
+  transform: none;
+  box-shadow: none;
+}
+:global(.theme-minimal) .agendaItemTitleButton,
+:global(.theme-minimal) .timelineCardTitleButton {
+  position: relative;
+}
+:global(.theme-minimal) .agendaItemTitleButton::after,
+:global(.theme-minimal) .timelineCardTitleButton::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -2px;
+  width: 0;
+  height: 1px;
+  background: var(--color-primary);
+  transition: width 160ms ease;
+}
+:global(.theme-minimal) .agendaItemTitleButton:hover::after,
+:global(.theme-minimal) .timelineCardTitleButton:hover::after {
+  width: 100%;
+}
+/* Gallery-label corner brackets on the main containers, precise/architectural. */
+:global(.theme-minimal) .agendaList,
+:global(.theme-minimal) .timeline,
+:global(.theme-minimal) .weekGrid {
+  position: relative;
+  padding: 18px;
+  border: 1px solid rgba(35, 66, 95, 0.14);
+}
+:global(.theme-minimal) .agendaList::before,
+:global(.theme-minimal) .timeline::before,
+:global(.theme-minimal) .weekGrid::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  width: 11px;
+  height: 11px;
+  border-top: 1.5px solid var(--color-primary);
+  border-left: 1.5px solid var(--color-primary);
+}
+:global(.theme-minimal) .agendaList::after,
+:global(.theme-minimal) .timeline::after,
+:global(.theme-minimal) .weekGrid::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  right: -1px;
+  width: 11px;
+  height: 11px;
+  border-bottom: 1.5px solid var(--color-primary);
+  border-right: 1.5px solid var(--color-primary);
+}
+:global(.theme-minimal) .weekColumnHeader[aria-pressed='true'] {
+  background: transparent;
+  color: var(--color-primary);
+  box-shadow: inset 0 -2px 0 var(--color-primary);
+}
+
+/* ---------- MODERN PRODUCTIVITY ---------- */
+
+:global(.theme-productivity) .agendaItem,
+:global(.theme-productivity) .timelineCard {
+  border-left: 3px solid transparent;
+}
+:global(.theme-productivity) .agendaItem[data-tone='error'],
+:global(.theme-productivity) .timelineCard[data-tone='error'] {
+  border-left-color: var(--color-error);
+  background: linear-gradient(90deg, rgba(185, 28, 28, 0.06), transparent 45%);
+}
+:global(.theme-productivity) .agendaItem[data-context='LABORAL'],
+:global(.theme-productivity) .timelineCard[data-context='LABORAL'] {
+  border-left-color: var(--color-laboral-primary, #1e3f5c);
+}
+:global(.theme-productivity) .agendaItem[data-tone='error']::before,
+:global(.theme-productivity) .timelineCard[data-tone='error']::before {
+  content: '';
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--color-error);
+  margin-right: 4px;
+  animation: themePulseDot 1.8s ease-in-out infinite;
+}
+:global(.theme-productivity) .timelineCard:hover {
+  transform: translateY(-1px);
+}
+:global(.theme-productivity) .weekColumnCount {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+@keyframes themePulseDot {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(185, 28, 28, 0.5); }
+  50% { box-shadow: 0 0 0 4px rgba(185, 28, 28, 0); }
+}
+
+/* ---------- ORGANIC / HUMAN ---------- */
+
+:global(.theme-organic) .agendaItem,
+:global(.theme-organic) .timelineCard {
+  border-radius: 999px;
+  border: none;
+}
+:global(.theme-organic) .timelineCard:hover {
+  transform: scale(1.012);
+}
+:global(.theme-organic) .weekColumnHeader[data-today] {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  border-radius: 999px;
+  animation: themeBreathe 3.4s ease-in-out infinite;
+}
+:global(.theme-organic) .dayColumnSelected {
+  border-radius: 22px;
+}
+:global(.theme-organic) .completeButtonCompact,
+:global(.theme-organic) .completeButton {
+  border-radius: 50%;
+  position: relative;
+  overflow: visible;
+}
+:global(.theme-organic) .blooming::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  border: 2px solid var(--color-primary);
+  animation: themeRippleOut 620ms ease-out forwards;
+  pointer-events: none;
+}
+@keyframes themeBreathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+}
+@keyframes themeRippleOut {
+  0% { transform: scale(1); opacity: 0.85; }
+  100% { transform: scale(2.6); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rangeNavButton,
+  .rangeNavToday,
+  .timelineCard,
+  .completeButton,
+  .quickAddButton,
+  .quickAddInput,
+  .weekColumnHeader {
+    transition: none;
+  }
+
+  /* UX-014: keyframe (not transition) animations added by the visual theme
+     system — cancelled outright, same "no non-essential motion" contract
+     as everywhere else in this file. */
+  .blooming::after,
+  :global(.theme-organic) .weekColumnHeader[data-today],
+  :global(.theme-productivity) [data-tone='error']::before {
+    animation: none;
+  }
 }

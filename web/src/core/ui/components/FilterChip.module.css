@@ -12,10 +12,26 @@
   background: var(--color-surface-variant);
   color: var(--color-text-secondary);
   cursor: pointer;
+  transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease;
 }
 
-.chip[aria-pressed='true'] {
+.chip[data-hovered]:not([data-selected]) {
+  background: var(--color-surface);
+}
+
+.chip[data-focus-visible] {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.chip[data-selected] {
   background: var(--color-primary-container);
   color: var(--color-primary);
   border-color: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chip {
+    transition: none;
+  }
 }

@@ -21,6 +21,7 @@ import static com.vidacotidiana.OpenApiContractSupport.VALIDATOR;
 import static org.hamcrest.Matchers.is;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -101,5 +102,88 @@ class UserControllerIntegrationTest {
         mockMvc.perform(get("/api/v1/me"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code", is("UNAUTHORIZED")));
+    }
+
+    /** BE-038/ADR-015: a brand-new user (post-migration) starts with neither mode enabled — the migration's grandfather only touches pre-existing rows, not new signups. */
+    @Test
+    void getCurrentUser_newUserStartsWithNeitherModeEnabled() throws Exception {
+        UUID userId = UUID.randomUUID();
+
+        mockMvc.perform(get("/api/v1/me").with(jwt().jwt(jwtFor(userId, "new-signup@example.com", "newsignup"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.personalEnabled", is(false)))
+                .andExpect(jsonPath("$.laboralEnabled", is(false)))
+                .andExpect(openApi().isValid(VALIDATOR));
+    }
+
+    @Test
+    void enableMode_personal_setsPersonalEnabledTrue() throws Exception {
+        UUID userId = UUID.randomUUID();
+        mockMvc.perform(get("/api/v1/me").with(jwt().jwt(jwtFor(userId, "modes@example.com", "modes"))));
+
+        mockMvc.perform(post("/api/v1/me/modes")
+                        .with(jwt().jwt(jwtFor(userId, "modes@example.com", "modes")))
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("{\"mode\":\"PERSONAL\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.personalEnabled", is(true)))
+                .andExpect(jsonPath("$.laboralEnabled", is(false)))
+                .andExpect(openApi().isValid(VALIDATOR));
+    }
+
+    /** Only-additive: enabling LABORAL must not touch an already-enabled PERSONAL. */
+    @Test
+    void enableMode_laboral_doesNotDisablePersonal() throws Exception {
+        UUID userId = UUID.randomUUID();
+        mockMvc.perform(get("/api/v1/me").with(jwt().jwt(jwtFor(userId, "both@example.com", "both"))));
+        mockMvc.perform(post("/api/v1/me/modes")
+                .with(jwt().jwt(jwtFor(userId, "both@example.com", "both")))
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .content("{\"mode\":\"PERSONAL\"}"));
+
+        mockMvc.perform(post("/api/v1/me/modes")
+                        .with(jwt().jwt(jwtFor(userId, "both@example.com", "both")))
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("{\"mode\":\"LABORAL\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.personalEnabled", is(true)))
+                .andExpect(jsonPath("$.laboralEnabled", is(true)));
+    }
+
+    @Test
+    void enableMode_alreadyEnabled_isIdempotent() throws Exception {
+        UUID userId = UUID.randomUUID();
+        mockMvc.perform(get("/api/v1/me").with(jwt().jwt(jwtFor(userId, "idem@example.com", "idem"))));
+        mockMvc.perform(post("/api/v1/me/modes")
+                .with(jwt().jwt(jwtFor(userId, "idem@example.com", "idem")))
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .content("{\"mode\":\"PERSONAL\"}"));
+
+        mockMvc.perform(post("/api/v1/me/modes")
+                        .with(jwt().jwt(jwtFor(userId, "idem@example.com", "idem")))
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("{\"mode\":\"PERSONAL\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.personalEnabled", is(true)));
+    }
+
+    @Test
+    void enableMode_invalidMode_returnsBadRequest() throws Exception {
+        UUID userId = UUID.randomUUID();
+        mockMvc.perform(get("/api/v1/me").with(jwt().jwt(jwtFor(userId, "invalid@example.com", "invalidmode"))));
+
+        mockMvc.perform(post("/api/v1/me/modes")
+                        .with(jwt().jwt(jwtFor(userId, "invalid@example.com", "invalidmode")))
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("{\"mode\":\"NOT_A_MODE\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void enableMode_requiresAuthentication() throws Exception {
+        mockMvc.perform(post("/api/v1/me/modes")
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("{\"mode\":\"PERSONAL\"}"))
+                .andExpect(status().isUnauthorized());
     }
 }

@@ -1,0 +1,54 @@
+/* FASE 14: "Exportar" — a small popover with two clear format buttons,
+   same general shape as VisionBoardTemplates.module.css's dialog. */
+.exportPopover {
+  z-index: 100000;
+}
+
+.exportDialog {
+  width: 336px;
+  max-width: calc(100vw - 32px);
+  padding: var(--space-4);
+  border-radius: 28px;;
+  background: var(--color-surface-variant);
+  border: 1px solid var(--color-border);
+  box-shadow: 0 16px 40px rgba(44, 66, 91, 0.2);
+  outline: none;
+}
+
+.exportIntro {
+  margin: 0 0 var(--space-3);
+  color: var(--color-text-secondary);
+  font-size: 0.8125rem;
+}
+
+.exportActions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.exportFormatButton {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: var(--space-3) var(--space-2);
+  border: 1.5px solid var(--color-border);
+  border-radius: 28px;;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 150ms ease, color 150ms ease;
+}
+
+.exportFormatButton:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.exportFormatButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

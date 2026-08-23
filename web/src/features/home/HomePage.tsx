@@ -1,10 +1,10 @@
 import { useNavigate } from 'react-router-dom'
 import { AppShell } from '../../core/ui/layout/AppShell'
+import { useModePath } from '../../core/user/ActiveModeContext'
 import { MetricCard } from '../../core/ui/components/MetricCard'
-import { ListSectionCard } from '../../core/ui/components/ListSectionCard'
-import { ListItemRow } from '../../core/ui/components/ListItemRow'
 import { DonutChart } from '../../core/ui/components/DonutChart'
 import { HomeIllustration } from '../../core/ui/components/HomeIllustration'
+import { WeekAgendaWidget } from './WeekAgendaWidget'
 import {
   IconAlert,
   IconCalendar,
@@ -28,25 +28,23 @@ const ACTIVITY_ICON: Record<MockActivityKind, typeof IconTasks> = {
   document: IconFolder,
 }
 
-const QUICK_LINKS = [
-  { to: '/reminders', label: 'Crear nueva tarea', icon: IconPlus },
-  { to: '/calendar', label: 'Ver calendario', icon: IconCalendar },
-  { to: '/documents', label: 'Agregar documento', icon: IconFolder },
-  { to: '/family', label: 'Invitar a un familiar', icon: IconUsers },
-] as const
-
-function formatDueAt(iso: string): string {
-  return new Date(iso).toLocaleString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
-
 export function HomePage() {
   const navigate = useNavigate()
   const state = useHomeData()
+  // ADR-015/UX-012: reused as-is by both Personal and Laboral navbars
+  // (FR-018) — these resolve to the mode-scoped route when reached that way,
+  // or the legacy bare one otherwise, so a click never drops the user out of
+  // the mode they were just in. Documentos/Familia stay bare — outside
+  // ADR-015's scope, no mode-scoped equivalent exists.
+  const remindersPath = useModePath('reminders')
+  const calendarPath = useModePath('calendar')
+  const sharedPath = useModePath('shared')
+  const quickLinks = [
+    { to: remindersPath, label: 'Crear nueva tarea', icon: IconPlus },
+    { to: calendarPath, label: 'Ver calendario', icon: IconCalendar },
+    { to: '/documents', label: 'Agregar documento', icon: IconFolder },
+    { to: '/family', label: 'Invitar a un familiar', icon: IconUsers },
+  ] as const
 
   const hasActivity =
     state.overdue.length > 0 || state.upcoming.length > 0
@@ -101,119 +99,7 @@ export function HomePage() {
           </div>
         </section>
 
-        {/* =====================================================
-            ERROR REAL
-            ===================================================== */}
-
-        {state.error && (
-          <div className={styles.errorMessage} role="alert">
-            <IconAlert width={20} height={20} />
-
-            <span>{state.error}</span>
-          </div>
-        )}
-
-        {/* =====================================================
-            02 — ACTIVIDAD
-            ===================================================== */}
-
-        <section className={styles.activitySection}>
-
-          <div className={styles.sectionHeading}>
-            <div>
-              <span className={styles.eyebrow}>
-                AGENDA
-              </span>
-
-              <h2>Lo que tienes pendiente</h2>
-            </div>
-
-            <button
-              type="button"
-              className={styles.textButton}
-              onClick={() => navigate('/reminders')}
-            >
-              Ver agenda
-            </button>
-          </div>
-
-          {state.loading && (
-            <div className={styles.emptyState}>
-              <div className={styles.emptyIcon}>
-                <IconTasks width={22} height={22} />
-              </div>
-
-              <div>
-                <strong>Cargando tu agenda...</strong>
-                <p>Estamos preparando tu día.</p>
-              </div>
-            </div>
-          )}
-
-          {!state.loading && state.overdue.length > 0 && (
-            <ListSectionCard
-              title="Necesita tu atención"
-              onSeeAll={() => navigate('/reminders')}
-            >
-              {state.overdue.map((reminder) => (
-                <ListItemRow
-                  key={reminder.id}
-                  title={reminder.title}
-                  subtitle={
-                    reminder.dueAt
-                      ? formatDueAt(reminder.dueAt)
-                      : ''
-                  }
-                  icon={IconAlert}
-                  tone="error"
-                  pillLabel="Vencida"
-                  pillTone="error"
-                />
-              ))}
-            </ListSectionCard>
-          )}
-
-          {!state.loading && state.upcoming.length > 0 && (
-            <ListSectionCard
-              title="Próximos días"
-              onSeeAll={() => navigate('/reminders')}
-            >
-              {state.upcoming.map((reminder) => (
-                <ListItemRow
-                  key={reminder.id}
-                  title={reminder.title}
-                  subtitle={
-                    reminder.dueAt
-                      ? formatDueAt(reminder.dueAt)
-                      : ''
-                  }
-                  icon={IconTasks}
-                  tone="info"
-                  pillLabel="Pendiente"
-                  pillTone="warning"
-                />
-              ))}
-            </ListSectionCard>
-          )}
-
-          {!state.loading && !hasActivity && (
-            <div className={styles.emptyState}>
-              <div className={styles.emptyIcon}>
-                <IconCheckCircle width={22} height={22} />
-              </div>
-
-              <div>
-                <strong>Todo en orden</strong>
-                <p>
-                  No tienes tareas pendientes por ahora.
-                </p>
-              </div>
-            </div>
-          )}
-
-        </section>
-
-        {/* =====================================================
+                {/* =====================================================
             03 — RESUMEN PERSONAL
             ===================================================== */}
 
@@ -230,54 +116,6 @@ export function HomePage() {
           </div>
 
           <div className={styles.metricsRow}>
-
-            <MetricCard
-              testId="metric_tasks"
-              label="Tareas"
-              value={state.pendingCount}
-              subtitle={
-                state.overdueCount > 0
-                  ? `${state.overdueCount} vencidas`
-                  : 'Todo al día'
-              }
-              subtitleTone={
-                state.overdueCount > 0
-                  ? 'error'
-                  : undefined
-              }
-              icon={IconTasks}
-              tone="primary"
-              onClick={() => navigate('/reminders')}
-            />
-
-            <MetricCard
-              testId="metric_shared"
-              label="Compartidos"
-              value={state.sharedCount}
-              subtitle={
-                state.sharedCount > 0
-                  ? 'invitaciones pendientes'
-                  : 'Todo al día'
-              }
-              icon={IconShared}
-              tone="info"
-              onClick={() => navigate('/invitations')}
-            />
-
-            {/* UX-009: mock — "evento" no es un concepto real de la API
-                todavía (los recordatorios son "tareas"). Valor fijo,
-                etiquetado explícitamente, no reinterpretado en silencio. */}
-            <MetricCard
-              testId="metric_events"
-              label="Próximos eventos"
-              value={homeUpcomingEventsCount}
-              subtitle="Esta semana · simulado"
-              subtitleTone="warning"
-              icon={IconCalendar}
-              tone="warning"
-              onClick={() => navigate('/calendar')}
-            />
-
             <div className={styles.progressCard}>
 
               <div className={styles.progressHeader}>
@@ -343,16 +181,83 @@ export function HomePage() {
                 </div>
               )}
 
-            </div>
+            </div>  
+            <MetricCard
+              testId="metric_tasks"
+              label="Tareas"
+              value={state.pendingCount}
+              subtitle={
+                state.overdueCount > 0
+                  ? `${state.overdueCount} vencidas`
+                  : 'Todo al día'
+              }
+              subtitleTone={
+                state.overdueCount > 0
+                  ? 'error'
+                  : undefined
+              }
+              icon={IconTasks}
+              tone="primary"
+              onClick={() => navigate(remindersPath)}
+            />
+
+            <MetricCard
+              testId="metric_shared"
+              label="Compartidos"
+              value={state.sharedCount}
+              subtitle={
+                state.sharedCount > 0
+                  ? 'invitaciones pendientes'
+                  : 'Todo al día'
+              }
+              icon={IconShared}
+              tone="info"
+              onClick={() => navigate(sharedPath)}
+            />
+
+            {/* UX-009: mock — "evento" no es un concepto real de la API
+                todavía (los recordatorios son "tareas"). Valor fijo,
+                etiquetado explícitamente, no reinterpretado en silencio. */}
+            <MetricCard
+              testId="metric_events"
+              label="Próximos eventos"
+              value={homeUpcomingEventsCount}
+              subtitle="Esta semana · simulado"
+              subtitleTone="warning"
+              icon={IconCalendar}
+              tone="warning"
+              onClick={() => navigate(calendarPath)}
+            />
 
           </div>
         </section>
 
         {/* =====================================================
+            ERROR REAL
+            ===================================================== */}
+
+        {state.error && (
+          <div className={styles.errorMessage} role="alert">
+            <IconAlert width={20} height={20} />
+
+            <span>{state.error}</span>
+          </div>
+        )}
+
+        {/* =====================================================
+            03.5 — SEMANA ACTUAL (pedido explícito del usuario,
+            2026-08-22: entre "Tu actividad" y "Actividad reciente";
+            solo la semana actual, sin navegación, no es la vista
+            completa del calendario — ver WeekAgendaWidget.tsx)
+            =====================================================
+            =====================================================
             04 — ACTIVIDAD RECIENTE (mock) + ACCESOS RÁPIDOS (real)
             ===================================================== */}
 
         <section className={styles.quickRow}>
+          {/* =====================================================
+              01 — ACTIVIDAD RECIENTE
+              ===================================================== */}
           <div className={styles.quickPanel}>
             <div className={styles.sectionHeading}>
               <div>
@@ -360,17 +265,23 @@ export function HomePage() {
                 <h2>Actividad reciente</h2>
               </div>
             </div>
+
             <ul className={styles.activityList}>
               {homeActivities.map((activity) => {
                 const Icon = ACTIVITY_ICON[activity.kind]
+
                 return (
                   <li key={activity.id} className={styles.activityItem}>
                     <span className={styles.activityIcon}>
                       <Icon width={16} height={16} />
                     </span>
+
                     <span className={styles.activityText}>
                       <span>{activity.text}</span>
-                      <span className={styles.activityTime}>{activity.timeLabel} · simulado</span>
+
+                      <span className={styles.activityTime}>
+                        {activity.timeLabel} · simulado
+                      </span>
                     </span>
                   </li>
                 )
@@ -378,6 +289,25 @@ export function HomePage() {
             </ul>
           </div>
 
+          {/* =====================================================
+              02 — TUS PENDIENTES
+              Este panel ocupa las dos filas de la columna derecha.
+              ===================================================== */}
+          <div className={styles.quickPanel}>
+            <div className={styles.sectionHeading}>
+              <div>
+                <span className={styles.eyebrow}>ESTA SEMANA</span>
+                <h2>Tus pendientes</h2>
+              </div>
+            </div>
+
+            <WeekAgendaWidget thisWeek={state.thisWeek} />
+          </div>
+
+          {/* =====================================================
+              03 — ACCESOS RÁPIDOS
+              Queda debajo de Actividad reciente.
+              ===================================================== */}
           <div className={styles.quickPanel}>
             <div className={styles.sectionHeading}>
               <div>
@@ -385,15 +315,29 @@ export function HomePage() {
                 <h2>Accesos rápidos</h2>
               </div>
             </div>
+
             <ul className={styles.quickList}>
-              {QUICK_LINKS.map((link) => (
+              {quickLinks.map((link) => (
                 <li key={link.to}>
-                  <button type="button" className={styles.quickLink} onClick={() => navigate(link.to)}>
+                  <button
+                    type="button"
+                    className={styles.quickLink}
+                    onClick={() => navigate(link.to)}
+                  >
                     <span className={styles.quickLinkIcon}>
                       <link.icon width={16} height={16} />
                     </span>
-                    <span className={styles.quickLinkLabel}>{link.label}</span>
-                    <IconChevronRight className={styles.quickChevron} width={16} height={16} aria-hidden="true" />
+
+                    <span className={styles.quickLinkLabel}>
+                      {link.label}
+                    </span>
+
+                    <IconChevronRight
+                      className={styles.quickChevron}
+                      width={16}
+                      height={16}
+                      aria-hidden="true"
+                    />
                   </button>
                 </li>
               ))}

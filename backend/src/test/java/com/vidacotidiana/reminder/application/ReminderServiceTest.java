@@ -1,7 +1,10 @@
 package com.vidacotidiana.reminder.application;
 
 import com.vidacotidiana.notification.application.PushNotificationSender;
+import com.vidacotidiana.person.application.PersonService;
+import com.vidacotidiana.project.application.ProjectService;
 import com.vidacotidiana.reminder.domain.Reminder;
+import com.vidacotidiana.reminder.domain.ReminderContext;
 import com.vidacotidiana.reminder.domain.ReminderRepository;
 import com.vidacotidiana.reminder.domain.ReminderStatus;
 import com.vidacotidiana.shared.domain.NotFoundException;
@@ -37,6 +40,8 @@ class ReminderServiceTest {
     private ReminderRepository reminderRepository;
     private ReminderShareRepository reminderShareRepository;
     private PushNotificationSender pushNotificationSender;
+    private PersonService personService;
+    private ProjectService projectService;
     private ReminderService reminderService;
 
     private final UUID ownerId = UUID.randomUUID();
@@ -48,7 +53,9 @@ class ReminderServiceTest {
         reminderRepository = Mockito.mock(ReminderRepository.class);
         reminderShareRepository = Mockito.mock(ReminderShareRepository.class);
         pushNotificationSender = Mockito.mock(PushNotificationSender.class);
-        reminderService = new ReminderService(reminderRepository, reminderShareRepository, pushNotificationSender);
+        personService = Mockito.mock(PersonService.class);
+        projectService = Mockito.mock(ProjectService.class);
+        reminderService = new ReminderService(reminderRepository, reminderShareRepository, pushNotificationSender, personService, projectService);
         when(reminderRepository.save(any(Reminder.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(reminderShareRepository.findByReminderIdAndStatus(any(UUID.class), any(ReminderShareStatus.class)))
                 .thenReturn(List.of());
@@ -61,11 +68,26 @@ class ReminderServiceTest {
 
     @Test
     void create_persistsReminderOwnedByCaller() {
-        Reminder created = reminderService.create(ownerId, "Buy milk", "2%", Instant.now());
+        Reminder created = reminderService.create(ownerId, "Buy milk", "2%", Instant.now(), null, null, null);
 
         assertThat(created.getOwnerUserId()).isEqualTo(ownerId);
         assertThat(created.getTitle()).isEqualTo("Buy milk");
         assertThat(created.getStatus()).isEqualTo(ReminderStatus.PENDING);
+    }
+
+    /** BE-038/ADR-015: a null context defaults to PERSONAL — every pre-ADR-015 call site relies on this. */
+    @Test
+    void create_withNullContext_defaultsToPersonal() {
+        Reminder created = reminderService.create(ownerId, "Buy milk", "2%", Instant.now(), null, null, null);
+
+        assertThat(created.getContext()).isEqualTo(ReminderContext.PERSONAL);
+    }
+
+    @Test
+    void create_withExplicitContext_usesIt() {
+        Reminder created = reminderService.create(ownerId, "Team meeting", null, Instant.now(), "LABORAL", null, null);
+
+        assertThat(created.getContext()).isEqualTo(ReminderContext.LABORAL);
     }
 
     @Test
@@ -192,7 +214,7 @@ class ReminderServiceTest {
         when(reminderRepository.findById(id)).thenReturn(Optional.of(reminder));
         grantActiveShareTo(id, collaboratorId);
 
-        assertThatThrownBy(() -> reminderService.edit(id, collaboratorId, "Hijacked title", null, null, reminder.getVersion()))
+        assertThatThrownBy(() -> reminderService.edit(id, collaboratorId, "Hijacked title", null, null, null, null, reminder.getVersion()))
                 .isInstanceOf(NotFoundException.class);
     }
 
@@ -202,7 +224,7 @@ class ReminderServiceTest {
         UUID id = fakeId(reminder);
         when(reminderRepository.findById(id)).thenReturn(Optional.of(reminder));
 
-        Reminder result = reminderService.edit(id, ownerId, "Buy oat milk", null, null, reminder.getVersion());
+        Reminder result = reminderService.edit(id, ownerId, "Buy oat milk", null, null, null, null, reminder.getVersion());
 
         assertThat(result.getTitle()).isEqualTo("Buy oat milk");
         assertThat(result.getDescription()).isEqualTo("2%"); // untouched: null argument means "no change"
@@ -215,7 +237,7 @@ class ReminderServiceTest {
         UUID id = fakeId(reminder);
         when(reminderRepository.findById(id)).thenReturn(Optional.of(reminder));
 
-        assertThatThrownBy(() -> reminderService.edit(id, ownerId, "Water the ferns", null, null, reminder.getVersion() + 1))
+        assertThatThrownBy(() -> reminderService.edit(id, ownerId, "Water the ferns", null, null, null, null, reminder.getVersion() + 1))
                 .isInstanceOf(VersionConflictException.class)
                 .satisfies(ex -> assertThat(((VersionConflictException) ex).getCode()).isEqualTo("REMINDER_VERSION_CONFLICT"));
         assertThat(reminder.getTitle()).isEqualTo("Water plants");
@@ -227,7 +249,7 @@ class ReminderServiceTest {
         UUID id = fakeId(reminder);
         when(reminderRepository.findById(id)).thenReturn(Optional.of(reminder));
 
-        assertThatThrownBy(() -> reminderService.edit(id, strangerId, "Hijacked title", null, null, reminder.getVersion()))
+        assertThatThrownBy(() -> reminderService.edit(id, strangerId, "Hijacked title", null, null, null, null, reminder.getVersion()))
                 .isInstanceOf(NotFoundException.class);
     }
 

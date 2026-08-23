@@ -3,7 +3,10 @@ package com.vidacotidiana.reminder.application;
 import com.vidacotidiana.notification.application.PushEvent;
 import com.vidacotidiana.notification.application.PushEventType;
 import com.vidacotidiana.notification.application.PushNotificationSender;
+import com.vidacotidiana.person.application.PersonService;
+import com.vidacotidiana.project.application.ProjectService;
 import com.vidacotidiana.reminder.domain.Reminder;
+import com.vidacotidiana.reminder.domain.ReminderContext;
 import com.vidacotidiana.reminder.domain.ReminderRepository;
 import com.vidacotidiana.shared.domain.NotFoundException;
 import com.vidacotidiana.shared.domain.VersionConflictException;
@@ -42,17 +45,52 @@ public class ReminderService {
     private final ReminderRepository reminderRepository;
     private final ReminderShareRepository reminderShareRepository;
     private final PushNotificationSender pushNotificationSender;
+    private final PersonService personService;
+    private final ProjectService projectService;
 
     public ReminderService(ReminderRepository reminderRepository, ReminderShareRepository reminderShareRepository,
-                            PushNotificationSender pushNotificationSender) {
+                            PushNotificationSender pushNotificationSender, PersonService personService,
+                            ProjectService projectService) {
         this.reminderRepository = reminderRepository;
         this.reminderShareRepository = reminderShareRepository;
         this.pushNotificationSender = pushNotificationSender;
+        this.personService = personService;
+        this.projectService = projectService;
     }
 
+    /**
+     * BE-038/ADR-015: {@code context} is nullable — defaults to PERSONAL,
+     * same reasoning as CreateReminderRequest's own doc comment (every
+     * pre-ADR-015 call site doesn't send one yet). iconId/stickerId are
+     * likewise optional — a task created before this feature, or created
+     * without picking either, simply has none.
+     */
     @Transactional
-    public Reminder create(UUID ownerUserId, String title, String description, Instant dueAt) {
-        Reminder reminder = new Reminder(ownerUserId, title, description, dueAt);
+    public Reminder create(UUID ownerUserId, String title, String description, Instant dueAt, String context,
+                            String iconId, String stickerId) {
+        return create(ownerUserId, title, description, dueAt, context, iconId, stickerId, null, null, null);
+    }
+
+    /**
+     * ADR-016/FR-023/FR-024: personId/projectId/location, all optional. When
+     * present, personId/projectId must reference a Persona/Proyecto owned by
+     * the same caller — getOwnedOrThrow throws the same 404
+     * (PERSON_NOT_FOUND/PROJECT_NOT_FOUND) it would on direct access,
+     * never leaking whether the id exists under another user (SEC-001
+     * principle applied here too, not just to Reminder itself).
+     */
+    @Transactional
+    public Reminder create(UUID ownerUserId, String title, String description, Instant dueAt, String context,
+                            String iconId, String stickerId, UUID personId, UUID projectId, String location) {
+        if (personId != null) {
+            personService.getOwnedOrThrow(personId, ownerUserId);
+        }
+        if (projectId != null) {
+            projectService.getOwnedOrThrow(projectId, ownerUserId);
+        }
+        ReminderContext resolvedContext = (context != null) ? ReminderContext.valueOf(context) : ReminderContext.PERSONAL;
+        Reminder reminder = new Reminder(ownerUserId, title, description, dueAt, resolvedContext, iconId, stickerId,
+                personId, projectId, location);
         return reminderRepository.save(reminder);
     }
 
@@ -98,11 +136,28 @@ public class ReminderService {
      * UC-05 (edit)/AC-004b. Owner-only (AC-011: a collaborator may never
      * edit). Unlike toggleCompletion, version is mandatory here: a mismatch
      * always rejects the edit with 409, never silently skips the check.
+     * iconId/stickerId: see Reminder#applyEdit's own doc — always applied
+     * as sent, not null-guarded like title/description/dueAt.
      */
     @Transactional
     public Reminder edit(UUID reminderId, UUID callerUserId, String title, String description,
-                          Instant dueAt, int expectedVersion) {
+                          Instant dueAt, String iconId, String stickerId, int expectedVersion) {
+        return edit(reminderId, callerUserId, title, description, dueAt, iconId, stickerId, null, null, null, expectedVersion);
+    }
+
+    /** ADR-016/FR-023/FR-024: personId/projectId, when sent, are validated the same way as in create(). */
+    @Transactional
+    public Reminder edit(UUID reminderId, UUID callerUserId, String title, String description,
+                          Instant dueAt, String iconId, String stickerId, UUID personId, UUID projectId,
+                          String location, int expectedVersion) {
         Reminder reminder = getOwnedOrThrow(reminderId, callerUserId);
+
+        if (personId != null) {
+            personService.getOwnedOrThrow(personId, callerUserId);
+        }
+        if (projectId != null) {
+            projectService.getOwnedOrThrow(projectId, callerUserId);
+        }
 
         if (expectedVersion != reminder.getVersion()) {
             throw new VersionConflictException(
@@ -110,7 +165,7 @@ public class ReminderService {
                             + expectedVersion + ", current version " + reminder.getVersion() + ").");
         }
 
-        reminder.applyEdit(title, description, dueAt);
+        reminder.applyEdit(title, description, dueAt, iconId, stickerId, personId, projectId, location);
         return reminderRepository.save(reminder);
     }
 

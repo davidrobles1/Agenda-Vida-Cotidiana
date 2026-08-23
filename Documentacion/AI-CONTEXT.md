@@ -47,12 +47,12 @@ Archivos numerados en `Documentacion/` (00 a 26) + `openapi/openapi.yaml`. Ver `
 ## Versiones
 - **V1 (MVP):** cuenta, login, Home, CRUD + completar recordatorios, compartir recordatorio (owner + colaboradores 1:N vía invitación), notificaciones locales y push, base de seguridad/privacidad/auditoría/observabilidad. Plataformas: Android, iOS, Web.
 - **V2:** estabilización, hardening, UX, sincronización robusta, recuperación de errores, más pruebas, observabilidad.
-- **V3:** funcionalidades adicionales (sin especificar), rendimiento, escalabilidad, colaboración avanzada (grupos/hogares) *si se aprueba*.
+- **V3:** navegación dual Personal/Laboral (ADR-015); Módulo Laboral — Personas, Proyectos, Compromisos (ADR-016, FR-021 a FR-028); rendimiento, escalabilidad, colaboración avanzada (grupos/hogares) *si se aprueba*.
 - **V4:** versión madura, alcance funcional exacto `TBD`.
 - **POST-V4:** IA, Finanzas — explícitamente fuera de V1–V4 (ADR-003, ADR-004).
 
 ## Funcionalidades fuera de alcance (V1–V4 salvo indicación)
-IA, Finanzas/integración bancaria/estados de cuenta, marketplace, afiliados, publicidad, microservicios/arquitectura distribuida compleja, archivos/adjuntos, grupos/hogares/equipos/roles granulares entre colaboradores (más allá de OWNER/COLLABORATOR simple), búsqueda social/libreta de contactos.
+IA, Finanzas/integración bancaria/estados de cuenta, marketplace, afiliados, publicidad, microservicios/arquitectura distribuida compleja, archivos/adjuntos, grupos/hogares/equipos/roles granulares entre colaboradores (más allá de OWNER/COLLABORATOR simple), búsqueda social/libreta de contactos. **Módulo Laboral (ADR-016):** CRM avanzado/pipeline de ventas con etapas, gestión de casos legales, gestión de obra con planos, historiales clínicos, automatización proactiva basada en patrones, asistente conversacional — quedan Post-V4, ver `34-laboral-module-proposal.md` §16.
 
 ## Decisiones arquitectónicas importantes (ver `22-decision-log.md` para detalle completo)
 - ADR-001 Monolito modular (Accepted).
@@ -69,6 +69,8 @@ IA, Finanzas/integración bancaria/estados de cuenta, marketplace, afiliados, pu
 - ADR-012 Política de retención/eliminación de cuenta: soft delete 30 días + purga de invitaciones sin cuenta (DEC-015) (Accepted).
 - ADR-013 Build tool: **Maven**, sustituye el bootstrap inicial en Gradle (Accepted, 2026-08-15).
 - ADR-014 Cloud/infra provider: **servidor propio alquilado (self-hosted)**, sustituye AWS (DEC-008 corregida; DEC-009/correo reabierta como `TBD`) (Accepted, 2026-08-15).
+- ADR-015 Contextos de uso Personal/Laboral: selector superior condicional (Calendario + modos habilitados), navbar propio por modo, calendario general agregado (día/semana/mes) coloreado por origen, `REMINDER.context` inferido del navbar de creación. Etiquetado V3, pero **implementación adelantada en paralelo con V2 desde 2026-08-18** (Accepted). Ver FR-014 a FR-019.
+- ADR-016 Módulo Laboral: entidades `PERSON`/`PROJECT`/`COMMITMENT` (extiende ADR-015, que era solo etiqueta de contexto). Seguimientos y Esperando unificados en `COMMITMENT.direction` (`MINE`/`THEIRS`), no dos entidades. Reunión = `REMINDER` con `location` + `REMINDER_SHARE` existente, sin entidad Evento nueva. Sin ORGANIZATION propia (texto libre en `PERSON.organization`). Núcleo V3 (Accepted, 2026-08-22). Ver FR-021 a FR-028, NFR-011, SEC-004, `34-laboral-module-proposal.md`.
 
 ## Reglas de seguridad
 - HTTPS siempre; autorización por recurso verificada server-side; deny-by-default; mínimo privilegio.
