@@ -39,3 +39,46 @@
   color: var(--color-text-secondary);
   font-size: 0.875rem;
 }
+
+/* UX-014/UX-015: perfil profesional (vocabulario adaptable, design-system.md §12). */
+.profileSection {
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.sectionTitle {
+  margin: 0 0 var(--space-2);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.sectionHint {
+  margin: 0 0 var(--space-3);
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.profileField {
+  display: block;
+  max-width: 380px;
+}
+
+.profileLabel {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--color-text-secondary);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.profileSelect {
+  width: 100%;
+}
+
+.profilePreview {
+  margin: var(--space-3) 0 0;
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+}

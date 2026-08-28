@@ -5,6 +5,7 @@ import {
   ChevronDown,
   ChevronUp,
   Copy,
+  FolderX,
   Lock,
   LockOpen,
   Minus,
@@ -168,10 +169,15 @@ export function VisionBoardToolbar({
         onOpenChange={onCreateBoardOpenChange}
       />
 
+      {/* Hallazgo real (Playwright, 2026-08-23): sin texto, este botón y el
+          de "Eliminar" un elemento mostraban EL MISMO icono de papelera,
+          con consecuencias radicalmente distintas (borrar el tablero
+          entero vs. un elemento). Icono propio para el de tablero. */}
       <VisionBoardDeleteConfirm
         count={1}
         disabled={false}
         onConfirm={onDeleteBoard}
+        triggerIcon={<FolderX width={16} height={16} />}
         triggerLabel="Eliminar Vision Board"
         heading="Eliminar Vision Board"
         body={
@@ -218,27 +224,32 @@ export function VisionBoardToolbar({
         </>
       )}
 
+      {/* Barra icon-only (2026-08-23): se quitó el texto visible de cada
+          botón para que la barra lateral ocupe poco ancho. `aria-label` es
+          obligatorio en todos — sin él, un botón que solo contiene un SVG
+          `aria-hidden` queda sin nombre accesible (violación WCAG 4.1.2,
+          el mismo hallazgo real que ya documenta VisionBoardContextMenu.tsx
+          sobre su propio botón ancla). */}
       <Button
         className={styles.actionButton}
         isDisabled={selectedElements.length === 0}
         onPress={onDuplicate}
+        aria-label="Duplicar"
       >
         <Copy width={16} height={16} />
-        Duplicar
       </Button>
 
       <Button
         className={styles.actionButton}
         isDisabled={selectedElements.length === 0}
         onPress={onToggleLock}
+        aria-label={allSelectedLocked ? 'Desbloquear' : 'Bloquear'}
       >
         {allSelectedLocked ? (
           <LockOpen width={16} height={16} />
         ) : (
           <Lock width={16} height={16} />
         )}
-
-        {allSelectedLocked ? 'Desbloquear' : 'Bloquear'}
       </Button>
 
       <VisionBoardDeleteConfirm

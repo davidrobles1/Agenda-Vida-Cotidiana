@@ -25,6 +25,7 @@ import { PeoplePage } from '../features/people/PeoplePage'
 import { ProjectsPage } from '../features/projects/ProjectsPage'
 import { CommitmentsPage } from '../features/commitments/CommitmentsPage'
 import { ObjectivesPage } from '../features/objectives/ObjectivesPage'
+import { RoutinesPage } from '../features/routines/RoutinesPage'
 
 function useIsAuthenticated(): boolean {
   return useSyncExternalStore(subscribe, isAuthenticated)
@@ -138,6 +139,9 @@ export function AppRouter() {
             Fase 2). Se llega desde "Ver todos" en la tarjeta de Hoy, mismo
             patrón de ruta-sin-enlace que Documentos/Inventario en Personal. */}
         <Route path="objectives" element={<ObjectivesPage />} />
+        {/* ADR-016 Fase 3e2 (FR-032): Rutinas — misma regla que Objetivos,
+            ruta real sin enlace en el navbar, alcanzable desde Hoy. */}
+        <Route path="routines" element={<RoutinesPage />} />
       </Route>
       <Route
         path="/notifications"

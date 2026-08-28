@@ -8,6 +8,7 @@ import { listReminders, type Reminder } from '../reminders/api'
 import { listCommitments, type Commitment } from '../commitments/api'
 import { listPeople, type Person } from '../people/api'
 import { listObjectives, type Objective } from '../objectives/api'
+import { executeRoutine, FREQUENCY_LABELS, listRoutines, type Routine } from '../routines/api'
 import { addInboxItem } from './inboxStorage'
 import styles from './HoyPage.module.css'
 
@@ -32,29 +33,47 @@ export function HoyPage() {
   const [commitments, setCommitments] = useState<Commitment[]>([])
   const [people, setPeople] = useState<Person[]>([])
   const [objectives, setObjectives] = useState<Objective[]>([])
+  const [routines, setRoutines] = useState<Routine[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [quickCapture, setQuickCapture] = useState('')
   const [captured, setCaptured] = useState(false)
+  const [busyRoutineId, setBusyRoutineId] = useState<string | null>(null)
 
   async function refresh() {
     setLoading(true)
     setError(null)
     try {
-      const [remindersPage, commitmentsPage, peoplePage, objectivesPage] = await Promise.all([
+      const [remindersPage, commitmentsPage, peoplePage, objectivesPage, routinesPage] = await Promise.all([
         listReminders(),
         listCommitments(),
         listPeople(),
         listObjectives(),
+        listRoutines(),
       ])
       setTasks(remindersPage.items)
       setCommitments(commitmentsPage.items)
       setPeople(peoplePage.items)
       setObjectives(objectivesPage.items)
+      setRoutines(routinesPage.items)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo cargar tu día.')
     } finally {
       setLoading(false)
+    }
+  }
+
+  /** UC-25: marcar la ocurrencia de hoy sin salir de "Hoy". */
+  async function handleExecuteRoutine(routine: Routine) {
+    setBusyRoutineId(routine.id)
+    setError(null)
+    try {
+      const updated = await executeRoutine(routine.id, routine.version)
+      setRoutines((current) => current.map((r) => (r.id === updated.id ? updated : r)))
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo marcar la rutina.')
+    } finally {
+      setBusyRoutineId(null)
     }
   }
 
@@ -70,6 +89,11 @@ export function HoyPage() {
     .slice(0, 5)
   // FR-031/AC-018: un Objetivo cumplido deja de aparecer en Hoy.
   const openObjectives = objectives.filter((o) => !o.completed).slice(0, 4)
+  // FR-032: solo rutinas activas que ya tocan (hoy o antes) — una rutina en
+  // pausa o programada para más adelante no es "de hoy".
+  const dueRoutines = routines
+    .filter((r) => r.active && daysUntil(r.nextExecutionDate) <= 0)
+    .sort((a, b) => daysUntil(a.nextExecutionDate) - daysUntil(b.nextExecutionDate))
 
   function handleQuickCapture(event: FormEvent) {
     event.preventDefault()
@@ -118,6 +142,37 @@ export function HoyPage() {
             })}
         </ListSectionCard>
       </div>
+
+      {/* ADR-016 Fase 3e2/FR-032, UC-25: rutinas que tocan hoy. "Hecha" llama
+          al endpoint real, que avanza la fecha desde la programada — no crea
+          ninguna Tarea ni Compromiso. */}
+      <ListSectionCard title="Rutinas de hoy" onSeeAll={() => navigate('/laboral/routines')}>
+        {loading && <p className={styles.emptyHint}>Cargando…</p>}
+        {!loading && dueRoutines.length === 0 && <p className={styles.emptyHint}>Ninguna rutina pendiente hoy.</p>}
+        {!loading &&
+          dueRoutines.map((routine) => (
+            <ListItemRow
+              key={routine.id}
+              title={routine.title}
+              subtitle={`${FREQUENCY_LABELS[routine.frequency]} · Programada: ${routine.nextExecutionDate.slice(0, 10)}`}
+              icon={IconRepeat}
+              tone={daysUntil(routine.nextExecutionDate) < 0 ? 'error' : 'primary'}
+              pillLabel={daysUntil(routine.nextExecutionDate) < 0 ? 'Atrasada' : undefined}
+              pillTone="error"
+              trailing={
+                <button
+                  type="button"
+                  className={styles.routineDoneButton}
+                  aria-label={`Marcar ${routine.title} como hecha`}
+                  disabled={busyRoutineId === routine.id}
+                  onClick={() => void handleExecuteRoutine(routine)}
+                >
+                  <IconCheckCircle width={16} height={16} /> Hecha
+                </button>
+              }
+            />
+          ))}
+      </ListSectionCard>
 
       {/* ADR-016 Fase 3e1/FR-031: resumen de Objetivos abiertos. "Ver todos"
           lleva a la página dedicada (/laboral/objectives), que no tiene

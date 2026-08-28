@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Button, Menu, MenuItem, MenuTrigger, Popover } from 'react-aria-components'
 import { motion } from 'motion/react'
-import { Check, ChevronDown } from 'lucide-react'
+import { Check, ChevronsUpDown } from 'lucide-react'
 import { motionTokens } from '../../core/motion/tokens'
 import type { VisionBoard } from './api'
 import toolbarStyles from './VisionBoardToolbar.module.css'
@@ -37,11 +37,20 @@ export function VisionBoardSwitcher({ boards, currentBoardId, switching, onSwitc
     <MenuTrigger isOpen={open} onOpenChange={setOpen}>
       <Button
         className={`${toolbarStyles.actionButton} ${styles.trigger}`}
-        aria-label="Cambiar de Vision Board"
+        /* Barra icon-only (2026-08-23): el nombre del tablero ya no se ve
+           en el botón, así que viaja aquí — si no, `current` quedaría sin
+           uso y el usuario perdería por completo la referencia de en qué
+           tablero está. */
+        aria-label={
+          current ? `Cambiar de Vision Board (actual: ${current.name})` : 'Cambiar de Vision Board'
+        }
         isDisabled={switching}
       >
-        <span className={styles.triggerLabel}>{switching ? 'Cargando…' : (current?.name ?? 'Vision Board')}</span>
-        <ChevronDown width={14} height={14} aria-hidden="true" />
+        {/* Hallazgo real (Playwright, 2026-08-23): era `ChevronDown`, el
+            MISMO icono que "Bajar una capa" en el grupo de capas — sin
+            texto que los distinguiera. `ChevronsUpDown` es además el
+            affordance convencional de un selector. */}
+        <ChevronsUpDown width={16} height={16} aria-hidden="true" />
       </Button>
       <Popover placement="bottom start" offset={8} className={styles.popover}>
         <MotionMenu

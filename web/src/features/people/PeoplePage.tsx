@@ -11,6 +11,9 @@ import { listProjects, type Project } from '../projects/api'
 import { listNotes } from '../calendar/notes/api'
 import type { Note } from '../calendar/notes/notesData'
 import { listDocuments, type VidaDocument } from '../documents/api'
+import { listResources, type Resource } from '../resources/api'
+import { useVocabulary } from '../../core/user/useVocabulary'
+import { article } from '../../core/user/vocabulary'
 import { CreatePersonDialog } from './CreatePersonDialog'
 import { PersonDetailDialog } from './PersonDetailDialog'
 import styles from './PeoplePage.module.css'
@@ -21,12 +24,16 @@ import styles from './PeoplePage.module.css'
  * y creación de seguimiento embebida (UC-18).
  */
 export function PeoplePage() {
+  // UX-014/UX-015: solo cambian las palabras — la pantalla, los datos y las
+  // acciones son idénticas en cualquier perfil (design-system.md §12).
+  const vocabulary = useVocabulary()
   const [people, setPeople] = useState<Person[]>([])
   const [commitments, setCommitments] = useState<Commitment[]>([])
   const [tasks, setTasks] = useState<Reminder[]>([])
   const [projects, setProjects] = useState<Project[]>([])
   const [notes, setNotes] = useState<Note[]>([])
   const [documents, setDocuments] = useState<VidaDocument[]>([])
+  const [resources, setResources] = useState<Resource[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -34,20 +41,23 @@ export function PeoplePage() {
     setLoading(true)
     setError(null)
     try {
-      const [peoplePage, commitmentsPage, remindersPage, projectsPage, notesPage, documentsPage] = await Promise.all([
-        listPeople(),
-        listCommitments(),
-        listReminders(),
-        listProjects(),
-        listNotes(),
-        listDocuments(),
-      ])
+      const [peoplePage, commitmentsPage, remindersPage, projectsPage, notesPage, documentsPage, resourcesPage] =
+        await Promise.all([
+          listPeople(),
+          listCommitments(),
+          listReminders(),
+          listProjects(),
+          listNotes(),
+          listDocuments(),
+          listResources(),
+        ])
       setPeople(peoplePage.items)
       setCommitments(commitmentsPage.items)
       setTasks(remindersPage.items)
       setProjects(projectsPage.items)
       setNotes(notesPage.items)
       setDocuments(documentsPage.items)
+      setResources(resourcesPage.items)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudieron cargar las personas.')
     } finally {
@@ -71,22 +81,45 @@ export function PeoplePage() {
     setNotes((current) => [note, ...current])
   }
 
+  function handleResourceCreated(resource: Resource) {
+    setResources((current) => [resource, ...current])
+  }
+
+  /** ADR-016 Fase 3d: la nota vuelve con su sugerencia ya resuelta. */
+  function handleNoteUpdated(note: Note) {
+    setNotes((current) => current.map((n) => (n.id === note.id ? note : n)))
+  }
+
+  function handleTaskCreated(task: Reminder) {
+    setTasks((current) => [task, ...current])
+  }
+
   async function handleDelete(id: string) {
     await deletePerson(id)
     setPeople((current) => current.filter((p) => p.id !== id))
   }
 
   return (
-    <AppShell title="Personas" subtitle="Clientes, colegas y proveedores — el mismo modelo para cualquier profesión.">
+    <AppShell
+      title={vocabulary.personPlural}
+      subtitle="Clientes, colegas y proveedores — el mismo modelo para cualquier profesión."
+    >
       {error && (
         <p role="alert" className={styles.error}>
           {error}
         </p>
       )}
 
-      <ListSectionCard title="Todas las personas" action={<CreatePersonDialog onCreated={handleCreated} />}>
+      <ListSectionCard
+        title={`Tod${vocabulary.personGender === 'f' ? 'a' : 'o'}s ${article.definitePlural(vocabulary.personGender)} ${vocabulary.personPlural.toLowerCase()}`}
+        action={<CreatePersonDialog onCreated={handleCreated} />}
+      >
         {loading && <p className={styles.emptyHint}>Cargando…</p>}
-        {!loading && people.length === 0 && <p className={styles.emptyHint}>Todavía no has agregado ninguna persona.</p>}
+        {!loading && people.length === 0 && (
+          <p className={styles.emptyHint}>
+            Todavía no has agregado {article.none(vocabulary.personGender)} {vocabulary.person.toLowerCase()}.
+          </p>
+        )}
         {!loading &&
           people.map((person) => {
             const openCount = commitments.filter((c) => c.personId === person.id && c.status === 'OPEN').length
@@ -108,13 +141,17 @@ export function PeoplePage() {
                       projects={projects.filter((p) => p.clientPersonId === person.id)}
                       notes={notes.filter((n) => n.personId === person.id)}
                       documents={documents.filter((d) => d.personId === person.id)}
+                      resources={resources.filter((r) => r.personId === person.id)}
                       onCommitmentCreated={handleCommitmentCreated}
                       onNoteCreated={handleNoteCreated}
+                      onResourceCreated={handleResourceCreated}
+                      onNoteUpdated={handleNoteUpdated}
+                      onTaskCreated={handleTaskCreated}
                     />
                     <SimpleDeleteConfirm
-                      resourceLabel="persona"
+                      resourceLabel={vocabulary.person.toLowerCase()}
                       itemName={person.name}
-                      ariaLabel="Eliminar persona"
+                      ariaLabel={`Eliminar ${vocabulary.person.toLowerCase()}`}
                       onConfirm={() => handleDelete(person.id)}
                     />
                   </div>

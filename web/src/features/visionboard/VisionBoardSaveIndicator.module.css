@@ -2,15 +2,18 @@
    the rest of the toolbar (this isn't an action), never a modal, never
    blocks the canvas. Sized to stay legible without competing with the
    real actions around it ("no distraer, no ocupar demasiado espacio"). */
+/* Barra icon-only (2026-08-23): pasó de texto+icono a solo icono (el
+   texto de cada estado vive en un `VisuallyHidden`, así que el anuncio de
+   `aria-live` no cambió). Centrado como los demás botones del riel para
+   que no rompa la columna. */
 .indicator {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 5px;
   flex-shrink: 0;
-  padding: 0 6px;
+  min-height: 22px;
   color: var(--color-text-secondary);
-  font-size: 0.78rem;
-  font-weight: 600;
   white-space: nowrap;
 }
 
@@ -34,15 +37,17 @@
   color: var(--color-error);
 }
 
+/* Barra icon-only (2026-08-23): ahora envuelve el icono de alerta en vez
+   de la palabra "Reintentar" — sin subrayado ni tipografía de enlace. */
 .retryButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 0;
   min-height: 0;
   border: none;
   background: none;
   color: var(--color-error);
-  font-size: 0.78rem;
-  font-weight: 700;
-  text-decoration: underline;
   cursor: pointer;
 }
 

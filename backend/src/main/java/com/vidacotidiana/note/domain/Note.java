@@ -53,6 +53,21 @@ public class Note {
     @Column(name = "project_id")
     private UUID projectId;
 
+    /**
+     * ADR-016 Fase 3d/FR-035 (candidato V4). true cuando el usuario ya
+     * resolvió la sugerencia de tarea de esta nota — sea convirtiéndola en
+     * Tarea o descartándola. A partir de entonces la sugerencia no vuelve a
+     * ofrecerse (regla aprobada por el Product Owner, 2026-08-28).
+     *
+     * No hay nada automático detrás de este campo: la sugerencia solo
+     * aparece cuando el usuario pulsa "Sugerir tarea" (disparador manual).
+     * Un único booleano porque ambos desenlaces tienen el mismo efecto
+     * observable; ninguna regla aprobada distingue "convertida" de
+     * "descartada".
+     */
+    @Column(name = "task_suggestion_resolved", nullable = false)
+    private boolean taskSuggestionResolved;
+
     @Version
     @Column(nullable = false)
     private int version;
@@ -117,6 +132,21 @@ public class Note {
 
     public UUID getProjectId() {
         return projectId;
+    }
+
+    public boolean isTaskSuggestionResolved() {
+        return taskSuggestionResolved;
+    }
+
+    /**
+     * ADR-016 Fase 3d/FR-035, UC-28: el usuario resolvió la sugerencia de
+     * esta nota (la convirtió en Tarea o la descartó). Idempotente y
+     * irreversible por diseño: no existe "volver a ofrecer la sugerencia"
+     * en la regla aprobada, así que no hay un método para deshacerlo.
+     */
+    public void resolveTaskSuggestion() {
+        this.taskSuggestionResolved = true;
+        this.updatedAt = Instant.now();
     }
 
     public int getVersion() {

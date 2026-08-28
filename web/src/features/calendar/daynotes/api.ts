@@ -20,7 +20,21 @@ export interface DayNoteElementData {
   /** Solo para TEXT — uno de los 4 roles tipográficos ya definidos en
       index.css (--font-serif/--font-sans/--font-script/--font-mono).
       `undefined` se trata como 'sans' (el estilo que tenía antes). */
-  font?: 'serif' | 'sans' | 'script' | 'mono'
+  font?:
+  | 'serif'
+  | 'sans'
+  | 'script'
+  | 'mono'
+  | 'modern'
+  | 'elegant'
+  | 'editorial'
+  | 'classic'
+  | 'fashion'
+  | 'handwritten'
+  | 'parisienne'
+  | 'extravagant'
+  | 'playful'
+  | 'typewriter'
 }
 
 export interface DayNoteElement {

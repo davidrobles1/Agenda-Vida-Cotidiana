@@ -43,7 +43,6 @@ export function VisionBoardAnimationAction({ disabled, current, onApply }: Visio
     <MenuTrigger isOpen={open} onOpenChange={setOpen}>
       <Button className={toolbarStyles.actionButton} isDisabled={disabled} aria-label="Animar elemento">
         <Sparkles width={16} height={16} />
-        Animar
       </Button>
       <Popover placement="bottom start" offset={8} className={styles.popover}>
         <MotionMenu

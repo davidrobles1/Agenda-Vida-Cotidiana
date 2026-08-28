@@ -5,11 +5,15 @@
    here (a board has no single representative color the way a theme does)
    — a check icon on the active item is the "which one is active" signal
    instead. */
+/* Barra icon-only (2026-08-23): ya no hay etiqueta de texto que limitar,
+   así que este trigger es el mismo cuadrado que el resto — lo hereda todo
+   de `.actionButton`. Tenía además el mismo `transform: scale(0.60)` que
+   ya se quitó allá (encogía solo el pixel, no la caja, y `:hover` lo
+   cancelaba haciendo saltar el botón +67%). */
 .trigger {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  max-width: 200px;
+  justify-content: center;
 }
 
 .triggerLabel {

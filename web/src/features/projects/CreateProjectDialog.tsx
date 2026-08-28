@@ -3,6 +3,7 @@ import { Button, Dialog, DialogTrigger, Heading, Modal } from 'react-aria-compon
 import { motion } from 'motion/react'
 import { motionTokens } from '../../core/motion/tokens'
 import { IconPlus } from '../../core/ui/icons'
+import { useVocabulary } from '../../core/user/useVocabulary'
 import type { Person } from '../people/api'
 import { createProject, type CreateProjectInput, type Project } from './api'
 import shellStyles from '../../core/ui/dialogs/DialogShell.module.css'
@@ -16,6 +17,8 @@ interface CreateProjectDialogProps {
 
 /** ADR-016/FR-022, UC-19. Mismo patrón que CreatePersonDialog.tsx. */
 export function CreateProjectDialog({ people, onCreated }: CreateProjectDialogProps) {
+  // UX-014/UX-015: mismo formulario, mismos campos — solo el nombre cambia.
+  const vocabulary = useVocabulary()
   const [isOpen, setIsOpen] = useState(false)
   const [name, setName] = useState('')
   const [clientPersonId, setClientPersonId] = useState('')
@@ -62,7 +65,8 @@ export function CreateProjectDialog({ people, onCreated }: CreateProjectDialogPr
   return (
     <DialogTrigger isOpen={isOpen} onOpenChange={handleOpenChange}>
       <Button>
-        <IconPlus width={16} height={16} /> Nuevo proyecto
+        <IconPlus width={16} height={16} /> {vocabulary.projectGender === 'f' ? 'Nueva' : 'Nuevo'}{' '}
+        {vocabulary.project.toLowerCase()}
       </Button>
       <Modal isDismissable className={shellStyles.modalOverlay}>
         <MotionDialog
@@ -76,7 +80,7 @@ export function CreateProjectDialog({ people, onCreated }: CreateProjectDialogPr
               <form onSubmit={handleSubmit}>
                 <div className={shellStyles.headerRow}>
                   <Heading slot="title" className={shellStyles.heading}>
-                    Nuevo proyecto
+                    {vocabulary.projectGender === 'f' ? 'Nueva' : 'Nuevo'} {vocabulary.project.toLowerCase()}
                   </Heading>
                   <button type="button" className={shellStyles.closeButton} onClick={close} aria-label="Cerrar">
                     ×

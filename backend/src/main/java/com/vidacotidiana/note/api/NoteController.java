@@ -3,6 +3,7 @@ package com.vidacotidiana.note.api;
 import com.vidacotidiana.identity.infrastructure.CurrentUser;
 import com.vidacotidiana.note.api.dto.CreateNoteRequest;
 import com.vidacotidiana.note.api.dto.NoteResponse;
+import com.vidacotidiana.note.api.dto.ResolveTaskSuggestionRequest;
 import com.vidacotidiana.note.api.dto.UpdateNoteRequest;
 import com.vidacotidiana.note.application.NoteService;
 import com.vidacotidiana.note.domain.Note;
@@ -71,6 +72,21 @@ public class NoteController {
         Note note = noteService.edit(
                 id, currentUser.userId(), request.title(), request.description(),
                 request.iconId(), request.stickerId(), request.personId(), request.projectId(), request.version());
+        return NoteResponse.from(note);
+    }
+
+    /**
+     * ADR-016 Fase 3d/FR-035, UC-28: marca la sugerencia de tarea de esta
+     * nota como resuelta (convertida o descartada). Nada aquí crea la Tarea
+     * — si el usuario convierte, el cliente ya llamó a `POST /reminders`
+     * antes; este endpoint solo registra que la nota deja de ofrecer la
+     * sugerencia.
+     */
+    @PostMapping("/{id}/resolve-task-suggestion")
+    public NoteResponse resolveTaskSuggestion(@PathVariable UUID id,
+                                              @RequestBody(required = false) ResolveTaskSuggestionRequest request) {
+        Integer expectedVersion = (request != null) ? request.version() : null;
+        Note note = noteService.resolveTaskSuggestion(id, currentUser.userId(), expectedVersion);
         return NoteResponse.from(note);
     }
 

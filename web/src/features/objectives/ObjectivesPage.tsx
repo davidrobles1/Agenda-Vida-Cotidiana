@@ -118,6 +118,10 @@ export function ObjectivesPage() {
                     <button
                       type="button"
                       className={styles.completeButton}
+                      // Varias filas tienen un botón "Cumplido" idéntico: sin
+                      // un nombre accesible propio son indistinguibles para un
+                      // lector de pantalla (mismo criterio que los +/- de arriba).
+                      aria-label={`Marcar ${objective.title} como cumplido`}
                       disabled={busyId === objective.id}
                       onClick={() => void patchObjective(objective, { completed: true })}
                     >

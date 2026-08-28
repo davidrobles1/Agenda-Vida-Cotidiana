@@ -178,6 +178,18 @@ El usuario podrá ver sus Compromisos abiertos agrupados en dos pestañas: "Mía
 
 **FUTURE (Post-V4, candidatos — fuera de alcance hasta validación explícita):** CRM avanzado/pipeline de ventas con etapas, gestión de casos legales, gestión de obra con planos, historiales clínicos, automatización proactiva basada en patrones/IA, asistente conversacional. No se implementan ni se documentan como endpoints reales (regla IA/Finanzas de `CLAUDE.md`).
 
+## FR-035 Sugerencia de tarea desde una nota (ADR-016 Fase 3d)
+**Version: V4 candidato (RECOMMENDATION, no comprometido — ver `34-laboral-module-proposal.md` §14). Implementado el 2026-08-28.**
+
+**DECISION (Product Owner, 2026-08-28):** desde una nota vinculada a una Persona o Proyecto, el usuario podrá generar una sugerencia de tarea. La regla, que estuvo `BLOCKED` hasta esta fecha por falta de definición, es:
+1. **El disparador es manual:** un botón "Sugerir tarea" en la nota. **No** hay detección automática por palabras clave, ni job, ni heurística — nada se dispara solo.
+2. La sugerencia propone el texto de la nota como título (editable) y ofrece dos acciones: **convertir** en Tarea o **descartar**.
+3. Una vez **convertida o descartada**, la sugerencia no vuelve a ofrecerse para esa nota (`NOTE.taskSuggestionResolved`).
+
+Convertir crea un `REMINDER` normal (`context = LABORAL`, heredando la Persona/Proyecto de la nota) mediante el endpoint de siempre — no se introduce ninguna ruta de creación de Tareas paralela.
+
+**FUERA DE ALCANCE explícito:** detección automática por contenido, sugerencias proactivas basadas en patrones o histórico, cualquier modelo o heurística de IA (prohibido por `CLAUDE.md`/ADR-003), y deshacer la resolución (ninguna regla aprobada contempla "volver a ofrecer la sugerencia").
+
 ## FR-031 Objetivos (ADR-016 Fase 3e1)
 **Version: V4 candidato (RECOMMENDATION, no comprometido — ver `34-laboral-module-proposal.md` §14). Alcance definido el 2026-08-22, listo para desarrollo, todavía no implementado.**
 

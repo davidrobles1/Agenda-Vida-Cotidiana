@@ -176,6 +176,16 @@ Actor: usuario autenticado.
 2. Ve la sección "Documentos" con los documentos ya vinculados (nombre únicamente, solo lectura).
 **TBD:** no existe todavía un paso "3. Subir/vincular un documento nuevo desde aquí" — ver FR-030.
 
+## UC-28 Convertir una nota en tarea mediante una sugerencia (ADR-016 Fase 3d, FR-035)
+Actor: usuario autenticado.
+1. Usuario abre el detalle de una Persona o un Proyecto y ve sus notas vinculadas.
+2. En una nota que todavía no ha resuelto, pulsa **"Sugerir tarea"** (disparador manual — el sistema no propone nada por su cuenta).
+3. Aparece una sugerencia con el texto de la nota como título propuesto, editable.
+4. El usuario elige:
+   - **Crear tarea:** se crea un `REMINDER` real (`context = LABORAL`, con la Persona/Proyecto de la nota) y la sugerencia queda resuelta; o
+   - **Descartar:** no se crea nada y la sugerencia queda resuelta igualmente.
+5. En ambos casos, esa nota deja de ofrecer la sugerencia — también en sesiones posteriores.
+
 ## UC-24 Crear y marcar un Objetivo como cumplido (ADR-016 Fase 3e1, FR-031)
 Actor: usuario autenticado.
 1. Usuario crea un Objetivo con `title` y, opcionalmente, `targetValue`/`deadline`.

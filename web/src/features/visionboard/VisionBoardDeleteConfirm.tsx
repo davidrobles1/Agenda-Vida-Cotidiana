@@ -96,7 +96,7 @@ export function VisionBoardDeleteConfirm({
     <DialogTrigger isOpen={isOpen} onOpenChange={handleOpenChange}>
       <Button className={styles.actionButton} isDisabled={resolvedDisabled} aria-label={resolvedLabel}>
         {triggerIcon ?? <Trash2 width={16} height={16} />}
-        {resolvedLabel}
+        
       </Button>
       <ModalOverlay isDismissable className={shellStyles.confirmOverlay}>
         <Modal>

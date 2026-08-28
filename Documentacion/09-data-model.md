@@ -246,11 +246,14 @@ Notas por entidad:
 - **PLACE:** `person_id` opcional, mismo patrón que `PROJECT.client_person_id`. No introduce `REMINDER.place_id` — la integración con `CreateTaskDialog` es solo autocompletado de texto en el cliente (FR-033).
 - **RESOURCE:** no reemplaza `DOCUMENT` — sin archivo real almacenado, solo metadatos y una referencia de texto/URL (FR-034).
 
-**TBD explícitos (no bloqueantes — pendientes de definición del Product Owner o de detalle técnico antes de codificar, ver `08-laboral-module-plan.md` Fase 3e para el desglose completo por incremento):**
-- `ROUTINE`: fórmula exacta para calcular `next_execution_date` a partir de `frequency` (p. ej. `MONTHLY` sobre un día 31 en un mes sin día 31) y su valor inicial al crear la Rutina (¿el usuario lo fija, o se calcula "hoy + frequency"?).
-- `ROUTINE`: si `active = false` debe ocultar la Rutina de algún listado/resumen — a diferencia de Objetivo, no hay integración con "Hoy" decidida para Rutinas.
-- `RESOURCE.reference`: si debe ser un único campo de texto libre (elegido aquí, ASSUMPTION técnica) o dos campos separados (`url` estructurada + `description` de referencia) — el enunciado aprobado dice "url o referencia", ambiguo entre ambas formas.
-- Punto de entrada exacto en la UI para Objetivos/Rutinas/Lugares/Recursos más allá de lo ya decidido para Objetivos (resumen en "Hoy" + página dedicada) y Lugares (selector inline en `CreateTaskDialog`) — ninguna se agrega al navbar de 7 secciones núcleo de Laboral (ya cerrado, `WEB-010`).
+**TBD resueltos por el Product Owner (2026-08-28):**
+- `ROUTINE`, avance de `next_execution_date` (**opción B**): se calcula desde la **fecha programada original**, nunca desde "ahora" — una rutina semanal programada el lunes y marcada el jueves pasa al lunes siguiente, no al jueves siguiente; la cadencia sobrevive a una ejecución tardía. Consecuencia declarada, no suavizada: una rutina con varias ocurrencias sin marcar sigue en el pasado tras un solo clic (un clic marca **una** ocurrencia; no se salta al futuro, eso descartaría en silencio las perdidas). Fin de mes se delega a `java.time` (31 ene + 1 mes = 28/29 feb), verificado con un test dedicado.
+- `ROUTINE`, valor inicial de `next_execution_date`: **lo fija el usuario** al crear la Rutina (campo obligatorio del formulario) — el backend no deriva ninguna fecha.
+- `ROUTINE`, `active = false`: la Rutina se conserva en su listado con la etiqueta "En pausa" y **no** aparece en el resumen de "Hoy" (solo se listan ahí las activas cuya fecha ya llegó).
+- `RESOURCE.reference` (**opción A**): un **único campo de texto libre**, no `url` estructurada + `description` separadas. Razón registrada: varios tipos aprobados (`MANUAL`, `PLANTILLA`, `HERRAMIENTA`) a menudo no tienen URL y quedarían con un campo vacío permanente.
+
+**TBD que siguen abiertos (no bloqueantes):**
+- Punto de entrada en la UI para gestionar Lugares fuera del selector de `CreateTaskDialog` (editar/eliminar existen en la API pero no en la Web) y para ver Recursos no vinculados a ninguna Persona/Proyecto. Ninguna de las cuatro entidades se agrega al navbar de 7 secciones núcleo de Laboral (ya cerrado, `WEB-010`); Objetivos y Rutinas se alcanzan desde sus tarjetas en "Hoy".
 
 ## Reglas
 - UUID/identificador no predecible.

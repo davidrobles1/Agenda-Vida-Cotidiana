@@ -76,6 +76,40 @@ public class NoteService {
         return edit(noteId, callerUserId, title, description, iconId, stickerId, null, null, expectedVersion);
     }
 
+    /**
+     * ADR-016 Fase 3d/FR-035, UC-28: marca la sugerencia de tarea de esta
+     * nota como resuelta — el usuario la convirtió en Tarea o la descartó.
+     * A partir de aquí la sugerencia no vuelve a ofrecerse.
+     *
+     * <p>Este servicio <b>no</b> crea la Tarea: cuando el usuario elige
+     * convertir, el cliente llama primero a {@code POST /reminders} (el
+     * mismo endpoint de siempre, con la Persona/Proyecto de la nota) y
+     * después a este. Así la conversión no introduce ninguna ruta de
+     * creación de Tareas paralela a la existente, y descartar recorre
+     * exactamente el mismo camino menos esa primera llamada.
+     *
+     * <p>{@code expectedVersion} es opcional, mismo contrato que
+     * CommitmentService#resolve.
+     */
+    @Transactional
+    public Note resolveTaskSuggestion(UUID noteId, UUID callerUserId, Integer expectedVersion) {
+        Note note = getOwnedOrThrow(noteId, callerUserId);
+
+        if (expectedVersion != null && expectedVersion != note.getVersion()) {
+            throw new ConflictException("NOTE_VERSION_CONFLICT",
+                    "Note " + noteId + " was modified concurrently (expected version "
+                            + expectedVersion + ", current version " + note.getVersion() + ").");
+        }
+
+        note.resolveTaskSuggestion();
+        try {
+            return noteRepository.save(note);
+        } catch (ObjectOptimisticLockingFailureException raceLostToConcurrentUpdate) {
+            throw new ConflictException("NOTE_VERSION_CONFLICT",
+                    "Note " + noteId + " was modified concurrently; refetch and retry.");
+        }
+    }
+
     /** ADR-016 Fase 3a/FR-029: personId/projectId, when sent, validated the same way as create(). */
     @Transactional
     public Note edit(UUID noteId, UUID callerUserId, String title, String description, String iconId,

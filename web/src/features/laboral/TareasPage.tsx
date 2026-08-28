@@ -7,6 +7,7 @@ import { IconCheckCircle, IconTasks } from '../../core/ui/icons'
 import { completeReminder, deleteReminder, listReminders, type Reminder } from '../reminders/api'
 import { listPeople, type Person } from '../people/api'
 import { listProjects, type Project } from '../projects/api'
+import { listPlaces, type Place } from '../places/api'
 import { CreateTaskDialog } from './CreateTaskDialog'
 import styles from './TareasPage.module.css'
 
@@ -21,6 +22,7 @@ export function TareasPage() {
   const [tasks, setTasks] = useState<Reminder[]>([])
   const [people, setPeople] = useState<Person[]>([])
   const [projects, setProjects] = useState<Project[]>([])
+  const [places, setPlaces] = useState<Place[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -28,10 +30,16 @@ export function TareasPage() {
     setLoading(true)
     setError(null)
     try {
-      const [remindersPage, peoplePage, projectsPage] = await Promise.all([listReminders(), listPeople(), listProjects()])
+      const [remindersPage, peoplePage, projectsPage, placesPage] = await Promise.all([
+        listReminders(),
+        listPeople(),
+        listProjects(),
+        listPlaces(),
+      ])
       setTasks(remindersPage.items.filter((t) => t.context === 'LABORAL'))
       setPeople(peoplePage.items)
       setProjects(projectsPage.items)
+      setPlaces(placesPage.items)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudieron cargar las tareas.')
     } finally {
@@ -45,6 +53,10 @@ export function TareasPage() {
 
   function handleCreated(task: Reminder) {
     setTasks((current) => [task, ...current])
+  }
+
+  function handlePlaceCreated(place: Place) {
+    setPlaces((current) => [place, ...current])
   }
 
   async function handleComplete(task: Reminder) {
@@ -65,7 +77,18 @@ export function TareasPage() {
         </p>
       )}
 
-      <ListSectionCard title="Todas las tareas" action={<CreateTaskDialog people={people} projects={projects} onCreated={handleCreated} />}>
+      <ListSectionCard
+        title="Todas las tareas"
+        action={
+          <CreateTaskDialog
+            people={people}
+            projects={projects}
+            places={places}
+            onCreated={handleCreated}
+            onPlaceCreated={handlePlaceCreated}
+          />
+        }
+      >
         {loading && <p className={styles.emptyHint}>Cargando…</p>}
         {!loading && tasks.length === 0 && <p className={styles.emptyHint}>Todavía no hay tareas laborales.</p>}
         {!loading &&
@@ -77,7 +100,7 @@ export function TareasPage() {
               <ListItemRow
                 key={task.id}
                 title={task.title}
-                subtitle={[task.dueAt?.slice(0, 10), person?.name, project?.name].filter(Boolean).join(' · ') || undefined}
+                subtitle={[task.dueAt?.slice(0, 10), person?.name, project?.name, task.location].filter(Boolean).join(' · ') || undefined}
                 icon={IconTasks}
                 tone={done ? 'success' : 'primary'}
                 pillLabel={done ? 'Completada' : undefined}

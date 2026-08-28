@@ -4,9 +4,15 @@ import { motion } from 'motion/react'
 import { Eye } from 'lucide-react'
 import { motionTokens } from '../../core/motion/tokens'
 import { completeReminder, createReminder, type Reminder } from '../reminders/api'
-import { createNote } from '../calendar/notes/api'
+import { createNote, resolveNoteTaskSuggestion } from '../calendar/notes/api'
 import type { Note } from '../calendar/notes/notesData'
 import type { VidaDocument } from '../documents/api'
+import {
+  createResource,
+  RESOURCE_TYPE_LABELS,
+  type Resource,
+  type ResourceType,
+} from '../resources/api'
 import type { Person } from '../people/api'
 import type { Project } from './api'
 import shellStyles from '../../core/ui/dialogs/DialogShell.module.css'
@@ -20,12 +26,17 @@ interface ProjectDetailDialogProps {
   tasks: Reminder[]
   notes: Note[]
   documents: VidaDocument[]
+  /** ADR-016 Fase 3e4/FR-034 — recursos ya vinculados a este Proyecto. */
+  resources: Resource[]
   onTaskCreated: (task: Reminder) => void
   onTaskUpdated: (task: Reminder) => void
   onNoteCreated: (note: Note) => void
+  onResourceCreated: (resource: Resource) => void
+  /** ADR-016 Fase 3d/FR-035 — refleja la nota tras resolver su sugerencia. */
+  onNoteUpdated: (note: Note) => void
 }
 
-type ActiveForm = 'none' | 'task' | 'note'
+type ActiveForm = 'none' | 'task' | 'note' | 'resource'
 type TaskView = 'list' | 'kanban'
 
 function formatDate(iso: string): string {
@@ -37,7 +48,7 @@ function formatDate(iso: string): string {
  * vinculadas automáticamente a este Proyecto. Mismo patrón que
  * PersonDetailDialog.tsx.
  */
-export function ProjectDetailDialog({ project, clientPerson, tasks, notes, documents, onTaskCreated, onTaskUpdated, onNoteCreated }: ProjectDetailDialogProps) {
+export function ProjectDetailDialog({ project, clientPerson, tasks, notes, documents, resources, onTaskCreated, onTaskUpdated, onNoteCreated, onResourceCreated, onNoteUpdated }: ProjectDetailDialogProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [activeForm, setActiveForm] = useState<ActiveForm>('none')
   const [taskView, setTaskView] = useState<TaskView>('list')
@@ -45,8 +56,63 @@ export function ProjectDetailDialog({ project, clientPerson, tasks, notes, docum
   const [title, setTitle] = useState('')
   const [dueAtLocal, setDueAtLocal] = useState('')
   const [noteText, setNoteText] = useState('')
+  const [resourceName, setResourceName] = useState('')
+  const [resourceType, setResourceType] = useState<ResourceType>('ENLACE')
+  const [resourceReference, setResourceReference] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  /** ADR-016 Fase 3d: id de la nota cuya sugerencia se está mostrando. */
+  const [suggestingNoteId, setSuggestingNoteId] = useState<string | null>(null)
+  const [suggestedTitle, setSuggestedTitle] = useState('')
+
+  /**
+   * ADR-016 Fase 3d/FR-035, UC-28. Disparador **manual** — solo se abre al
+   * pulsar "Sugerir tarea" en una nota concreta. Nada automático.
+   */
+  function startSuggestion(note: Note) {
+    setSuggestingNoteId(note.id)
+    setSuggestedTitle(note.title)
+    setError(null)
+  }
+
+  /** Convertir: crea la Tarea real y marca la sugerencia como resuelta. */
+  async function handleConvertSuggestion(note: Note) {
+    if (!suggestedTitle.trim() || saving) return
+    setSaving(true)
+    setError(null)
+    try {
+      const created = await createReminder({
+        title: suggestedTitle.trim(),
+        context: 'LABORAL',
+        projectId: project.id,
+        ...(note.personId ? { personId: note.personId } : {}),
+      })
+      onTaskCreated(created)
+      const updated = await resolveNoteTaskSuggestion(note.id, note.version)
+      onNoteUpdated(updated)
+      setSuggestingNoteId(null)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo crear la tarea.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  /** Descartar: mismo camino, sin crear la Tarea. La sugerencia no vuelve. */
+  async function handleDismissSuggestion(note: Note) {
+    if (saving) return
+    setSaving(true)
+    setError(null)
+    try {
+      const updated = await resolveNoteTaskSuggestion(note.id, note.version)
+      onNoteUpdated(updated)
+      setSuggestingNoteId(null)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo descartar la sugerencia.')
+    } finally {
+      setSaving(false)
+    }
+  }
 
   function handleOpenChange(open: boolean) {
     setIsOpen(open)
@@ -55,7 +121,35 @@ export function ProjectDetailDialog({ project, clientPerson, tasks, notes, docum
       setTitle('')
       setDueAtLocal('')
       setNoteText('')
+      setResourceName('')
+      setResourceType('ENLACE')
+      setResourceReference('')
       setError(null)
+    }
+  }
+
+  /** UC-27: alta embebida, vinculada automáticamente a este Proyecto. */
+  async function handleCreateResource(event: FormEvent) {
+    event.preventDefault()
+    if (!resourceName.trim() || saving) return
+
+    setSaving(true)
+    setError(null)
+    try {
+      const created = await createResource({
+        name: resourceName.trim(),
+        type: resourceType,
+        reference: resourceReference.trim() || undefined,
+        projectId: project.id,
+      })
+      onResourceCreated(created)
+      setActiveForm('none')
+      setResourceName('')
+      setResourceReference('')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo guardar el recurso.')
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -217,7 +311,50 @@ export function ProjectDetailDialog({ project, clientPerson, tasks, notes, docum
               {notes.length === 0 && <p className={styles.emptyHint}>Sin notas todavía.</p>}
               <ul className={styles.detailList}>
                 {notes.map((n) => (
-                  <li key={n.id}>{n.title}</li>
+                  <li key={n.id}>
+                    <div className={styles.noteRow}>
+                      <span>{n.title}</span>
+                      {/* ADR-016 Fase 3d/FR-035, UC-28: disparador manual. */}
+                      {!n.taskSuggestionResolved && suggestingNoteId !== n.id && (
+                        <button
+                          type="button"
+                          className={styles.suggestButton}
+                          aria-label={`Sugerir tarea desde la nota: ${n.title}`}
+                          onClick={() => startSuggestion(n)}
+                        >
+                          Sugerir tarea
+                        </button>
+                      )}
+                    </div>
+
+                    {suggestingNoteId === n.id && (
+                      <div className={styles.suggestionBox}>
+                        <label className={shellStyles.field}>
+                          <span className={shellStyles.fieldLabel}>Tarea sugerida</span>
+                          <input
+                            className={shellStyles.textInput}
+                            value={suggestedTitle}
+                            onChange={(e) => setSuggestedTitle(e.target.value)}
+                            autoFocus
+                          />
+                        </label>
+                        <div className={shellStyles.formActions}>
+                          {saving && <span className={shellStyles.savingHint}>Guardando…</span>}
+                          <button
+                            type="button"
+                            data-variant="secondary"
+                            disabled={saving}
+                            onClick={() => void handleDismissSuggestion(n)}
+                          >
+                            Descartar
+                          </button>
+                          <button type="button" disabled={saving} onClick={() => void handleConvertSuggestion(n)}>
+                            Crear tarea
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </li>
                 ))}
               </ul>
 
@@ -229,15 +366,83 @@ export function ProjectDetailDialog({ project, clientPerson, tasks, notes, docum
                 ))}
               </ul>
 
+              {/* ADR-016 Fase 3e4/FR-034, UC-27. Referencia de texto, nunca un archivo. */}
+              <h3 className={styles.detailSectionTitle}>Recursos</h3>
+              {resources.length === 0 && <p className={styles.emptyHint}>Sin recursos vinculados.</p>}
+              <ul className={styles.detailList}>
+                {resources.map((r) => (
+                  <li key={r.id}>
+                    {r.name} <span className={styles.resourceType}>({RESOURCE_TYPE_LABELS[r.type]})</span>
+                    {r.reference && <> — {r.reference}</>}
+                  </li>
+                ))}
+              </ul>
+
               {activeForm === 'none' && (
                 <div className={shellStyles.formActions}>
                   <button type="button" data-variant="secondary" onClick={() => setActiveForm('note')}>
                     Nueva nota
                   </button>
+                  <button type="button" data-variant="secondary" onClick={() => setActiveForm('resource')}>
+                    Nuevo recurso
+                  </button>
                   <button type="button" data-variant="secondary" onClick={() => setActiveForm('task')}>
                     Nueva tarea
                   </button>
                 </div>
+              )}
+
+              {activeForm === 'resource' && (
+                <form onSubmit={handleCreateResource}>
+                  <h3 className={styles.detailSectionTitle}>Nuevo recurso</h3>
+                  {error && <p className={shellStyles.formError} role="alert">{error}</p>}
+
+                  <label className={shellStyles.field}>
+                    <span className={shellStyles.fieldLabel}>Nombre</span>
+                    <input
+                      className={shellStyles.textInput}
+                      value={resourceName}
+                      onChange={(e) => setResourceName(e.target.value)}
+                      placeholder="Plantilla de acta de obra"
+                      autoFocus
+                    />
+                  </label>
+
+                  <label className={shellStyles.field}>
+                    <span className={shellStyles.fieldLabel}>Tipo</span>
+                    <select
+                      className={shellStyles.textInput}
+                      value={resourceType}
+                      onChange={(e) => setResourceType(e.target.value as ResourceType)}
+                    >
+                      {(Object.keys(RESOURCE_TYPE_LABELS) as ResourceType[]).map((t) => (
+                        <option key={t} value={t}>
+                          {RESOURCE_TYPE_LABELS[t]}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className={shellStyles.field}>
+                    <span className={shellStyles.fieldLabel}>Referencia (opcional)</span>
+                    <input
+                      className={shellStyles.textInput}
+                      value={resourceReference}
+                      onChange={(e) => setResourceReference(e.target.value)}
+                      placeholder="Una URL, una carpeta compartida, una ubicación…"
+                    />
+                  </label>
+
+                  <div className={shellStyles.formActions}>
+                    {saving && <span className={shellStyles.savingHint}>Guardando…</span>}
+                    <button type="button" data-variant="secondary" onClick={() => setActiveForm('none')} disabled={saving}>
+                      Cancelar
+                    </button>
+                    <button type="submit" disabled={saving}>
+                      Guardar
+                    </button>
+                  </div>
+                </form>
               )}
 
               {activeForm === 'note' && (

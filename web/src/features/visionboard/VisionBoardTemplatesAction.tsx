@@ -89,9 +89,14 @@ export function VisionBoardTemplatesAction({
       {/* FASE 23: "acción principal" treatment — see
           VisionBoardToolbar.module.css's own doc comment on
           .actionButtonPrimary. */}
-      <Button className={`${toolbarStyles.actionButton} ${toolbarStyles.actionButtonPrimary}`}>
+      {/* Barra icon-only (2026-08-23) — ver el mismo comentario en
+          VisionBoardElementLibrary.tsx sobre por qué el trigger necesita su
+          propio aria-label ahora que no hay texto visible. */}
+      <Button
+        className={`${toolbarStyles.actionButton} ${toolbarStyles.actionButtonPrimary}`}
+        aria-label="Templates"
+      >
         <LayoutTemplate width={16} height={16} />
-        Templates
       </Button>
       <Popover placement="bottom start" offset={8} className={styles.templatePopover}>
         {/* FASE 20 audit fix: no static aria-label — the grid step and the

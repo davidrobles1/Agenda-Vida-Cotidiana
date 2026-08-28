@@ -57,3 +57,21 @@ export async function deleteNote(id: string): Promise<void> {
   const response = await apiFetch(`/notes/${id}`, { method: 'DELETE' })
   if (!response.ok) throw new Error(`DELETE /notes/${id} failed: ${response.status}`)
 }
+
+/**
+ * ADR-016 Fase 3d/FR-035, UC-28. Marca la sugerencia de tarea de la nota
+ * como resuelta — el usuario la convirtió en Tarea o la descartó; en ambos
+ * casos deja de ofrecerse.
+ *
+ * **No crea la Tarea:** al convertir, el llamador hace primero
+ * `createReminder(...)` (el endpoint de siempre) y después esto. Descartar
+ * es el mismo camino sin esa primera llamada.
+ */
+export async function resolveNoteTaskSuggestion(id: string, version: number): Promise<Note> {
+  const response = await apiFetch(`/notes/${id}/resolve-task-suggestion`, {
+    method: 'POST',
+    body: JSON.stringify({ version }),
+  })
+  if (!response.ok) throw new Error(`POST /notes/${id}/resolve-task-suggestion failed: ${response.status}`)
+  return response.json()
+}

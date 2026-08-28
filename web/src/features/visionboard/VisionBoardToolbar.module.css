@@ -1,289 +1,463 @@
 /* =========================================================
-   VISION BOARD TOOLBAR
-   Premium Editorial / Vintage Modern / Extravagant
+   VISION BOARD — FLOATING CREATIVE TOOLBAR
+   Lateral · Premium Editorial · Vintage Modern
    ========================================================= */
 
 .toolbar {
+  /* Tamaño único del cuadrado de cada acción — el ancho de la barra se
+     deriva de él, así que ajustar esto reescala toda la barra.
+     Hallazgo real (Playwright, 2026-08-23): con 38px + gap 5px, los 21
+     botones suman ~917px y la barra desbordaba incluso en pantallas de
+     1100px, dejando "Restablecer zoom" fuera de vista. 34px + gap 4px
+     bajan el total a ~810px. */
+  --vb-tool-size: 34px;
+
+  /* Jerarquía: las acciones principales son cuadrados de 34px; los
+     controles agrupados (capas · historial · zoom) son secundarios y van
+     más chicos. Además de leerse mejor, recorta ~54px de alto total. */
+  --vb-tool-size-sm: 28px;
+
   position: relative;
+  isolation: isolate;
+  z-index: 500;
+
+  flex: 0 0 auto;
 
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  align-items: stretch;
+  flex-shrink: 0;
 
-  margin: 0 var(--space-6);
-  padding: 9px 12px;
+  /* icon-only (2026-08-23): sin texto la barra pasó de 96px a lo que mide
+     un botón más su propio padding. */
+  width: calc(var(--vb-tool-size) + 16px);
+  min-width: calc(var(--vb-tool-size) + 16px);
+  max-width: calc(var(--vb-tool-size) + 16px);
+  max-height: calc(100vh - 32px);
 
-  border: 1px solid color-mix(
-    in srgb,
-    var(--color-primary) 18%,
-    var(--color-border)
-  );
+  margin:
+    var(--space-4)
+    0
+    var(--space-4)
+    var(--space-4);
 
-  border-radius: 24px;
+  padding: 7px;
 
-  /*
-   * Premium editorial surface.
-   * Más cálida y profunda que un simple surface-variant.
-   */
+  gap: 3px;
+
+  border:
+    1px solid
+    color-mix(in srgb, var(--color-border) 72%, transparent);
+
+  border-radius: 26px;
+
   background:
     linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--color-surface) 94%, var(--color-primary) 6%),
-      var(--color-surface-variant)
+      145deg,
+      color-mix(
+        in srgb,
+        var(--color-surface-variant) 94%,
+        white 6%
+      ),
+      color-mix(
+        in srgb,
+        var(--color-surface) 88%,
+        var(--color-surface-variant) 12%
+      )
     );
 
   box-shadow:
-    0 1px 2px color-mix(in srgb, var(--color-text) 8%, transparent),
-    0 8px 20px color-mix(in srgb, var(--color-text) 8%, transparent),
-    0 18px 45px color-mix(in srgb, var(--color-primary) 7%, transparent);
+    0 1px 2px
+      color-mix(in srgb, var(--color-text) 7%, transparent),
 
-  /*
-   * Mantiene la toolbar visualmente separada del canvas.
-   */
-  isolation: isolate;
+    0 7px 16px
+      color-mix(in srgb, var(--color-text) 7%, transparent),
 
-  /*
-   * Microdetalle editorial.
-   */
+    0 20px 46px
+      color-mix(in srgb, var(--color-text) 10%, transparent);
+
+  backdrop-filter: blur(18px) saturate(1.08);
+  -webkit-backdrop-filter: blur(18px) saturate(1.08);
+
   overflow: visible;
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  scrollbar-gutter: stable;
+  direction: rtl;
+
+  /* Con 21 controles (los 6 de selección solo aparecen con algo
+     seleccionado) la barra puede no caber en pantallas cortas. El
+     desvanecido con `mask-image` que se probó antes se veía como un bug
+     — borraba el borde y la esquina inferior de la propia barra — así que
+     la señal ahora es una barra de scroll fina pero visible: honesta,
+     estándar y sin efectos secundarios sobre el chrome. */
+  scrollbar-width: thin;
+  scrollbar-color:
+    color-mix(in srgb, var(--color-text) 22%, transparent)
+    transparent;
+
+  transition:
+    box-shadow 220ms ease,
+    border-color 220ms ease,
+    transform 220ms ease;
+}
+
+.toolbar > * {
+  direction: ltr;
+}
+
+/* Safari/Chrome no soportan `scrollbar-color`; misma barra fina aquí. */
+.toolbar::-webkit-scrollbar {
+  width: 5px;
+}
+
+.toolbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.toolbar::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-text) 22%, transparent);
+}
+
+.toolbar::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--color-text) 34%, transparent);
+}
+
+/* =========================================================
+   TOOLBAR RHYTHM
+   ========================================================= */
+
+/* Separadores finos entre grupos (capas · historial · zoom) — dan ritmo
+   visual sin gastar altura, que es justo lo escaso en una barra lateral. */
+.toolbar > .buttonGroup {
+  margin-top: 3px;
+  padding-top: 5px;
+
+  border-top:
+    1px solid
+    color-mix(in srgb, var(--color-border) 42%, transparent);
+}
+
+.toolbar > .buttonGroup + .buttonGroup {
+  margin-top: 0;
 }
 
 /*
- * Halo decorativo detrás de la toolbar.
- * No afecta interacción.
+ * Glass highlight.
  */
 .toolbar::before {
   content: '';
 
   position: absolute;
-  inset: -1px;
 
-  border-radius: inherit;
+  inset: 1px;
+
+  z-index: -1;
+
+  border-radius: 21px;
 
   background:
-    radial-gradient(
-      circle at 12% 50%,
-      color-mix(in srgb, var(--color-primary) 12%, transparent),
-      transparent 30%
-    ),
-    radial-gradient(
-      circle at 88% 50%,
-      color-mix(in srgb, var(--color-secondary, var(--color-primary)) 8%, transparent),
-      transparent 30%
+    linear-gradient(
+      135deg,
+      color-mix(
+        in srgb,
+        white 22%,
+        transparent
+      ),
+      transparent 34%,
+      transparent 72%,
+      color-mix(
+        in srgb,
+        var(--color-primary) 3%,
+        transparent
+      )
     );
 
   pointer-events: none;
-  z-index: -1;
 }
 
 /*
- * Línea editorial superior.
+ * Ambient light below the toolbar.
  */
 .toolbar::after {
   content: '';
 
   position: absolute;
 
-  top: -1px;
-  left: 16%;
-  right: 16%;
+  left: 8%;
+  right: 8%;
+  bottom: -10px;
 
-  height: 1px;
+  height: 18px;
 
-  background: linear-gradient(
-    90deg,
-    transparent,
-    color-mix(in srgb, var(--color-primary) 35%, transparent),
-    transparent
-  );
+  z-index: -2;
+
+  border-radius: 50%;
+
+  background:
+    color-mix(
+      in srgb,
+      var(--color-text) 13%,
+      transparent
+    );
+
+  filter: blur(15px);
+
+  opacity: 0.22;
 
   pointer-events: none;
 }
 
+.toolbar:hover {
+  border-color:
+    color-mix(
+      in srgb,
+      var(--color-border) 92%,
+      transparent
+    );
+
+  box-shadow:
+    0 1px 1px
+      color-mix(
+        in srgb,
+        white 38%,
+        transparent
+      ),
+    0 5px 10px
+      color-mix(
+        in srgb,
+        var(--color-text) 7%,
+        transparent
+      ),
+    0 14px 30px
+      color-mix(
+        in srgb,
+        var(--color-text) 8%,
+        transparent
+      ),
+    0 26px 54px
+      color-mix(
+        in srgb,
+        var(--color-text) 10%,
+        transparent
+      );
+}
+
 /* =========================================================
-   ACTION BUTTONS
+   PRIMARY ACTIONS
    ========================================================= */
 
+/* Barra icon-only (2026-08-23): cada acción es un cuadrado compacto, sin
+   texto. Antes se encogía con `transform: scale(0.60)` — eso era un bug
+   real: `transform` no cambia la caja de layout (el botón seguía midiendo
+   ~62px y dejaba huecos enormes entre iconos) y además `:hover` lo
+   sobreescribía con `translateY(-1px)`, quitando el scale, así que el
+   botón SALTABA a tamaño completo al pasar el mouse. Ahora se encoge de
+   verdad con `width`/`height` y el hover solo levanta 1px. */
 .actionButton {
   position: relative;
 
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
 
-  min-height: 34px;
+  width: var(--vb-tool-size);
+  height: var(--vb-tool-size);
+  min-height: 0;
 
-  padding: 7px 13px;
+  /* Hallazgo real (Playwright, 2026-08-23): sin esto los 12 botones se
+     aplastaban a ~18px de alto (la mitad). La barra es un contenedor flex
+     en columna con `overflow-y: auto`, y cuando el contenido no cabe, el
+     algoritmo flex encoge a los hijos por debajo de su `height` — a menos
+     que declaren `flex-shrink: 0`. `.buttonGroup` sí lo tenía, por eso los
+     iconos de capas/zoom se veían bien y estos no. */
+  flex-shrink: 0;
 
-  border: 1px solid color-mix(
-    in srgb,
-    var(--color-border) 85%,
-    var(--color-primary) 15%
-  );
+  margin-inline: auto;
+  padding: 0;
 
-  border-radius: 999px;
+  border:
+    1px solid
+    color-mix(in srgb, var(--color-border) 82%, transparent);
+
+  border-radius: 13px;
 
   background:
-    linear-gradient(
-      180deg,
-      var(--color-surface),
-      color-mix(in srgb, var(--color-surface) 92%, var(--color-primary) 8%)
+    color-mix(
+      in srgb,
+      var(--color-surface) 94%,
+      transparent
     );
 
   color: var(--color-text);
 
-  font-size: 0.79rem;
-  font-weight: 650;
-  letter-spacing: -0.01em;
-
   cursor: pointer;
 
   box-shadow:
-    0 1px 2px color-mix(in srgb, var(--color-text) 7%, transparent);
+    0 1px 1px
+      color-mix(in srgb, var(--color-text) 4%, transparent);
 
   transition:
-    transform 160ms ease,
-    background-color 160ms ease,
-    border-color 160ms ease,
-    box-shadow 160ms ease,
-    color 160ms ease;
+    transform 150ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    background-color 150ms ease,
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    color 150ms ease;
 }
 
-.actionButton::before {
-  content: '';
+.actionButton svg {
+  width: 17px;
+  height: 17px;
 
-  position: absolute;
-  inset: 1px;
+  flex-shrink: 0;
 
-  border-radius: inherit;
+  opacity: 0.82;
 
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, white 22%, transparent),
-    transparent 45%
-  );
-
-  opacity: 0.45;
-
-  pointer-events: none;
+  transition:
+    transform 150ms ease,
+    opacity 150ms ease;
 }
 
 .actionButton:hover {
   transform: translateY(-1px);
 
-  border-color: color-mix(
-    in srgb,
-    var(--color-primary) 45%,
-    var(--color-border)
-  );
-
-  background:
-    linear-gradient(
-      180deg,
-      var(--color-surface),
-      color-mix(in srgb, var(--color-primary-container) 65%, var(--color-surface))
+  border-color:
+    color-mix(
+      in srgb,
+      var(--color-primary) 32%,
+      var(--color-border)
     );
 
-  color: var(--color-primary);
+  background:
+    color-mix(
+      in srgb,
+      var(--color-surface) 78%,
+      var(--color-primary) 22%
+    );
 
   box-shadow:
-    0 3px 8px color-mix(in srgb, var(--color-text) 8%, transparent),
-    0 8px 18px color-mix(in srgb, var(--color-primary) 8%, transparent);
+    0 4px 10px
+      color-mix(in srgb, var(--color-text) 8%, transparent);
+}
+
+.actionButton:hover svg {
+  opacity: 1;
+  transform: scale(1.06);
 }
 
 .actionButton:active {
-  transform: translateY(0) scale(0.98);
+  transform: translateY(0) scale(0.97);
+
+  box-shadow:
+    0 1px 2px
+      color-mix(in srgb, var(--color-text) 7%, transparent);
 }
 
 .actionButton:disabled {
   opacity: 0.42;
   cursor: not-allowed;
+
   transform: none;
+
   box-shadow: none;
 }
 
 .actionButton:disabled:hover {
-  border-color: var(--color-border);
   background: var(--color-surface);
-  color: var(--color-text);
+  border-color: var(--color-border);
 }
 
 /* =========================================================
    PRIMARY CREATIVE ACTIONS
+   Elementos · Plantillas · Exportar
    ========================================================= */
 
+/* Elementos · Templates · Exportar — mismo cuadrado que el resto (ya no
+   hay texto que las haga más altas), solo destacadas por color. */
 .actionButtonPrimary {
-  border-color: color-mix(
-    in srgb,
-    var(--color-primary) 45%,
-    var(--color-border)
-  );
+  border-color:
+    color-mix(
+      in srgb,
+      var(--color-primary) 38%,
+      var(--color-border)
+    );
 
   background:
     linear-gradient(
-      135deg,
-      var(--color-primary-container),
+      145deg,
       color-mix(
         in srgb,
-        var(--color-primary-container) 70%,
-        var(--color-primary) 30%
+        var(--color-primary-container) 94%,
+        white 6%
+      ),
+      color-mix(
+        in srgb,
+        var(--color-primary-container) 82%,
+        var(--color-primary) 18%
       )
     );
 
   color: var(--color-primary);
 
   box-shadow:
-    0 2px 5px color-mix(in srgb, var(--color-primary) 12%, transparent),
-    inset 0 1px 0 color-mix(in srgb, white 22%, transparent);
+    0 2px 5px
+      color-mix(
+        in srgb,
+        var(--color-primary) 9%,
+        transparent
+      );
 }
 
 .actionButtonPrimary:hover {
-  border-color: var(--color-primary);
+  border-color:
+    color-mix(
+      in srgb,
+      var(--color-primary) 62%,
+      var(--color-border)
+    );
 
   background:
     linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--color-primary-container) 80%, white 20%),
-      var(--color-primary-container)
+      145deg,
+      color-mix(
+        in srgb,
+        var(--color-primary-container) 86%,
+        white 14%
+      ),
+      color-mix(
+        in srgb,
+        var(--color-primary-container) 68%,
+        var(--color-primary) 32%
+      )
     );
 
-  color: var(--color-primary);
-
   box-shadow:
-    0 5px 14px color-mix(in srgb, var(--color-primary) 16%, transparent);
+    0 5px 14px
+      color-mix(
+        in srgb,
+        var(--color-primary) 14%,
+        transparent
+      );
 }
 
 /* =========================================================
-   GROUPS
+   CONTROL GROUPS
    ========================================================= */
 
+/* icon-only (2026-08-23): los grupos ya no dibujan su propia "tarjeta"
+   (borde + fondo + sombra) — a este ancho eso solo apretaba los iconos y
+   sumaba ruido visual. Ahora agrupan con espaciado y el separador fino de
+   `.toolbar > .buttonGroup` de arriba. */
 .buttonGroup {
-  display: inline-flex;
+  display: flex;
+  flex-direction: column;
   align-items: center;
+
+  width: 100%;
+
   gap: 2px;
-
-  padding: 3px;
-
-  border: 1px solid color-mix(
-    in srgb,
-    var(--color-border) 80%,
-    var(--color-primary) 20%
-  );
-
-  border-radius: 999px;
-
-  background:
-    color-mix(
-      in srgb,
-      var(--color-surface) 94%,
-      var(--color-primary) 6%
-    );
-
-  box-shadow:
-    inset 0 1px 2px color-mix(in srgb, var(--color-text) 5%, transparent),
-    0 1px 3px color-mix(in srgb, var(--color-text) 6%, transparent);
 }
 
 /* =========================================================
@@ -295,14 +469,19 @@
   align-items: center;
   justify-content: center;
 
-  width: 29px;
-  height: 29px;
+  width: var(--vb-tool-size-sm);
+  height: var(--vb-tool-size-sm);
 
   min-height: 0;
+
+  /* Mismo motivo que `.actionButton` — dentro de un `.buttonGroup` en
+     columna, sin esto también se aplastarían si el grupo se apretara. */
+  flex-shrink: 0;
+
   padding: 0;
 
   border: none;
-  border-radius: 50%;
+  border-radius: 12px;
 
   background: transparent;
 
@@ -311,22 +490,23 @@
   cursor: pointer;
 
   transition:
-    background-color 150ms ease,
-    color 150ms ease,
-    transform 150ms ease;
+    background-color 140ms ease,
+    color 140ms ease,
+    transform 140ms
+      cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .iconButton:hover {
   background:
     color-mix(
       in srgb,
-      var(--color-primary-container) 72%,
+      var(--color-primary) 10%,
       transparent
     );
 
   color: var(--color-primary);
 
-  transform: scale(1.05);
+  transform: scale(1.06);
 }
 
 .iconButton:active {
@@ -334,31 +514,44 @@
 }
 
 .iconButton:disabled {
-  opacity: 0.32;
+  opacity: 0.34;
+
   cursor: not-allowed;
+
   transform: none;
+
   background: transparent;
+
   color: var(--color-text);
 }
 
 /* =========================================================
-   ZOOM
+   ZOOM VALUE
    ========================================================= */
 
 .zoomValue {
-  min-width: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
-  padding: 0 5px;
+  width: 100%;
 
-  text-align: center;
+  min-width: 0;
+
+  min-height: 30px;
+
+  padding: 2px 3px;
+
+  border-radius: 10px;
 
   color: var(--color-text);
 
-  font-size: 0.72rem;
-  font-weight: 700;
+  font-size: 0.68rem;
+  font-weight: 750;
 
   font-variant-numeric: tabular-nums;
-  letter-spacing: 0.01em;
+
+  letter-spacing: -0.02em;
 }
 
 /* =========================================================
@@ -370,29 +563,73 @@
 }
 
 .popoverDialog {
-  width: 290px;
+  width: 300px;
+
   max-width: calc(100vw - 32px);
 
-  padding: var(--space-4);
+  padding: 16px;
 
-  border: 1px solid color-mix(
-    in srgb,
-    var(--color-primary) 20%,
-    var(--color-border)
-  );
+  border:
+    1px solid
+    color-mix(
+      in srgb,
+      var(--color-border) 78%,
+      transparent
+    );
 
   border-radius: 24px;
 
   background:
+    radial-gradient(
+      ellipse 70% 42% at 20% 0%,
+      color-mix(
+        in srgb,
+        white 15%,
+        transparent
+      ),
+      transparent 70%
+    ),
     linear-gradient(
       145deg,
-      var(--color-surface),
-      var(--color-surface-variant)
+      color-mix(
+        in srgb,
+        var(--color-surface-variant) 94%,
+        white 6%
+      ),
+      color-mix(
+        in srgb,
+        var(--color-surface) 88%,
+        var(--color-surface-variant) 12%
+      )
     );
 
   box-shadow:
-    0 10px 25px color-mix(in srgb, var(--color-text) 10%, transparent),
-    0 25px 60px color-mix(in srgb, var(--color-primary) 10%, transparent);
+    0 2px 5px
+      color-mix(
+        in srgb,
+        var(--color-text) 7%,
+        transparent
+      ),
+    0 12px 28px
+      color-mix(
+        in srgb,
+        var(--color-text) 11%,
+        transparent
+      ),
+    0 28px 62px
+      color-mix(
+        in srgb,
+        var(--color-text) 12%,
+        transparent
+      );
+
+  backdrop-filter:
+    blur(24px)
+    saturate(1.1);
+
+  -webkit-backdrop-filter:
+    blur(24px)
+    saturate(1.1);
 
   outline: none;
 }
@@ -403,156 +640,253 @@
 
 .imagePreview {
   width: 100%;
-  max-height: 150px;
+
+  max-height: 140px;
 
   margin-top: var(--space-2);
 
   object-fit: contain;
 
-  border: 1px solid var(--color-border);
+  border:
+    1px solid
+    color-mix(
+      in srgb,
+      var(--color-border) 60%,
+      transparent
+    );
+
   border-radius: 18px;
 
-  background: var(--color-surface);
+  background:
+    color-mix(
+      in srgb,
+      var(--color-surface) 92%,
+      transparent
+    );
 
   box-shadow:
-    0 4px 12px color-mix(in srgb, var(--color-text) 8%, transparent);
+    0 2px 5px
+      color-mix(
+        in srgb,
+        var(--color-text) 7%,
+        transparent
+      ),
+    0 6px 14px
+      color-mix(
+        in srgb,
+        var(--color-text) 6%,
+        transparent
+      );
 }
 
 /* =========================================================
-   SHAPE PICKER
+   SHAPE VARIANTS
    ========================================================= */
 
 .shapeVariantGrid {
   display: flex;
+
   flex-wrap: wrap;
-  gap: 7px;
+
+  gap: 6px;
 }
 
 .shapeVariantButton {
-  padding: 7px 11px;
+  padding:
+    7px
+    11px;
 
-  border: 1.5px solid var(--color-border);
+  border:
+    1px solid
+    color-mix(
+      in srgb,
+      var(--color-border) 78%,
+      transparent
+    );
+
   border-radius: 999px;
 
-  background: var(--color-surface);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(
+        in srgb,
+        var(--color-surface) 98%,
+        white 2%
+      ),
+      var(--color-surface)
+    );
 
   color: var(--color-text);
 
-  font-size: 0.79rem;
+  font-size: 0.78rem;
+
+  font-weight: 550;
 
   cursor: pointer;
 
+  box-shadow:
+    0 1px 2px
+      color-mix(
+        in srgb,
+        var(--color-text) 4%,
+        transparent
+      );
+
   transition:
-    background-color 150ms ease,
-    border-color 150ms ease,
-    color 150ms ease,
-    transform 150ms ease;
+    background-color 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease,
+    transform 140ms ease,
+    box-shadow 140ms ease;
 }
 
 .shapeVariantButton:hover {
-  border-color: var(--color-primary);
   color: var(--color-primary);
+
+  border-color:
+    color-mix(
+      in srgb,
+      var(--color-primary) 40%,
+      var(--color-border)
+    );
+
   transform: translateY(-1px);
+
+  box-shadow:
+    0 3px 8px
+      color-mix(
+        in srgb,
+        var(--color-primary) 8%,
+        transparent
+      );
+}
+
+.shapeVariantButton:active {
+  transform: scale(0.98);
 }
 
 .shapeVariantButtonActive {
-  border-color: var(--color-primary);
+  border-color:
+    var(--color-primary);
 
   background:
     linear-gradient(
       135deg,
-      var(--color-primary-container),
       color-mix(
         in srgb,
-        var(--color-primary-container) 75%,
-        var(--color-primary) 25%
+        var(--color-primary-container) 90%,
+        white 10%
+      ),
+      color-mix(
+        in srgb,
+        var(--color-primary-container) 76%,
+        var(--color-primary) 24%
       )
     );
 
   color: var(--color-primary);
 
   box-shadow:
-    0 3px 8px color-mix(in srgb, var(--color-primary) 10%, transparent);
+    0 2px 7px
+      color-mix(
+        in srgb,
+        var(--color-primary) 12%,
+        transparent
+      );
 }
 
 /* =========================================================
-   RESPONSIVE — TABLET
+   TOUCH
+   ========================================================= */
+
+/* Un solo token controla el tamaño táctil de TODOS los botones (acciones e
+   iconos), en vez de repetir medidas por regla. */
+@media (pointer: coarse) {
+  .toolbar {
+    /* Con dedo, los secundarios NO se encogen — 42px parejo para todos,
+       porque el objetivo táctil manda sobre la jerarquía visual. */
+    --vb-tool-size: 42px;
+    --vb-tool-size-sm: 42px;
+  }
+}
+
+/* =========================================================
+   TABLET
    ========================================================= */
 
 @media (max-width: 900px) {
   .toolbar {
-    flex-wrap: nowrap;
+    --vb-tool-size: 32px;
+    --vb-tool-size-sm: 26px;
 
-    overflow-x: auto;
+    margin:
+      var(--space-3)
+      0
+      var(--space-3)
+      var(--space-3);
 
-    -webkit-overflow-scrolling: touch;
+    padding: 6px;
 
-    margin: 0 var(--space-4);
+    border-radius: 22px;
 
-    padding: 8px 12px;
-
-    gap: 7px;
-
-    mask-image:
-      linear-gradient(
-        to right,
-        transparent,
-        black 14px,
-        black calc(100% - 14px),
-        transparent
-      );
-
-    -webkit-mask-image:
-      linear-gradient(
-        to right,
-        transparent,
-        black 14px,
-        black calc(100% - 14px),
-        transparent
-      );
-
-    scrollbar-width: none;
+    gap: 4px;
   }
 
-  .toolbar::-webkit-scrollbar {
-    display: none;
-  }
-
-  .toolbar > * {
-    flex-shrink: 0;
-  }
-
-  .actionButton,
-  .buttonGroup {
-    flex-shrink: 0;
+  .actionButton {
+    border-radius: 11px;
   }
 }
 
 /* =========================================================
-   RESPONSIVE — MOBILE
+   MOBILE
    ========================================================= */
 
 @media (max-width: 600px) {
   .toolbar {
+    /* Vuelve al tamaño táctil: en móvil la barra es horizontal y hay
+       ancho de sobra, lo escaso es la precisión del dedo. */
+    --vb-tool-size: 40px;
+    --vb-tool-size-sm: 40px;
+
     position: fixed;
 
-    left: 10px;
-    right: 10px;
-    bottom: 10px;
+    left: 0;
+    right: 0;
+    bottom: 0;
 
     z-index: 500;
 
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+
+    width: 100%;
+    max-width: none;
+
+    height: auto;
+
     margin: 0;
 
-    padding: 8px 9px;
+    padding:
+      8px
+      max(8px, env(safe-area-inset-left))
+      calc(8px + env(safe-area-inset-right))
+      calc(8px + env(safe-area-inset-bottom));
 
-    border-radius: 22px;
+    gap: 6px;
 
-    border: 1px solid color-mix(
-      in srgb,
-      var(--color-primary) 22%,
-      var(--color-border)
-    );
+    border-radius: 0;
+
+    border: none;
+
+    border-top:
+      1px solid
+      color-mix(
+        in srgb,
+        var(--color-border) 82%,
+        transparent
+      );
 
     background:
       color-mix(
@@ -561,32 +895,72 @@
         transparent
       );
 
-    backdrop-filter: blur(18px) saturate(1.25);
-    -webkit-backdrop-filter: blur(18px) saturate(1.25);
-
     box-shadow:
-      0 5px 15px color-mix(in srgb, var(--color-text) 12%, transparent),
-      0 18px 45px color-mix(in srgb, var(--color-text) 15%, transparent);
+      0 -4px 14px
+        color-mix(
+          in srgb,
+          var(--color-text) 7%,
+          transparent
+        ),
+
+      0 -16px 38px
+        color-mix(
+          in srgb,
+          var(--color-text) 6%,
+          transparent
+        );
+
+    backdrop-filter: blur(20px) saturate(1.08);
+    -webkit-backdrop-filter: blur(20px) saturate(1.08);
+
+    overflow-x: auto;
+    overflow-y: hidden;
+
+    scrollbar-width: none;
   }
 
-  .toolbar::after {
+  .toolbar::-webkit-scrollbar {
     display: none;
   }
-}
 
-/* =========================================================
-   TOUCH
-   ========================================================= */
-
-@media (pointer: coarse) {
-  .actionButton {
-    min-height: 42px;
-    padding: 10px 15px;
+  .toolbar::before {
+    display: none;
   }
 
-  .iconButton {
-    width: 40px;
-    height: 40px;
+  /* En móvil la barra es horizontal abajo: los grupos se acuestan en fila
+     y el separador cambia de arriba a la izquierda. */
+  .actionButton,
+  .buttonGroup {
+    flex: 0 0 auto;
+    flex-shrink: 0;
+
+    flex-direction: row;
+
+    width: auto;
+  }
+
+  .toolbar > .buttonGroup {
+    margin-top: 0;
+    margin-left: 3px;
+
+    padding-top: 0;
+    padding-left: 5px;
+
+    border-top: none;
+
+    border-left:
+      1px solid
+      color-mix(in srgb, var(--color-border) 42%, transparent);
+  }
+
+  .toolbar > .buttonGroup + .buttonGroup {
+    margin-left: 0;
+  }
+
+  .zoomValue {
+    width: auto;
+
+    min-width: 42px;
   }
 }
 
@@ -595,6 +969,7 @@
    ========================================================= */
 
 @media (prefers-reduced-motion: reduce) {
+  .toolbar,
   .actionButton,
   .iconButton,
   .shapeVariantButton {

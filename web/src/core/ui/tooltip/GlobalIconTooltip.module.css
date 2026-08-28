@@ -1,0 +1,67 @@
+/* Tooltip global para controles que solo muestran icono (ver
+   GlobalIconTooltip.tsx). Usa únicamente tokens de `index.css`, así que
+   hereda cualquier tema visual activo sin reglas por tema. */
+.tooltip {
+  position: fixed;
+  z-index: 100010;
+
+  /* Centrado horizontalmente sobre el control y anclado por su borde
+     inferior (variante `top`, la de por defecto). */
+  transform: translate(-50%, -100%);
+
+  max-width: 240px;
+  padding: 5px 9px;
+
+  border-radius: 8px;
+
+  background: var(--color-text);
+  color: var(--color-surface-variant);
+
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.25;
+  /* `nowrap` junto a `max-width` hacía que un texto largo se desbordara de
+     su propia caja (el ancho quedaba capado pero el texto no envolvía), y
+     entonces la corrección de bordes medía mal. */
+  white-space: normal;
+  overflow-wrap: break-word;
+  text-align: center;
+
+  box-shadow: 0 4px 14px rgba(44, 66, 91, 0.24);
+
+  /* Nunca debe intervenir en el puntero: si lo hiciera, aparecer bajo el
+     cursor provocaría un parpadeo infinito (`pointerover` sobre el propio
+     tooltip → sale del control → se oculta → reaparece). */
+  pointer-events: none;
+
+  animation: global-tooltip-in 120ms ease-out;
+}
+
+.tooltipBottom {
+  transform: translate(-50%, 0);
+}
+
+@keyframes global-tooltip-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tooltip {
+    animation: none;
+  }
+}
+
+/* En pantallas táctiles el hover no existe como intención (un "tap" lo
+   dispararía junto con la acción), así que el tooltip no se muestra —
+   el `aria-label` sigue dando el nombre accesible igual. */
+@media (pointer: coarse) {
+  .tooltip {
+    display: none;
+  }
+}

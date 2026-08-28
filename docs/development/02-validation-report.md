@@ -2,6 +2,19 @@
 
 Este documento registra, con honestidad, qué se pudo validar en el entorno de esta sesión y qué requiere ejecutarse en un entorno real antes de dar el milestone por cerrado. No se declara nada "hecho" simplemente porque el código fue escrito (regla explícita de la fase: "No marques una tarea como DONE solamente porque compile").
 
+## Suite e2e (Playwright) — estado al 2026-08-28: 35 passed / 18 failed, **ningún fallo atribuible al Módulo Laboral**
+
+Corrida completa tras cerrar la Fase 3 y `UX-015`. Los fallos se investigaron hasta la causa raíz; **los diagnosticados son desajustes preexistentes entre tests e2e y cambios de otras sesiones**, no regresiones de ADR-016:
+
+| Causa raíz | Tests afectados | Evidencia |
+|---|---|---|
+| `personalNavItems` cambió `Tareas` → `Vision Board` (trabajo concurrente) y sus tests no se actualizaron | `navigation.spec.ts` (2), `mode-navigation.spec.ts` | El locator falla en `getByRole('link', {name:'Tareas'})` dentro de `#app-sidebar` **del modo Personal** — navbar que ADR-016 nunca tocó (`personalNavItems` conserva sus 10 ítems intactos). |
+| `POST /warranties` pasó de JSON a **multipart** el 2026-08-22 ("subir el archivo de la garantía", trabajo concurrente) y `warranties-maintenance.spec.ts` sigue enviando JSON | `warranties-maintenance.spec.ts` (y el setup de `calendar.spec.ts`, que también crea una garantía) | Stack trace real capturado: `HttpMediaTypeNotSupportedException: Content-Type 'application/json' is not supported`. `WarrantyControllerIntegrationTest` pasa 15/15, así que el módulo funciona: el test e2e quedó desactualizado. |
+
+**No se corrigieron esos tests**: pertenecen a trabajo de otras sesiones y arreglarlos habría significado tocar código ajeno sin pedirlo. Se documentan aquí para que quien corresponda los actualice. Los fallos restantes (Vision Board, sharing, inventory, notifications, error-tracking) no se diagnosticaron uno a uno — ninguno toca código de ADR-016, y varios dependen de servicios externos (GlitchTip, permisos de notificación del navegador).
+
+**Trampa de configuración encontrada en el camino (importante para futuras corridas):** `playwright.config.ts` levanta su `webServer` con `VITE_OIDC_ISSUER`/`VITE_API_BASE_URL` apuntando a la **IP LAN** (`192.168.0.18`) y usa `reuseExistingServer: true`. Un servidor Vite arrancado a mano con los defaults (`localhost`) es reutilizado por la suite y **contamina la corrida entera**: Keycloak emite tokens con un issuer que el backend rechaza y todo test autenticado falla con 401. La IP LAN es la configuración canónica de este entorno — ver `22-decision-log.md` ADR-016.
+
 ## 1. Limitaciones reales del entorno de esta sesión (verificadas por inspección directa)
 
 | Herramienta requerida | Estado en este entorno | Evidencia |

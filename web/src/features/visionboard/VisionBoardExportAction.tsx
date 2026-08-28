@@ -107,9 +107,14 @@ export function VisionBoardExportAction({ board, elements }: VisionBoardExportAc
       {/* FASE 23: "acción principal" treatment — see
           VisionBoardToolbar.module.css's own doc comment on
           .actionButtonPrimary. */}
-      <Button className={`${toolbarStyles.actionButton} ${toolbarStyles.actionButtonPrimary}`}>
+      {/* Barra icon-only (2026-08-23) — ver el mismo comentario en
+          VisionBoardElementLibrary.tsx sobre por qué el trigger necesita su
+          propio aria-label ahora que no hay texto visible. */}
+      <Button
+        className={`${toolbarStyles.actionButton} ${toolbarStyles.actionButtonPrimary}`}
+        aria-label="Exportar"
+      >
         <Download width={16} height={16} />
-        Exportar
       </Button>
       <Popover placement="bottom start" offset={8} className={styles.exportPopover}>
         {/* FASE 20 audit fix: dropped the static aria-label="Exportar" — it

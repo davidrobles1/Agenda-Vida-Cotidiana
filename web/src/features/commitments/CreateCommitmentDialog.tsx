@@ -3,6 +3,7 @@ import { Button, Dialog, DialogTrigger, Heading, Modal } from 'react-aria-compon
 import { motion } from 'motion/react'
 import { motionTokens } from '../../core/motion/tokens'
 import { IconPlus } from '../../core/ui/icons'
+import { useVocabulary } from '../../core/user/useVocabulary'
 import type { Person } from '../people/api'
 import type { Project } from '../projects/api'
 import { createCommitment, type Commitment, type CommitmentDirection, type CreateCommitmentInput } from './api'
@@ -19,6 +20,8 @@ interface CreateCommitmentDialogProps {
 
 /** ADR-016/FR-025, UC-18. "Seguimientos"/"Esperando" son el mismo formulario — solo cambia `direction`. */
 export function CreateCommitmentDialog({ people, projects, onCreated }: CreateCommitmentDialogProps) {
+  // UX-014/UX-015: solo la etiqueta del selector de Proyecto cambia.
+  const vocabulary = useVocabulary()
   const [isOpen, setIsOpen] = useState(false)
   const [personId, setPersonId] = useState('')
   const [description, setDescription] = useState('')
@@ -146,7 +149,7 @@ export function CreateCommitmentDialog({ people, projects, onCreated }: CreateCo
                     </label>
 
                     <label className={shellStyles.field}>
-                      <span className={shellStyles.fieldLabel}>Proyecto (opcional)</span>
+                      <span className={shellStyles.fieldLabel}>{vocabulary.project} (opcional)</span>
                       <select className={shellStyles.textInput} value={projectId} onChange={(e) => setProjectId(e.target.value)}>
                         <option value="">— Ninguno —</option>
                         {projects.map((p) => (

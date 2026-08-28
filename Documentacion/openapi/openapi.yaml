@@ -1060,6 +1060,431 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+  /places:
+    get:
+      summary: List own places (paginated) — ADR-016 Fase 3e3/FR-033, V4 candidato. Módulo Laboral.
+      security:
+        - keycloakBearer: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+      responses:
+        '200':
+          description: Paginated place list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PageMeta'
+                  - type: object
+                    additionalProperties: true
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Place'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      summary: Create a place (caller becomes owner)
+      security:
+        - keycloakBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePlaceRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Place'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /places/{id}:
+    get:
+      summary: Get a place (owner only)
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Place
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Place'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      summary: Update place (owner only). Requires the current version for optimistic locking.
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePlaceRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Place'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Version conflict (optimistic locking)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      summary: Delete place (owner only)
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /resources:
+    get:
+      summary: List own resources (paginated) — ADR-016 Fase 3e4/FR-034, V4 candidato. Módulo Laboral.
+      security:
+        - keycloakBearer: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+      responses:
+        '200':
+          description: Paginated resource list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PageMeta'
+                  - type: object
+                    additionalProperties: true
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Resource'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      summary: >-
+        Create a resource (caller becomes owner). No acepta archivos: FR-034
+        deja los documentos reales enteramente en DOCUMENT (FR-030).
+      security:
+        - keycloakBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateResourceRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Resource'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /resources/{id}:
+    get:
+      summary: Get a resource (owner only)
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Resource
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Resource'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      summary: Update resource (owner only). Requires the current version for optimistic locking.
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateResourceRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Resource'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Version conflict (optimistic locking)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      summary: Delete resource (owner only)
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /routines:
+    get:
+      summary: List own routines (paginated) — ADR-016 Fase 3e2/FR-032, V4 candidato. Módulo Laboral.
+      security:
+        - keycloakBearer: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+      responses:
+        '200':
+          description: Paginated routine list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PageMeta'
+                  - type: object
+                    additionalProperties: true
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Routine'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      summary: Create a routine (caller becomes owner)
+      security:
+        - keycloakBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRoutineRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Routine'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /routines/{id}:
+    get:
+      summary: Get a routine (owner only)
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Routine
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Routine'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      summary: >-
+        Update routine (owner only). Requires the current version for
+        optimistic locking. Para marcar la ocurrencia actual como realizada
+        usa POST /routines/{id}/execute — este PATCH es para editar la
+        rutina (o mover su fecha a mano), no para ejecutarla.
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRoutineRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Routine'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Version conflict (optimistic locking)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      summary: Delete routine (owner only)
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /routines/{id}/execute:
+    post:
+      summary: >-
+        Mark the current occurrence as done (owner only) — UC-25/AC-019.
+        Advances nextExecutionDate by exactly one period **from the
+        previously scheduled date**, never from "now" (DECISION del Product
+        Owner, 2026-08-28): una rutina semanal programada para el lunes y
+        marcada el jueves pasa al lunes siguiente, no al jueves siguiente —
+        la cadencia sobrevive a una ejecución tardía. Consecuencia declarada:
+        una rutina con varias ocurrencias sin marcar sigue en el pasado tras
+        un solo clic (un clic marca UNA ocurrencia; no se salta al futuro,
+        eso descartaría en silencio las ocurrencias perdidas). No crea ningún
+        REMINDER ni COMMITMENT (FR-032). No se llama /complete a propósito:
+        una Rutina no tiene estado `completed`, sigue activa.
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExecuteRoutineRequest'
+      responses:
+        '200':
+          description: Occurrence marked as done; nextExecutionDate advanced
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Routine'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Version conflict (optimistic locking)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /projects:
     get:
       summary: List own projects (paginated) — ADR-016/FR-022, V3. Módulo Laboral.
@@ -1485,6 +1910,51 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+  /notes/{id}/resolve-task-suggestion:
+    post:
+      summary: >-
+        Mark this note's task suggestion as resolved (owner only) —
+        ADR-016 Fase 3d/FR-035, UC-28, AC-022. Regla aprobada por el Product
+        Owner (2026-08-28): el disparador es MANUAL (botón "Sugerir tarea" en
+        la nota — no hay detección por palabras clave, ni job, ni heurística);
+        la sugerencia puede convertirse en Tarea o descartarse; una vez
+        convertida O descartada, no vuelve a ofrecerse para esa nota.
+        **Este endpoint no crea la Tarea**: si el usuario convierte, el
+        cliente llama antes a POST /reminders (el endpoint de siempre, con la
+        Persona/Proyecto de la nota) y luego a este. Descartar recorre el
+        mismo camino menos esa primera llamada.
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResolveTaskSuggestionRequest'
+      responses:
+        '200':
+          description: Suggestion resolved; taskSuggestionResolved is now true
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Note'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Version conflict (optimistic locking)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /vision-boards:
     get:
       summary: List own vision boards (paginated). Items omit `elements` — see GET /vision-boards/{id}.
@@ -2375,6 +2845,284 @@ components:
         updatedAt:
           type: string
           format: date-time
+    CreatePlaceRequest:
+      type: object
+      required: [name]
+      description: ADR-016 Fase 3e3/FR-033. Módulo Laboral.
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        address:
+          type: string
+          maxLength: 500
+        personId:
+          type: string
+          format: uuid
+          description: Opcional — debe pertenecer al mismo dueño; si no, 404 PERSON_NOT_FOUND.
+    UpdatePlaceRequest:
+      type: object
+      description: Partial update. version is required to detect concurrent modifications (optimistic locking).
+      required: [version]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        address:
+          type: string
+          maxLength: 500
+        personId:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          description: Expected current version of the place; a mismatch returns 409.
+    Place:
+      type: object
+      required: [id, name, version]
+      description: >-
+        ADR-016 Fase 3e3/FR-033. Owner-only entity — no sharing/collaborator
+        concept. Catálogo de ubicaciones reutilizables: no existe
+        REMINDER.place_id (fuera de alcance explícito); elegir un Lugar al
+        crear una Tarea solo copia su dirección al campo de texto
+        `location` ya existente (FR-024).
+      properties:
+        id:
+          type: string
+          format: uuid
+        ownerUserId:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        address:
+          type: string
+          maxLength: 500
+        personId:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          description: Optimistic locking version, incremented on every update.
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    ResourceType:
+      type: string
+      enum: [DOCUMENTO, ENLACE, PLANTILLA, MANUAL, HERRAMIENTA, OTRO]
+      description: >-
+        ADR-016 Fase 3e4/FR-034. DOCUMENTO aquí es una *referencia* a un
+        documento, no un archivo almacenado — los archivos reales siguen en
+        DOCUMENT (FR-030).
+    CreateResourceRequest:
+      type: object
+      required: [name, type]
+      description: ADR-016 Fase 3e4/FR-034. Módulo Laboral.
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        type:
+          $ref: '#/components/schemas/ResourceType'
+        reference:
+          type: string
+          maxLength: 2000
+          description: >-
+            Un único campo de texto libre (DECISION del Product Owner,
+            2026-08-28, opción A): una URL, la ruta de una carpeta
+            compartida, o cualquier puntero textual. No se separa en `url` +
+            `reference` porque varios tipos (MANUAL, PLANTILLA, HERRAMIENTA)
+            a menudo no tienen URL y quedarían con un campo vacío permanente.
+        description:
+          type: string
+          maxLength: 2000
+        personId:
+          type: string
+          format: uuid
+          description: Opcional — debe pertenecer al mismo dueño; si no, 404 PERSON_NOT_FOUND.
+        projectId:
+          type: string
+          format: uuid
+          description: Opcional — debe pertenecer al mismo dueño; si no, 404 PROJECT_NOT_FOUND.
+    UpdateResourceRequest:
+      type: object
+      description: Partial update. version is required to detect concurrent modifications (optimistic locking).
+      required: [version]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        type:
+          $ref: '#/components/schemas/ResourceType'
+        reference:
+          type: string
+          maxLength: 2000
+        description:
+          type: string
+          maxLength: 2000
+        personId:
+          type: string
+          format: uuid
+        projectId:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          description: Expected current version of the resource; a mismatch returns 409.
+    Resource:
+      type: object
+      required: [id, name, type, version]
+      description: >-
+        ADR-016 Fase 3e4/FR-034. Owner-only entity — no sharing/collaborator
+        concept. Guarda metadatos y una referencia de texto, NUNCA un
+        archivo: DOCUMENT (FR-030) sigue siendo la única entidad responsable
+        de documentos reales (sin versionado, sin permisos compartidos, sin
+        almacenamiento nuevo).
+      properties:
+        id:
+          type: string
+          format: uuid
+        ownerUserId:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        type:
+          $ref: '#/components/schemas/ResourceType'
+        reference:
+          type: string
+          maxLength: 2000
+        description:
+          type: string
+          maxLength: 2000
+        personId:
+          type: string
+          format: uuid
+        projectId:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          description: Optimistic locking version, incremented on every update.
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    RoutineFrequency:
+      type: string
+      enum: [DAILY, WEEKLY, MONTHLY]
+      description: >-
+        ADR-016 Fase 3e2/FR-032. Las tres únicas frecuencias aprobadas — sin
+        recurrencias avanzadas ("cada 2 semanas", días específicos del mes),
+        explícitamente fuera de alcance.
+    CreateRoutineRequest:
+      type: object
+      required: [title, frequency, nextExecutionDate]
+      description: >-
+        ADR-016 Fase 3e2/FR-032. Módulo Laboral. `nextExecutionDate` lo aporta
+        el cliente: AC-019 deja como TBD explícito cómo derivar una fecha
+        inicial, así que el usuario elige la primera ocurrencia en vez de que
+        el backend invente una.
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 2000
+        frequency:
+          $ref: '#/components/schemas/RoutineFrequency'
+        nextExecutionDate:
+          type: string
+          format: date-time
+    UpdateRoutineRequest:
+      type: object
+      description: >-
+        Partial update. version is required to detect concurrent modifications
+        (optimistic locking). No existe un campo `completed` a propósito
+        (FR-032): una Rutina se completa repetidamente, su estado permanente
+        es `active`.
+      required: [version]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 2000
+        frequency:
+          $ref: '#/components/schemas/RoutineFrequency'
+        nextExecutionDate:
+          type: string
+          format: date-time
+        active:
+          type: boolean
+        version:
+          type: integer
+          description: Expected current version of the routine; a mismatch returns 409.
+    ExecuteRoutineRequest:
+      type: object
+      description: >-
+        Optional body for POST /routines/{id}/execute. If version is
+        provided the server validates it (optimistic locking); if omitted the
+        action applies without a concurrency check — same contract as
+        ResolveCommitmentRequest.
+      properties:
+        version:
+          type: integer
+    Routine:
+      type: object
+      required: [id, title, frequency, nextExecutionDate, active, version]
+      description: >-
+        ADR-016 Fase 3e2/FR-032. Owner-only entity — no sharing/collaborator
+        concept. Una Rutina NUNCA genera un REMINDER ni un COMMITMENT
+        (decisión explícita del Product Owner): no hay job, worker ni trigger
+        detrás de esta entidad — eso pertenece a 3d, que sigue BLOCKED.
+      properties:
+        id:
+          type: string
+          format: uuid
+        ownerUserId:
+          type: string
+          format: uuid
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 2000
+        frequency:
+          $ref: '#/components/schemas/RoutineFrequency'
+        nextExecutionDate:
+          type: string
+          format: date-time
+        active:
+          type: boolean
+        version:
+          type: integer
+          description: Optimistic locking version, incremented on every update.
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
     CreateProjectRequest:
       type: object
       required: [name]
@@ -2656,6 +3404,14 @@ components:
           type: string
           format: uuid
           description: ADR-016 Fase 3a/FR-029 (candidato V4). Vínculo opcional a un Proyecto propio.
+        taskSuggestionResolved:
+          type: boolean
+          description: >-
+            ADR-016 Fase 3d/FR-035 (candidato V4). true si el usuario ya
+            convirtió la sugerencia de tarea de esta nota en Tarea, o la
+            descartó — en ambos casos deja de ofrecerse. No hay nada
+            automático detrás: la sugerencia solo aparece cuando el usuario
+            pulsa "Sugerir tarea" (disparador manual).
         version:
           type: integer
           description: Optimistic locking version, incremented on every update.
@@ -2665,6 +3421,16 @@ components:
         updatedAt:
           type: string
           format: date-time
+    ResolveTaskSuggestionRequest:
+      type: object
+      description: >-
+        Optional body for POST /notes/{id}/resolve-task-suggestion. If
+        version is provided the server validates it (optimistic locking); if
+        omitted the action applies without a concurrency check — same
+        contract as ResolveCommitmentRequest.
+      properties:
+        version:
+          type: integer
     CreateInvitationRequest:
       type: object
       description: Exactly one of email or username must be provided.

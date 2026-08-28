@@ -124,9 +124,14 @@ export function VisionBoardElementLibrary({
       {/* FASE 23: "acción principal" treatment — see
           VisionBoardToolbar.module.css's own doc comment on
           .actionButtonPrimary. */}
-      <Button className={`${toolbarStyles.actionButton} ${toolbarStyles.actionButtonPrimary}`}>
+      {/* Barra icon-only (2026-08-23): sin texto visible, así que este
+          trigger necesita su propio `aria-label` — el `Heading` de cada
+          paso del popover nombra al DIÁLOGO, no al botón que lo abre. */}
+      <Button
+        className={`${toolbarStyles.actionButton} ${toolbarStyles.actionButtonPrimary}`}
+        aria-label="Elementos"
+      >
         <LibraryBig width={16} height={16} />
-        Elementos
       </Button>
       <Popover placement="bottom start" offset={8} className={styles.libraryPopover}>
         {/* FASE 20 audit fix: no static aria-label — every step (menu,

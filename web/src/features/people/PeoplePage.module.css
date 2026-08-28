@@ -78,3 +78,41 @@
   align-items: center;
   gap: 6px;
 }
+
+/* ADR-016 Fase 3e4/FR-034: tipo del recurso en la lista de detalle. */
+.resourceType {
+  color: var(--color-text-secondary);
+  font-size: 0.8125rem;
+}
+
+/* ADR-016 Fase 3d/FR-035: disparador manual "Sugerir tarea" en cada nota. */
+.noteRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.suggestButton {
+  flex-shrink: 0;
+  padding: 3px 9px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.suggestButton:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.suggestionBox {
+  margin: var(--space-2) 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+}

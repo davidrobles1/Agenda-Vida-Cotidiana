@@ -388,4 +388,105 @@ class NoteControllerIntegrationTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code", is("PERSON_NOT_FOUND")));
     }
+
+    /**
+     * ADR-016 Fase 3d/FR-035/AC-022: una nota nueva ofrece la sugerencia
+     * (`taskSuggestionResolved=false`); tras resolverla — da igual si fue
+     * convirtiéndola o descartándola — deja de ofrecerla, y eso persiste.
+     */
+    @Test
+    void resolveTaskSuggestion_marksNoteAndPersists() throws Exception {
+        UUID userId = UUID.randomUUID();
+        var principal = jwt().jwt(jwtFor(userId, "rita-n@example.com").build());
+
+        String createdJson = mockMvc.perform(post("/api/v1/notes")
+                        .with(principal)
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(Map.of("title", "Acordamos enviar la propuesta"))))
+                .andExpect(status().isCreated())
+                // Una nota recién creada todavía ofrece la sugerencia.
+                .andExpect(jsonPath("$.taskSuggestionResolved", is(false)))
+                .andExpect(openApi().isValid(VALIDATOR))
+                .andReturn().getResponse().getContentAsString();
+        String noteId = objectMapper.readTree(createdJson).get("id").asText();
+
+        mockMvc.perform(post("/api/v1/notes/" + noteId + "/resolve-task-suggestion")
+                        .with(principal)
+                        .contentType("application/json")
+                        .content("{}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.taskSuggestionResolved", is(true)))
+                .andExpect(openApi().isValid(VALIDATOR));
+
+        // Persiste: releer la nota sigue devolviendo la sugerencia resuelta.
+        mockMvc.perform(get("/api/v1/notes/" + noteId).with(principal))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.taskSuggestionResolved", is(true)));
+    }
+
+    /** Idempotente: resolver dos veces no falla ni revierte el estado. */
+    @Test
+    void resolveTaskSuggestion_isIdempotent() throws Exception {
+        UUID userId = UUID.randomUUID();
+        var principal = jwt().jwt(jwtFor(userId, "sam-n@example.com").build());
+
+        String createdJson = mockMvc.perform(post("/api/v1/notes")
+                        .with(principal)
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(Map.of("title", "Nota idempotente"))))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String noteId = objectMapper.readTree(createdJson).get("id").asText();
+
+        mockMvc.perform(post("/api/v1/notes/" + noteId + "/resolve-task-suggestion")
+                        .with(principal).contentType("application/json").content("{}"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/v1/notes/" + noteId + "/resolve-task-suggestion")
+                        .with(principal).contentType("application/json").content("{}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.taskSuggestionResolved", is(true)));
+    }
+
+    @Test
+    void resolveTaskSuggestion_ownedByAnotherUserReturnsNotFound() throws Exception {
+        UUID ownerId = UUID.randomUUID();
+        UUID strangerId = UUID.randomUUID();
+        var owner = jwt().jwt(jwtFor(ownerId, "tina-n@example.com").build());
+        var stranger = jwt().jwt(jwtFor(strangerId, "ulises-n@example.com").build());
+
+        String createdJson = mockMvc.perform(post("/api/v1/notes")
+                        .with(owner)
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(Map.of("title", "Nota ajena"))))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String noteId = objectMapper.readTree(createdJson).get("id").asText();
+
+        mockMvc.perform(post("/api/v1/notes/" + noteId + "/resolve-task-suggestion")
+                        .with(stranger).contentType("application/json").content("{}"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code", is("NOTE_NOT_FOUND")));
+    }
+
+    @Test
+    void resolveTaskSuggestion_mismatchedVersionReturns409() throws Exception {
+        UUID userId = UUID.randomUUID();
+        var principal = jwt().jwt(jwtFor(userId, "vera-n@example.com").build());
+
+        String createdJson = mockMvc.perform(post("/api/v1/notes")
+                        .with(principal)
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(Map.of("title", "Nota con conflicto"))))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String noteId = objectMapper.readTree(createdJson).get("id").asText();
+
+        mockMvc.perform(post("/api/v1/notes/" + noteId + "/resolve-task-suggestion")
+                        .with(principal)
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(Map.of("version", 99))))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code", is("NOTE_VERSION_CONFLICT")));
+    }
 }

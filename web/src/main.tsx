@@ -33,6 +33,32 @@ import '@fontsource/alex-brush/400.css'
 // generic exists the way `serif`/`sans-serif` do).
 import '@fontsource/courier-prime/400.css'
 import '@fontsource/courier-prime/400-italic.css'
+
+import '@fontsource/manrope/400.css'
+import '@fontsource/manrope/700.css'
+
+import '@fontsource/playfair-display/400.css'
+import '@fontsource/playfair-display/700.css'
+
+import '@fontsource/cormorant-garamond/400.css'
+import '@fontsource/cormorant-garamond/700.css'
+
+import '@fontsource/caveat/400.css'
+import '@fontsource/caveat/700.css'
+
+import '@fontsource/lobster/400.css'
+import '@fontsource/parisienne/400.css'
+import '@fontsource/pacifico/400.css'
+
+import '@fontsource/libre-baskerville/400.css'
+import '@fontsource/libre-baskerville/700.css'
+
+import '@fontsource/bodoni-moda/400.css'
+import '@fontsource/bodoni-moda/700.css'
+
+import '@fontsource/ibm-plex-mono/400.css'
+import '@fontsource/ibm-plex-mono/700.css'
+
 import './index.css'
 import App from './App.tsx'
 import { initErrorTracking } from './core/errors/glitchtip'

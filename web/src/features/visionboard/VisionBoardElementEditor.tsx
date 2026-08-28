@@ -186,7 +186,6 @@ export function VisionBoardElementEditor({
     <DialogTrigger isOpen={isOpen} onOpenChange={handleOpenChange}>
       <Button className={styles.actionButton} isDisabled={!element || disabled} aria-label={disabled ? 'Editar (elemento bloqueado)' : 'Editar'}>
         <EDIT_ICON width={16} height={16} />
-        Editar
       </Button>
       <Popover placement="bottom start" offset={8} className={styles.popover}>
         <MotionDialog

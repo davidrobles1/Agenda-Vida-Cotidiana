@@ -1,4 +1,5 @@
 import { AnimatePresence, motion } from 'motion/react'
+import { VisuallyHidden } from 'react-aria-components'
 import { AlertTriangle, Check, Circle } from 'lucide-react'
 import { motionTokens } from '../../core/motion/tokens'
 import type { SaveStatus } from './VisionBoardCanvas'
@@ -41,8 +42,8 @@ export function VisionBoardSaveIndicator({ status, onRetry }: VisionBoardSaveInd
             transition={motionTokens.quick}
             style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}
           >
-            <Check width={13} height={13} aria-hidden="true" />
-            Guardado
+            <Check width={15} height={15} aria-hidden="true" />
+            <VisuallyHidden>Guardado</VisuallyHidden>
           </motion.span>
         )}
         {status.kind === 'dirty' && (
@@ -54,8 +55,8 @@ export function VisionBoardSaveIndicator({ status, onRetry }: VisionBoardSaveInd
             transition={motionTokens.quick}
             style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}
           >
-            <Circle width={9} height={9} aria-hidden="true" fill="currentColor" />
-            Sin guardar
+            <Circle width={10} height={10} aria-hidden="true" fill="currentColor" />
+            <VisuallyHidden>Sin guardar</VisuallyHidden>
           </motion.span>
         )}
         {status.kind === 'saving' && (
@@ -69,7 +70,7 @@ export function VisionBoardSaveIndicator({ status, onRetry }: VisionBoardSaveInd
             style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}
           >
             <span className={styles.spinner} aria-hidden="true" />
-            Guardando…
+            <VisuallyHidden>Guardando…</VisuallyHidden>
           </motion.span>
         )}
         {status.kind === 'error' && (
@@ -82,10 +83,18 @@ export function VisionBoardSaveIndicator({ status, onRetry }: VisionBoardSaveInd
             transition={motionTokens.quick}
             style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}
           >
-            <AlertTriangle width={13} height={13} aria-hidden="true" />
-            Error al guardar
-            <button type="button" className={styles.retryButton} onClick={onRetry}>
-              Reintentar
+            {/* Barra icon-only (2026-08-23): "Error al guardar" + un botón
+                "Reintentar" aparte no caben en un riel de ~54px. El propio
+                icono de alerta ES ahora el botón de reintentar, con el
+                mensaje completo en su nombre accesible — así el usuario no
+                se queda sin forma de reintentar. */}
+            <button
+              type="button"
+              className={styles.retryButton}
+              onClick={onRetry}
+              aria-label="Error al guardar. Reintentar."
+            >
+              <AlertTriangle width={15} height={15} aria-hidden="true" />
             </button>
           </motion.span>
         )}

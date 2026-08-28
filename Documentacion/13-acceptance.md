@@ -88,24 +88,34 @@
 - Si la invitación ya no está `PENDING` (aceptada, rechazada o expirada), la solicitud responde 410 sin efecto.
 - Se registra el evento de auditoría "invitación cancelada".
 
-## AC-018 Objetivos (ADR-016 Fase 3e1, FR-031, UC-24) — no implementado, alcance listo para desarrollo
+## AC-022 Sugerencia de tarea desde una nota (ADR-016 Fase 3d, FR-035, UC-28)
+- La sugerencia **solo** aparece cuando el usuario pulsa "Sugerir tarea" en una nota concreta; ningún proceso la genera automáticamente.
+- Una nota recién creada ofrece la sugerencia (`taskSuggestionResolved = false`).
+- Convertir crea un `REMINDER` real con `context = LABORAL`, vinculado a la misma Persona/Proyecto que la nota, usando `POST /reminders` (sin ruta de creación paralela).
+- Descartar no crea ningún recurso.
+- Tras convertir **o** descartar, `taskSuggestionResolved = true` y la nota deja de ofrecer la sugerencia, incluso al recargar en una sesión nueva.
+- La operación es idempotente y solo la ejecuta el propietario de la nota (404 sobre una ajena, nunca 403).
+
+## AC-018 Objetivos (ADR-016 Fase 3e1, FR-031, UC-24)
 - `title` obligatorio; `targetValue`/`currentValue`/`deadline` opcionales; `currentValue` default `0`.
 - Solo el propietario puede crear/consultar/editar/eliminar su Objetivo — 404 sobre uno ajeno, nunca 403 (mismo contrato que `PERSON`/`PROJECT`).
 - `completed` se marca explícitamente por el usuario mediante `PATCH`; nunca se deriva automáticamente de `currentValue`/`targetValue`.
 - Un Objetivo con `completed = false` aparece en el resumen de "Hoy"; uno con `completed = true` deja de aparecer ahí.
 
-## AC-019 Rutinas (ADR-016 Fase 3e2, FR-032, UC-25) — no implementado, alcance listo para desarrollo
+## AC-019 Rutinas (ADR-016 Fase 3e2, FR-032, UC-25)
 - `title` y `frequency` obligatorios (`DAILY`/`WEEKLY`/`MONTHLY`); `description` opcional; `active` default `true`.
 - Solo el propietario puede operar sobre su Rutina — 404 sobre una ajena, nunca 403.
-- Marcar la ejecución actual como realizada avanza `nextExecutionDate` a la siguiente ocurrencia según `frequency`, sin crear ningún `REMINDER` ni `COMMITMENT`.
-- **TBD explícito (no bloqueante):** fórmula exacta de avance de `nextExecutionDate` y si `active = false` debe ocultar la Rutina de algún listado — ver `09-data-model.md` y `08-laboral-module-plan.md` Fase 3e2.
+- Marcar la ejecución actual como realizada (`POST /routines/{id}/execute`) avanza `nextExecutionDate` a la siguiente ocurrencia según `frequency`, sin crear ningún `REMINDER` ni `COMMITMENT`.
+- **Regla de avance (DECISION del Product Owner, 2026-08-28, opción B):** se calcula desde la **fecha programada original**, nunca desde "ahora" — una rutina semanal del lunes marcada el jueves pasa al lunes siguiente. Una rutina con varias ocurrencias sin marcar sigue en el pasado tras un solo clic: un clic marca una ocurrencia, no se salta las perdidas.
+- `next_execution_date` inicial lo fija el usuario al crear la Rutina; el backend no deriva ninguna fecha.
+- `active = false` mantiene la Rutina en su listado (etiquetada "En pausa") pero la excluye del resumen de "Hoy".
 
-## AC-020 Lugares (ADR-016 Fase 3e3, FR-033, UC-26) — no implementado, alcance listo para desarrollo
+## AC-020 Lugares (ADR-016 Fase 3e3, FR-033, UC-26)
 - `name` obligatorio; `address`/`personId` opcionales.
 - Solo el propietario puede operar sobre su Lugar — 404 sobre uno ajeno; si se envía `personId`, debe pertenecer al mismo dueño (404 `PERSON_NOT_FOUND` en caso contrario, mismo contrato que `PROJECT.clientPersonId`).
 - Elegir un Lugar guardado en `CreateTaskDialog` completa el campo de texto `location` de la Tarea; no crea ninguna relación en base de datos entre `REMINDER` y `PLACE` (no existe `REMINDER.place_id`).
 
-## AC-021 Recursos (ADR-016 Fase 3e4, FR-034, UC-27) — no implementado, alcance listo para desarrollo
+## AC-021 Recursos (ADR-016 Fase 3e4, FR-034, UC-27)
 - `name`/`type` obligatorios (`type` ∈ `DOCUMENTO`/`ENLACE`/`PLANTILLA`/`MANUAL`/`HERRAMIENTA`/`OTRO`); referencia de texto/`description`/`personId`/`projectId` opcionales.
 - Solo el propietario puede operar sobre su Recurso — 404 sobre uno ajeno; `personId`/`projectId`, si se envían, deben pertenecer al mismo dueño.
 - Un Recurso vinculado a una Persona/Proyecto aparece en la sección correspondiente de su detalle.

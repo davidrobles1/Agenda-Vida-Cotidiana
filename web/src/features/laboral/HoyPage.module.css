@@ -41,3 +41,27 @@
   color: var(--color-text-secondary);
   font-size: 0.8125rem;
 }
+
+/* ADR-016 Fase 3e2/FR-032: acción "Hecha" de una rutina desde Hoy. */
+.routineDoneButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.routineDoneButton:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.routineDoneButton:disabled {
+  opacity: 0.6;
+  cursor: default;
+}

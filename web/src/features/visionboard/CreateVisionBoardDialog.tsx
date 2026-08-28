@@ -109,8 +109,12 @@ export function CreateVisionBoardDialog({
 
   return (
     <DialogTrigger isOpen={isOpen} onOpenChange={handleOpenChange}>
-      <Button className={triggerClassName}>
-        <IconPlus width={16} height={16} /> Nuevo Vision Board
+      {/* Barra icon-only (2026-08-23): sin texto visible este botón se
+          quedaba SIN nombre accesible (su único hijo es un SVG
+          `aria-hidden`) — violación WCAG 4.1.2, el mismo hallazgo real que
+          ya documenta VisionBoardContextMenu.tsx sobre su botón ancla. */}
+      <Button className={triggerClassName} aria-label="Nuevo Vision Board">
+        <IconPlus width={16} height={16} />
       </Button>
       <Modal isDismissable className={shellStyles.modalOverlay}>
         <MotionDialog

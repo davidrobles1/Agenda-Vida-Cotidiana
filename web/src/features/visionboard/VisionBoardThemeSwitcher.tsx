@@ -51,9 +51,14 @@ export function VisionBoardThemeSwitcher({
 
   return (
     <MenuTrigger isOpen={open} onOpenChange={setOpen}>
-      <Button className={toolbarStyles.actionButton} aria-label="Cambiar tema del Vision Board">
+      {/* Barra icon-only (2026-08-23): el nombre del tema se quitó; el
+          swatch de color ya comunica cuál está activo y el `aria-label`
+          (que ya incluía el nombre) sigue dándolo por accesibilidad. */}
+      <Button
+        className={toolbarStyles.actionButton}
+        aria-label={`Cambiar tema del Vision Board (actual: ${active.name})`}
+      >
         <span className={styles.swatch} style={{ background: active.colors.accent }} aria-hidden="true" />
-        {active.name}
       </Button>
       <Popover placement="bottom start" offset={8} className={styles.popover}>
         <MotionMenu

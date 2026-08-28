@@ -3,6 +3,7 @@ import { Button, Dialog, DialogTrigger, Heading, Modal } from 'react-aria-compon
 import { motion } from 'motion/react'
 import { motionTokens } from '../../core/motion/tokens'
 import { IconPlus } from '../../core/ui/icons'
+import { useVocabulary } from '../../core/user/useVocabulary'
 import { createPerson, type CreatePersonInput, type Person } from './api'
 import shellStyles from '../../core/ui/dialogs/DialogShell.module.css'
 
@@ -14,6 +15,8 @@ interface CreatePersonDialogProps {
 
 /** ADR-016/FR-021, UC-17/UC-18. Mismo patrón exacto que CreateReminderDialog.tsx. */
 export function CreatePersonDialog({ onCreated }: CreatePersonDialogProps) {
+  // UX-014/UX-015: mismo formulario, mismos campos — solo el nombre cambia.
+  const vocabulary = useVocabulary()
   const [isOpen, setIsOpen] = useState(false)
   const [name, setName] = useState('')
   const [role, setRole] = useState('')
@@ -57,7 +60,8 @@ export function CreatePersonDialog({ onCreated }: CreatePersonDialogProps) {
   return (
     <DialogTrigger isOpen={isOpen} onOpenChange={handleOpenChange}>
       <Button>
-        <IconPlus width={16} height={16} /> Nueva persona
+        <IconPlus width={16} height={16} /> {vocabulary.personGender === 'f' ? 'Nueva' : 'Nuevo'}{' '}
+        {vocabulary.person.toLowerCase()}
       </Button>
       <Modal isDismissable className={shellStyles.modalOverlay}>
         <MotionDialog
@@ -71,7 +75,7 @@ export function CreatePersonDialog({ onCreated }: CreatePersonDialogProps) {
               <form onSubmit={handleSubmit}>
                 <div className={shellStyles.headerRow}>
                   <Heading slot="title" className={shellStyles.heading}>
-                    Nueva persona
+                    {vocabulary.personGender === 'f' ? 'Nueva' : 'Nuevo'} {vocabulary.person.toLowerCase()}
                   </Heading>
                   <button type="button" className={shellStyles.closeButton} onClick={close} aria-label="Cerrar">
                     ×

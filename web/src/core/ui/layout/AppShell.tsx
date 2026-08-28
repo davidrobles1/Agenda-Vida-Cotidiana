@@ -4,6 +4,8 @@ import { logout } from '../../auth/authClient'
 import { getCurrentUser } from '../../user/api'
 import { useModePath } from '../../user/ActiveModeContext'
 import { useModeContext } from '../../user/ModeContext'
+import { useVocabulary } from '../../user/useVocabulary'
+import type { ProfileVocabulary } from '../../user/vocabulary'
 import { useVisualTheme } from '../../theme/VisualThemeContext'
 import { ThemeSwitcher } from '../../theme/ThemeSwitcher'
 import {
@@ -67,15 +69,23 @@ const personalNavItems = [
  * tienen un enlace en *este* navbar. Mismo patrón ya usado por
  * Documentos/Inventario/etc.: rutas reales sin enlace de Laboral.
  */
-const laboralNavItems = [
-  { to: '/laboral/hoy', label: 'Hoy', icon: IconHome },
-  { to: '/laboral/calendar', label: 'Agenda', icon: IconCalendar },
-  { to: '/laboral/tasks', label: 'Tareas', icon: IconTasks },
-  { to: '/laboral/people', label: 'Personas', icon: IconUsers },
-  { to: '/laboral/projects', label: 'Proyectos', icon: IconFolder },
-  { to: '/laboral/commitments', label: 'Seguimientos', icon: IconRepeat },
-  { to: '/laboral/inbox', label: 'Inbox', icon: IconInbox },
-]
+/**
+ * UX-014/UX-015 (`design-system.md` §12, ADR-016(d)): solo las etiquetas de
+ * Personas/Proyectos cambian con el perfil profesional. Las rutas, los
+ * iconos, el orden y las 7 secciones son idénticos en cualquier perfil — es
+ * vocabulario de presentación, no una navegación distinta.
+ */
+function buildLaboralNavItems(vocabulary: ProfileVocabulary) {
+  return [
+    { to: '/laboral/hoy', label: 'Hoy', icon: IconHome },
+    { to: '/laboral/calendar', label: 'Agenda', icon: IconCalendar },
+    { to: '/laboral/tasks', label: 'Tareas', icon: IconTasks },
+    { to: '/laboral/people', label: vocabulary.personPlural, icon: IconUsers },
+    { to: '/laboral/projects', label: vocabulary.projectPlural, icon: IconFolder },
+    { to: '/laboral/commitments', label: 'Seguimientos', icon: IconRepeat },
+    { to: '/laboral/inbox', label: 'Inbox', icon: IconInbox },
+  ]
+}
 
 interface AppShellProps {
   title: string
@@ -88,6 +98,7 @@ export function AppShell({ title, subtitle, children }: AppShellProps) {
   const location = useLocation()
   const { personalEnabled, laboralEnabled } = useModeContext()
   const { theme } = useVisualTheme()
+  const vocabulary = useVocabulary()
 
   const modeRemindersPath = useModePath('reminders')
 
@@ -142,7 +153,12 @@ export function AppShell({ title, subtitle, children }: AppShellProps) {
   // botón para abrirlo se renderiza (pedido explícito: "bloquea cualquier
   // mecanismo que permita volver a abrirlo").
   const isGeneralContext = sidebarContext === 'GENERAL'
-  const navItems = sidebarContext === 'LABORAL' ? laboralNavItems : sidebarContext === 'PERSONAL' ? personalNavItems : []
+  const navItems =
+    sidebarContext === 'LABORAL'
+      ? buildLaboralNavItems(vocabulary)
+      : sidebarContext === 'PERSONAL'
+        ? personalNavItems
+        : []
   const sidebarVisible = !isGeneralContext && sidebarOpen
 
   return (

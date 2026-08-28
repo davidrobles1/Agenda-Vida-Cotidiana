@@ -5,13 +5,16 @@
 
 .canvasPage {
   display: flex;
-  flex-direction: column;
-
-  gap: var(--space-3);
+  flex-direction: row;
+  align-items: stretch;
 
   width: 100%;
+  height: 100%;
+  min-height: 0;
 
-  padding-top: var(--space-4);
+  padding-top: 0;
+
+  overflow: hidden;
 }
 
 /* =========================================================
@@ -20,48 +23,39 @@
 
 .viewport {
   position: relative;
+  padding-right: 1px;
 
-  width: 100%;
+  flex: 1 1 auto;
+
+  width: 0;
+  min-width: 0;
+  min-height: 0;
 
   overflow: auto;
 
   -webkit-overflow-scrolling: touch;
 
-  padding: var(--space-6);
+  /* resto de tu CSS actual */
+}
 
-  /*
-   * El canvas deja de vivir sobre el mismo plano que la aplicación.
-   * Ahora parece colocado sobre una mesa / estudio creativo.
-   */
+.viewport::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.viewport::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.viewport::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+
+  border-radius: 999px;
+
   background:
-    radial-gradient(
-      circle at 18% 15%,
-      color-mix(in srgb, var(--color-primary) 7%, transparent),
-      transparent 30%
-    ),
-    radial-gradient(
-      circle at 82% 80%,
-      color-mix(in srgb, var(--color-primary) 5%, transparent),
-      transparent 32%
-    ),
-    color-mix(
-      in srgb,
-      var(--color-text) 4%,
-      var(--color-surface)
-    );
+    color-mix(in srgb, var(--color-text) 18%, transparent);
 
-  display: flex;
-  flex-direction: column;
-
-  align-items: flex-start;
-
-  gap: var(--space-3);
-
-  /*
-   * Evita que el backdrop se vea como una simple caja plana.
-   */
-  box-shadow:
-    inset 0 1px 0 color-mix(in srgb, white 14%, transparent);
+  background-clip: padding-box;
 }
 
 /*
@@ -88,6 +82,67 @@
   background-size: 7px 7px;
 }
 
+/*
+ * Ambient grain / paper dust.
+ */
+.viewport::before {
+  content: '';
+
+  position: absolute;
+
+  inset: 0;
+
+  z-index: -1;
+
+  pointer-events: none;
+
+  opacity: 0.045;
+
+  background-image:
+    radial-gradient(
+      circle at 18% 22%,
+      var(--color-text) 0.55px,
+      transparent 0.8px
+    ),
+    radial-gradient(
+      circle at 74% 66%,
+      var(--color-text) 0.45px,
+      transparent 0.75px
+    );
+
+  background-size:
+    8px 8px,
+    11px 11px;
+
+  mix-blend-mode: multiply;
+}
+
+/*
+ * Soft workspace vignette.
+ */
+.viewport::after {
+  content: '';
+
+  position: absolute;
+
+  inset: 0;
+
+  z-index: -1;
+
+  pointer-events: none;
+
+  background:
+    radial-gradient(
+      ellipse at center,
+      transparent 48%,
+      color-mix(
+        in srgb,
+        var(--color-text) 4%,
+        transparent
+      ) 100%
+    );
+}
+
 /* =========================================================
    TABLET
    ========================================================= */
@@ -104,7 +159,10 @@
 
 @media (max-width: 600px) {
   .viewport {
-    padding: var(--space-2) var(--space-2) 64px;
+    padding:
+      var(--space-2)
+      var(--space-2)
+      64px;
   }
 }
 
@@ -119,13 +177,16 @@
 
   margin: 0;
 
-  padding: var(--space-2) var(--space-3);
+  padding:
+    var(--space-2)
+    var(--space-3);
 
-  border: 1px solid color-mix(
-    in srgb,
-    var(--color-error) 20%,
-    transparent
-  );
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--color-error) 24%,
+      transparent
+    );
 
   border-radius: 16px;
 
@@ -135,7 +196,7 @@
       var(--color-error-container),
       color-mix(
         in srgb,
-        var(--color-error-container) 85%,
+        var(--color-error-container) 82%,
         var(--color-surface)
       )
     );
@@ -145,11 +206,18 @@
   font-size: 0.8125rem;
 
   box-shadow:
-    0 4px 12px color-mix(
-      in srgb,
-      var(--color-error) 8%,
-      transparent
-    );
+    0 2px 5px
+      color-mix(
+        in srgb,
+        var(--color-error) 7%,
+        transparent
+      ),
+    0 10px 24px
+      color-mix(
+        in srgb,
+        var(--color-error) 7%,
+        transparent
+      );
 }
 
 /* =========================================================
@@ -157,9 +225,49 @@
    ========================================================= */
 
 .canvasScaleWrapper {
+  position: relative;
+
   flex-shrink: 0;
 
   margin: 0 auto;
+
+  filter:
+    drop-shadow(
+      0 10px 18px
+      color-mix(
+        in srgb,
+        var(--color-text) 5%,
+        transparent
+      )
+    );
+}
+
+/*
+ * Ambient glow underneath the board.
+ */
+.canvasScaleWrapper::before {
+  content: '';
+
+  position: absolute;
+
+  inset: 7% 8% -3%;
+
+  z-index: -1;
+
+  border-radius: 42px;
+
+  background:
+    color-mix(
+      in srgb,
+      var(--color-text) 15%,
+      transparent
+    );
+
+  filter: blur(28px);
+
+  opacity: 0.28;
+
+  pointer-events: none;
 }
 
 /* =========================================================
@@ -168,57 +276,86 @@
 
 .canvas {
   position: relative;
+  isolation: isolate;
 
   flex-shrink: 0;
 
   background:
     radial-gradient(
-      circle at 12% 10%,
-      color-mix(in srgb, var(--vb-accent) 7%, transparent),
-      transparent 25%
+      ellipse 70% 48% at 18% 0%,
+      color-mix(
+        in srgb,
+        white 14%,
+        transparent
+      ),
+      transparent 68%
     ),
     radial-gradient(
-      circle at 88% 90%,
-      color-mix(in srgb, var(--vb-primary) 6%, transparent),
-      transparent 28%
+      ellipse 55% 48% at 90% 100%,
+      color-mix(
+        in srgb,
+        var(--vb-accent) 4%,
+        transparent
+      ),
+      transparent 70%
     ),
-    var(--vb-surface-variant);
+    linear-gradient(
+      135deg,
+      color-mix(
+        in srgb,
+        var(--vb-surface-variant) 95%,
+        white 5%
+      ),
+      var(--vb-surface-variant)
+    );
 
-  border: 1px solid color-mix(
-    in srgb,
-    var(--vb-border) 78%,
-    var(--vb-accent) 22%
-  );
+  border:
+    1px solid
+    color-mix(
+      in srgb,
+      var(--vb-border) 88%,
+      transparent
+    );
 
   border-radius: 30px;
 
   box-shadow:
-    0 2px 5px color-mix(
-      in srgb,
-      var(--vb-text) 10%,
-      transparent
-    ),
-    0 10px 24px color-mix(
-      in srgb,
-      var(--vb-text) 12%,
-      transparent
-    ),
-    0 28px 60px color-mix(
-      in srgb,
-      var(--vb-text) 15%,
-      transparent
-    );
-
-  /*
-   * Hace que el board parezca una pieza física.
-   */
-  isolation: isolate;
+    0 1px 1px
+      color-mix(
+        in srgb,
+        white 45%,
+        transparent
+      ),
+    0 2px 4px
+      color-mix(
+        in srgb,
+        var(--vb-text) 8%,
+        transparent
+      ),
+    0 9px 18px
+      color-mix(
+        in srgb,
+        var(--vb-text) 10%,
+        transparent
+      ),
+    0 22px 42px
+      color-mix(
+        in srgb,
+        var(--vb-text) 12%,
+        transparent
+      ),
+    0 42px 80px
+      color-mix(
+        in srgb,
+        var(--vb-text) 8%,
+        transparent
+      );
 
   overflow: visible;
 }
 
 /*
- * Highlight editorial alrededor del canvas.
+ * Fine inner rim.
  */
 .canvas::after {
   content: '';
@@ -227,15 +364,33 @@
 
   inset: 0;
 
+  z-index: 10001;
+
   border-radius: inherit;
 
-  border: 1px solid color-mix(
-    in srgb,
-    white 18%,
-    transparent
-  );
+  border:
+    1px solid
+    color-mix(
+      in srgb,
+      white 22%,
+      transparent
+    );
 
-  opacity: 0.35;
+  box-shadow:
+    inset 0 1px 0
+      color-mix(
+        in srgb,
+        white 28%,
+        transparent
+      ),
+    inset 0 -1px 0
+      color-mix(
+        in srgb,
+        var(--vb-text) 4%,
+        transparent
+      );
+
+  opacity: 0.48;
 
   pointer-events: none;
 }
@@ -251,20 +406,21 @@
 
   inset: 0;
 
+  z-index: 10000;
+
   border-radius: inherit;
 
   background-image:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='vision-board-paper-noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23vision-board-paper-noise)'/%3E%3C/svg%3E");
 
   background-size: 180px 180px;
 
-  opacity: var(--vb-texture-opacity, 0.045);
+  opacity:
+    var(--vb-texture-opacity, 0.035);
 
   mix-blend-mode: multiply;
 
   pointer-events: none;
-
-  z-index: 0;
 }
 
 /* =========================================================
@@ -275,7 +431,6 @@
   position: absolute;
 
   padding: 0;
-
   margin: 0;
 
   border: 2px solid transparent;
@@ -297,30 +452,34 @@
   touch-action: none;
 
   box-shadow:
-    0 1px 2px color-mix(
-      in srgb,
-      var(--vb-text) 12%,
-      transparent
-    ),
-    0 5px 12px color-mix(
-      in srgb,
-      var(--vb-text) 10%,
-      transparent
-    ),
-    0 12px 24px color-mix(
-      in srgb,
-      var(--vb-text) 7%,
-      transparent
-    );
+    0 1px 1px
+      color-mix(
+        in srgb,
+        white 30%,
+        transparent
+      ),
+    0 2px 4px
+      color-mix(
+        in srgb,
+        var(--vb-text) 10%,
+        transparent
+      ),
+    0 7px 14px
+      color-mix(
+        in srgb,
+        var(--vb-text) 7%,
+        transparent
+      );
 
   transition:
-    box-shadow 150ms ease,
-    border-color 150ms ease,
-    filter 150ms ease;
+    transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    box-shadow 220ms ease,
+    border-color 180ms ease,
+    filter 180ms ease;
 }
 
 /*
- * Highlight muy suave de material.
+ * Fine material highlight.
  */
 .element::after {
   content: '';
@@ -329,15 +488,19 @@
 
   inset: 1px;
 
+  z-index: 10;
+
   border-radius: inherit;
 
-  border-top: 1px solid color-mix(
-    in srgb,
-    white 20%,
-    transparent
-  );
+  border-top:
+    1px solid
+    color-mix(
+      in srgb,
+      white 24%,
+      transparent
+    );
 
-  opacity: 0.35;
+  opacity: 0.42;
 
   pointer-events: none;
 }
@@ -356,46 +519,81 @@
 
 .element[data-type='NOTE'] {
   box-shadow:
-    0 2px 4px color-mix(
-      in srgb,
-      var(--vb-text) 16%,
-      transparent
-    ),
-    0 8px 16px color-mix(
-      in srgb,
-      var(--vb-text) 14%,
-      transparent
-    ),
-    5px 10px 20px color-mix(
-      in srgb,
-      var(--vb-accent) 8%,
-      transparent
-    );
+    0 1px 2px
+      color-mix(
+        in srgb,
+        var(--vb-text) 13%,
+        transparent
+      ),
+    0 5px 10px
+      color-mix(
+        in srgb,
+        var(--vb-text) 11%,
+        transparent
+      ),
+    0 14px 25px
+      color-mix(
+        in srgb,
+        var(--vb-text) 9%,
+        transparent
+      );
+}
+
+.element[data-type='NOTE']:hover {
+  box-shadow:
+    0 2px 3px
+      color-mix(
+        in srgb,
+        var(--vb-text) 15%,
+        transparent
+      ),
+    0 8px 16px
+      color-mix(
+        in srgb,
+        var(--vb-text) 13%,
+        transparent
+      ),
+    0 18px 32px
+      color-mix(
+        in srgb,
+        var(--vb-text) 10%,
+        transparent
+      );
 }
 
 .element[data-type='IMAGE'] {
-  border-color: color-mix(
-    in srgb,
-    var(--vb-surface-variant) 70%,
-    transparent
-  );
-
-  box-shadow:
-    0 2px 5px color-mix(
+  border-color:
+    color-mix(
       in srgb,
-      var(--vb-text) 18%,
-      transparent
-    ),
-    0 10px 22px color-mix(
-      in srgb,
-      var(--vb-text) 16%,
-      transparent
-    ),
-    0 20px 36px color-mix(
-      in srgb,
-      var(--vb-text) 8%,
+      var(--vb-surface-variant) 70%,
       transparent
     );
+
+  box-shadow:
+    0 1px 2px
+      color-mix(
+        in srgb,
+        white 25%,
+        transparent
+      ),
+    0 3px 6px
+      color-mix(
+        in srgb,
+        var(--vb-text) 16%,
+        transparent
+      ),
+    0 10px 20px
+      color-mix(
+        in srgb,
+        var(--vb-text) 14%,
+        transparent
+      ),
+    0 22px 36px
+      color-mix(
+        in srgb,
+        var(--vb-text) 8%,
+        transparent
+      );
 }
 
 .element[data-type='IMAGE']:hover {
@@ -404,6 +602,7 @@
 
 .element[data-type='STICKER'] {
   background: transparent;
+
   box-shadow: none;
 }
 
@@ -416,21 +615,34 @@
    ========================================================= */
 
 .element:hover {
-  border-color: var(--vb-border);
-
-  box-shadow:
-    0 3px 6px color-mix(
+  border-color:
+    color-mix(
       in srgb,
-      var(--vb-text) 15%,
-      transparent
-    ),
-    0 12px 26px color-mix(
-      in srgb,
-      var(--vb-text) 14%,
+      var(--vb-border) 92%,
       transparent
     );
 
-  filter: saturate(1.04);
+  box-shadow:
+    0 2px 4px
+      color-mix(
+        in srgb,
+        var(--vb-text) 13%,
+        transparent
+      ),
+    0 8px 18px
+      color-mix(
+        in srgb,
+        var(--vb-text) 12%,
+        transparent
+      ),
+    0 18px 34px
+      color-mix(
+        in srgb,
+        var(--vb-text) 8%,
+        transparent
+      );
+
+  filter: brightness(1.015);
 }
 
 .element[data-type='SHAPE']:hover {
@@ -439,6 +651,17 @@
 
 .element[data-type='STICKER']:hover {
   box-shadow: none;
+
+  filter:
+    brightness(1.025)
+    drop-shadow(
+      0 7px 11px
+      color-mix(
+        in srgb,
+        var(--vb-text) 18%,
+        transparent
+      )
+    );
 }
 
 /* =========================================================
@@ -478,7 +701,7 @@
   }
 
   35% {
-    transform: scale(1.06);
+    transform: scale(1.055);
   }
 
   100% {
@@ -621,15 +844,33 @@
   border-color: var(--vb-selection);
 
   box-shadow:
-    0 0 0 3px var(--vb-selection-container),
-    0 4px 10px color-mix(
+    0 0 0 3px
+      var(--vb-selection-container),
+    0 0 0 5px
+      color-mix(
+        in srgb,
+        var(--vb-selection) 8%,
+        transparent
+      ),
+    0 4px 10px
+      color-mix(
+        in srgb,
+        var(--vb-selection) 22%,
+        transparent
+      ),
+    0 14px 30px
+      color-mix(
+        in srgb,
+        var(--vb-selection) 14%,
+        transparent
+      );
+}
+
+.element[data-selected]::after {
+  border-top-color:
+    color-mix(
       in srgb,
-      var(--vb-selection) 20%,
-      transparent
-    ),
-    0 12px 28px color-mix(
-      in srgb,
-      var(--vb-selection) 14%,
+      white 48%,
       transparent
     );
 }
@@ -639,8 +880,11 @@
 }
 
 .element:focus-visible {
-  outline: 2px solid var(--vb-selection);
-  outline-offset: 2px;
+  outline:
+    2px solid
+    var(--vb-selection);
+
+  outline-offset: 3px;
 }
 
 /* =========================================================
@@ -649,6 +893,8 @@
 
 .element[data-saving] {
   opacity: 0.6;
+
+  filter: saturate(0.85);
 }
 
 .element[data-saving],
@@ -663,8 +909,8 @@
 .resizeHandle {
   position: absolute;
 
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
 
   display: flex;
   align-items: center;
@@ -681,26 +927,69 @@
 
   border-radius: 50%;
 
-  background: var(--vb-surface-variant);
+  background:
+    linear-gradient(
+      145deg,
+      var(--vb-surface),
+      var(--vb-surface-variant)
+    );
 
-  border: 2px solid var(--vb-selection);
+  border:
+    2px solid
+    var(--vb-selection);
 
   box-shadow:
-    0 1px 3px color-mix(
-      in srgb,
-      var(--vb-text) 25%,
-      transparent
-    ),
-    0 0 0 2px color-mix(
-      in srgb,
-      var(--vb-surface) 80%,
-      transparent
-    );
+    0 1px 3px
+      color-mix(
+        in srgb,
+        var(--vb-text) 25%,
+        transparent
+      ),
+    0 0 0 2px
+      color-mix(
+        in srgb,
+        var(--vb-surface) 88%,
+        transparent
+      ),
+    0 2px 6px
+      color-mix(
+        in srgb,
+        var(--vb-selection) 16%,
+        transparent
+      );
+
+  transition:
+    transform 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.resizeHandle:hover::after {
+  transform: scale(1.2);
+
+  box-shadow:
+    0 2px 4px
+      color-mix(
+        in srgb,
+        var(--vb-text) 25%,
+        transparent
+      ),
+    0 0 0 2px
+      color-mix(
+        in srgb,
+        var(--vb-surface) 90%,
+        transparent
+      ),
+    0 0 10px
+      color-mix(
+        in srgb,
+        var(--vb-selection) 28%,
+        transparent
+      );
 }
 
 .resizeHandleE {
   top: 50%;
-  right: -9px;
+  right: -10px;
 
   transform: translateY(-50%);
 
@@ -708,7 +997,7 @@
 }
 
 .resizeHandleS {
-  bottom: -9px;
+  bottom: -10px;
   left: 50%;
 
   transform: translateX(-50%);
@@ -717,8 +1006,8 @@
 }
 
 .resizeHandleSe {
-  bottom: -9px;
-  right: -9px;
+  bottom: -10px;
+  right: -10px;
 
   cursor: nwse-resize;
 }
@@ -730,11 +1019,11 @@
 .rotateHandle {
   position: absolute;
 
-  top: -26px;
+  top: -30px;
   left: 50%;
 
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
 
   transform: translateX(-50%);
 
@@ -747,42 +1036,68 @@
   touch-action: none;
 }
 
+.rotateHandle:active {
+  cursor: grabbing;
+}
+
 .rotateHandle::before {
   content: '';
 
   position: absolute;
 
-  top: 18px;
+  top: 19px;
 
   width: 1px;
-  height: 8px;
+  height: 10px;
 
-  background: var(--vb-border);
+  background:
+    linear-gradient(
+      180deg,
+      var(--vb-selection),
+      var(--vb-border)
+    );
+
+  box-shadow:
+    0 0 3px
+      color-mix(
+        in srgb,
+        var(--vb-selection) 20%,
+        transparent
+      );
 }
 
 .rotateHandle::after {
   content: '';
 
-  width: 10px;
-  height: 10px;
+  width: 11px;
+  height: 11px;
 
   border-radius: 50%;
 
-  background: var(--vb-surface-variant);
+  background:
+    linear-gradient(
+      145deg,
+      var(--vb-surface),
+      var(--vb-surface-variant)
+    );
 
-  border: 2px solid var(--vb-selection);
+  border:
+    2px solid
+    var(--vb-selection);
 
   box-shadow:
-    0 1px 3px color-mix(
-      in srgb,
-      var(--vb-text) 25%,
-      transparent
-    ),
-    0 0 0 2px color-mix(
-      in srgb,
-      var(--vb-surface) 80%,
-      transparent
-    );
+    0 1px 3px
+      color-mix(
+        in srgb,
+        var(--vb-text) 25%,
+        transparent
+      ),
+    0 0 0 2px
+      color-mix(
+        in srgb,
+        var(--vb-surface) 88%,
+        transparent
+      );
 }
 
 /* =========================================================
@@ -810,12 +1125,12 @@
   }
 
   .rotateHandle {
-    top: -40px;
+    top: -42px;
   }
 
   .rotateHandle::before {
     top: 32px;
-    height: 8px;
+    height: 10px;
   }
 }
 
@@ -826,11 +1141,11 @@
 .lockBadge {
   position: absolute;
 
-  top: -7px;
-  right: -7px;
+  top: -8px;
+  right: -8px;
 
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
 
   display: flex;
   align-items: center;
@@ -845,18 +1160,27 @@
       var(--vb-surface)
     );
 
-  border: 1.5px solid var(--vb-border);
+  border:
+    1.5px solid
+    var(--vb-border);
 
   color: var(--vb-text-secondary);
 
   pointer-events: none;
 
   box-shadow:
-    0 2px 5px color-mix(
-      in srgb,
-      var(--vb-text) 18%,
-      transparent
-    );
+    0 1px 2px
+      color-mix(
+        in srgb,
+        white 30%,
+        transparent
+      ),
+    0 3px 8px
+      color-mix(
+        in srgb,
+        var(--vb-text) 18%,
+        transparent
+      );
 }
 
 /* =========================================================
@@ -872,6 +1196,8 @@
   white-space: pre-wrap;
 
   word-break: break-word;
+
+  text-wrap: pretty;
 }
 
 /* =========================================================
@@ -886,18 +1212,26 @@
   top: -9px;
   left: 32%;
 
-  width: 46px;
-  height: 18px;
+  width: 50px;
+  height: 19px;
 
   transform:
     translateX(-50%)
     rotate(-4deg);
 
   background:
-    color-mix(
-      in srgb,
-      var(--vb-accent) 45%,
-      transparent
+    linear-gradient(
+      135deg,
+      color-mix(
+        in srgb,
+        var(--vb-accent) 54%,
+        transparent
+      ),
+      color-mix(
+        in srgb,
+        var(--vb-accent) 36%,
+        transparent
+      )
     );
 
   border:
@@ -909,11 +1243,20 @@
     );
 
   box-shadow:
-    0 1px 3px color-mix(
-      in srgb,
-      var(--vb-text) 18%,
-      transparent
-    );
+    0 1px 2px
+      color-mix(
+        in srgb,
+        var(--vb-text) 15%,
+        transparent
+      ),
+    inset 0 1px 0
+      color-mix(
+        in srgb,
+        white 25%,
+        transparent
+      );
+
+  opacity: 0.9;
 
   pointer-events: none;
 }
@@ -924,7 +1267,16 @@
 
   padding: var(--space-2);
 
-  background: var(--vb-note-bg);
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(
+        in srgb,
+        var(--vb-note-bg) 98%,
+        white 2%
+      ),
+      var(--vb-note-bg)
+    );
 
   font-size: 0.875rem;
   line-height: 1.4;
@@ -932,6 +1284,8 @@
   white-space: pre-wrap;
 
   word-break: break-word;
+
+  text-wrap: pretty;
 }
 
 /* =========================================================
@@ -946,13 +1300,30 @@
 
   filter:
     drop-shadow(
-      0 3px 6px
+      0 2px 2px
       color-mix(
         in srgb,
-        var(--vb-text) 22%,
+        white 24%,
+        transparent
+      )
+    )
+    drop-shadow(
+      0 5px 7px
+      color-mix(
+        in srgb,
+        var(--vb-text) 20%,
         transparent
       )
     );
+
+  transition:
+    transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    filter 180ms ease;
+}
+
+.element[data-type='STICKER']:hover
+.elementStickerImage {
+  transform: translateY(-2px) scale(1.025);
 }
 
 .elementStickerBadge {
@@ -970,13 +1341,31 @@
 
   filter:
     drop-shadow(
-      0 3px 6px
+      0 2px 2px
+      color-mix(
+        in srgb,
+        white 20%,
+        transparent
+      )
+    )
+    drop-shadow(
+      0 5px 8px
       color-mix(
         in srgb,
         var(--vb-text) 22%,
         transparent
       )
     );
+
+  transition:
+    transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.element[data-type='STICKER']:hover
+.elementStickerBadge {
+  transform:
+    translateY(-2px)
+    scale(1.025);
 }
 
 /* =========================================================
@@ -988,6 +1377,16 @@
   height: 100%;
 
   object-fit: cover;
+
+  transition:
+    filter 220ms ease;
+}
+
+.element[data-type='IMAGE']:hover
+.elementImage {
+  filter:
+    saturate(1.035)
+    contrast(1.012);
 }
 
 .elementImageFrameRounded {
@@ -1010,6 +1409,14 @@
       var(--vb-text) 55%,
       transparent
     );
+
+  box-shadow:
+    inset 0 1px 0
+      color-mix(
+        in srgb,
+        white 20%,
+        transparent
+      );
 }
 
 .elementImageFramePolaroid {
@@ -1018,17 +1425,37 @@
   width: 100%;
   height: 100%;
 
-  padding: 8px 8px 22px;
+  padding:
+    8px
+    8px
+    22px;
 
-  background: #fff;
+  background:
+    linear-gradient(
+      145deg,
+      #fff,
+      #f7f7f5
+    );
 
   box-shadow:
-    0 3px 10px
-    color-mix(
-      in srgb,
-      var(--vb-text) 25%,
-      transparent
-    );
+    0 1px 2px
+      color-mix(
+        in srgb,
+        var(--vb-text) 10%,
+        transparent
+      ),
+    0 4px 10px
+      color-mix(
+        in srgb,
+        var(--vb-text) 22%,
+        transparent
+      ),
+    0 10px 20px
+      color-mix(
+        in srgb,
+        var(--vb-text) 9%,
+        transparent
+      );
 }
 
 .elementImageFramePolaroid .elementImage {
@@ -1063,7 +1490,7 @@
       135deg,
       color-mix(
         in srgb,
-        var(--vb-text) 6%,
+        var(--vb-text) 5%,
         var(--vb-surface)
       ),
       var(--vb-surface)
@@ -1073,7 +1500,7 @@
     1px dashed
     color-mix(
       in srgb,
-      var(--vb-text) 20%,
+      var(--vb-text) 22%,
       transparent
     );
 
@@ -1099,7 +1526,16 @@
   width: 100%;
   height: 100%;
 
-  background: var(--vb-shape-bg);
+  background:
+    linear-gradient(
+      145deg,
+      color-mix(
+        in srgb,
+        var(--vb-shape-bg) 94%,
+        white 6%
+      ),
+      var(--vb-shape-bg)
+    );
 
   border-radius: 20px;
 }
@@ -1159,6 +1595,14 @@
   padding: 6px;
 
   outline: none;
+
+  box-shadow:
+    0 6px 18px
+      color-mix(
+        in srgb,
+        var(--vb-text) 8%,
+        transparent
+      );
 }
 
 .elementShapeSvg {
@@ -1241,7 +1685,7 @@
     1px solid
     color-mix(
       in srgb,
-      var(--vb-text) 18%,
+      var(--vb-text) 16%,
       transparent
     );
 
@@ -1256,13 +1700,21 @@
 
 .elementTable tr:first-child td {
   background:
-    color-mix(
-      in srgb,
-      var(--vb-primary, var(--color-primary)) 12%,
-      transparent
+    linear-gradient(
+      135deg,
+      color-mix(
+        in srgb,
+        var(--vb-primary, var(--color-primary)) 14%,
+        transparent
+      ),
+      color-mix(
+        in srgb,
+        var(--vb-primary, var(--color-primary)) 7%,
+        transparent
+      )
     );
 
-  font-weight: 600;
+  font-weight: 650;
 }
 
 /* =========================================================
@@ -1284,6 +1736,14 @@
     var(--vb-surface, var(--color-surface));
 
   border-radius: 8px;
+
+  box-shadow:
+    inset 0 1px 0
+      color-mix(
+        in srgb,
+        white 24%,
+        transparent
+      );
 }
 
 .elementChartSvg {
@@ -1345,15 +1805,18 @@
 .canvasEmptyHintTitle {
   margin: 0;
 
-  font-family: var(--font-serif, inherit);
+  font-family:
+    var(--font-serif, inherit);
 
-  font-size: 1.5rem;
+  font-size: 1.65rem;
 
   font-weight: 600;
 
-  letter-spacing: -0.02em;
+  letter-spacing: -0.025em;
 
   color: var(--vb-text);
+
+  text-wrap: balance;
 }
 
 .canvasEmptyHintSubtitle {
@@ -1365,7 +1828,9 @@
 
   line-height: 1.5;
 
-  opacity: 0.8;
+  opacity: 0.78;
+
+  text-wrap: balance;
 }
 
 /* =========================================================
@@ -1376,9 +1841,15 @@
 .guideLineHorizontal {
   position: absolute;
 
-  background: var(--vb-accent);
+  background:
+    linear-gradient(
+      90deg,
+      transparent,
+      var(--vb-accent),
+      transparent
+    );
 
-  opacity: 0.72;
+  opacity: 0.82;
 
   pointer-events: none;
 
@@ -1386,11 +1857,17 @@
 
   box-shadow:
     0 0 5px
-    color-mix(
-      in srgb,
-      var(--vb-accent) 25%,
-      transparent
-    );
+      color-mix(
+        in srgb,
+        var(--vb-accent) 28%,
+        transparent
+      ),
+    0 0 12px
+      color-mix(
+        in srgb,
+        var(--vb-accent) 12%,
+        transparent
+      );
 }
 
 .guideLineVertical {
@@ -1405,6 +1882,14 @@
   right: 0;
 
   height: 1px;
+
+  background:
+    linear-gradient(
+      90deg,
+      transparent,
+      var(--vb-accent),
+      transparent
+    );
 }
 
 /* =========================================================
@@ -1412,7 +1897,11 @@
    ========================================================= */
 
 @media (prefers-reduced-motion: reduce) {
-  .element {
+  .element,
+  .elementImage,
+  .elementStickerImage,
+  .elementStickerBadge,
+  .resizeHandle::after {
     transition: none;
   }
 }

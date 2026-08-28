@@ -17,6 +17,8 @@ public record NoteResponse(
         String stickerId,
         UUID personId,
         UUID projectId,
+        /** ADR-016 Fase 3d/FR-035: true si el usuario ya convirtió o descartó la sugerencia de tarea de esta nota. */
+        boolean taskSuggestionResolved,
         int version,
         Instant createdAt,
         Instant updatedAt
@@ -31,6 +33,7 @@ public record NoteResponse(
                 note.getStickerId(),
                 note.getPersonId(),
                 note.getProjectId(),
+                note.isTaskSuggestionResolved(),
                 note.getVersion(),
                 note.getCreatedAt(),
                 note.getUpdatedAt()

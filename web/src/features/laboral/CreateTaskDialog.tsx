@@ -3,8 +3,10 @@ import { Button, Dialog, DialogTrigger, Heading, Modal } from 'react-aria-compon
 import { motion } from 'motion/react'
 import { motionTokens } from '../../core/motion/tokens'
 import { IconPlus } from '../../core/ui/icons'
+import { useVocabulary } from '../../core/user/useVocabulary'
 import type { Person } from '../people/api'
 import type { Project } from '../projects/api'
+import { createPlace, placeLocationText, type Place } from '../places/api'
 import { createReminder, type CreateReminderInput, type Reminder } from '../reminders/api'
 import shellStyles from '../../core/ui/dialogs/DialogShell.module.css'
 
@@ -13,16 +15,27 @@ const MotionDialog = motion.create(Dialog)
 interface CreateTaskDialogProps {
   people: Person[]
   projects: Project[]
+  /** ADR-016 Fase 3e3/FR-033 — catálogo de Lugares guardados (UC-26). */
+  places: Place[]
   onCreated: (task: Reminder) => void
+  /** Notifica un Lugar creado inline, para que la página refresque su catálogo. */
+  onPlaceCreated?: (place: Place) => void
 }
 
 /** ADR-016/FR-023, UC-17. Tarea = REMINDER context=LABORAL con vínculo opcional a Persona/Proyecto. */
-export function CreateTaskDialog({ people, projects, onCreated }: CreateTaskDialogProps) {
+export function CreateTaskDialog({ people, projects, places, onCreated, onPlaceCreated }: CreateTaskDialogProps) {
+  // UX-014/UX-015: solo las etiquetas de Persona/Proyecto cambian.
+  const vocabulary = useVocabulary()
   const [isOpen, setIsOpen] = useState(false)
   const [title, setTitle] = useState('')
   const [dueAtLocal, setDueAtLocal] = useState('')
   const [personId, setPersonId] = useState('')
   const [projectId, setProjectId] = useState('')
+  const [location, setLocation] = useState('')
+  const [newPlaceName, setNewPlaceName] = useState('')
+  const [newPlaceAddress, setNewPlaceAddress] = useState('')
+  const [showNewPlace, setShowNewPlace] = useState(false)
+  const [savingPlace, setSavingPlace] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -31,7 +44,44 @@ export function CreateTaskDialog({ people, projects, onCreated }: CreateTaskDial
     setDueAtLocal('')
     setPersonId('')
     setProjectId('')
+    setLocation('')
+    setNewPlaceName('')
+    setNewPlaceAddress('')
+    setShowNewPlace(false)
     setError(null)
+  }
+
+  /**
+   * UC-26: elegir un Lugar guardado **copia su texto** al campo `location`
+   * del REMINDER — no crea ninguna relación en base de datos (no existe
+   * `REMINDER.place_id`, fuera de alcance explícito de FR-033). El usuario
+   * puede editar el texto resultante libremente después.
+   */
+  function handlePickPlace(placeId: string) {
+    const place = places.find((p) => p.id === placeId)
+    if (place) setLocation(placeLocationText(place))
+  }
+
+  async function handleCreatePlace() {
+    if (!newPlaceName.trim() || savingPlace) return
+    setSavingPlace(true)
+    setError(null)
+    try {
+      const created = await createPlace({
+        name: newPlaceName.trim(),
+        address: newPlaceAddress.trim() || undefined,
+        personId: personId || undefined,
+      })
+      onPlaceCreated?.(created)
+      setLocation(placeLocationText(created))
+      setShowNewPlace(false)
+      setNewPlaceName('')
+      setNewPlaceAddress('')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo guardar el lugar.')
+    } finally {
+      setSavingPlace(false)
+    }
   }
 
   function handleOpenChange(open: boolean) {
@@ -50,6 +100,7 @@ export function CreateTaskDialog({ people, projects, onCreated }: CreateTaskDial
       if (dueAtLocal) input.dueAt = new Date(dueAtLocal).toISOString()
       if (personId) input.personId = personId
       if (projectId) input.projectId = projectId
+      if (location.trim()) input.location = location.trim()
       const created = await createReminder(input)
       onCreated(created)
       setIsOpen(false)
@@ -109,7 +160,7 @@ export function CreateTaskDialog({ people, projects, onCreated }: CreateTaskDial
                 </label>
 
                 <label className={shellStyles.field}>
-                  <span className={shellStyles.fieldLabel}>Persona (opcional)</span>
+                  <span className={shellStyles.fieldLabel}>{vocabulary.person} (opcional)</span>
                   <select className={shellStyles.textInput} value={personId} onChange={(e) => setPersonId(e.target.value)}>
                     <option value="">— Ninguna —</option>
                     {people.map((p) => (
@@ -121,7 +172,7 @@ export function CreateTaskDialog({ people, projects, onCreated }: CreateTaskDial
                 </label>
 
                 <label className={shellStyles.field}>
-                  <span className={shellStyles.fieldLabel}>Proyecto (opcional)</span>
+                  <span className={shellStyles.fieldLabel}>{vocabulary.project} (opcional)</span>
                   <select className={shellStyles.textInput} value={projectId} onChange={(e) => setProjectId(e.target.value)}>
                     <option value="">— Ninguno —</option>
                     {projects.map((p) => (
@@ -130,6 +181,74 @@ export function CreateTaskDialog({ people, projects, onCreated }: CreateTaskDial
                       </option>
                     ))}
                   </select>
+                </label>
+
+                {/* ADR-016 Fase 3e3/FR-033, UC-26: catálogo de Lugares guardados.
+                    Elegir uno copia su texto al campo de ubicación de siempre
+                    (REMINDER.location, FR-024) — sin FK nueva. */}
+                <label className={shellStyles.field}>
+                  <span className={shellStyles.fieldLabel}>Lugar guardado (opcional)</span>
+                  <select
+                    className={shellStyles.textInput}
+                    value=""
+                    onChange={(e) => {
+                      if (e.target.value === '__new__') {
+                        setShowNewPlace(true)
+                      } else if (e.target.value) {
+                        handlePickPlace(e.target.value)
+                      }
+                    }}
+                  >
+                    <option value="">— Elegir un lugar —</option>
+                    {places.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                    <option value="__new__">+ Nuevo lugar…</option>
+                  </select>
+                </label>
+
+                {showNewPlace && (
+                  <>
+                    <label className={shellStyles.field}>
+                      <span className={shellStyles.fieldLabel}>Nombre del lugar</span>
+                      <input
+                        className={shellStyles.textInput}
+                        value={newPlaceName}
+                        onChange={(e) => setNewPlaceName(e.target.value)}
+                        placeholder="Oficina ACME"
+                      />
+                    </label>
+                    <label className={shellStyles.field}>
+                      <span className={shellStyles.fieldLabel}>Dirección (opcional)</span>
+                      <input
+                        className={shellStyles.textInput}
+                        value={newPlaceAddress}
+                        onChange={(e) => setNewPlaceAddress(e.target.value)}
+                        placeholder="Av. Reforma 123"
+                      />
+                    </label>
+                    <div className={shellStyles.formActions}>
+                      {savingPlace && <span className={shellStyles.savingHint}>Guardando lugar…</span>}
+                      <button type="button" data-variant="secondary" onClick={() => setShowNewPlace(false)} disabled={savingPlace}>
+                        Cancelar lugar
+                      </button>
+                      <button type="button" data-variant="secondary" onClick={() => void handleCreatePlace()} disabled={savingPlace}>
+                        Guardar lugar
+                      </button>
+                    </div>
+                  </>
+                )}
+
+                <label className={shellStyles.field}>
+                  <span className={shellStyles.fieldLabel}>Ubicación (opcional)</span>
+                  <input
+                    className={shellStyles.textInput}
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    placeholder="Sala de juntas, obra, oficina del cliente…"
+                  />
                 </label>
 
                 <div className={shellStyles.formActions}>
