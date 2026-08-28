@@ -158,6 +158,21 @@
   box-shadow: 0 1px 4px rgba(44, 66, 91, 0.08);
 }
 
+/* Área segura de texto de un banner — caja posicionada (no `padding` en %,
+   ver bannerTextInsetStyle's propio comentario sobre por qué), con los
+   insets por forma que vienen en línea. Recorta por su cuenta para que un
+   texto demasiado largo se corte DENTRO de la silueta en vez de
+   desbordarse hacia el fondo del canvas. */
+.textSafeArea {
+  position: absolute;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  pointer-events: none;
+}
+
 .textLabel {
   position: relative;
   z-index: 1;
@@ -170,6 +185,14 @@
   pointer-events: none;
 }
 
+/* Hallazgo real (Playwright, 2026-08-23): `src/index.css`'s global
+   `button { min-height: 44px }` (objetivo táctil de los botones normales)
+   ganaba sobre este `height: 20px`, así que el botón se renderizaba como
+   una ELIPSE de 20×44 sobresaliendo muy por encima del banner — eso era la
+   "otra forma rara arriba" y el "botón a la mitad" del reporte del
+   usuario. `min-height: 0` es obligatorio en cualquier botón-insignia de
+   este archivo que fije su propia altura pequeña (ver también
+   `.formatButton`/`.shapeSwatch` abajo). */
 .deleteButton {
   position: absolute;
   top: -8px;
@@ -177,6 +200,7 @@
   z-index: 2;
   width: 20px;
   height: 20px;
+  min-height: 0;
   padding: 0;
   display: flex;
   align-items: center;
@@ -209,6 +233,12 @@
   box-shadow: 0 4px 14px rgba(44, 66, 91, 0.18);
 }
 
+/* Hallazgo real (Playwright, 2026-08-23): el toolbar flota SIEMPRE arriba
+   del elemento, pero los elementos nuevos nacen pegados al borde superior
+   del canvas y abren el editor de inmediato — así que caía fuera del
+   canvas, que tiene `overflow-y: auto`, quedando invisible y sin poder
+   recibir clics. `.editorToolbarBelow` lo voltea hacia abajo cuando no hay
+   espacio arriba (ver TOOLBAR_FLIP_THRESHOLD en DayNotesCanvas.tsx). */
 .editorToolbar {
   position: absolute;
   bottom: calc(100% + 6px);
@@ -226,10 +256,16 @@
   box-shadow: 0 2px 8px rgba(44, 66, 91, 0.14);
 }
 
+.editorToolbarBelow {
+  bottom: auto;
+  top: calc(100% + 6px);
+}
+
 .formatButton,
 .formatButtonActive {
   width: 24px;
   height: 24px;
+  min-height: 0;
   padding: 0;
   display: flex;
   align-items: center;
@@ -266,6 +302,7 @@
 .shapeSwatchActive {
   width: 22px;
   height: 22px;
+  min-height: 0;
   padding: 3px;
   border: 1px solid var(--color-border);
   border-radius: 5px;

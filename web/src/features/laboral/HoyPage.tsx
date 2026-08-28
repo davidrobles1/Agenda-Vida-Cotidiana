@@ -1,11 +1,13 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { AppShell } from '../../core/ui/layout/AppShell'
 import { ListItemRow } from '../../core/ui/components/ListItemRow'
 import { ListSectionCard } from '../../core/ui/components/ListSectionCard'
-import { IconCheckCircle, IconPlus, IconRepeat } from '../../core/ui/icons'
+import { IconCheckCircle, IconPlus, IconRepeat, IconTarget } from '../../core/ui/icons'
 import { listReminders, type Reminder } from '../reminders/api'
 import { listCommitments, type Commitment } from '../commitments/api'
 import { listPeople, type Person } from '../people/api'
+import { listObjectives, type Objective } from '../objectives/api'
 import { addInboxItem } from './inboxStorage'
 import styles from './HoyPage.module.css'
 
@@ -25,9 +27,11 @@ function daysUntil(iso: string): number {
  * ADR-015) — FR-026 solo pide un resumen diario del contexto Laboral.
  */
 export function HoyPage() {
+  const navigate = useNavigate()
   const [tasks, setTasks] = useState<Reminder[]>([])
   const [commitments, setCommitments] = useState<Commitment[]>([])
   const [people, setPeople] = useState<Person[]>([])
+  const [objectives, setObjectives] = useState<Objective[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [quickCapture, setQuickCapture] = useState('')
@@ -37,14 +41,16 @@ export function HoyPage() {
     setLoading(true)
     setError(null)
     try {
-      const [remindersPage, commitmentsPage, peoplePage] = await Promise.all([
+      const [remindersPage, commitmentsPage, peoplePage, objectivesPage] = await Promise.all([
         listReminders(),
         listCommitments(),
         listPeople(),
+        listObjectives(),
       ])
       setTasks(remindersPage.items)
       setCommitments(commitmentsPage.items)
       setPeople(peoplePage.items)
+      setObjectives(objectivesPage.items)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo cargar tu día.')
     } finally {
@@ -62,6 +68,8 @@ export function HoyPage() {
     .filter((c) => c.status === 'OPEN')
     .sort((a, b) => daysUntil(a.dueAt) - daysUntil(b.dueAt))
     .slice(0, 5)
+  // FR-031/AC-018: un Objetivo cumplido deja de aparecer en Hoy.
+  const openObjectives = objectives.filter((o) => !o.completed).slice(0, 4)
 
   function handleQuickCapture(event: FormEvent) {
     event.preventDefault()
@@ -110,6 +118,28 @@ export function HoyPage() {
             })}
         </ListSectionCard>
       </div>
+
+      {/* ADR-016 Fase 3e1/FR-031: resumen de Objetivos abiertos. "Ver todos"
+          lleva a la página dedicada (/laboral/objectives), que no tiene
+          entrada propia en el navbar — ver AppRouter.tsx. */}
+      <ListSectionCard title="Objetivos" onSeeAll={() => navigate('/laboral/objectives')}>
+        {loading && <p className={styles.emptyHint}>Cargando…</p>}
+        {!loading && openObjectives.length === 0 && (
+          <p className={styles.emptyHint}>Sin objetivos abiertos.</p>
+        )}
+        {!loading &&
+          openObjectives.map((objective) => (
+            <ListItemRow
+              key={objective.id}
+              title={objective.title}
+              subtitle={objective.deadline ? `Fecha límite: ${objective.deadline.slice(0, 10)}` : undefined}
+              icon={IconTarget}
+              tone="primary"
+              pillLabel={objective.targetValue !== undefined ? `${objective.currentValue}/${objective.targetValue}` : undefined}
+              pillTone="info"
+            />
+          ))}
+      </ListSectionCard>
 
       <ListSectionCard title="Captura rápida">
         <form className={styles.captureForm} onSubmit={handleQuickCapture}>

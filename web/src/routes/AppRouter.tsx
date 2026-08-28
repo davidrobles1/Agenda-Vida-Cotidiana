@@ -24,6 +24,7 @@ import { InboxPage } from '../features/laboral/InboxPage'
 import { PeoplePage } from '../features/people/PeoplePage'
 import { ProjectsPage } from '../features/projects/ProjectsPage'
 import { CommitmentsPage } from '../features/commitments/CommitmentsPage'
+import { ObjectivesPage } from '../features/objectives/ObjectivesPage'
 
 function useIsAuthenticated(): boolean {
   return useSyncExternalStore(subscribe, isAuthenticated)
@@ -132,6 +133,11 @@ export function AppRouter() {
         <Route path="projects" element={<ProjectsPage />} />
         <Route path="commitments" element={<CommitmentsPage />} />
         <Route path="inbox" element={<InboxPage />} />
+        {/* ADR-016 Fase 3e1 (FR-031): Objetivos — ruta real SIN enlace en el
+            navbar de Laboral (las 7 secciones núcleo quedaron cerradas en la
+            Fase 2). Se llega desde "Ver todos" en la tarjeta de Hoy, mismo
+            patrón de ruta-sin-enlace que Documentos/Inventario en Personal. */}
+        <Route path="objectives" element={<ObjectivesPage />} />
       </Route>
       <Route
         path="/notifications"

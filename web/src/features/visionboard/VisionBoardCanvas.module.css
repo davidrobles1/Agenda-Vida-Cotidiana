@@ -1,231 +1,436 @@
-/* FASE 6: wraps the toolbar + the scrollable viewport below — the toolbar
-   is a sibling of .viewport, never inside it or .canvas, so its own clicks
-   can't reach the canvas's click-to-deselect or an element's drag start. */
+/* =========================================================
+   VISION BOARD CANVAS
+   Premium Editorial / Vintage Modern
+   ========================================================= */
+
 .canvasPage {
   display: flex;
   flex-direction: column;
+
   gap: var(--space-3);
+
   width: 100%;
+
   padding-top: var(--space-4);
 }
 
+/* =========================================================
+   WORKSPACE
+   ========================================================= */
+
 .viewport {
+  position: relative;
+
   width: 100%;
+
   overflow: auto;
-  /* FASE 17: momentum scrolling on iOS Safari for the pan gesture (Fase
-     10's own native-scroll-as-pan choice) — modern Android/desktop already
-     get this for free from plain `overflow: auto`. */
+
   -webkit-overflow-scrolling: touch;
+
   padding: var(--space-6);
-  /* FASE 23: a workspace backdrop, not the app's own flat page background
-     — the canvas should read as a surface *set down* on a work table, not
-     as a rectangle floating on the same plane as the toolbar. App tokens
-     (not `--vb-*`): this sits outside `.canvas`, so it never sees Board
-     Theme custom properties, and shouldn't — the backdrop is chrome, not
-     board content, same reasoning `.dragError` already follows. Kept to a
-     ~2% tint (`color-mix`) — a hint of depth, not a visible pattern. */
-  background: color-mix(in srgb, var(--color-text) 3%, var(--color-surface));
+
+  /*
+   * El canvas deja de vivir sobre el mismo plano que la aplicación.
+   * Ahora parece colocado sobre una mesa / estudio creativo.
+   */
+  background:
+    radial-gradient(
+      circle at 18% 15%,
+      color-mix(in srgb, var(--color-primary) 7%, transparent),
+      transparent 30%
+    ),
+    radial-gradient(
+      circle at 82% 80%,
+      color-mix(in srgb, var(--color-primary) 5%, transparent),
+      transparent 32%
+    ),
+    color-mix(
+      in srgb,
+      var(--color-text) 4%,
+      var(--color-surface)
+    );
+
   display: flex;
   flex-direction: column;
-  /* FASE 22 audit fix: was `align-items: center` — a well-known flexbox
-     "scroll trap": when a board is wider/taller than the viewport, a
-     browser centers the overflow *symmetrically*, but `overflow: auto`
-     can only ever scroll toward the *end* of an axis, never the start —
-     so the board's own top-left corner (and anything positioned near it)
-     becomes genuinely unreachable by scroll/pan, not just visually
-     off-center. Verified for real, not just in theory: a Playwright run
-     found a freshly created element (default position near the board's
-     own origin) permanently behind `<main>`'s own click-intercepting
-     background on a board wider than the viewport. Centering via margin
-     on `.canvasScaleWrapper` below instead doesn't have this failure
-     mode — a wider-than-container margin:auto element still starts
-     scrolled to its true top-left, reachable like any normal scrollable
-     content. `dragError`'s own `align-self: stretch` (below) is
-     unaffected by this change either way. */
+
   align-items: flex-start;
+
   gap: var(--space-3);
+
+  /*
+   * Evita que el backdrop se vea como una simple caja plana.
+   */
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 14%, transparent);
 }
 
-/* FASE 17: Tablet — less padding around the canvas so more of the
-   available width goes to the board itself, same 900px breakpoint the
-   toolbar's own tablet rule uses. */
+/*
+ * Textura extremadamente sutil del workspace.
+ */
+.viewport::before {
+  content: '';
+
+  position: absolute;
+
+  inset: 0;
+
+  pointer-events: none;
+
+  opacity: 0.035;
+
+  background-image:
+    radial-gradient(
+      circle at 20% 20%,
+      var(--color-text) 0.6px,
+      transparent 0.7px
+    );
+
+  background-size: 7px 7px;
+}
+
+/* =========================================================
+   TABLET
+   ========================================================= */
+
 @media (max-width: 900px) {
   .viewport {
     padding: var(--space-3);
   }
 }
 
-/* FASE 17: Mobile — VisionBoardToolbar.module.css docks `.toolbar` to
-   `position: fixed; bottom: 0` at this same breakpoint, taking it out of
-   the normal flex flow here; this bottom padding is what keeps the fixed
-   bar from covering the last visible row of the canvas (roughly the
-   toolbar's own height + its padding — see that file's `.toolbar` mobile
-   rule). */
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
 @media (max-width: 600px) {
   .viewport {
     padding: var(--space-2) var(--space-2) 64px;
   }
 }
 
-/* FASE 4: same visual language as DialogShell.module.css's .formError —
-   shown when a drag's persist PUT fails. */
+/* =========================================================
+   DRAG ERROR
+   ========================================================= */
+
 .dragError {
   align-self: stretch;
+
   max-width: 100%;
+
   margin: 0;
+
   padding: var(--space-2) var(--space-3);
-  border-radius: 20px;;
-  background: var(--color-error-container);
+
+  border: 1px solid color-mix(
+    in srgb,
+    var(--color-error) 20%,
+    transparent
+  );
+
+  border-radius: 16px;
+
+  background:
+    linear-gradient(
+      135deg,
+      var(--color-error-container),
+      color-mix(
+        in srgb,
+        var(--color-error-container) 85%,
+        var(--color-surface)
+      )
+    );
+
   color: var(--color-error);
+
   font-size: 0.8125rem;
+
+  box-shadow:
+    0 4px 12px color-mix(
+      in srgb,
+      var(--color-error) 8%,
+      transparent
+    );
 }
 
-/* FASE 10: sized in JS to board.width/height * zoom (VisionBoardCanvas.tsx)
-   — see that file's own comment on why .viewport's scroll bounds need
-   this wrapper at all.
-   FASE 22 audit fix: `margin: 0 auto` replaces the horizontal centering
-   `.viewport`'s own `align-items: center` used to provide — still centers
-   a board narrower than the viewport (the common case), but without that
-   property's scroll-trap failure mode for a board wider than it (see
-   `.viewport`'s own doc comment above). */
+/* =========================================================
+   CANVAS SCALE WRAPPER
+   ========================================================= */
+
 .canvasScaleWrapper {
   flex-shrink: 0;
+
   margin: 0 auto;
 }
 
-/* FASE 16: every `--vb-*` custom property below is set via inline style on
-   this exact element (VisionBoardCanvas.tsx's `canvasStyle`,
-   visionBoardThemeStyleVars) — CSS custom properties only inherit to
-   descendants, so .canvas is the one place a Board Theme starts applying;
-   nothing outside it (the toolbar, dialogs, .dragError below) ever sees
-   these. --radius-card stays an app token on purpose — Board Themes are
-   about color, not shape.
-   FASE 23: `--shadow-card` (app-wide, theme-of-the-*app*-scoped) replaced
-   by a shadow built from the *Board* Theme's own `--vb-text`/`--vb-border`
-   instead — the canvas is meant to feel like a physical sheet set down on
-   the workspace behind it (`.viewport`'s own new backdrop), and that only
-   reads correctly if the shadow's tint follows whichever Board Theme is
-   active (DARK's shadow shouldn't look like LIGHT's). Two layers, same
-   "soft near + faint far" shape `--shadow-card` itself already used —
-   `color-mix` derives the tint straight from existing tokens, no new ones
-   added. */
+/* =========================================================
+   CANVAS
+   ========================================================= */
+
 .canvas {
   position: relative;
+
   flex-shrink: 0;
-  background: var(--vb-surface-variant);
-  border: 1px solid var(--vb-border);
-  border-radius: 28px;;
+
+  background:
+    radial-gradient(
+      circle at 12% 10%,
+      color-mix(in srgb, var(--vb-accent) 7%, transparent),
+      transparent 25%
+    ),
+    radial-gradient(
+      circle at 88% 90%,
+      color-mix(in srgb, var(--vb-primary) 6%, transparent),
+      transparent 28%
+    ),
+    var(--vb-surface-variant);
+
+  border: 1px solid color-mix(
+    in srgb,
+    var(--vb-border) 78%,
+    var(--vb-accent) 22%
+  );
+
+  border-radius: 30px;
+
   box-shadow:
-    0 2px 6px color-mix(in srgb, var(--vb-text) 10%, transparent),
-    0 18px 40px color-mix(in srgb, var(--vb-text) 16%, transparent);
+    0 2px 5px color-mix(
+      in srgb,
+      var(--vb-text) 10%,
+      transparent
+    ),
+    0 10px 24px color-mix(
+      in srgb,
+      var(--vb-text) 12%,
+      transparent
+    ),
+    0 28px 60px color-mix(
+      in srgb,
+      var(--vb-text) 15%,
+      transparent
+    );
+
+  /*
+   * Hace que el board parezca una pieza física.
+   */
+  isolation: isolate;
+
+  overflow: visible;
 }
 
-/* BLOQUE F (post-MVP): a faint paper-grain texture — a flat color fill
-   reads as a CRUD form, not a physical board. Pure CSS (an inline SVG
-   `feTurbulence` data URI, tiled), no image asset, so it costs nothing to
-   ship and needs no export handling — `renderVisionBoardToCanvas` already
-   draws the board from element *data*, never a DOM screenshot, so this
-   overlay (chrome, not board content) was never going to appear in PNG/
-   JPG/PDF exports anyway, same as `.viewport`'s own backdrop tint.
-   Intensity comes from `--vb-texture-opacity` (visionBoardThemes.ts, one
-   value per Board Theme — PAPER's is deliberately the strongest, see that
-   file's own doc comment). `::before` (not a second real element) so it
-   participates in `.canvas`'s own paint order for free — it's generated
-   content, painted before the real element children that follow it in the
-   DOM, so it always sits behind them with no z-index needed; `pointer-
-   events: none` keeps it fully out of drag/click/context-menu hit-testing. */
-.canvas::before {
+/*
+ * Highlight editorial alrededor del canvas.
+ */
+.canvas::after {
   content: '';
+
   position: absolute;
+
   inset: 0;
+
   border-radius: inherit;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  background-size: 180px 180px;
-  opacity: var(--vb-texture-opacity, 0.04);
-  mix-blend-mode: multiply;
+
+  border: 1px solid color-mix(
+    in srgb,
+    white 18%,
+    transparent
+  );
+
+  opacity: 0.35;
+
   pointer-events: none;
 }
 
-.element {
+/* =========================================================
+   PAPER TEXTURE
+   ========================================================= */
+
+.canvas::before {
+  content: '';
+
   position: absolute;
-  padding: 0;
-  margin: 0;
-  border: 2px solid transparent;
-  border-radius: 20px;;
-  background: var(--vb-surface);
-  color: var(--vb-text);
-  cursor: pointer;
-  font: inherit;
-  text-align: left;
-  /* FASE 5 real constraint: resize/rotate handles are positioned *outside*
-     this box (see .resizeHandle/.rotateHandle below) so they stay usable
-     at the very edge/corner — an `overflow: hidden` here would clip them
-     exactly like it clips real children. The per-type content still needs
-     clipping (e.g. an IMAGE bigger than its box), so that overflow now
-     lives one level in, on .elementContent, which is sized to fill this
-     button exactly — same frame/content split already used for Modal/
-     Drawer's own real overflow-vs-decoration conflict
-     (core/ui/dialogs/DialogShell.module.css's .panel/.panelScroll). */
-  overflow: visible;
-  /* FASE 4: without this, a touch-drag gets hijacked by the browser's own
-     scroll/pan gesture recognition before pointermove ever fires. */
-  touch-action: none;
-  /* FASE 23: a faint lift off the canvas — every element should read as a
-     real piece of paper/card set *on* the board, not a flat CSS rectangle.
-     Deliberately only `box-shadow`/`border-color` transition here, never
-     `transform` — `rotation` is applied via `VisionBoardElementView.tsx`'s
-     own inline `style.transform` on *every* pointermove during a drag, and
-     a transitioned `transform` would visibly lag/rubber-band behind the
-     pointer instead of tracking it 1:1. */
-  box-shadow:
-    0 1px 2px color-mix(in srgb, var(--vb-text) 12%, transparent),
-    0 3px 8px color-mix(in srgb, var(--vb-text) 10%, transparent);
-  transition: box-shadow 150ms ease, border-color 150ms ease;
+
+  inset: 0;
+
+  border-radius: inherit;
+
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+
+  background-size: 180px 180px;
+
+  opacity: var(--vb-texture-opacity, 0.045);
+
+  mix-blend-mode: multiply;
+
+  pointer-events: none;
+
+  z-index: 0;
 }
 
-/* FASE 23: SHAPE is a flat graphic mark, not a piece of paper — no lift. */
+/* =========================================================
+   ELEMENT
+   ========================================================= */
+
+.element {
+  position: absolute;
+
+  padding: 0;
+
+  margin: 0;
+
+  border: 2px solid transparent;
+
+  border-radius: 20px;
+
+  background: var(--vb-surface);
+
+  color: var(--vb-text);
+
+  cursor: pointer;
+
+  font: inherit;
+
+  text-align: left;
+
+  overflow: visible;
+
+  touch-action: none;
+
+  box-shadow:
+    0 1px 2px color-mix(
+      in srgb,
+      var(--vb-text) 12%,
+      transparent
+    ),
+    0 5px 12px color-mix(
+      in srgb,
+      var(--vb-text) 10%,
+      transparent
+    ),
+    0 12px 24px color-mix(
+      in srgb,
+      var(--vb-text) 7%,
+      transparent
+    );
+
+  transition:
+    box-shadow 150ms ease,
+    border-color 150ms ease,
+    filter 150ms ease;
+}
+
+/*
+ * Highlight muy suave de material.
+ */
+.element::after {
+  content: '';
+
+  position: absolute;
+
+  inset: 1px;
+
+  border-radius: inherit;
+
+  border-top: 1px solid color-mix(
+    in srgb,
+    white 20%,
+    transparent
+  );
+
+  opacity: 0.35;
+
+  pointer-events: none;
+}
+
+/* =========================================================
+   TYPE-SPECIFIC DEPTH
+   ========================================================= */
+
 .element[data-type='SHAPE'] {
   box-shadow: none;
 }
 
-/* FASE 23: a sticky note sits *thicker* than a sheet of paper — deeper
-   shadow than the baseline, same "physical, not flat" idea. */
-.element[data-type='NOTE'] {
-  box-shadow:
-    0 2px 3px color-mix(in srgb, var(--vb-text) 16%, transparent),
-    0 6px 14px color-mix(in srgb, var(--vb-text) 14%, transparent);
+.element[data-type='SHAPE']::after {
+  display: none;
 }
 
-/* FASE 23: a crisp printed-photo feel — a thin light frame (like a photo's
-   own white border) plus the deepest shadow of the four, printed material
-   reads as the "heaviest" thing on the board. */
-.element[data-type='IMAGE'] {
-  border-color: color-mix(in srgb, var(--vb-surface-variant) 70%, transparent);
+.element[data-type='NOTE'] {
   box-shadow:
-    0 2px 4px color-mix(in srgb, var(--vb-text) 18%, transparent),
-    0 8px 18px color-mix(in srgb, var(--vb-text) 16%, transparent);
+    0 2px 4px color-mix(
+      in srgb,
+      var(--vb-text) 16%,
+      transparent
+    ),
+    0 8px 16px color-mix(
+      in srgb,
+      var(--vb-text) 14%,
+      transparent
+    ),
+    5px 10px 20px color-mix(
+      in srgb,
+      var(--vb-accent) 8%,
+      transparent
+    );
+}
+
+.element[data-type='IMAGE'] {
+  border-color: color-mix(
+    in srgb,
+    var(--vb-surface-variant) 70%,
+    transparent
+  );
+
+  box-shadow:
+    0 2px 5px color-mix(
+      in srgb,
+      var(--vb-text) 18%,
+      transparent
+    ),
+    0 10px 22px color-mix(
+      in srgb,
+      var(--vb-text) 16%,
+      transparent
+    ),
+    0 20px 36px color-mix(
+      in srgb,
+      var(--vb-text) 8%,
+      transparent
+    );
 }
 
 .element[data-type='IMAGE']:hover {
   border-color: var(--vb-border);
 }
 
-/* FASE 23: stickers float free, no card underneath them — the drop-shadow
-   lives on the image itself (.elementStickerImage below), shaped to the
-   sticker's own silhouette instead of a rectangle. */
 .element[data-type='STICKER'] {
   background: transparent;
   box-shadow: none;
 }
 
-/* FASE 23: merged with the FASE 4 original (`border-color` only) — same
-   rule, now also deepening the shadow on hover for the same "lift" idea
-   `.element`'s own baseline shadow already establishes. */
+.element[data-type='STICKER']::after {
+  display: none;
+}
+
+/* =========================================================
+   HOVER
+   ========================================================= */
+
 .element:hover {
   border-color: var(--vb-border);
+
   box-shadow:
-    0 2px 4px color-mix(in srgb, var(--vb-text) 16%, transparent),
-    0 10px 22px color-mix(in srgb, var(--vb-text) 14%, transparent);
+    0 3px 6px color-mix(
+      in srgb,
+      var(--vb-text) 15%,
+      transparent
+    ),
+    0 12px 26px color-mix(
+      in srgb,
+      var(--vb-text) 14%,
+      transparent
+    );
+
+  filter: saturate(1.04);
 }
 
 .element[data-type='SHAPE']:hover {
@@ -236,32 +441,34 @@
   box-shadow: none;
 }
 
+/* =========================================================
+   ELEMENT CONTENT
+   ========================================================= */
+
 .elementContent {
   display: flex;
+
   align-items: center;
   justify-content: center;
+
   width: 100%;
   height: 100%;
+
   overflow: hidden;
+
   border-radius: inherit;
 }
 
-/* BLOQUE G (post-MVP): "microanimación física al soltar un elemento" — a
-   small settle bounce, applied to `.elementContent` (never `.element`
-   itself, which already owns the *unanimated* `transform: rotate(...)`
-   inline style real-time dragging depends on — animating `transform` on
-   that same node would fight and clobber the rotation for the animation's
-   duration). Subtle on purpose (1.06 peak, back down) — a squash-and-settle
-   hint, not a bounce anyone would call exaggerated. Scoped inside
-   `prefers-reduced-motion: no-preference` so a reduced-motion user gets
-   the class with no visible effect, same "still correct, just inert"
-   shape every other animation in this app already follows via the global
-   `<MotionConfig reducedMotion="user">` — this one's plain CSS (triggered
-   on gesture *end*, not a Motion-driven interaction) so it needs its own
-   explicit guard instead of inheriting that config. */
+/* =========================================================
+   SETTLING
+   ========================================================= */
+
 @media (prefers-reduced-motion: no-preference) {
   .settling {
-    animation: vision-board-element-settle 260ms cubic-bezier(0.34, 1.56, 0.64, 1);
+    animation:
+      vision-board-element-settle
+      260ms
+      cubic-bezier(0.34, 1.56, 0.64, 1);
   }
 }
 
@@ -269,37 +476,67 @@
   0% {
     transform: scale(1);
   }
+
   35% {
     transform: scale(1.06);
   }
+
   100% {
     transform: scale(1);
   }
 }
 
-/* 2026-08-22 (pedido explícito del usuario, catálogo estilo Canva): 6
-   presets de animación de entrada, aplicados bajo demanda desde
-   VisionBoardAnimationAction.tsx (ver VisionBoardCanvas.tsx's
-   `triggerAnimationReplay`) — nunca automáticamente al cargar el tablero.
-   Mismo guard de `prefers-reduced-motion` que `.settling` de arriba. */
+/* =========================================================
+   ENTRANCE ANIMATIONS
+   ========================================================= */
+
 @media (prefers-reduced-motion: no-preference) {
   .entranceFadeIn {
-    animation: vision-board-entrance-fade-in 480ms ease-out both;
+    animation:
+      vision-board-entrance-fade-in
+      480ms
+      ease-out
+      both;
   }
+
   .entranceSlideUp {
-    animation: vision-board-entrance-slide-up 480ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+    animation:
+      vision-board-entrance-slide-up
+      480ms
+      cubic-bezier(0.2, 0.8, 0.2, 1)
+      both;
   }
+
   .entranceSlideLeft {
-    animation: vision-board-entrance-slide-left 480ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+    animation:
+      vision-board-entrance-slide-left
+      480ms
+      cubic-bezier(0.2, 0.8, 0.2, 1)
+      both;
   }
+
   .entrancePopIn {
-    animation: vision-board-entrance-pop-in 420ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    animation:
+      vision-board-entrance-pop-in
+      420ms
+      cubic-bezier(0.34, 1.56, 0.64, 1)
+      both;
   }
+
   .entranceBounceIn {
-    animation: vision-board-entrance-bounce-in 620ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    animation:
+      vision-board-entrance-bounce-in
+      620ms
+      cubic-bezier(0.34, 1.56, 0.64, 1)
+      both;
   }
+
   .entrancePulse {
-    animation: vision-board-entrance-pulse 560ms ease-in-out 2;
+    animation:
+      vision-board-entrance-pulse
+      560ms
+      ease-in-out
+      2;
   }
 }
 
@@ -307,71 +544,96 @@
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
 }
+
 @keyframes vision-board-entrance-slide-up {
   from {
     opacity: 0;
     transform: translateY(26px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
   }
 }
+
 @keyframes vision-board-entrance-slide-left {
   from {
     opacity: 0;
     transform: translateX(-32px);
   }
+
   to {
     opacity: 1;
     transform: translateX(0);
   }
 }
+
 @keyframes vision-board-entrance-pop-in {
   from {
     opacity: 0;
     transform: scale(0.6);
   }
+
   to {
     opacity: 1;
     transform: scale(1);
   }
 }
+
 @keyframes vision-board-entrance-bounce-in {
   0% {
     opacity: 0;
     transform: translateY(-18px);
   }
+
   60% {
     opacity: 1;
     transform: translateY(6px);
   }
+
   100% {
     transform: translateY(0);
   }
 }
+
 @keyframes vision-board-entrance-pulse {
   0%,
   100% {
     transform: scale(1);
   }
+
   50% {
     transform: scale(1.06);
   }
 }
 
+/* =========================================================
+   SELECTION
+   ========================================================= */
+
 .element[data-selected] {
   border-color: var(--vb-selection);
-  box-shadow: 0 0 0 3px var(--vb-selection-container);
+
+  box-shadow:
+    0 0 0 3px var(--vb-selection-container),
+    0 4px 10px color-mix(
+      in srgb,
+      var(--vb-selection) 20%,
+      transparent
+    ),
+    0 12px 28px color-mix(
+      in srgb,
+      var(--vb-selection) 14%,
+      transparent
+    );
 }
 
-/* FASE 17: a locked-and-selected element gets a dashed outline instead of
-   the normal solid one — "debe existir feedback visual claro" that this
-   selection can't drag/resize/rotate, without a second color token. */
 .element[data-selected][data-locked] {
   border-style: dashed;
 }
@@ -381,9 +643,10 @@
   outline-offset: 2px;
 }
 
-/* FASE 4: mid-persist, right after a drag release — same 0.5 opacity
-   convention already used for disabled controls elsewhere (e.g.
-   CalendarPage.module.css's .quickAddButton:disabled). */
+/* =========================================================
+   SAVING
+   ========================================================= */
+
 .element[data-saving] {
   opacity: 0.6;
 }
@@ -393,97 +656,139 @@
   cursor: wait;
 }
 
-/* FASE 5: resize/rotate handles — plain non-focusable spans, children of
-   .element so they inherit its rotation transform and stay visually
-   attached to the element's own corners/top as it spins (see
-   VisionBoardElementView.tsx's own doc comment on why they're pointer-only
-   for this phase). Sized generously (18px) relative to their visual dot
-   (8px) so they stay easy to grab without needing to zoom in. */
+/* =========================================================
+   RESIZE HANDLES
+   ========================================================= */
+
 .resizeHandle {
   position: absolute;
+
   width: 18px;
   height: 18px;
+
   display: flex;
   align-items: center;
   justify-content: center;
+
   touch-action: none;
 }
 
-/* FASE 23: a small shadow gives the handle dot a "pin" feel, consistent
-   with the rest of the board's new depth language — cosmetic only, same
-   8px hit-target size Fase 20's own accessibility pass already reviewed. */
 .resizeHandle::after {
   content: '';
+
   width: 8px;
   height: 8px;
+
   border-radius: 50%;
+
   background: var(--vb-surface-variant);
+
   border: 2px solid var(--vb-selection);
-  box-shadow: 0 1px 3px color-mix(in srgb, var(--vb-text) 25%, transparent);
+
+  box-shadow:
+    0 1px 3px color-mix(
+      in srgb,
+      var(--vb-text) 25%,
+      transparent
+    ),
+    0 0 0 2px color-mix(
+      in srgb,
+      var(--vb-surface) 80%,
+      transparent
+    );
 }
 
 .resizeHandleE {
   top: 50%;
   right: -9px;
+
   transform: translateY(-50%);
+
   cursor: ew-resize;
 }
 
 .resizeHandleS {
   bottom: -9px;
   left: 50%;
+
   transform: translateX(-50%);
+
   cursor: ns-resize;
 }
 
 .resizeHandleSe {
   bottom: -9px;
   right: -9px;
+
   cursor: nwse-resize;
 }
 
+/* =========================================================
+   ROTATE HANDLE
+   ========================================================= */
+
 .rotateHandle {
   position: absolute;
+
   top: -26px;
   left: 50%;
+
   width: 18px;
   height: 18px;
+
   transform: translateX(-50%);
+
   display: flex;
   align-items: center;
   justify-content: center;
+
   cursor: grab;
+
   touch-action: none;
 }
 
 .rotateHandle::before {
-  /* The thin stem connecting the handle to the element's own top edge. */
   content: '';
+
   position: absolute;
+
   top: 18px;
+
   width: 1px;
   height: 8px;
+
   background: var(--vb-border);
 }
 
 .rotateHandle::after {
   content: '';
+
   width: 10px;
   height: 10px;
+
   border-radius: 50%;
+
   background: var(--vb-surface-variant);
+
   border: 2px solid var(--vb-selection);
-  box-shadow: 0 1px 3px color-mix(in srgb, var(--vb-text) 25%, transparent);
+
+  box-shadow:
+    0 1px 3px color-mix(
+      in srgb,
+      var(--vb-text) 25%,
+      transparent
+    ),
+    0 0 0 2px color-mix(
+      in srgb,
+      var(--vb-surface) 80%,
+      transparent
+    );
 }
 
-/* BLOQUE G (post-MVP): larger touch targets for the resize/rotate handles
-   on a coarse (touch) pointer — `pointer: coarse`, not viewport width, see
-   VisionBoardToolbar.module.css's own doc comment on the same media query
-   for why. The visual dot (::after) stays its original size on purpose —
-   only the invisible tappable box around it grows, so this doesn't make
-   the selected element look visually different, just easier to grab.
-   Offsets (`right`/`bottom`/`top`) are recomputed for the new size (still
-   exactly half, keeping the dot centered on the same edge/corner point). */
+/* =========================================================
+   TOUCH HANDLES
+   ========================================================= */
+
 @media (pointer: coarse) {
   .resizeHandle,
   .rotateHandle {
@@ -514,124 +819,216 @@
   }
 }
 
-/* FASE 17: always visible when locked (not gated on selection, unlike the
-   resize/rotate handles above) — a locked element must stay identifiable
-   at a glance, same "🔒 elemento bloqueado" idea from the spec. */
+/* =========================================================
+   LOCK BADGE
+   ========================================================= */
+
 .lockBadge {
   position: absolute;
+
   top: -7px;
   right: -7px;
-  width: 18px;
-  height: 18px;
+
+  width: 20px;
+  height: 20px;
+
   display: flex;
   align-items: center;
   justify-content: center;
+
   border-radius: 50%;
-  background: var(--vb-surface-variant);
+
+  background:
+    linear-gradient(
+      135deg,
+      var(--vb-surface-variant),
+      var(--vb-surface)
+    );
+
   border: 1.5px solid var(--vb-border);
+
   color: var(--vb-text-secondary);
+
   pointer-events: none;
+
+  box-shadow:
+    0 2px 5px color-mix(
+      in srgb,
+      var(--vb-text) 18%,
+      transparent
+    );
 }
+
+/* =========================================================
+   TEXT
+   ========================================================= */
 
 .elementText {
   padding: var(--space-2);
+
   font-size: 0.9375rem;
   line-height: 1.4;
+
   white-space: pre-wrap;
+
   word-break: break-word;
 }
 
-/* BLOQUE F (post-MVP): a strip of washi tape pinning the note down —
-   pure decoration (`::before` on `.element` itself, `pointer-events:
-   none`, no effect on drag/resize/rotate hit-testing or geometry), reads
-   as "physically stuck to the board" rather than "a rectangle with a
-   yellow fill." Off-center and tilted on purpose (`left: 32%`, `-4deg`) —
-   real tape is never placed dead-center — and tinted from the Board
-   Theme's own `--vb-accent` (semi-transparent, so it still looks like
-   translucent tape rather than a solid-color sticker) instead of a fixed
-   color, so it stays correct across all six themes without its own
-   per-theme token. Sits slightly above the note's own top edge, the same
-   "pinned down" position tape would occupy on a real corkboard note. */
+/* =========================================================
+   NOTE
+   ========================================================= */
+
 .element[data-type='NOTE']::before {
   content: '';
+
   position: absolute;
+
   top: -9px;
   left: 32%;
+
   width: 46px;
   height: 18px;
-  transform: translateX(-50%) rotate(-4deg);
-  background: color-mix(in srgb, var(--vb-accent) 45%, transparent);
-  border: 1px solid color-mix(in srgb, var(--vb-accent) 55%, transparent);
-  box-shadow: 0 1px 3px color-mix(in srgb, var(--vb-text) 18%, transparent);
+
+  transform:
+    translateX(-50%)
+    rotate(-4deg);
+
+  background:
+    color-mix(
+      in srgb,
+      var(--vb-accent) 45%,
+      transparent
+    );
+
+  border:
+    1px solid
+    color-mix(
+      in srgb,
+      var(--vb-accent) 55%,
+      transparent
+    );
+
+  box-shadow:
+    0 1px 3px color-mix(
+      in srgb,
+      var(--vb-text) 18%,
+      transparent
+    );
+
   pointer-events: none;
 }
 
 .elementNote {
   width: 100%;
   height: 100%;
+
   padding: var(--space-2);
+
   background: var(--vb-note-bg);
+
   font-size: 0.875rem;
   line-height: 1.4;
+
   white-space: pre-wrap;
+
   word-break: break-word;
 }
 
-/* FASE 6: real catalog sticker (Fluent Emoji SVG), same asset contract
-   already used by .stickerImage in core/ui/pickers/Pickers.module.css.
-   FASE 23: `filter: drop-shadow` (not `box-shadow`, which the transparent
-   `.element[data-type='STICKER']` container above deliberately has none
-   of) follows the sticker's own silhouette instead of drawing a rectangle
-   behind it — the "floating sticker peeled onto the board" feel. */
+/* =========================================================
+   STICKERS
+   ========================================================= */
+
 .elementStickerImage {
   width: 70%;
   height: 70%;
+
   object-fit: contain;
-  filter: drop-shadow(0 3px 6px color-mix(in srgb, var(--vb-text) 22%, transparent));
+
+  filter:
+    drop-shadow(
+      0 3px 6px
+      color-mix(
+        in srgb,
+        var(--vb-text) 22%,
+        transparent
+      )
+    );
 }
 
-/* BLOQUE D (post-MVP): the icon-badge look for both an emoji
-   (visionBoardEmojis.ts, always this) and an expanded-catalog sticker
-   (StickerOption entries without a real asset file) — same silhouette
-   drop-shadow the asset-based stickers get above, on the badge's own
-   circle instead of an image's transparent-background silhouette. */
 .elementStickerBadge {
   display: flex;
+
   align-items: center;
   justify-content: center;
+
   width: 70%;
   height: 70%;
+
   border-radius: 50%;
+
   color: #fff;
-  filter: drop-shadow(0 3px 6px color-mix(in srgb, var(--vb-text) 22%, transparent));
+
+  filter:
+    drop-shadow(
+      0 3px 6px
+      color-mix(
+        in srgb,
+        var(--vb-text) 22%,
+        transparent
+      )
+    );
 }
+
+/* =========================================================
+   IMAGES
+   ========================================================= */
 
 .elementImage {
   width: 100%;
   height: 100%;
+
   object-fit: cover;
 }
 
-/* 2026-08-23 (pedido explícito del usuario, catálogo estilo Canva):
-   "Marcos" — circle/hexagon se resuelven con `clip-path` inline (ver
-   ImageElementContent), estos 3 necesitan chrome propio que un clip-path
-   solo no puede dar. */
 .elementImageFrameRounded {
   border-radius: 24px;
 }
 
 .elementImageFrameFilm {
-  border-top: 9px dashed color-mix(in srgb, var(--vb-text) 55%, transparent);
-  border-bottom: 9px dashed color-mix(in srgb, var(--vb-text) 55%, transparent);
+  border-top:
+    9px dashed
+    color-mix(
+      in srgb,
+      var(--vb-text) 55%,
+      transparent
+    );
+
+  border-bottom:
+    9px dashed
+    color-mix(
+      in srgb,
+      var(--vb-text) 55%,
+      transparent
+    );
 }
 
 .elementImageFramePolaroid {
   display: flex;
+
   width: 100%;
   height: 100%;
+
   padding: 8px 8px 22px;
+
   background: #fff;
-  box-shadow: 0 3px 10px color-mix(in srgb, var(--vb-text) 25%, transparent);
+
+  box-shadow:
+    0 3px 10px
+    color-mix(
+      in srgb,
+      var(--vb-text) 25%,
+      transparent
+    );
 }
 
 .elementImageFramePolaroid .elementImage {
@@ -640,30 +1037,52 @@
 
 .elementPlaceholder {
   color: var(--vb-text-secondary);
+
   font-size: 0.8125rem;
 }
 
-/* BLOQUE B (post-MVP): a broken IMAGE element (upload deleted server-side,
-   external URL gone dead, or a network hiccup on fetch) — same editorial,
-   theme-tinted treatment every other element's depth already uses
-   (color-mix against --vb-text, FASE 23's own pattern), not a blank box or
-   a browser broken-image glyph. Fills the element's own box (same as a
-   loaded <img> would) so it reads correctly in the export render too —
-   see visionBoardExport.ts's own handling of this same "no src to draw"
-   case. */
+/* =========================================================
+   BROKEN IMAGE
+   ========================================================= */
+
 .elementImageBroken {
   display: flex;
+
   flex-direction: column;
+
   align-items: center;
   justify-content: center;
+
   gap: 6px;
+
   width: 100%;
   height: 100%;
-  background: color-mix(in srgb, var(--vb-text) 6%, var(--vb-surface));
-  border: 1px dashed color-mix(in srgb, var(--vb-text) 20%, transparent);
-  border-radius: 20px;;
+
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(
+        in srgb,
+        var(--vb-text) 6%,
+        var(--vb-surface)
+      ),
+      var(--vb-surface)
+    );
+
+  border:
+    1px dashed
+    color-mix(
+      in srgb,
+      var(--vb-text) 20%,
+      transparent
+    );
+
+  border-radius: 20px;
+
   color: var(--vb-text-secondary);
+
   text-align: center;
+
   padding: 8px;
 }
 
@@ -672,13 +1091,17 @@
   line-height: 1.2;
 }
 
-/* FASE 7 fix (Fase 6 pendiente): rectangle stays the default look; circle/
-   line are read from `data.shape` (see api.ts's shapeVariantOf). */
+/* =========================================================
+   SHAPES
+   ========================================================= */
+
 .elementShape {
   width: 100%;
   height: 100%;
+
   background: var(--vb-shape-bg);
-  border-radius: 20px;;
+
+  border-radius: 20px;
 }
 
 .elementShapeCircle {
@@ -689,138 +1112,201 @@
   border-radius: 999px;
 }
 
-/* BLOQUE C (post-MVP): every SHAPE variant beyond rectangle/circle/line/
-   capsule renders its visionBoardShapes.ts catalog path here — one shared
-   fill color (the same --vb-shape-bg the CSS-only variants already use),
-   `display: block` so the SVG's own inline default (inline-block, with a
-   few stray px of descender gap) never shows up as a mismatch against the
-   element's own box. */
-/* BLOQUE C (post-MVP): the inline SHAPE text editor overlay — positioned
-   exactly like the element it's editing (see VisionBoardShapeTextEditor's
-   own doc comment). A visible focus ring would be redundant here (it's
-   already the only interactive thing on screen the instant it mounts,
-   auto-focused) so this intentionally doesn't reuse `.element`'s own
-   focus-visible styling. */
+.elementShapeLine {
+  height: 4px;
+
+  align-self: center;
+
+  border-radius: 2px;
+}
+
+/* =========================================================
+   SHAPE TEXT EDITOR
+   ========================================================= */
+
 .shapeTextEditor {
   position: absolute;
+
   display: flex;
+
   align-items: center;
   justify-content: center;
+
   resize: none;
-  border: 2px solid var(--vb-primary, var(--color-primary));
-  border-radius: 20px;;
-  background: color-mix(in srgb, var(--vb-surface, var(--color-surface)) 92%, transparent);
-  color: var(--vb-text, var(--color-text));
+
+  border:
+    2px solid
+    var(--vb-primary, var(--color-primary));
+
+  border-radius: 20px;
+
+  background:
+    color-mix(
+      in srgb,
+      var(--vb-surface, var(--color-surface)) 92%,
+      transparent
+    );
+
+  color:
+    var(--vb-text, var(--color-text));
+
   font: inherit;
+
   font-size: 0.875rem;
+
   text-align: center;
+
   padding: 6px;
+
   outline: none;
 }
 
 .elementShapeSvg {
   display: block;
+
   width: 100%;
   height: 100%;
+
   fill: var(--vb-shape-bg);
 }
 
-/* BLOQUE C: wraps the shape's own fill (rect/circle/line span, or the SVG
-   path above) so the optional text overlay can sit centered on top of it
-   without affecting the shape's own sizing. */
 .elementShapeWrapper {
   position: relative;
+
   display: block;
+
   width: 100%;
   height: 100%;
 }
 
 .elementShapeText {
   position: absolute;
+
   inset: 0;
+
   display: flex;
+
   align-items: center;
   justify-content: center;
+
   padding: 8px;
+
   color: var(--vb-text);
+
   font-size: 0.8125rem;
   line-height: 1.2;
+
   text-align: center;
+
   overflow: hidden;
+
   word-break: break-word;
+
   pointer-events: none;
 }
 
-/* 2026-08-22 (pedido explícito del usuario, catálogo estilo Canva): TABLE —
-   solo lectura por ahora (ver TableElementContent's propio doc comment en
-   VisionBoardElementView.tsx). */
-/* Hallazgo real (Playwright, 2026-08-22): sin `min-width`/`min-height`
-   explícitos, un `<table>` como hijo directo de `.elementContent` (flex
-   container) hereda el `min-width: auto`/`min-height: auto` por defecto de
-   todo ítem flex — eso lo ancla al tamaño mínimo de su propio contenido
-   (el texto de los encabezados) sin importar el `width:100%`/`height:100%`
-   de aquí, así que un resize que intentara encogerlo no se veía reflejado.
-   `table-layout: fixed` además evita que el ancho de columnas dependa del
-   contenido una vez fijo el ancho total. */
+/* =========================================================
+   TABLE
+   ========================================================= */
+
 .elementTable {
   width: 100%;
   height: 100%;
+
   min-width: 0;
   min-height: 0;
+
   table-layout: fixed;
+
   border-collapse: collapse;
-  background: var(--vb-surface, var(--color-surface));
+
+  background:
+    var(--vb-surface, var(--color-surface));
+
   border-radius: 8px;
+
   overflow: hidden;
+
   font-size: 0.75rem;
 }
 
 .elementTable td {
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 
-.elementTable td {
-  border: 1px solid color-mix(in srgb, var(--vb-text) 18%, transparent);
+  text-overflow: ellipsis;
+
+  white-space: nowrap;
+
+  border:
+    1px solid
+    color-mix(
+      in srgb,
+      var(--vb-text) 18%,
+      transparent
+    );
+
   padding: 4px 8px;
+
   color: var(--vb-text);
+
   text-align: left;
+
   vertical-align: top;
 }
 
 .elementTable tr:first-child td {
-  background: color-mix(in srgb, var(--vb-primary, var(--color-primary)) 12%, transparent);
+  background:
+    color-mix(
+      in srgb,
+      var(--vb-primary, var(--color-primary)) 12%,
+      transparent
+    );
+
   font-weight: 600;
 }
 
-/* CHART — datos de ejemplo fijos, puramente decorativo por ahora (ver
-   visionBoardCharts.ts's propio doc comment sobre alcance). */
+/* =========================================================
+   CHART
+   ========================================================= */
+
 .elementChartWrapper {
   display: flex;
+
   align-items: center;
   justify-content: center;
+
   width: 100%;
   height: 100%;
+
   padding: 8px;
-  background: var(--vb-surface, var(--color-surface));
+
+  background:
+    var(--vb-surface, var(--color-surface));
+
   border-radius: 8px;
 }
 
 .elementChartSvg {
   display: block;
+
   width: 100%;
   height: 100%;
 }
 
-/* GRID — celdas de color decorativas por ahora (ver
-   visionBoardGrids.ts's propio doc comment sobre el alcance). */
+/* =========================================================
+   GRID
+   ========================================================= */
+
 .elementGrid {
   display: grid;
+
   gap: 4px;
+
   width: 100%;
   height: 100%;
+
   border-radius: 8px;
+
   overflow: hidden;
 }
 
@@ -829,74 +1315,104 @@
   min-height: 0;
 }
 
-.elementShapeLine {
-  height: 4px;
-  align-self: center;
-  border-radius: 2px;
-}
+/* =========================================================
+   EMPTY BOARD
+   ========================================================= */
 
-/* BLOQUE F (post-MVP): centered "empty board" hint — see
-   VisionBoardCanvas.tsx's own doc comment on why it's `pointer-events:
-   none` and `aria-hidden`. Sized/positioned in canvas-space (not scaled
-   with `.canvas`'s own zoom transform separately — it's a normal
-   absolutely-positioned child, so it scales and re-centers with the board
-   exactly like every real element already does at any zoom level). Kept
-   deliberately understated — `--vb-text-secondary`, no background/border
-   of its own — an onboarding hint, not another card competing with real
-   content for attention. */
 .canvasEmptyHint {
   position: absolute;
+
   inset: 0;
+
   display: flex;
+
   flex-direction: column;
+
   align-items: center;
   justify-content: center;
+
   gap: var(--space-2);
+
   padding: var(--space-6);
+
   color: var(--vb-text-secondary);
+
   text-align: center;
+
   pointer-events: none;
 }
 
 .canvasEmptyHintTitle {
   margin: 0;
+
   font-family: var(--font-serif, inherit);
-  font-size: 1.25rem;
+
+  font-size: 1.5rem;
+
   font-weight: 600;
+
+  letter-spacing: -0.02em;
+
   color: var(--vb-text);
 }
 
 .canvasEmptyHintSubtitle {
   margin: 0;
-  max-width: 360px;
+
+  max-width: 380px;
+
   font-size: 0.875rem;
+
   line-height: 1.5;
+
+  opacity: 0.8;
 }
 
-/* FASE 9: Smart Guides — absolutely positioned inside .canvas so they
-   inherit its own `transform: scale(zoom)` automatically, same as every
-   element. Never part of `elements`/the data model; purely visual, cleared
-   the instant a drag/resize gesture ends (VisionBoardCanvas.tsx). Sits
-   above elements (z-index below is per-element, always < 10000) but below
-   the resize/rotate handles' own hit targets aren't affected since guides
-   have no pointer handlers at all. */
+/* =========================================================
+   SMART GUIDES
+   ========================================================= */
+
 .guideLineVertical,
 .guideLineHorizontal {
   position: absolute;
+
   background: var(--vb-accent);
-  opacity: 0.6;
+
+  opacity: 0.72;
+
   pointer-events: none;
+
   z-index: 10000;
+
+  box-shadow:
+    0 0 5px
+    color-mix(
+      in srgb,
+      var(--vb-accent) 25%,
+      transparent
+    );
 }
 
 .guideLineVertical {
   top: 0;
   bottom: 0;
+
   width: 1px;
 }
 
 .guideLineHorizontal {
   left: 0;
   right: 0;
+
   height: 1px;
+}
+
+/* =========================================================
+   REDUCED MOTION
+   ========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+  .element {
+    transition: none;
+  }
 }

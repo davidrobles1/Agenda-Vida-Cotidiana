@@ -242,8 +242,10 @@ body.vc-theme-web .vc-card {
 /* Brand block (login.ftl/register.ftl's "vc-brand" div, nested inside the
    real <h1>) — matches LoginPage.module.css's .brand. */
 body.vc-theme-web .vc-brand {
-  display: block;
-  margin: 0 0 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0 0 45px;
   text-align: center;
 }
 

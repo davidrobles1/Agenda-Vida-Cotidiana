@@ -932,6 +932,134 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+  /objectives:
+    get:
+      summary: List own objectives (paginated) — ADR-016 Fase 3e1/FR-031, V4 candidato. Módulo Laboral.
+      security:
+        - keycloakBearer: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+      responses:
+        '200':
+          description: Paginated objective list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PageMeta'
+                  - type: object
+                    additionalProperties: true
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Objective'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      summary: Create an objective (caller becomes owner)
+      security:
+        - keycloakBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateObjectiveRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Objective'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /objectives/{id}:
+    get:
+      summary: Get an objective (owner only)
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Objective
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Objective'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      summary: >-
+        Update objective (owner only). Requires the current version for
+        optimistic locking. Marking it completed is done here — AC-018 defines
+        `completed` as an ordinary owner-set field, so there is no dedicated
+        /complete action (unlike Reminder, which has collaborator visibility
+        rules behind its own action).
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateObjectiveRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Objective'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Version conflict (optimistic locking)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      summary: Delete objective (owner only)
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /projects:
     get:
       summary: List own projects (paginated) — ADR-016/FR-022, V3. Módulo Laboral.
@@ -2156,6 +2284,88 @@ components:
         organization:
           type: string
           maxLength: 200
+        version:
+          type: integer
+          description: Optimistic locking version, incremented on every update.
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    CreateObjectiveRequest:
+      type: object
+      required: [title]
+      description: >-
+        ADR-016 Fase 3e1/FR-031. Módulo Laboral. `completed` is deliberately
+        absent — a new objective is always created pending (AC-018).
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        targetValue:
+          type: integer
+          minimum: 0
+          description: Meta numérica opcional (p. ej. 3 proyectos). Sin unidad ni semántica impuesta.
+        currentValue:
+          type: integer
+          minimum: 0
+          description: Progreso actual; ausente se almacena como 0. Actualizado manualmente por el usuario — nunca calculado (FR-031).
+        deadline:
+          type: string
+          format: date-time
+    UpdateObjectiveRequest:
+      type: object
+      description: Partial update. version is required to detect concurrent modifications (optimistic locking).
+      required: [version]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        targetValue:
+          type: integer
+          minimum: 0
+        currentValue:
+          type: integer
+          minimum: 0
+        deadline:
+          type: string
+          format: date-time
+        completed:
+          type: boolean
+          description: Marcado explícitamente por el dueño — nunca derivado de currentValue/targetValue (AC-018).
+        version:
+          type: integer
+          description: Expected current version of the objective; a mismatch returns 409.
+    Objective:
+      type: object
+      required: [id, title, currentValue, completed, version]
+      description: >-
+        ADR-016 Fase 3e1/FR-031. Owner-only entity — no sharing/collaborator
+        concept. Standalone in this increment: no link to Project/Person
+        (explicitly out of scope in FR-031).
+      properties:
+        id:
+          type: string
+          format: uuid
+        ownerUserId:
+          type: string
+          format: uuid
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        targetValue:
+          type: integer
+        currentValue:
+          type: integer
+        deadline:
+          type: string
+          format: date-time
+        completed:
+          type: boolean
         version:
           type: integer
           description: Optimistic locking version, incremented on every update.

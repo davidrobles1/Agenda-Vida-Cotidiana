@@ -110,6 +110,17 @@ export function IconInbox(props: IconProps) {
   )
 }
 
+/** ADR-016 Fase 3e1 (Módulo Laboral) — Objetivos (FR-031). Diana concéntrica, sin precedente en el set existente. */
+export function IconTarget(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <circle cx="12" cy="12" r="8.5" />
+      <circle cx="12" cy="12" r="4.5" />
+      <circle cx="12" cy="12" r="1" />
+    </svg>
+  )
+}
+
 export function IconUsers(props: IconProps) {
   return (
     <svg {...base(props)}>
