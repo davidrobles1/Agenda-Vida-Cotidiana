@@ -21,7 +21,9 @@
 
 .item {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  /* Cuarta columna: el botón de "atendida" (2026-08-29). `.link` usa
+     `display: contents`, así que sus tres hijos ocupan las tres primeras. */
+  grid-template-columns: auto 1fr auto auto;
   align-items: center;
   gap: 10px;
 
@@ -210,4 +212,55 @@
 :global(.theme-organic) .item {
   border-radius: 18px;
   border-left-width: 6px;
+}
+
+
+/* =====================================================
+   ESTADO DE ATENCIÓN (petición 2.3)
+
+   Atendida no se oculta ni se tacha: sigue siendo información de la fecha.
+   Baja de intensidad, que es como se lee "esto ya lo vi" sin perderlo.
+   ===================================================== */
+
+.state {
+  font-weight: 600;
+}
+
+.item[data-attended='true'] {
+  opacity: 0.62;
+}
+
+.item[data-attended='true'] .title {
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
+.attendButton {
+  flex: none;
+
+  display: grid;
+  place-items: center;
+
+  width: 26px;
+  height: 26px;
+  min-height: 0;
+  padding: 0;
+
+  border: 1px solid color-mix(in srgb, var(--color-border) 40%, transparent);
+  border-radius: 999px;
+
+  background: transparent;
+  color: var(--color-text-secondary);
+
+  cursor: pointer;
+}
+
+.attendButton:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.item[data-attended='true'] .attendButton {
+  border-color: color-mix(in srgb, var(--color-success, #4d6b46) 45%, transparent);
+  color: var(--color-success, #4d6b46);
 }

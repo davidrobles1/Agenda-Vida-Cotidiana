@@ -4,6 +4,24 @@ import { consumeJustRegistered, consumePostLoginPath, handleCallback } from '../
 import { getCurrentUser } from '../../core/user/api'
 import { resolveModeState } from '../../core/user/modes'
 
+/**
+ * Destino tras iniciar sesión (2026-08-29, pedido explícito del usuario).
+ *
+ * Sustituye a la regla de ADR-015(d)/FR-015, que mandaba siempre al
+ * Calendario general. Ahora se entra por la pantalla de inicio del módulo
+ * que el usuario tenga activo, y Personal tiene prioridad cuando los dos lo
+ * están. Es coherente con el cambio del selector de módulos del AppShell,
+ * que ya lleva a Inicio y a Hoy en vez de a los calendarios.
+ *
+ * Sin ningún modo activo el usuario no puede usar la app (FR-014), así que
+ * ahí sigue yendo a onboarding.
+ */
+function landingPathFor(state: { personalEnabled: boolean; laboralEnabled: boolean }): string {
+  if (state.personalEnabled) return '/personal/home'
+  if (state.laboralEnabled) return '/laboral/hoy'
+  return '/onboarding'
+}
+
 export function CallbackPage() {
   const navigate = useNavigate()
   const [error, setError] = useState<string | null>(null)
@@ -18,15 +36,13 @@ export function CallbackPage() {
 
     handleCallback()
       .then(async () => {
-        // ADR-015(d)/FR-015: post-login lands on Calendario, not Home/Tareas
-        // (supersedes the previous design-system.md §7 landing note — see
-        // ADR-015's own text on that). A registration that just happened
-        // (register()'s `vc_just_registered` flag, see authClient.ts) always
-        // goes to onboarding first — FR-014 requires picking at least one
-        // mode before the app is otherwise usable. An ordinary login checks
-        // the real GET /me modes (with modes.ts's documented fallback for
-        // while the backend doesn't return them yet) and only detours to
-        // onboarding if the account genuinely has neither mode enabled.
+        // El destino tras el login lo decide `landingPathFor` (ver su
+        // comentario). Un registro recién hecho (la marca
+        // `vc_just_registered` de register(), en authClient.ts) siempre pasa
+        // primero por onboarding: FR-014 exige elegir al menos un modo antes
+        // de poder usar la app. Un login normal consulta los modos reales de
+        // GET /me (con el respaldo documentado en modes.ts para mientras el
+        // backend no los devuelva).
         if (consumeJustRegistered()) {
           navigate('/onboarding', { replace: true })
           return
@@ -43,11 +59,13 @@ export function CallbackPage() {
         try {
           const user = await getCurrentUser()
           const state = resolveModeState(user)
-          navigate(state.personalEnabled || state.laboralEnabled ? '/calendar' : '/onboarding', { replace: true })
+          navigate(landingPathFor(state), { replace: true })
         } catch {
-          // Fail open to Calendario rather than trap the user on /callback —
-          // same posture as AppShell's own greeting-name fetch.
-          navigate('/calendar', { replace: true })
+          // Fail open en vez de dejar al usuario atrapado en /callback —
+          // misma postura que la carga del nombre en AppShell. Se elige
+          // Personal/Inicio porque `resolveModeState` también trata Personal
+          // como activo por omisión cuando el backend no informa modos.
+          navigate('/personal/home', { replace: true })
         }
       })
       .catch((e) => {

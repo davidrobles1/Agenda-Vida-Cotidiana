@@ -976,3 +976,57 @@
     transition: none;
   }
 }
+
+/* =====================================================
+   TAMAÑO DE TEXTO (editor de elementos, 2026-08-29)
+
+   Dos pasos y un número, al estilo de un procesador de texto — el usuario
+   pidió "similar a Word", donde el gesto es dar pasos discretos.
+   ===================================================== */
+
+.fontSizeRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fontSizeButton {
+  flex: none;
+
+  display: grid;
+  place-items: center;
+
+  width: 34px;
+  height: 34px;
+  min-height: 0;
+  padding: 0;
+
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+
+  background: var(--color-surface);
+  color: var(--color-text);
+
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.fontSizeButton:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.fontSizeButton:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.fontSizeInput {
+  width: 72px;
+  min-height: 34px;
+  padding: 4px 8px;
+
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}

@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AppShell } from '../../core/ui/layout/AppShell'
 import { useActiveMode, useModePath } from '../../core/user/ActiveModeContext'
@@ -21,6 +22,7 @@ import { homeActivities, homeUpcomingEventsCount, type MockActivityKind } from '
 import { useHomeData } from './useHomeData'
 import { AlertList } from '../calendar/alerts/AlertList'
 import { useDateAlerts } from '../calendar/alerts/useDateAlerts'
+import { groupAlertsByDay } from '../calendar/alerts/dateAlerts'
 import styles from './HomePage.module.css'
 
 const ACTIVITY_ICON: Record<MockActivityKind, typeof IconTasks> = {
@@ -73,6 +75,9 @@ export function HomePage() {
   // ADR-019: Inicio vive tanto en /personal como en /laboral; las alertas se
   // acotan al módulo en el que está el usuario.
   const { alerts } = useDateAlerts(30, activeMode)
+  // Misma agrupación por día que usa el Calendario, para que la semana de
+  // Inicio y la del Calendario muestren lo mismo (petición 2.2).
+  const alertsByDay = useMemo(() => groupAlertsByDay(alerts), [alerts])
 
   return (
     <AppShell
@@ -318,7 +323,7 @@ export function HomePage() {
               </div>
             </div>
 
-            <WeekAgendaWidget thisWeek={state.thisWeek} />
+            <WeekAgendaWidget thisWeek={state.thisWeek} alertsByDay={alertsByDay} />
           </div>
 
           {/* =====================================================

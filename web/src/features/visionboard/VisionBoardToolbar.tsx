@@ -54,6 +54,8 @@ interface VisionBoardToolbarProps {
   themeSaving: boolean
   onThemeChange: (theme: VisionBoardThemeId) => void
   onCreate: (input: CreateVisionBoardElementInput) => void
+  /** Petición 1.2: varias fotos a la vez — ver VisionBoardElementLibrary. */
+  onCreateManyImages?: (files: File[]) => void
   selectedElements: VisionBoardElement[]
   selectedElementSaving: boolean
   onSaveElement: (data: Record<string, unknown>) => Promise<void>
@@ -99,6 +101,7 @@ export function VisionBoardToolbar({
   themeSaving,
   onThemeChange,
   onCreate,
+  onCreateManyImages,
   selectedElements,
   selectedElementSaving,
   onSaveElement,
@@ -271,6 +274,7 @@ export function VisionBoardToolbar({
 
       <VisionBoardElementLibrary
         onCreate={onCreate}
+        onCreateManyImages={onCreateManyImages}
         isOpen={elementLibraryOpen}
         onOpenChange={onElementLibraryOpenChange}
       />

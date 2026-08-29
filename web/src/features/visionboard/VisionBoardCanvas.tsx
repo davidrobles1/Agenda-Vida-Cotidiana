@@ -24,6 +24,7 @@ import { MIN_SIZE, VisionBoardElementView } from './VisionBoardElementView'
 import { fitImageElementSize, loadImageNaturalSize } from './visionBoardImages'
 import { VisionBoardToolbar } from './VisionBoardToolbar'
 import { fitTemplateToSize, type VisionBoardTemplate } from './visionBoardTemplates'
+import { estimateTextHeight, fontSizeOf } from './visionBoardFonts'
 import { visionBoardThemeStyleVars } from './visionBoardThemes'
 import styles from './VisionBoardCanvas.module.css'
 
@@ -1453,11 +1454,17 @@ export function VisionBoardCanvas({
    * once the real POST response comes back. Selecting it immediately after
    * lets Fase 4/5's drag/resize/rotate apply to it right away, as asked.
    */
-  async function handleCreateElement(input: CreateVisionBoardElementInput) {
+  /** `zIndex` explícito solo lo usa el alta de varias imágenes: todos los
+      elementos nacen compartiendo zIndex, así que sin él una imagen nueva
+      podría quedar por debajo de las que ya estaban (petición 1.2). */
+  async function handleCreateElement(input: CreateVisionBoardElementInput, zIndex?: number) {
     setDragError(null)
     try {
       await trackSaveStatus(async () => {
-        const created = await createVisionBoardElement(board.id, input)
+        const created =
+          zIndex === undefined
+            ? await createVisionBoardElement(board.id, input)
+            : await createWithOverrides(input, 0, zIndex)
         setElements((current) => [...current, created])
         setSelectedIds([created.id])
         pushHistory({ type: 'create', elementId: created.id, input })
@@ -1486,6 +1493,66 @@ export function VisionBoardCanvas({
       selection behavior as clicking "Agregar" in the Elementos popover),
       just centered on a real screen point instead of the fixed
       DEFAULT_POSITION every popover-driven creation uses. */
+  /**
+   * 2026-08-29 (petición 1.2): "permitir agregar o arrastrar varias fotos
+   * simultáneamente. Las imágenes no deben quedar superpuestas. Las nuevas
+   * deben quedar visibles/al frente."
+   *
+   * Se suben en serie, no con `Promise.all`: cada una necesita saber dónde
+   * quedaron las anteriores para no encimarse, y el orden de creación es
+   * además el que decide el orden de pintado.
+   */
+  async function uploadAndPlaceImages(files: File[], screenPoint: { x: number; y: number }) {
+    const accepted = files.filter((file) => PASTEABLE_IMAGE_TYPES.has(file.type))
+    if (accepted.length === 0) return
+    setDragError(null)
+
+    const canvasPoint = screenToCanvasPoint(screenPoint.x, screenPoint.y)
+    // Al frente: todos los elementos comparten zIndex al crearse, así que
+    // sin un valor explícito una imagen nueva podría quedar por debajo.
+    let zIndex = elementsRef.current.length > 0
+      ? Math.max(...elementsRef.current.map((el) => el.zIndex)) + 1
+      : 0
+
+    // Rejilla de colocación: cada imagen se coloca a la derecha de la
+    // anterior y baja de fila al pasarse del ancho del tablero. El paso lo
+    // marca la imagen más ancha/alta de la fila, así que dos fotos nunca
+    // comparten sitio.
+    const GAP = 16
+    let cursorX = canvasPoint.x
+    let cursorY = canvasPoint.y
+    let rowHeight = 0
+
+    for (const file of accepted) {
+      try {
+        const uploaded = await uploadVisionBoardImage(file)
+        const objectUrl = URL.createObjectURL(file)
+        const natural = await loadImageNaturalSize(objectUrl)
+        URL.revokeObjectURL(objectUrl)
+        const size = natural ? fitImageElementSize(natural) : undefined
+        const width = size?.width ?? 220
+        const height = size?.height ?? 220
+
+        if (cursorX + width > board.width) {
+          cursorX = canvasPoint.x
+          cursorY += rowHeight + GAP
+          rowHeight = 0
+        }
+
+        await handleCreateElement(
+          { type: 'IMAGE', x: cursorX, y: cursorY, width, height, data: { imageId: uploaded.id } },
+          zIndex,
+        )
+
+        cursorX += width + GAP
+        rowHeight = Math.max(rowHeight, height)
+        zIndex += 1
+      } catch (e) {
+        setDragError(e instanceof Error ? e.message : 'No se pudo subir la imagen.')
+      }
+    }
+  }
+
   async function uploadAndPlaceImage(file: File, screenPoint: { x: number; y: number }) {
     if (!PASTEABLE_IMAGE_TYPES.has(file.type)) return
     setDragError(null)
@@ -1549,9 +1616,29 @@ export function VisionBoardCanvas({
     // puede editarse" holds even if something else ever calls this.
     if (!element || element.locked) return
     const beforeData = element.data
-    const errorMessage = await persistElementChange(elementId, { data }, { data: beforeData })
+
+    // 2026-08-29 (petición 1.4): "el contenedor debe adaptarse al contenido
+    // para que nunca se oculte parte del texto". El alto se recalcula al
+    // guardar —cambiar el texto, la caligrafía o el tamaño puede necesitar
+    // más renglones— y SOLO crece: encogerlo automáticamente pelearía con
+    // el alto que el usuario haya fijado a mano arrastrando el manejador.
+    const patch: { data: Record<string, unknown>; height?: number } = { data }
+    const before: { data: Record<string, unknown>; height?: number } = { data: beforeData }
+    if (element.type === 'TEXT') {
+      const needed = estimateTextHeight(
+        typeof data.text === 'string' ? data.text : '',
+        element.width,
+        fontSizeOf(data.fontSize),
+      )
+      if (needed > element.height) {
+        patch.height = needed
+        before.height = element.height
+      }
+    }
+
+    const errorMessage = await persistElementChange(elementId, patch, before)
     if (errorMessage) throw new Error(errorMessage)
-    pushHistory({ type: 'edit', elementId, before: { data: beforeData }, after: { data } })
+    pushHistory({ type: 'edit', elementId, before, after: patch })
   }
 
   /** BLOQUE C (post-MVP): double-click or Enter (see the keydown handler
@@ -1996,6 +2083,16 @@ export function VisionBoardCanvas({
         saveStatus={saveStatus}
         onRetrySave={retryPendingAutosaves}
         onCreate={handleCreateElement}
+        onCreateManyImages={(files) => {
+          // Sin punto de origen (no vienen de un arrastre): se colocan
+          // desde el último punto conocido del puntero, o desde el centro
+          // de la ventana si aún no se ha movido dentro del lienzo.
+          const point = lastPointerScreenPos.current ?? {
+            x: window.innerWidth / 2,
+            y: window.innerHeight / 2,
+          }
+          void uploadAndPlaceImages(files, point)
+        }}
         selectedElements={selectedElements}
         selectedElementSaving={selectedIds.length === 1 && selectedIds[0] === savingElementId}
         onSaveElement={handleEditElement}
@@ -2082,10 +2179,11 @@ export function VisionBoardCanvas({
               if (event.dataTransfer.types.includes('Files')) event.preventDefault()
             }}
             onDrop={(event) => {
-              const dropped = event.dataTransfer.files[0]
-              if (!dropped) return
+              // Antes: `files[0]`. Soltar 5 fotos agregaba 1 y descartaba 4.
+              const dropped = Array.from(event.dataTransfer.files)
+              if (dropped.length === 0) return
               event.preventDefault()
-              void uploadAndPlaceImage(dropped, { x: event.clientX, y: event.clientY })
+              void uploadAndPlaceImages(dropped, { x: event.clientX, y: event.clientY })
             }}
             onContextMenu={handleCanvasContextMenu}
           >

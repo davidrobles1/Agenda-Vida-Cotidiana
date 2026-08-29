@@ -9,6 +9,7 @@ import { buildChart, CHART_TYPE_OPTIONS } from './visionBoardCharts'
 import { frameStyleOf } from './visionBoardFrames'
 import { GRID_CELL_COLORS, gridLayoutOf } from './visionBoardGrids'
 import { shapeDefOf } from './visionBoardShapes'
+import { fontSizeOf, fontStackOf } from './visionBoardFonts'
 import styles from './VisionBoardCanvas.module.css'
 
 /** FASE 5: smallest size a resize is allowed to shrink an element to.
@@ -385,7 +386,25 @@ function VisionBoardElementViewImpl({
       } else if (resize.axis === 's') {
         width = Math.max(MIN_SIZE, height * aspect)
       } else {
-        const scale = Math.max(width / resize.startWidth, height / resize.startHeight)
+        // Pedido explícito del usuario (2026-08-29): "al arrastrar una
+        // esquina se reduce... debe permitir ampliar/reducir
+        // correctamente".
+        //
+        // Antes: `Math.max(width / startWidth, height / startHeight)`. Ese
+        // máximo hace que el gesto siga SIEMPRE al eje que más creció, así
+        // que arrastrar la esquina hacia dentro por un solo eje (dx<0 con
+        // dy≈0, o al revés) daba una razón ≥ 1 y el elemento no se
+        // encogía; y con proporciones muy alargadas, un movimiento
+        // diagonal saltaba de golpe al eje dominante en vez de seguir al
+        // puntero.
+        //
+        // Ahora el desplazamiento se PROYECTA sobre la diagonal del
+        // elemento: es la medida de cuánto avanzó el puntero en la
+        // dirección en la que crece la caja. Crece y encoge de forma
+        // simétrica, sigue al cursor y conserva la proporción.
+        const diagonal = Math.hypot(resize.startWidth, resize.startHeight)
+        const advance = (dx * resize.startWidth + dy * resize.startHeight) / diagonal
+        const scale = Math.max(MIN_SIZE / diagonal, (diagonal + advance) / diagonal)
         width = Math.max(MIN_SIZE, resize.startWidth * scale)
         height = Math.max(MIN_SIZE, resize.startHeight * scale)
       }
@@ -585,7 +604,19 @@ function ElementContent({ element }: { element: VisionBoardElement }) {
 
   switch (element.type) {
     case 'TEXT':
-      return <span className={styles.elementText}>{text ?? 'Texto'}</span>
+      return (
+        <span
+          className={styles.elementText}
+          style={{
+            // 2026-08-29: caligrafía y tamaño elegidos por el usuario. Sin
+            // `data.font`/`data.fontSize` se ven exactamente como antes.
+            fontFamily: fontStackOf(element.data.font),
+            fontSize: fontSizeOf(element.data.fontSize),
+          }}
+        >
+          {text ?? 'Texto'}
+        </span>
+      )
     case 'NOTE':
       return <span className={styles.elementNote}>{text ?? 'Nota'}</span>
     case 'STICKER': {

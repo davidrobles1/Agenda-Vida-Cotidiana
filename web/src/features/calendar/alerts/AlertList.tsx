@@ -1,5 +1,11 @@
+import { useSyncExternalStore } from 'react'
 import { Link } from 'react-router-dom'
-import { AlertTriangle, CalendarClock, CreditCard, ShieldCheck, Wrench } from 'lucide-react'
+import { AlertTriangle, CalendarClock, Check, CreditCard, RotateCcw, ShieldCheck, Wrench } from 'lucide-react'
+import {
+  getAttendedAlerts,
+  setAlertAttended,
+  subscribeAttendedAlerts,
+} from './attendedAlerts'
 import {
   SEVERITY_LABELS,
   SOURCE_LABELS,
@@ -42,6 +48,10 @@ function formatDate(dateKey: string): string {
 }
 
 export function AlertList({ alerts, showDate = false, emptyLabel, limit }: AlertListProps) {
+  // 2026-08-29 (petición 2.3): estado de atención de cada alerta. Vive en el
+  // navegador — ver `attendedAlerts.ts` para el porqué y su limitación.
+  const attended = useSyncExternalStore(subscribeAttendedAlerts, getAttendedAlerts)
+
   const visible = typeof limit === 'number' ? alerts.slice(0, limit) : alerts
 
   if (visible.length === 0) {
@@ -53,12 +63,19 @@ export function AlertList({ alerts, showDate = false, emptyLabel, limit }: Alert
       {visible.map((alert) => {
         const Icon = SOURCE_ICONS[alert.source] ?? CalendarClock
 
+        const isAttended = attended.has(alert.id)
+
         return (
-          <li key={alert.id} className={styles.item} data-severity={alert.severity}>
+          <li
+            key={alert.id}
+            className={styles.item}
+            data-severity={alert.severity}
+            data-attended={isAttended ? 'true' : undefined}
+          >
             <Link
               to={alert.href}
               className={styles.link}
-              aria-label={`${SOURCE_LABELS[alert.source]}: ${alert.sourceLabel} — ${alert.message}. Alerta ${SEVERITY_LABELS[alert.severity].toLowerCase()}`}
+              aria-label={`${SOURCE_LABELS[alert.source]}: ${alert.sourceLabel} — ${alert.message}. Alerta ${SEVERITY_LABELS[alert.severity].toLowerCase()}, ${isAttended ? 'atendida' : 'pendiente'}`}
             >
               <span className={styles.icon} aria-hidden="true">
                 {alert.severity === 'high' ? (
@@ -74,6 +91,8 @@ export function AlertList({ alerts, showDate = false, emptyLabel, limit }: Alert
                   {SOURCE_LABELS[alert.source]}
                   <span className={styles.metaSeparator}> · </span>
                   {alert.message}
+                  <span className={styles.metaSeparator}> · </span>
+                  <span className={styles.state}>{isAttended ? 'Atendida' : 'Pendiente'}</span>
                   {showDate && (
                     <>
                       <span className={styles.metaSeparator}> · </span>
@@ -85,6 +104,21 @@ export function AlertList({ alerts, showDate = false, emptyLabel, limit }: Alert
 
               <span className={styles.badge}>{SEVERITY_LABELS[alert.severity]}</span>
             </Link>
+
+            {/* Fuera del <Link>: marcar como atendida no debe navegar. */}
+            <button
+              type="button"
+              className={styles.attendButton}
+              aria-label={
+                isAttended
+                  ? `Marcar "${alert.sourceLabel}" como pendiente otra vez`
+                  : `Marcar "${alert.sourceLabel}" como atendida`
+              }
+              aria-pressed={isAttended}
+              onClick={() => setAlertAttended(alert.id, !isAttended)}
+            >
+              {isAttended ? <RotateCcw width={13} height={13} /> : <Check width={13} height={13} />}
+            </button>
           </li>
         )
       })}

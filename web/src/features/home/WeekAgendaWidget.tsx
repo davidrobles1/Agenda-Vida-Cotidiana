@@ -1,10 +1,19 @@
 import { useState } from 'react'
 import type { Reminder } from '../reminders/api'
+import type { DateAlert } from '../calendar/alerts/dateAlerts'
 import { IconCheckCircle } from '../../core/ui/icons'
 import styles from './WeekAgendaWidget.module.css'
 
 interface WeekAgendaWidgetProps {
   thisWeek: Reminder[]
+  /**
+   * 2026-08-29 (petición 2.2): "aplicar la misma consistencia a la vista
+   * Semanal de Inicio". Este widget solo mostraba recordatorios, así que una
+   * garantía o una suscripción que vencía esa semana se veía en el
+   * Calendario y aquí no. Agrupadas por día (`YYYY-MM-DD`), igual que en
+   * `useCalendarData.alertsByDay`.
+   */
+  alertsByDay?: Record<string, DateAlert[]>
 }
 
 const WEEKDAY_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
@@ -55,8 +64,15 @@ function getVisibleDotCount(count: number): number {
   return Math.min(count, 3)
 }
 
+function dateKeyOf(date: Date): string {
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${date.getFullYear()}-${month}-${day}`
+}
+
 export function WeekAgendaWidget({
   thisWeek,
+  alertsByDay = {},
 }: WeekAgendaWidgetProps) {
   const today = new Date()
   const monday = mondayOf(today)
@@ -76,7 +92,8 @@ export function WeekAgendaWidget({
       monday.getDate() + index,
     )
 
-    const count = getActivityCountForDay(thisWeek, date)
+    const count =
+      getActivityCountForDay(thisWeek, date) + (alertsByDay[dateKeyOf(date)]?.length ?? 0)
 
     return {
       date,
@@ -104,6 +121,8 @@ export function WeekAgendaWidget({
   const selectedDayInfo = weekDays.find((day) =>
     isSameDay(day.date, selectedDate),
   )
+
+  const selectedDayAlerts = alertsByDay[dateKeyOf(selectedDate)] ?? []
 
   return (
     <div className={styles.widget}>
@@ -183,7 +202,7 @@ export function WeekAgendaWidget({
           </span>
         </header>
 
-        {selectedDayReminders.length === 0 ? (
+        {selectedDayReminders.length === 0 && selectedDayAlerts.length === 0 ? (
           <div className={styles.emptyHint}>
             <IconCheckCircle
               width={18}
@@ -203,6 +222,20 @@ export function WeekAgendaWidget({
                 >
                   {reminder.title}
                 </span>
+                {/* Petición 2.3: el estado, en texto. */}
+                <span className={styles.listItemState}>
+                  {reminder.status === 'COMPLETED' ? 'Terminada' : 'Pendiente'}
+                </span>
+              </li>
+            ))}
+
+            {selectedDayAlerts.map((alert) => (
+              <li key={alert.id} className={styles.listItem} data-alert="true">
+                <span className={styles.itemMarker} aria-hidden="true" />
+                <span className={styles.listItemTitle} title={alert.sourceLabel}>
+                  {alert.sourceLabel}
+                </span>
+                <span className={styles.listItemState}>{alert.message}</span>
               </li>
             ))}
           </ul>

@@ -235,3 +235,24 @@
     padding: 6px 1px;
   }
 }
+/* =====================================================
+   ESTADO Y ALERTAS (2026-08-29, peticiones 2.2 y 2.3)
+   ===================================================== */
+
+.listItemState {
+  flex: none;
+  margin-left: auto;
+
+  color: var(--color-text-secondary);
+
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* Una alerta no es una tarea: se distingue por su marca, no por el texto. */
+.listItem[data-alert='true'] .itemMarker {
+  background: var(--color-terracotta);
+}

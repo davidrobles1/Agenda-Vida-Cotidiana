@@ -233,6 +233,21 @@ export function CalendarPage() {
         ? 'week'
         : 'month'
 
+  /**
+   * 2026-08-29 (petición 2.1): "en las vistas Mensual y Semanal, al
+   * seleccionar un día, abrir la vista Día correspondiente".
+   *
+   * Antes seleccionar un día solo movía `selectedDateKey` y la vista se
+   * quedaba donde estaba, así que había que cambiar de pestaña a mano para
+   * ver el detalle. Ahora hace las dos cosas: fija la fecha y cambia de
+   * vista, en ese orden, para que la vista Día ya se monte sobre el día
+   * elegido y no sobre el anterior.
+   */
+  function openDayView(dateKey: string) {
+    setSelectedDateKey(dateKey)
+    setRangeSelection(new Set(['day']))
+  }
+
   const [
     draggedReminderId,
     setDraggedReminderId,
@@ -283,12 +298,18 @@ export function CalendarPage() {
             return
           }
 
+          // 2026-08-29 (petición 2.3): el estado también en el texto del
+          // marcador. El tono ya distinguía completada/vencida por color,
+          // pero el color solo no dice "terminada" — y en la vista mensual
+          // el marcador es todo lo que se ve del registro.
+          const state = reminder.status === 'COMPLETED' ? 'Terminada' : 'Pendiente'
+
           add(
             isoDateKey(dueAt),
             reminderTone(
               reminder,
             ),
-            reminder.title,
+            `${reminder.title} — ${state}`,
             activeMode
               ? undefined
               : reminderContextColor(
@@ -529,7 +550,7 @@ export function CalendarPage() {
                   selectedDateKey
                 }
                 onSelectDate={
-                  setSelectedDateKey
+                  openDayView
                 }
                 focusedDate={focusedMonthDate}
                 onFocusedDateChange={setFocusedMonthDate}
@@ -648,15 +669,16 @@ export function CalendarPage() {
                     onOpenReminder={(reminder) =>
                       setActiveReminderId(reminder.id)
                     }
+                    alerts={
+                      state.alertsByDay[day] ?? []
+                    }
                     compact
                     selected={
                       day ===
                       selectedDateKey
                     }
                     onSelect={() =>
-                      setSelectedDateKey(
-                        day,
-                      )
+                      openDayView(day)
                     }
                   />
                 ),
@@ -788,11 +810,7 @@ export function CalendarPage() {
                   )}
                 </span>
               </div>
-
-              <div className={styles.daySheetAgenda}>
-                <div className={styles.daySheetColLabel}>Agenda</div>
-
-                {/* ADR-018: seguimiento de fechas próximas, NO tareas. Va
+                  {/* ADR-018: seguimiento de fechas próximas, NO tareas. Va
                     encima de la agenda y con su propio rótulo para que se
                     lea como otra cosa distinta a las actividades del día. */}
                 {dayAlerts.length > 0 && (
@@ -801,6 +819,8 @@ export function CalendarPage() {
                     <AlertList alerts={dayAlerts} />
                   </div>
                 )}
+              <div className={styles.daySheetAgenda}>
+                <div className={styles.daySheetColLabel}>Agenda</div>
 
                 <DayAgenda
                   hideHeader

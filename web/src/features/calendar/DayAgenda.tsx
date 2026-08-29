@@ -1,5 +1,6 @@
 import { useState, type DragEvent } from 'react'
 
+import type { DateAlert } from './alerts/dateAlerts'
 import type { Warranty } from '../warranties/api'
 import type { MaintenanceRecord } from '../maintenance/api'
 import type { Reminder } from '../reminders/api'
@@ -60,6 +61,14 @@ interface DayAgendaProps {
 
   onSelect?: () => void
 
+  /**
+   * 2026-08-29 (petición 2.2): las alertas de fecha del día. La vista
+   * mensual ya las pintaba (markersByDay) y la diaria también, pero la
+   * semanal no: el mismo registro aparecía en dos vistas y en la tercera
+   * no. Ahora las tres leen la misma fuente.
+   */
+  alerts?: DateAlert[]
+
   /** "Notas en el margen" (2026-08-23): en la vista diaria la cabecera con
       la fecha se dibuja FUERA, cruzando la agenda y las notas, para que
       ambas se lean como una sola hoja. Solo la vista diaria lo activa; la
@@ -72,6 +81,7 @@ export function DayAgenda({
   reminders,
   warranties = [],
   maintenanceRecords = [],
+  alerts = [],
   draggedReminderId,
   dragOverSlot,
   onDragStart,
@@ -120,28 +130,19 @@ export function DayAgenda({
       },
     )
 
-  const dayWarranties =
-    warranties.filter(
-      (warranty) =>
-        warranty.expiresAt ===
-          dateKey &&
-        warranty.status !==
-          'COMPLETADO',
-    )
+  // Garantías y mantenimientos ya no se filtran aquí: desde ADR-018 llegan
+  // como alertas derivadas (`alerts`), que es lo que se pinta y se cuenta.
+  // Las props se conservan para no cambiar el contrato de quien ya las pasa.
+  void warranties
+  void maintenanceRecords
 
-  const dayMaintenance =
-    maintenanceRecords.filter(
-      (record) =>
-        record.nextDueAt ===
-          dateKey &&
-        record.status !==
-          'COMPLETADO',
-    )
-
-  const dayItemsCount =
-    dayReminders.length +
-    dayWarranties.length +
-    dayMaintenance.length
+  /**
+   * 2026-08-29 (petición 2.2): antes sumaba garantías y mantenimientos del
+   * día, que desde ADR-018 ya no se dibujan como tales sino como ALERTAS —
+   * así que el número no correspondía con lo que la columna mostraba. Ahora
+   * cuenta exactamente lo que se ve: actividades del día más sus alertas.
+   */
+  const dayItemsCount = dayReminders.length + alerts.length
 
   const timeSlots =
     generateTimeSlots(
@@ -311,6 +312,17 @@ export function DayAgenda({
           </div>
         )}
 
+      {compact && alerts.length > 0 && (
+        <div className={styles.weekAlerts}>
+          {alerts.map((alert) => (
+            <div key={alert.id} className={styles.weekAlert} data-severity={alert.severity}>
+              <span className={styles.weekAlertDot} aria-hidden="true" />
+              <span className={styles.weekAlertText}>{alert.sourceLabel}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
       {compact ? (
         <div className={styles.agendaList}>
           {sortedDayReminders.map((reminder) => {
@@ -354,6 +366,12 @@ export function DayAgenda({
                 ) : (
                   <h3 className={styles.agendaItemTitle}>{reminder.title}</h3>
                 )}
+
+                {/* 2026-08-29 (petición 2.3): el estado en texto, no solo
+                    en color — un punto verde no dice "terminada". */}
+                <span className={styles.agendaItemState}>
+                  {reminder.status === 'COMPLETED' ? 'Terminada' : 'Pendiente'}
+                </span>
 
                 {reminder.status !== 'COMPLETED' && (
                   <button

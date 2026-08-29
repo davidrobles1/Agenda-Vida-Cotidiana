@@ -13,6 +13,15 @@ import { GRID_LAYOUT_OPTIONS } from './visionBoardGrids'
 import { handleRadiogroupKeyDown, radioTabIndex } from '../../core/ui/keyboard/radiogroupKeyboard'
 import { VisionBoardEmojiPicker } from './VisionBoardEmojiPicker'
 import { useVisionBoardImageSrc } from './visionBoardImages'
+import {
+  DEFAULT_VISION_BOARD_FONT,
+  MAX_TEXT_FONT_SIZE,
+  MIN_TEXT_FONT_SIZE,
+  TEXT_FONT_SIZE_STEP,
+  VISION_BOARD_FONTS,
+  fontSizeOf,
+  fontStackOf,
+} from './visionBoardFonts'
 import { VisionBoardShapePicker } from './VisionBoardShapePicker'
 import libraryStyles from './VisionBoardElementLibrary.module.css'
 import styles from './VisionBoardToolbar.module.css'
@@ -239,23 +248,116 @@ interface EditFieldsProps {
   onImageUploadingChange: (uploading: boolean) => void
 }
 
+/**
+ * Caligrafía y tamaño de un elemento TEXT (2026-08-29).
+ *
+ * El tamaño se maneja con dos botones y un número, al estilo de un
+ * procesador de texto, en vez de un deslizador: el usuario pidió
+ * "aumentar/reducir su tamaño, similar a Word", y ahí el gesto es dar pasos
+ * discretos, no barrer un rango.
+ *
+ * La vista previa de cada opción se dibuja con su propia tipografía: elegir
+ * una caligrafía por su nombre es adivinar.
+ */
+function TextTypographyFields({
+  draft,
+  onDraftChange,
+}: {
+  draft: Draft
+  onDraftChange: (draft: Draft) => void
+}) {
+  const fontId = typeof draft.font === 'string' ? draft.font : DEFAULT_VISION_BOARD_FONT
+  const size = fontSizeOf(draft.fontSize)
+
+  const setSize = (next: number) =>
+    onDraftChange({
+      ...draft,
+      fontSize: Math.min(MAX_TEXT_FONT_SIZE, Math.max(MIN_TEXT_FONT_SIZE, next)),
+    })
+
+  return (
+    <>
+      <label className={shellStyles.field}>
+        <span className={shellStyles.fieldLabel}>Caligrafía</span>
+        <select
+          className={shellStyles.textInput}
+          value={fontId}
+          onChange={(event) => onDraftChange({ ...draft, font: event.target.value })}
+          style={{ fontFamily: fontStackOf(fontId) }}
+        >
+          {VISION_BOARD_FONTS.map((font) => (
+            <option key={font.id} value={font.id} style={{ fontFamily: font.stack }}>
+              {font.label}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <div className={shellStyles.field}>
+        <span className={shellStyles.fieldLabel}>Tamaño</span>
+        <div className={styles.fontSizeRow}>
+          <button
+            type="button"
+            className={styles.fontSizeButton}
+            aria-label="Reducir el tamaño del texto"
+            onClick={() => setSize(size - TEXT_FONT_SIZE_STEP)}
+            disabled={size <= MIN_TEXT_FONT_SIZE}
+          >
+            −
+          </button>
+
+          <input
+            type="number"
+            className={styles.fontSizeInput}
+            aria-label="Tamaño del texto en píxeles"
+            value={size}
+            min={MIN_TEXT_FONT_SIZE}
+            max={MAX_TEXT_FONT_SIZE}
+            onChange={(event) => setSize(Number(event.target.value))}
+          />
+
+          <button
+            type="button"
+            className={styles.fontSizeButton}
+            aria-label="Aumentar el tamaño del texto"
+            onClick={() => setSize(size + TEXT_FONT_SIZE_STEP)}
+            disabled={size >= MAX_TEXT_FONT_SIZE}
+          >
+            +
+          </button>
+        </div>
+      </div>
+    </>
+  )
+}
+
 function EditFields({ element, draft, onDraftChange, onImageUploadingChange }: EditFieldsProps) {
   switch (element.type) {
     case 'TEXT':
     case 'NOTE': {
       const text = typeof draft.text === 'string' ? draft.text : ''
       return (
-        <label className={shellStyles.field}>
-          <span className={shellStyles.fieldLabel}>Contenido</span>
-          <textarea
-            className={shellStyles.textArea}
-            value={text}
-            onChange={(event) => onDraftChange({ ...draft, text: event.target.value })}
-            rows={3}
-            autoFocus
-            required
-          />
-        </label>
+        <>
+          <label className={shellStyles.field}>
+            <span className={shellStyles.fieldLabel}>Contenido</span>
+            <textarea
+              className={shellStyles.textArea}
+              value={text}
+              onChange={(event) => onDraftChange({ ...draft, text: event.target.value })}
+              rows={3}
+              autoFocus
+              required
+            />
+          </label>
+
+          {/* 2026-08-29 (peticiones 1.1 y 1.4): caligrafía y tamaño, solo
+              para TEXT. NOTE se deja igual: su aspecto de nota adhesiva es
+              parte de lo que la distingue de un texto suelto, y cambiarlo
+              no estaba en lo pedido. */}
+          {element.type === 'TEXT' && (
+            <TextTypographyFields draft={draft} onDraftChange={onDraftChange} />
+          )}
+        </>
       )
     }
     case 'IMAGE':

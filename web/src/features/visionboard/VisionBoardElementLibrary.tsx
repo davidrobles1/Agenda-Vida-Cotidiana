@@ -53,6 +53,12 @@ const DEFAULT_TABLE_ROWS = [
 
 interface VisionBoardElementLibraryProps {
   onCreate: (input: CreateVisionBoardElementInput) => void
+  /** 2026-08-29 (petición 1.2): varias fotos de una vez. El formulario de
+      "Imagen" está hecho para UNA (previsualización + un envío), así que
+      cuando el usuario elige más de un archivo se delega en el lienzo, que
+      ya sabe subirlas en serie, colocarlas sin encimarse y dejarlas al
+      frente. Con un solo archivo el formulario se comporta igual que antes. */
+  onCreateManyImages?: (files: File[]) => void
   /** BLOQUE E (post-MVP): same optional-controlled shape as
       VisionBoardTemplatesAction.tsx's own isOpen/onOpenChange — the
       context menu's "Elementos" entry needs to open this popover too. */
@@ -103,6 +109,7 @@ interface VisionBoardElementLibraryProps {
  */
 export function VisionBoardElementLibrary({
   onCreate,
+  onCreateManyImages,
   isOpen: isOpenProp,
   onOpenChange: onOpenChangeProp,
 }: VisionBoardElementLibraryProps) {
@@ -170,6 +177,7 @@ export function VisionBoardElementLibrary({
                   <LibraryStepContent
                     type={step}
                     onCreate={onCreate}
+                    onCreateManyImages={onCreateManyImages}
                     onBack={() => setStep('menu')}
                     // FASE 13: "cerrarse después de crear un elemento cuando
                     // tenga sentido" — a real creation always closes the whole
@@ -209,11 +217,12 @@ function LibraryMenu({ onPick }: { onPick: (type: LibraryItemType) => void }) {
 interface LibraryStepContentProps {
   type: LibraryItemType
   onCreate: (input: CreateVisionBoardElementInput) => void
+  onCreateManyImages?: (files: File[]) => void
   onBack: () => void
   onDone: () => void
 }
 
-function LibraryStepContent({ type, onCreate, onBack, onDone }: LibraryStepContentProps) {
+function LibraryStepContent({ type, onCreate, onCreateManyImages, onBack, onDone }: LibraryStepContentProps) {
   switch (type) {
     case 'TEXT':
       return (
@@ -239,7 +248,14 @@ function LibraryStepContent({ type, onCreate, onBack, onDone }: LibraryStepConte
         />
       )
     case 'IMAGE':
-      return <ImageEntryFields onCreate={onCreate} onBack={onBack} onDone={onDone} />
+      return (
+        <ImageEntryFields
+          onCreate={onCreate}
+          onCreateManyImages={onCreateManyImages}
+          onBack={onBack}
+          onDone={onDone}
+        />
+      )
     case 'STICKER':
       return <StickerFields onCreate={onCreate} onBack={onBack} onDone={onDone} />
     case 'EMOJI':
@@ -353,10 +369,12 @@ type ImageSource = 'upload' | 'url'
     toggle — no new "pick one of two options" pattern. */
 function ImageEntryFields({
   onCreate,
+  onCreateManyImages,
   onBack,
   onDone,
 }: {
   onCreate: (input: CreateVisionBoardElementInput) => void
+  onCreateManyImages?: (files: File[]) => void
   onBack: () => void
   onDone: () => void
 }) {
@@ -381,8 +399,19 @@ function ImageEntryFields({
   function handleDrop(event: DragEvent<HTMLLabelElement>) {
     event.preventDefault()
     setDragOver(false)
-    const dropped = event.dataTransfer.files[0]
-    if (dropped) pickFile(dropped)
+    pickFiles(Array.from(event.dataTransfer.files))
+  }
+
+  /** Una sola foto sigue el camino de siempre (previsualización + envío);
+      varias se delegan en el lienzo, que las coloca sin encimarse. */
+  function pickFiles(picked: File[]) {
+    if (picked.length === 0) return
+    if (picked.length === 1 || !onCreateManyImages) {
+      pickFile(picked[0])
+      return
+    }
+    onCreateManyImages(picked)
+    onDone()
   }
 
   async function handleSubmit(event: FormEvent) {
@@ -482,9 +511,10 @@ function ImageEntryFields({
           )}
           <input
             type="file"
+            multiple
             accept="image/png,image/jpeg,image/webp,image/gif"
             className={styles.imageDropzoneInput}
-            onChange={(event) => pickFile(event.target.files?.[0] ?? null)}
+            onChange={(event) => pickFiles(Array.from(event.target.files ?? []))}
           />
         </label>
       )}

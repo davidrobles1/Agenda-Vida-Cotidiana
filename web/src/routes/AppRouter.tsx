@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { getAuthStatus, subscribe, type AuthStatus } from '../core/auth/authClient'
 import { SessionRestoring } from '../core/auth/SessionRestoring'
 import { PersonalLayout, LaboralLayout } from '../core/user/ActiveModeContext'
+import { useModeContext } from '../core/user/ModeContext'
 import { AuthGateway } from '../features/auth/AuthGateway'
 import { CallbackPage } from '../features/auth/CallbackPage'
 import { OnboardingPage } from '../features/onboarding/OnboardingPage'
@@ -57,8 +58,14 @@ function RequireAuth({ children }: { children: React.ReactElement }) {
  */
 function LoginRoute() {
   const status = useAuthStatus()
+  // Misma regla de destino que tras el login (CallbackPage.landingPathFor):
+  // un usuario ya autenticado que aterriza en "/" no debe acabar en un sitio
+  // distinto al que le lleva el login.
+  const { personalEnabled, laboralEnabled } = useModeContext()
   if (status === 'restoring') return <SessionRestoring />
-  return status === 'authenticated' ? <Navigate to="/calendar" replace /> : <AuthGateway />
+  if (status !== 'authenticated') return <AuthGateway />
+  const landing = personalEnabled ? '/personal/home' : laboralEnabled ? '/laboral/hoy' : '/onboarding'
+  return <Navigate to={landing} replace />
 }
 
 export function AppRouter() {

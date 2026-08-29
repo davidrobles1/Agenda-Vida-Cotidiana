@@ -1513,3 +1513,69 @@
     animation: none;
   }
 }
+/* =====================================================
+   ALERTAS EN LA COLUMNA SEMANAL (2026-08-29, petición 2.2)
+
+   La vista semanal no las mostraba y la mensual y la diaria sí: el mismo
+   registro aparecía en dos vistas y en la tercera no. Aquí van en formato
+   reducido —punto de severidad y nombre— porque la columna es estrecha; el
+   detalle completo sigue estando en la vista Día.
+   ===================================================== */
+
+.weekAlerts {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+
+  margin: 0 0 8px;
+  padding-bottom: 8px;
+
+  border-bottom: 1px dashed color-mix(in srgb, var(--color-border) 35%, transparent);
+}
+
+.weekAlert {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  min-width: 0;
+}
+
+.weekAlertDot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--color-border);
+}
+
+.weekAlert[data-severity='high'] .weekAlertDot {
+  background: var(--color-terracotta);
+}
+
+.weekAlert[data-severity='medium'] .weekAlertDot {
+  background: var(--color-warning, #8a5a12);
+}
+
+.weekAlertText {
+  min-width: 0;
+
+  color: var(--color-text-secondary);
+  font-size: 0.68rem;
+
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Estado en texto de cada actividad de la semana (petición 2.3). */
+.agendaItemState {
+  flex: none;
+
+  color: var(--color-text-secondary);
+
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
