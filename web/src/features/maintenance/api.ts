@@ -7,6 +7,9 @@ export interface MaintenanceRecord {
   ownerUserId: string
   item: string
   nextDueAt: string
+  /** "¿Cada cuánto?" en meses (migración V24 / ADR-018). Ausente = una sola
+      fecha, sin repetición: el calendario no proyecta ocurrencias futuras. */
+  intervalMonths?: number
   status: MaintenanceStatus
   version: number
   createdAt: string
@@ -27,19 +30,29 @@ export async function listMaintenanceRecords(): Promise<MaintenanceRecordsPage> 
   return response.json()
 }
 
-export async function createMaintenanceRecord(item: string, nextDueAt: string): Promise<MaintenanceRecord> {
+export async function createMaintenanceRecord(
+  item: string,
+  nextDueAt: string,
+  intervalMonths?: number,
+): Promise<MaintenanceRecord> {
   const response = await apiFetch('/maintenance-records', {
     method: 'POST',
-    body: JSON.stringify({ item, nextDueAt }),
+    body: JSON.stringify({ item, nextDueAt, intervalMonths }),
   })
   if (!response.ok) throw new Error(`POST /maintenance-records failed: ${response.status}`)
   return response.json()
 }
 
-export async function updateMaintenanceRecord(id: string, item: string, nextDueAt: string, version: number): Promise<MaintenanceRecord> {
+export async function updateMaintenanceRecord(
+  id: string,
+  item: string,
+  nextDueAt: string,
+  version: number,
+  intervalMonths?: number,
+): Promise<MaintenanceRecord> {
   const response = await apiFetch(`/maintenance-records/${id}`, {
     method: 'PATCH',
-    body: JSON.stringify({ item, nextDueAt, version }),
+    body: JSON.stringify({ item, nextDueAt, intervalMonths, version }),
   })
   if (!response.ok) throw new Error(`PATCH /maintenance-records/${id} failed: ${response.status}`)
   return response.json()

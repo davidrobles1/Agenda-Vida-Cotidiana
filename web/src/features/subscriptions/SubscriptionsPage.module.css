@@ -45,6 +45,12 @@
   justify-content: center;
   width: 32px;
   height: 32px;
+  /* El `button` global de index.css impone `padding: var(--space-2)
+     var(--space-4)` y `min-height: 44px`. Con `width: 32px`, ese padding
+     horizontal dejaba la caja de contenido en 0 px de ancho y aplastaba el
+     icono hasta hacerlo invisible: el botón se veía, el icono no. */
+  padding: 0;
+  min-height: 0;
   border: 1px solid var(--color-border);
   border-radius: 50%;
   background: var(--color-surface);
@@ -55,4 +61,9 @@
 .iconButton:hover {
   background: var(--color-surface-variant);
   color: var(--color-primary);
+}
+
+/* El SVG no debe encogerse dentro del botón redondo. */
+.iconButton > svg {
+  flex-shrink: 0;
 }

@@ -527,6 +527,66 @@
 
 
 /* =====================================================
+   AVISO DE SESIÓN
+
+   Solo aparece cuando la sesión terminó por su cuenta (expiró o no se pudo
+   renovar) — ver getSessionNotice en authClient.ts. Tono informativo, no de
+   error: no hay nada que el usuario haya hecho mal.
+   ===================================================== */
+
+.sessionNotice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+
+  margin-bottom: 22px;
+  padding: 12px 12px 12px 14px;
+
+  border: 1px solid color-mix(in srgb, var(--color-primary) 30%, transparent);
+  border-radius: 14px;
+
+  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+}
+
+.sessionNoticeText {
+  flex: 1;
+  margin: 0;
+
+  color: var(--color-text);
+
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.sessionNoticeDismiss {
+  flex: 0 0 auto;
+
+  width: 22px;
+  height: 22px;
+  min-height: 0;
+  padding: 0;
+
+  display: grid;
+  place-items: center;
+
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-text-secondary);
+
+  font-size: 1rem;
+  line-height: 1;
+
+  cursor: pointer;
+}
+
+.sessionNoticeDismiss:hover {
+  color: var(--color-text);
+  background: color-mix(in srgb, var(--color-text) 8%, transparent);
+}
+
+
+/* =====================================================
    ACTIONS
    ===================================================== */
 

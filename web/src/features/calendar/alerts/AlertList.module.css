@@ -1,0 +1,186 @@
+/* =====================================================
+   ALERTAS DE FECHA (ADR-018)
+
+   Deliberadamente NO se parecen a una tarea: no hay casilla, ni botón de
+   completar, ni de crear nada. Es una franja de seguimiento — se lee, no se
+   opera. Lo único accionable es ir al registro de origen.
+
+   Los cuatro temas visuales heredan esta estructura y solo redefinen el
+   acento (bloque de temas al final).
+   ===================================================== */
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+
+  padding: 8px 10px;
+
+  border: 1px solid var(--alert-border);
+  border-left: 3px solid var(--alert-accent);
+  border-radius: var(--radius-control);
+
+  background: var(--alert-bg);
+}
+
+/* Severidad: el color no es lo único que la distingue (accesibilidad) —
+   también cambia el texto de la etiqueta y el grosor del filete. */
+.item[data-severity='high'] {
+  --alert-accent: var(--color-error);
+  --alert-bg: color-mix(in srgb, var(--color-error) 8%, transparent);
+  --alert-border: color-mix(in srgb, var(--color-error) 22%, transparent);
+  border-left-width: 4px;
+}
+
+.item[data-severity='medium'] {
+  --alert-accent: var(--color-warning, #b8860b);
+  --alert-bg: color-mix(in srgb, var(--color-warning, #b8860b) 8%, transparent);
+  --alert-border: color-mix(in srgb, var(--color-warning, #b8860b) 22%, transparent);
+}
+
+.item[data-severity='low'] {
+  --alert-accent: color-mix(in srgb, var(--color-primary) 70%, transparent);
+  --alert-bg: color-mix(in srgb, var(--color-primary) 5%, transparent);
+  --alert-border: color-mix(in srgb, var(--color-primary) 18%, transparent);
+}
+
+.icon {
+  display: grid;
+  place-items: center;
+
+  width: 22px;
+  height: 22px;
+
+  color: var(--alert-accent);
+}
+
+.body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.title {
+  margin: 0;
+
+  color: var(--color-text);
+
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.3;
+
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meta {
+  color: var(--color-text-secondary);
+
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+.metaSeparator {
+  opacity: 0.5;
+}
+
+/* La etiqueta de severidad es texto, no solo color: "Alta" se lee igual en
+   escala de grises o con daltonismo. */
+.badge {
+  flex: 0 0 auto;
+
+  padding: 2px 8px;
+  min-height: 0;
+
+  border: 1px solid var(--alert-border);
+  border-radius: 999px;
+
+  background: transparent;
+  color: var(--alert-accent);
+
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* Enlace al registro de origen: el único gesto disponible. */
+.link {
+  display: contents;
+  color: inherit;
+  text-decoration: none;
+}
+
+.item:hover {
+  border-color: var(--alert-accent);
+}
+
+.empty {
+  margin: 0;
+  padding: 10px 0;
+
+  color: var(--color-text-secondary);
+  font-size: 0.82rem;
+}
+
+/* =====================================================
+   TEMAS
+   ===================================================== */
+
+/* Editorial: sin relleno, la severidad vive en el filete y la tipografía. */
+:global(.theme-editorial) .item {
+  background: transparent;
+  border-radius: 0;
+  border-top: none;
+  border-right: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 45%, transparent);
+}
+
+:global(.theme-editorial) .badge {
+  font-family: var(--font-serif);
+  font-style: italic;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
+/* Minimal: solo el filete y el texto. */
+:global(.theme-minimal) .item {
+  background: transparent;
+  border: none;
+  border-left: 2px solid var(--alert-accent);
+  border-radius: 0;
+  padding-left: 12px;
+}
+
+:global(.theme-minimal) .badge {
+  border-color: transparent;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+/* Productivity: más densidad, la severidad se ve de lejos. */
+:global(.theme-productivity) .item {
+  padding: 6px 10px;
+  border-left-width: 5px;
+}
+
+/* Organic: bordes suaves. */
+:global(.theme-organic) .item {
+  border-radius: 18px;
+  border-left-width: 6px;
+}

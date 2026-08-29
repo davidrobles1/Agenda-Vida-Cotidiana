@@ -31,6 +31,8 @@ import {
 
 import { useCalendarData } from './useCalendarData'
 import { DayAgenda } from './DayAgenda'
+import { SEVERITY_TONE, SOURCE_LABELS } from './alerts/dateAlerts'
+import { AlertList } from './alerts/AlertList'
 import { useActiveMode } from '../../core/user/ActiveModeContext'
 
 import { DayNotesCanvas } from './daynotes/DayNotesCanvas'
@@ -152,6 +154,11 @@ export function CalendarPage() {
   const [activeReminderId, setActiveReminderId] = useState<string | null>(null)
   const activeReminder = state.reminders.find((reminder) => reminder.id === activeReminderId) ?? null
 
+  /** "Notas en el margen" (2026-08-23): la cabecera de la hoja muestra
+      "N actividades · M notas", y el conteo de notas vive dentro de
+      DayNotesCanvas — sube por callback. */
+  const [dayNotesCount, setDayNotesCount] = useState(0)
+
   const scopedReminders =
     useMemo(
       () =>
@@ -184,6 +191,25 @@ export function CalendarPage() {
     setSelectedDateKey,
   ] = useState(
     () => todayKey,
+  )
+
+  /** Mismo criterio que DayAgenda usa para su propio contador: la
+      cabecera se movió fuera de ese componente (ver `hideHeader`), así
+      que el conteo se recalcula aquí sobre los mismos datos. */
+  const dayActivityCount = useMemo(() => {
+    const reminders = scopedReminders.filter(
+      (reminder) => reminder.dueAt && reminder.dueAt.slice(0, 10) === selectedDateKey,
+    ).length
+
+    // ADR-018: garantías y mantenimientos del día dejaron de sumarse aquí —
+    // ahora se muestran como ALERTAS y se cuentan por separado. Sumarlos en
+    // los dos sitios los contaría dos veces en la misma cabecera.
+    return reminders
+  }, [scopedReminders, selectedDateKey])
+
+  const dayAlerts = useMemo(
+    () => state.alertsByDay[selectedDateKey] ?? [],
+    [state.alertsByDay, selectedDateKey],
   )
 
   const [
@@ -268,41 +294,26 @@ export function CalendarPage() {
         },
       )
 
-      state.warranties.forEach(
-        (warranty) => {
-          if (
-            warranty.status !==
-            'COMPLETADO'
-          ) {
-            add(
-              warranty.expiresAt,
-              'warning',
-              warranty.item,
-            )
-          }
-        },
-      )
-
-      state.maintenanceRecords.forEach(
-        (record) => {
-          if (
-            record.status !==
-            'COMPLETADO'
-          ) {
-            add(
-              record.nextDueAt,
-              'info',
-              record.item,
-            )
-          }
-        },
-      )
+      /**
+       * ADR-018: garantías, mantenimientos y suscripciones ya no se marcan
+       * "a mano" cada uno por su fecha final. Ahora entran por las alertas
+       * derivadas (features/calendar/alerts/dateAlerts.ts), que incluyen
+       * ese día final Y los avisos previos que pidió el usuario. Marcar
+       * además el registro por su cuenta duplicaría el punto del día de
+       * vencimiento, que es justo lo que se pidió evitar.
+       */
+      state.alerts.forEach((alert) => {
+        add(
+          alert.dateKey,
+          SEVERITY_TONE[alert.severity],
+          `${SOURCE_LABELS[alert.source]}: ${alert.sourceLabel} — ${alert.message}`,
+        )
+      })
 
       return map
     }, [
       scopedReminders,
-      state.warranties,
-      state.maintenanceRecords,
+      state.alerts,
       activeMode,
     ])
 
@@ -736,13 +747,59 @@ export function CalendarPage() {
               </button>
             </div>
 
-            <div
-              className={
-                styles.dayFullPane
-              }
-            >
-              <div className={styles.dayAgendaColumn}>
+            {/* "Notas en el margen" (propuesta aprobada, 2026-08-23):
+                agenda y notas comparten UNA hoja — un solo borde exterior
+                y una cabecera con la fecha que cruza ambas columnas. Antes
+                eran dos cajas independientes pegadas, que es justo lo que
+                hacía sentir las notas como un componente externo. */}
+            <div className={styles.daySheet}>
+              <div className={styles.daySheetHead}>
+                <div className={styles.daySheetDate}>
+                  <span className={styles.daySheetDateNum}>
+                    {Number(selectedDateKey.slice(-2))}
+                  </span>
+
+                  <span className={styles.daySheetDateMeta}>
+                    <span className={styles.daySheetDow}>
+                      {new Date(`${selectedDateKey}T12:00:00`).toLocaleDateString('es-MX', {
+                        weekday: 'long',
+                      })}
+                    </span>
+
+                    <span className={styles.daySheetMonth}>
+                      {new Date(`${selectedDateKey}T12:00:00`).toLocaleDateString('es-MX', {
+                        month: 'long',
+                        year: 'numeric',
+                      })}
+                    </span>
+                  </span>
+                </div>
+
+                <span className={styles.daySheetCount}>
+                  {dayActivityCount}{' '}
+                  {dayActivityCount === 1 ? 'actividad' : 'actividades'} · {dayNotesCount}{' '}
+                  {dayNotesCount === 1 ? 'nota' : 'notas'}
+                  {dayAlerts.length > 0 && (
+                    <> · {dayAlerts.length} {dayAlerts.length === 1 ? 'alerta' : 'alertas'}</>
+                  )}
+                </span>
+              </div>
+
+              <div className={styles.daySheetAgenda}>
+                <div className={styles.daySheetColLabel}>Agenda</div>
+
+                {/* ADR-018: seguimiento de fechas próximas, NO tareas. Va
+                    encima de la agenda y con su propio rótulo para que se
+                    lea como otra cosa distinta a las actividades del día. */}
+                {dayAlerts.length > 0 && (
+                  <div className={styles.daySheetAlerts}>
+                    <div className={styles.daySheetColLabel}>Alertas</div>
+                    <AlertList alerts={dayAlerts} />
+                  </div>
+                )}
+
                 <DayAgenda
+                  hideHeader
                   dateKey={
                     selectedDateKey
                   }
@@ -784,12 +841,11 @@ export function CalendarPage() {
                 {quickAddSection}
               </div>
 
-              {/* Pedido explícito del usuario (2026-08-22): "reservar
-                  aproximadamente el 40% del espacio derecho para las
-                  notas" — Canvas único, reemplaza la vista de notas
-                  anterior por completo (ver daynotes/DayNotesCanvas.tsx). */}
-              <div className={styles.dayNotesColumn}>
-                <DayNotesCanvas dateKey={selectedDateKey} />
+              <div className={styles.daySheetNotes}>
+                <DayNotesCanvas
+                  dateKey={selectedDateKey}
+                  onCountChange={setDayNotesCount}
+                />
               </div>
             </div>
           </ListSectionCard>

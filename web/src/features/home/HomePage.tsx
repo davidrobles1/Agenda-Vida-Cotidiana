@@ -19,6 +19,8 @@ import {
 } from '../../core/ui/icons'
 import { homeActivities, homeUpcomingEventsCount, type MockActivityKind } from '../../core/mock/mockData'
 import { useHomeData } from './useHomeData'
+import { AlertList } from '../calendar/alerts/AlertList'
+import { useDateAlerts } from '../calendar/alerts/useDateAlerts'
 import styles from './HomePage.module.css'
 
 const ACTIVITY_ICON: Record<MockActivityKind, typeof IconTasks> = {
@@ -36,11 +38,14 @@ export function HomePage() {
   // or the legacy bare one otherwise, so a click never drops the user out of
   // the mode they were just in. Documentos/Familia stay bare — outside
   // ADR-015's scope, no mode-scoped equivalent exists.
-  const remindersPath = useModePath('reminders')
   const calendarPath = useModePath('calendar')
   const sharedPath = useModePath('shared')
+  // 2026-08-28: `RemindersPage` se retiró de la aplicación junto con el
+  // botón "Nuevo" (ver AppShell.tsx/AppRouter.tsx). Los dos accesos que
+  // apuntaban ahí pasan al Calendario, que es donde de verdad se crea y se
+  // consulta una tarea — la capacidad no se pierde, cambia de puerta.
   const quickLinks = [
-    { to: remindersPath, label: 'Crear nueva tarea', icon: IconPlus },
+    { to: calendarPath, label: 'Crear nueva tarea', icon: IconPlus },
     { to: calendarPath, label: 'Ver calendario', icon: IconCalendar },
     { to: '/documents', label: 'Agregar documento', icon: IconFolder },
     { to: '/family', label: 'Invitar a un familiar', icon: IconUsers },
@@ -57,6 +62,10 @@ export function HomePage() {
     const hour = new Date().getHours()
     return hour < 6 || hour >= 19
   })()
+
+  // ADR-018: Personal aterriza aquí al entrar, así que es donde deben verse
+  // las alertas de fecha próximas, priorizadas — sin volverse tareas.
+  const { alerts } = useDateAlerts(30)
 
   return (
     <AppShell
@@ -99,7 +108,8 @@ export function HomePage() {
           </div>
         </section>
 
-                {/* =====================================================
+
+        {/* =====================================================
             03 — RESUMEN PERSONAL
             ===================================================== */}
 
@@ -198,7 +208,7 @@ export function HomePage() {
               }
               icon={IconTasks}
               tone="primary"
-              onClick={() => navigate(remindersPath)}
+              onClick={() => navigate(calendarPath)}
             />
 
             <MetricCard
@@ -345,6 +355,35 @@ export function HomePage() {
           </div>
         </section>
 
+        
+                {/* =====================================================
+            02 — ALERTAS PRÓXIMAS (ADR-018)
+
+            Seguimiento de fechas de Garantías, Mantenimiento y
+            Suscripciones. NO son tareas: no se completan, no se crean y no
+            aparecen en la lista de pendientes — solo avisan y llevan a su
+            módulo. Se ordenan por importancia (alta primero).
+            ===================================================== */}
+
+        {alerts.length > 0 && (
+          <section className={styles.alertsSection}>
+            <div className={styles.sectionHeading}>
+              <div>
+                <span className={styles.eyebrow}>PRÓXIMAS</span>
+                <h2>Alertas</h2>
+              </div>
+              <span className={styles.alertsCount}>
+                {alerts.length} {alerts.length === 1 ? 'alerta' : 'alertas'} en 30 días
+              </span>
+            </div>
+
+            <AlertList alerts={alerts} showDate limit={6} />
+
+            {alerts.length > 6 && (
+              <p className={styles.alertsFootnote}>y {alerts.length - 6} más.</p>
+            )}
+          </section>
+        )}
       </main>
     </AppShell>
   )

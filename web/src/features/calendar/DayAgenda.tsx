@@ -59,6 +59,12 @@ interface DayAgendaProps {
   selected?: boolean
 
   onSelect?: () => void
+
+  /** "Notas en el margen" (2026-08-23): en la vista diaria la cabecera con
+      la fecha se dibuja FUERA, cruzando la agenda y las notas, para que
+      ambas se lean como una sola hoja. Solo la vista diaria lo activa; la
+      semanal (compact) no tiene esta cabecera y no se ve afectada. */
+  hideHeader?: boolean
 }
 
 export function DayAgenda({
@@ -77,6 +83,7 @@ export function DayAgenda({
   compact = false,
   selected = false,
   onSelect,
+  hideHeader = false,
 }: DayAgendaProps) {
   const { theme } = useVisualTheme()
 
@@ -207,7 +214,7 @@ export function DayAgenda({
         }
       `}
     >
-      {compact ? (
+      {hideHeader ? null : compact ? (
         <button
           type="button"
           data-today={isToday ? 'true' : undefined}

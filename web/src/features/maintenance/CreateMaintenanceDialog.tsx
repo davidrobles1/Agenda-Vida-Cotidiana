@@ -65,7 +65,15 @@ export function CreateMaintenanceDialog({ onCreated }: CreateMaintenanceDialogPr
     setSaving(true)
     setError(null)
     try {
-      const created = await createMaintenanceRecord(item.trim(), new Date(nextDueAt).toISOString())
+      // ADR-018: el intervalo ya no se usa solo para calcular la fecha y
+      // olvidarse — se guarda, y el calendario proyecta con él las
+      // siguientes fechas del mantenimiento.
+      const interval = QUICK_INTERVALS.find((option) => option.id === selectedInterval)
+      const created = await createMaintenanceRecord(
+        item.trim(),
+        new Date(nextDueAt).toISOString(),
+        interval?.months,
+      )
       onCreated(created)
       setIsOpen(false)
       reset()

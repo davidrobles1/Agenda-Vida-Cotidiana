@@ -62,8 +62,17 @@ import '@fontsource/ibm-plex-mono/700.css'
 import './index.css'
 import App from './App.tsx'
 import { initErrorTracking } from './core/errors/glitchtip'
+import { restoreSession } from './core/auth/authClient'
 
 initErrorTracking()
+
+// Se lanza antes de renderizar para que el intento de recuperar la sesión SSO
+// (ver restoreSession en authClient.ts) vaya lo más adelantado posible: la app
+// arranca en estado "restoring" y solo decide si hay sesión cuando Keycloak
+// contesta, en vez de mandar al login por el simple hecho de que la memoria
+// esté vacía tras la recarga. No se espera el resultado: el router ya reacciona
+// al cambio de estado por su cuenta.
+void restoreSession()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

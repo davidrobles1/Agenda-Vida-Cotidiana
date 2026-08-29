@@ -273,3 +273,52 @@ Con esto **las cuatro sub-fases de 3e (Objetivos, Rutinas, Lugares, Recursos) qu
 **Hallazgo real, gap preexistente corregido (`BE-046`):** un body JSON no deserializable (enum desconocido, fecha malformada) devolvía `500 INTERNAL_ERROR` en vez de `400` — `HttpMessageNotReadableException` no tenía handler en `GlobalExceptionHandler`. Lo encontró el test de `frequency` inválido de 3e2, pero **no era específico de Routine**: el mismo `500` ocurría en `POST /commitments` con un `direction` inválido, caso que ningún test cubría. Corregido en el punto único de la política de errores (AC-006/NFR-006); 44/44 tests de los módulos afectados en verde tras el cambio.
 
 Las cuatro mantienen el mismo patrón de autorización dueño-únicamente que `PERSON`/`PROJECT`/`COMMITMENT` (sin colaboradores), consistente con esta ADR. Ningún endpoint de IA ni financiero se introduce (regla `CLAUDE.md`/ADR-003/ADR-004). **TBD explícitos que siguen abiertos** (fórmula de avance de `ROUTINE.nextExecutionDate`, si `RESOURCE.reference` es uno o dos campos, punto de entrada exacto en la UI de cada entidad más allá de lo ya decidido): ver `09-data-model.md` §"V4 candidato — Fase 3e" y `08-laboral-module-plan.md` Fase 3e para el desglose completo por incremento y la recomendación de orden de implementación (3e1 primero). **Esta es una decisión de alcance, no una implementación** — ningún código, migración ni endpoint se creó en esta tarea.
+
+## ADR-017 Expiración de sesión por inactividad (2 h)
+**Estado:** Accepted (2026-08-28)
+
+**Contexto:** el Product Owner solicitó (2026-08-28) que la sesión del portal expire tras **2 horas sin actividad**. Hasta ahora la política real era otra y además involuntaria: Keycloak tenía `ssoSessionIdleTimeout = 4 h`, pero la SPA renovaba el token en silencio (`prompt=none`) cada ~4,5 min **de forma incondicional**, y cada renovación reinicia ese contador. Con la app abierta, el contador de inactividad de Keycloak no llegaba a avanzar nunca: la sesión sobrevivía hasta el tope absoluto de `ssoSessionMaxLifespan = 10 h`. Es decir, "inactividad" no estaba siendo medida por nadie.
+
+**Decisión:**
+(a) el plazo de inactividad es **2 h (7200 s)**, y se aplica en dos capas complementarias, no redundantes:
+  - **cliente Web** (`web/src/core/auth/authClient.ts`, `IDLE_TIMEOUT_MS`) mientras la app está abierta — mide **interacción real** del usuario y deja de renovar al vencer el plazo;
+  - **Keycloak** (`ssoSessionIdleTimeout`, `infra/keycloak/realm-vida-cotidiana*.json`) mientras la app está cerrada — si nadie renueva, la sesión SSO caduca sola en el mismo plazo;
+(b) al vencer el plazo, el cliente **termina la sesión SSO** llamando al endpoint de logout de Keycloak, no solo suelta el token de memoria: mientras la cookie SSO siguiera viva, el siguiente `prompt=none` volvería a autenticar solo y la expiración sería aparente, no real;
+(c) "actividad" = interacción real del usuario (`mousedown`, `keydown`, `touchstart`, `scroll`). Que la pestaña esté abierta, visible, o haciendo peticiones en segundo plano **no** cuenta (**ASSUMPTION**, no la definió el Product Owner);
+(d) la marca de última actividad se comparte entre pestañas del mismo navegador vía `localStorage` — es **una marca de tiempo, no una credencial**; WEB-002/DEC-007 (token solo en memoria, nunca en `localStorage`) se mantiene sin excepción;
+(e) `ssoSessionMaxLifespan` (10 h) y `accessTokenLifespan` (5 min) **no cambian**: son topes independientes del de inactividad;
+(f) aplica a la SPA Web. Android/iOS quedan **TBD** — no se asume que el plazo deba ser el mismo en móvil.
+
+**Alternativas consideradas:**
+(a) configurar únicamente `ssoSessionIdleTimeout = 2 h` en Keycloak, sin tocar el cliente — **descartada porque no funciona**: la renovación silenciosa reinicia ese contador cada ~4,5 min, así que con la app abierta el plazo no vencería jamás. Es exactamente el fallo que motivó esta ADR;
+(b) enforcement solo en el cliente, sin tocar Keycloak — descartada: no cubre el caso de la app cerrada (o de un cliente manipulado), y dejaría la sesión SSO viva hasta las 10 h del tope absoluto;
+(c) cerrar sesión soltando el token del navegador sin llamar al logout de Keycloak — descartada por (b) de la Decisión: la expiración sería solo aparente;
+(d) contar como actividad cualquier petición HTTP de la app — descartada: la app renueva y consulta sola en segundo plano, así que eso equivaldría a no expirar nunca (el problema original con otro nombre).
+
+**Consecuencias:** el usuario ve en la pantalla de login el motivo del cierre ("Tu sesión se cerró tras 2 horas sin actividad") en vez de un rebote silencioso. Cambia `ssoSessionIdleTimeout` en los dos realms (`vida-cotidiana` y `vida-cotidiana-test`) — los archivos de import solo surten efecto al recrear el contenedor de Keycloak, así que el valor se aplicó además sobre el Keycloak de desarrollo ya en marcha vía `kcadm`; en cualquier otro entorno hay que aplicarlo igual. No afecta al backend: sigue siendo un resource server sin estado que valida JWT de 5 min (la política vive en la emisión del token, no en la validación). Documentación afectada: `11-auth-security.md` §Sesiones (DEC-016).
+
+**TBD:** plazo de inactividad en Android/iOS; si el plazo debe ser configurable por el usuario o distinto para el contexto Laboral (no solicitado, no asumido).
+
+## ADR-018 Alertas de fecha derivadas (Garantías, Mantenimiento, Suscripciones → Calendario)
+**Estado:** Accepted (2026-08-28)
+
+**Contexto:** el Product Owner solicitó (2026-08-28) que los módulos que manejan fechas alimenten el Calendario automáticamente, con avisos escalonados por importancia: Garantías 1 mes/15 días/día de expiración (media, media, alta); Mantenimiento 7/3/0 días (baja, media, alta); Suscripciones 5/2/0 días (baja, media, alta). Y con una restricción explícita y repetida: **las alertas NO son tareas** — no se convierten en `REMINDER`, no ofrecen crear tareas, no aparecen entre los pendientes del usuario. Además: deben distinguirse visualmente por importancia, quedar vinculadas a su módulo y registro de origen, **actualizarse si cambia la fecha del registro original** y **no duplicarse** para el mismo evento y fecha.
+
+**Decisión:**
+(a) las alertas se **DERIVAN, no se almacenan**: son una función pura del estado de los tres módulos (`web/src/features/calendar/alerts/dateAlerts.ts`). No hay entidad, tabla, endpoint ni migración de alertas;
+(b) cada alerta lleva un id determinista `origen:registro:fechaDelEvento:díasAntes`, y la generación colapsa por ese id — el mecanismo antiduplicados;
+(c) se reutiliza el mecanismo existente: `useCalendarData` ya cargaba Garantías y Mantenimientos para el Calendario; solo se le suma Suscripciones. **No se creó una arquitectura paralela**, tal como pidió el Product Owner;
+(d) los marcadores del mes de Garantías/Mantenimiento dejan de añadirse por su cuenta y pasan a venir de las alertas — mantener ambos duplicaría el punto del día de vencimiento;
+(e) severidad → tono existente del calendario: alta=`error`, media=`warning`, baja=`info`. La severidad **también se escribe en texto** ("Alta"/"Media"/"Baja") y cambia el grosor del filete: el color no es el único portador de la información (accesibilidad);
+(f) la periodicidad se persiste (**migración V24**, `maintenance_records.interval_months`, nullable): sin ella, "usar la frecuencia de ¿Cada cuánto? para calcular las próximas fechas" era imposible — el intervalo era un cálculo de UI que se descartaba tras crear el registro. Se proyectan hasta 12 ocurrencias futuras, y lo mismo con el `billingCycle` ya existente de Suscripciones;
+(g) Personal→Inicio y Laboral→Hoy muestran "Alertas próximas" (30 días, mayor importancia primero), que es donde el usuario aterriza al entrar.
+
+**Alternativas consideradas:**
+(a) materializar las alertas como filas en base de datos — descartada: obligaría a resolver a mano las cuatro condiciones del Product Owner (resincronizar al cambiar la fecha, evitar duplicados, limpiar las huérfanas al borrar el registro, migrar las existentes). Derivar las cumple las cuatro por construcción y sin migración;
+(b) crear las alertas como `REMINDER` con una marca especial — **descartada por prohibición explícita**: acabarían en la lista de tareas del usuario, que es justo lo que se pidió evitar;
+(c) generarlas en el backend con un job programado — descartada por innecesaria en V1: no hay ningún consumidor fuera del cliente (las notificaciones push no entran en este alcance) y añadiría un componente operativo sin resolver ningún problema nuevo;
+(d) no persistir `interval_months` y proyectar solo la próxima fecha — descartada: incumple la petición explícita sobre la frecuencia.
+
+**Consecuencias:** una columna nueva nullable (`V24`) y tres campos nuevos opcionales en la API de Mantenimiento (`intervalMonths` en create/update/response, `openapi.yaml` actualizado); ningún cambio en Garantías ni Suscripciones. El Calendario carga ahora también `GET /subscriptions`. Al cambiar la fecha de un registro, sus alertas cambian en la siguiente lectura sin ninguna acción adicional. **Riesgo asumido y declarado:** las alertas solo existen mientras el cliente está abierto — no hay recordatorio push ni correo asociado; si en el futuro se quiere notificar fuera de la app, esa sí sería una decisión nueva (candidata a job en backend) y debe registrarse aparte.
+
+**TBD:** horizonte de proyección (hoy 12 ocurrencias, elegido por el equipo técnico, no por el Product Owner); si el usuario debe poder silenciar una alerta concreta; si las alertas deben aparecer también en el contexto Laboral del calendario o solo en Personal (hoy aparecen en ambos, igual que Garantías/Mantenimiento antes).

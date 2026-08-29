@@ -44,7 +44,7 @@ public class MaintenanceController {
 
     @PostMapping
     public ResponseEntity<MaintenanceRecordResponse> create(@Valid @RequestBody CreateMaintenanceRecordRequest request) {
-        MaintenanceRecord created = maintenanceService.create(currentUser.userId(), request.item(), request.nextDueAt());
+        MaintenanceRecord created = maintenanceService.create(currentUser.userId(), request.item(), request.nextDueAt(), request.intervalMonths());
         return ResponseEntity.status(HttpStatus.CREATED).body(MaintenanceRecordResponse.from(created));
     }
 
@@ -73,7 +73,8 @@ public class MaintenanceController {
 
     @PatchMapping("/{id}")
     public MaintenanceRecordResponse update(@PathVariable UUID id, @Valid @RequestBody UpdateMaintenanceRecordRequest request) {
-        MaintenanceRecord record = maintenanceService.edit(id, currentUser.userId(), request.item(), request.nextDueAt(), request.version());
+        MaintenanceRecord record = maintenanceService.edit(id, currentUser.userId(), request.item(), request.nextDueAt(),
+                request.intervalMonths(), request.version());
         return MaintenanceRecordResponse.from(record);
     }
 

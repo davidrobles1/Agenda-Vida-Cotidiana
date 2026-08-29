@@ -17,6 +17,16 @@ import styles from './TareasPage.module.css'
  * propósito: RemindersPage es compartido con Personal y no se tocó, para no
  * arriesgar ningún comportamiento existente ahí (pedido explícito del
  * usuario de no modificar nada fuera de lo necesario).
+ *
+ * RETIRADA DE LA NAVEGACIÓN (2026-08-28, pedido explícito del usuario: "el
+ * módulo de tareas ya no debería existir, a nivel visual elimínalo").
+ * Se quitó su ítem del navbar de Laboral (`AppShell.tsx`) y su ruta
+ * `/laboral/tasks` (`AppRouter.tsx`), así que este componente **ya no se
+ * monta en ninguna parte**. El archivo se conserva a propósito: la regla del
+ * proyecto es no borrar componentes, y las Tareas siguen existiendo como
+ * dato (`REMINDER` con `context=LABORAL`) — se ven en la Agenda y en la
+ * línea de tiempo de Hoy, y se crean desde el detalle de Persona/Proyecto.
+ * Lo que desapareció es esta pantalla, no la funcionalidad.
  */
 export function TareasPage() {
   const [tasks, setTasks] = useState<Reminder[]>([])

@@ -3,12 +3,14 @@ import { useNavigate } from 'react-router-dom'
 import { AppShell } from '../../core/ui/layout/AppShell'
 import { ListItemRow } from '../../core/ui/components/ListItemRow'
 import { ListSectionCard } from '../../core/ui/components/ListSectionCard'
-import { IconCheckCircle, IconPlus, IconRepeat, IconTarget } from '../../core/ui/icons'
+import { IconBell, IconCheckCircle, IconPlus, IconRepeat, IconTarget } from '../../core/ui/icons'
 import { listReminders, type Reminder } from '../reminders/api'
 import { listCommitments, type Commitment } from '../commitments/api'
 import { listPeople, type Person } from '../people/api'
 import { listObjectives, type Objective } from '../objectives/api'
 import { executeRoutine, FREQUENCY_LABELS, listRoutines, type Routine } from '../routines/api'
+import { AlertList } from '../calendar/alerts/AlertList'
+import { useDateAlerts } from '../calendar/alerts/useDateAlerts'
 import { addInboxItem } from './inboxStorage'
 import styles from './HoyPage.module.css'
 
@@ -20,12 +22,67 @@ function daysUntil(iso: string): number {
   return Math.round((new Date(iso).getTime() - Date.now()) / 86400000)
 }
 
+/** Etiqueta relativa del artifact (`relativeLabel`), literal. */
+function relativeLabel(iso: string): string {
+  const days = daysUntil(iso)
+  if (days === 0) return 'Hoy'
+  if (days === 1) return 'Mañana'
+  if (days === -1) return 'Ayer · 1 día de atraso'
+  if (days < -1) return `Hace ${-days} días · atrasado`
+  if (days > 1 && days <= 6) return `En ${days} días`
+  return new Date(iso).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })
+}
+
+/** Badge del artifact (`commitmentBadge`), con los mismos cuatro estados. */
+function commitmentBadge(commitment: Commitment): { label: string; tone: string } {
+  if (commitment.status !== 'OPEN') return { label: 'Resuelto', tone: 'success' }
+  if (daysUntil(commitment.dueAt) < 0) return { label: 'Atrasado', tone: 'error' }
+  if (daysUntil(commitment.dueAt) <= 2) return { label: 'Próximo', tone: 'warning' }
+  return { label: 'En curso', tone: 'info' }
+}
+
+function initialsOf(name: string): string {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? '')
+    .join('')
+}
+
+function timeOf(iso?: string): string {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
+}
+
+interface TimelineItem {
+  id: string
+  time: string
+  /** `lab` y `per` son las dos únicas clases del artifact: el filete azul
+      del trabajo y el filete de acento de lo personal. */
+  kind: 'lab' | 'per'
+  label: string
+  onOpen?: () => void
+}
+
 /**
- * ADR-016/FR-026. Vista "Hoy" del contexto Laboral: tareas (REMINDER
- * context=LABORAL) que vencen hoy + Compromisos que requieren atención
- * (hoy o atrasados) + captura rápida hacia el Inbox. No agrega eventos
- * `PERSONAL` aquí (eso vive en "Agenda"/Calendario general, ya resuelto por
- * ADR-015) — FR-026 solo pide un resumen diario del contexto Laboral.
+ * ADR-016/FR-026. Vista "Hoy" del contexto Laboral.
+ *
+ * Rehecha (2026-08-28) para seguir el prototipo aprobado por el usuario
+ * ("Agenda Laboral", artifact fca1566a): cabecera con antetítulo y título de
+ * página, banner de compromisos atrasados, y una rejilla 2fr/1fr donde la
+ * columna ancha es la línea de tiempo "Tu día" sobre papel rayado, y la
+ * estrecha apila "Requiere tu atención" y "Captura rápida".
+ *
+ * Cambio de contenido respecto a la versión anterior, tomado del artifact:
+ * "Tareas de hoy" era una lista suelta de tareas laborales; ahora es una
+ * LÍNEA DE TIEMPO que mezcla lo laboral y lo personal del día — la premisa
+ * del prototipo es "sin perder de vista lo personal", y por eso el filete
+ * de color distingue el origen de cada elemento en vez de esconderlo.
+ *
+ * La lógica de negocio y los datos son los mismos de siempre: los mismos
+ * cinco endpoints, los mismos filtros de FR-026/FR-031/FR-032 y el mismo
+ * `executeRoutine`. No se introduce ningún dato simulado.
  */
 export function HoyPage() {
   const navigate = useNavigate()
@@ -39,6 +96,10 @@ export function HoyPage() {
   const [quickCapture, setQuickCapture] = useState('')
   const [captured, setCaptured] = useState(false)
   const [busyRoutineId, setBusyRoutineId] = useState<string | null>(null)
+
+  // ADR-018: al entrar (Laboral aterriza aquí), lo que vence pronto debe
+  // verse de inmediato y ordenado por importancia — sin convertirse en tarea.
+  const { alerts } = useDateAlerts(30)
 
   async function refresh() {
     setLoading(true)
@@ -82,15 +143,47 @@ export function HoyPage() {
   }, [])
 
   const today = todayKey()
-  const todaysTasks = tasks.filter((t) => t.context === 'LABORAL' && t.status === 'PENDING' && t.dueAt?.slice(0, 10) === today)
+  const dueToday = tasks.filter((t) => t.status === 'PENDING' && t.dueAt?.slice(0, 10) === today)
+
+  /** `combinedTimelineToday()` del artifact, con datos reales: lo laboral y
+      lo personal del día en un solo hilo, ordenado por hora. */
+  const timeline: TimelineItem[] = dueToday
+    .map((task) => ({
+      id: task.id,
+      time: timeOf(task.dueAt),
+      kind: (task.context === 'PERSONAL' ? 'per' : 'lab') as 'lab' | 'per',
+      label: task.context === 'PERSONAL' ? `${task.title} (Personal)` : task.title,
+      // "Tareas" se retiró de la navegación (2026-08-28): una tarea del día
+      // se abre desde la Agenda, que es donde vive su fecha.
+      onOpen: () => navigate('/laboral/calendar'),
+    }))
+    .concat(
+      commitments
+        .filter((c) => c.status === 'OPEN' && c.dueAt.slice(0, 10) === today)
+        .map((c) => ({
+          id: `commitment-${c.id}`,
+          time: '—',
+          kind: 'lab' as const,
+          label: `${c.direction === 'MINE' ? 'Seguimiento' : 'Esperando'} · ${c.description}`,
+          onOpen: () => navigate('/laboral/commitments'),
+        })),
+    )
+    .sort((a, b) => (a.time === '—' ? '99:99' : a.time).localeCompare(b.time === '—' ? '99:99' : b.time))
+
   const attentionCommitments = commitments
     .filter((c) => c.status === 'OPEN')
     .sort((a, b) => daysUntil(a.dueAt) - daysUntil(b.dueAt))
     .slice(0, 5)
+
+  /** Banner del artifact: lo atrasado que depende de OTRA persona, porque es
+      lo único que no se resuelve trabajando más. */
+  const waitingOverdue = commitments.filter(
+    (c) => c.status === 'OPEN' && c.direction === 'THEIRS' && daysUntil(c.dueAt) < 0,
+  )
+
   // FR-031/AC-018: un Objetivo cumplido deja de aparecer en Hoy.
   const openObjectives = objectives.filter((o) => !o.completed).slice(0, 4)
-  // FR-032: solo rutinas activas que ya tocan (hoy o antes) — una rutina en
-  // pausa o programada para más adelante no es "de hoy".
+  // FR-032: solo rutinas activas que ya tocan (hoy o antes).
   const dueRoutines = routines
     .filter((r) => r.active && daysUntil(r.nextExecutionDate) <= 0)
     .sort((a, b) => daysUntil(a.nextExecutionDate) - daysUntil(b.nextExecutionDate))
@@ -112,104 +205,157 @@ export function HoyPage() {
         </p>
       )}
 
-      <div className={styles.grid}>
-        <ListSectionCard title="Tareas de hoy">
-          {loading && <p className={styles.emptyHint}>Cargando…</p>}
-          {!loading && todaysTasks.length === 0 && <p className={styles.emptyHint}>Nada pendiente para hoy.</p>}
-          {!loading &&
-            todaysTasks.map((task) => (
-              <ListItemRow key={task.id} title={task.title} icon={IconCheckCircle} tone="success" />
-            ))}
-        </ListSectionCard>
+      {/* Cabecera de página del artifact: antetítulo con la fecha, título y
+          una línea que explica de qué va la pantalla. */}
+      <header className={styles.pageHead}>
+        <p className={styles.kicker}>
+          {new Date().toLocaleDateString('es-MX', {
+            weekday: 'long',
+            day: 'numeric',
+            month: 'long',
+          })}
+        </p>
+        <h2 className={styles.pageTitle}>Hoy</h2>
+        <p className={styles.pageLead}>
+          Todo lo que necesitas saber para arrancar el día, sin perder de vista lo personal.
+        </p>
+      </header>
 
-        <ListSectionCard title="Requiere tu atención">
+      {waitingOverdue.length > 0 && (
+        <div className={styles.banner}>
+          <IconBell width={18} height={18} aria-hidden="true" />
+          <div>
+            <b>
+              {waitingOverdue.length} compromiso{waitingOverdue.length === 1 ? '' : 's'} atrasado
+              {waitingOverdue.length === 1 ? '' : 's'}
+            </b>{' '}
+            depende{waitingOverdue.length === 1 ? '' : 'n'} de otras personas. Revisa "Esperando" para dar
+            seguimiento.
+          </div>
+        </div>
+      )}
+
+      <div className={styles.grid2}>
+        {/* ---------- Columna ancha: la línea de tiempo del día ---------- */}
+        <section className={`${styles.card} ${styles.notebookBg}`}>
+          <div className={styles.cardHeader}>
+            <h3>Tu día</h3>
+            <button
+              type="button"
+              className={styles.ghostButton}
+              onClick={() => navigate('/laboral/calendar')}
+            >
+              Ver agenda completa
+            </button>
+          </div>
+
           {loading && <p className={styles.emptyHint}>Cargando…</p>}
-          {!loading && attentionCommitments.length === 0 && <p className={styles.emptyHint}>Nada pendiente por ahora.</p>}
-          {!loading &&
-            attentionCommitments.map((c) => {
-              const person = people.find((p) => p.id === c.personId)
-              const overdue = daysUntil(c.dueAt) < 0
-              return (
-                <ListItemRow
-                  key={c.id}
-                  title={`${person?.name ?? '—'} ${c.direction === 'MINE' ? '→' : '←'} ${c.description}`}
-                  icon={IconRepeat}
-                  tone={overdue ? 'error' : 'warning'}
-                  pillLabel={overdue ? 'Atrasado' : 'Próximo'}
-                  pillTone={overdue ? 'error' : 'warning'}
-                />
-              )
-            })}
-        </ListSectionCard>
+
+          {!loading && timeline.length === 0 && (
+            <div className={styles.emptyState}>
+              <IconCheckCircle width={28} height={28} aria-hidden="true" />
+              <p>Nada agendado para hoy.</p>
+            </div>
+          )}
+
+          {!loading && timeline.length > 0 && (
+            <div className={styles.timeline}>
+              {timeline.map((item) => (
+                <div key={item.id} className={styles.timelineItem}>
+                  <div className={styles.timelineTime}>{item.time}</div>
+                  <div className={styles.timelineBar} data-kind={item.kind} />
+                  <div className={styles.timelineBody}>
+                    {item.onOpen ? (
+                      <button type="button" className={styles.timelineLink} onClick={item.onOpen}>
+                        {item.label}
+                      </button>
+                    ) : (
+                      <span>{item.label}</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* ---------- Columna estrecha ---------- */}
+        <div className={styles.sideColumn}>
+          <section className={styles.card}>
+            <div className={styles.cardHeader}>
+              <h3>Requiere tu atención</h3>
+            </div>
+
+            {loading && <p className={styles.emptyHint}>Cargando…</p>}
+
+            {!loading && attentionCommitments.length === 0 && (
+              <div className={styles.emptyState}>
+                <IconCheckCircle width={28} height={28} aria-hidden="true" />
+                <p>Nada pendiente por ahora.</p>
+              </div>
+            )}
+
+            {!loading && attentionCommitments.length > 0 && (
+              <div className={styles.list}>
+                {attentionCommitments.map((commitment) => {
+                  const person = people.find((p) => p.id === commitment.personId)
+                  const badge = commitmentBadge(commitment)
+
+                  return (
+                    <button
+                      key={commitment.id}
+                      type="button"
+                      className={styles.listItem}
+                      onClick={() => navigate('/laboral/commitments')}
+                    >
+                      <span className={styles.avatar} aria-hidden="true">
+                        {person ? initialsOf(person.name) : '?'}
+                      </span>
+
+                      <span className={styles.listItemBody}>
+                        <span className={styles.listItemTitle}>{commitment.description}</span>
+                        <span className={styles.listItemMeta}>
+                          {commitment.direction === 'MINE' ? 'Tú → ' : '← '}
+                          {person?.name ?? '—'} · {relativeLabel(commitment.dueAt)}
+                        </span>
+                      </span>
+
+                      <span className={styles.badge} data-tone={badge.tone}>
+                        {badge.label}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </section>
+
+          <section className={styles.card}>
+            <div className={styles.cardHeader}>
+              <h3>Captura rápida</h3>
+            </div>
+
+            <form className={styles.captureForm} onSubmit={handleQuickCapture}>
+              <input
+                className={styles.captureInput}
+                value={quickCapture}
+                onChange={(e) => setQuickCapture(e.target.value)}
+                placeholder="Anota algo antes de que se te olvide…"
+                aria-label="Anota algo antes de que se te olvide"
+              />
+              <button type="submit" className={styles.captureButton} aria-label="Agregar al Inbox">
+                <IconPlus width={16} height={16} />
+              </button>
+            </form>
+
+            <p className={styles.cardFootnote}>
+              Va directo a tu Inbox — decides después si es tarea, seguimiento o nota.
+            </p>
+
+            {captured && <p className={styles.captureHint}>Guardado en tu Inbox.</p>}
+          </section>
+        </div>
       </div>
-
-      {/* ADR-016 Fase 3e2/FR-032, UC-25: rutinas que tocan hoy. "Hecha" llama
-          al endpoint real, que avanza la fecha desde la programada — no crea
-          ninguna Tarea ni Compromiso. */}
-      <ListSectionCard title="Rutinas de hoy" onSeeAll={() => navigate('/laboral/routines')}>
-        {loading && <p className={styles.emptyHint}>Cargando…</p>}
-        {!loading && dueRoutines.length === 0 && <p className={styles.emptyHint}>Ninguna rutina pendiente hoy.</p>}
-        {!loading &&
-          dueRoutines.map((routine) => (
-            <ListItemRow
-              key={routine.id}
-              title={routine.title}
-              subtitle={`${FREQUENCY_LABELS[routine.frequency]} · Programada: ${routine.nextExecutionDate.slice(0, 10)}`}
-              icon={IconRepeat}
-              tone={daysUntil(routine.nextExecutionDate) < 0 ? 'error' : 'primary'}
-              pillLabel={daysUntil(routine.nextExecutionDate) < 0 ? 'Atrasada' : undefined}
-              pillTone="error"
-              trailing={
-                <button
-                  type="button"
-                  className={styles.routineDoneButton}
-                  aria-label={`Marcar ${routine.title} como hecha`}
-                  disabled={busyRoutineId === routine.id}
-                  onClick={() => void handleExecuteRoutine(routine)}
-                >
-                  <IconCheckCircle width={16} height={16} /> Hecha
-                </button>
-              }
-            />
-          ))}
-      </ListSectionCard>
-
-      {/* ADR-016 Fase 3e1/FR-031: resumen de Objetivos abiertos. "Ver todos"
-          lleva a la página dedicada (/laboral/objectives), que no tiene
-          entrada propia en el navbar — ver AppRouter.tsx. */}
-      <ListSectionCard title="Objetivos" onSeeAll={() => navigate('/laboral/objectives')}>
-        {loading && <p className={styles.emptyHint}>Cargando…</p>}
-        {!loading && openObjectives.length === 0 && (
-          <p className={styles.emptyHint}>Sin objetivos abiertos.</p>
-        )}
-        {!loading &&
-          openObjectives.map((objective) => (
-            <ListItemRow
-              key={objective.id}
-              title={objective.title}
-              subtitle={objective.deadline ? `Fecha límite: ${objective.deadline.slice(0, 10)}` : undefined}
-              icon={IconTarget}
-              tone="primary"
-              pillLabel={objective.targetValue !== undefined ? `${objective.currentValue}/${objective.targetValue}` : undefined}
-              pillTone="info"
-            />
-          ))}
-      </ListSectionCard>
-
-      <ListSectionCard title="Captura rápida">
-        <form className={styles.captureForm} onSubmit={handleQuickCapture}>
-          <input
-            className={styles.captureInput}
-            value={quickCapture}
-            onChange={(e) => setQuickCapture(e.target.value)}
-            placeholder="Anota algo antes de que se te olvide…"
-          />
-          <button type="submit" aria-label="Agregar al Inbox">
-            <IconPlus width={16} height={16} />
-          </button>
-        </form>
-        {captured && <p className={styles.captureHint}>Guardado en tu Inbox.</p>}
-      </ListSectionCard>
     </AppShell>
   )
 }

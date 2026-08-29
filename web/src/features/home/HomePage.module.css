@@ -236,6 +236,32 @@
 }
 
 /* =========================================================
+   ALERTAS PRÓXIMAS (ADR-018)
+
+   Sección propia, separada del resumen de actividad, porque no son
+   actividades del usuario: son fechas que se le vienen encima.
+   ========================================================= */
+
+.alertsSection {
+  width: 100%;
+}
+
+.alertsCount {
+  color: var(--color-text-secondary);
+
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+}
+
+.alertsFootnote {
+  margin: var(--space-2) 0 0;
+
+  color: var(--color-text-secondary);
+  font-size: 0.8125rem;
+}
+
+/* =========================================================
    EMPTY STATE
    ========================================================= */
 

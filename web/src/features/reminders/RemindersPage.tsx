@@ -8,6 +8,22 @@ import { IconCheckCircle, IconTasks } from '../../core/ui/icons'
 import { useActiveMode } from '../../core/user/ActiveModeContext'
 import styles from './RemindersPage.module.css'
 
+/**
+ * RETIRADA DE LA APLICACIÓN (2026-08-28, pedido explícito del usuario: el
+ * botón "Nuevo" del `AppShell`, su destino y su contenido dejan de existir a
+ * nivel visual).
+ *
+ * Ese botón era el ÚNICO acceso a esta pantalla — no tenía ítem propio en
+ * ningún navbar —, así que al quitarlo se retiraron también sus tres rutas
+ * (`/reminders`, `/personal/reminders`, `/laboral/reminders`) en
+ * `AppRouter.tsx`. Este componente ya no se monta en ninguna parte.
+ *
+ * El archivo se conserva a propósito (regla del proyecto: no se borran
+ * componentes) y, sobre todo, los `REMINDER` **siguen siendo datos vivos**:
+ * se ven en el Calendario y en la línea de tiempo de Hoy, y se crean desde
+ * el alta rápida del Calendario y desde el detalle de Persona/Proyecto. Lo
+ * que desapareció es esta pantalla, no la funcionalidad.
+ */
 export function RemindersPage() {
   // FR-019/ADR-015: context is inferred from which navbar this screen was
   // reached through — null when reached via the legacy bare /reminders

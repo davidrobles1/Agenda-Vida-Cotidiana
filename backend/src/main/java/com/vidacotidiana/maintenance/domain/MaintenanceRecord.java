@@ -37,6 +37,15 @@ public class MaintenanceRecord {
     @Column(name = "next_due_at", nullable = false)
     private Instant nextDueAt;
 
+    /**
+     * Periodicidad en meses elegida por el usuario ("¿Cada cuánto?").
+     * Nullable a propósito: NULL significa "mantenimiento de una sola
+     * fecha", que es exactamente lo que eran todos los registros antes de
+     * la migración V24 — no se inventa una periodicidad para ellos.
+     */
+    @Column(name = "interval_months")
+    private Integer intervalMonths;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private MaintenanceStatus status = MaintenanceStatus.ACTIVE;
@@ -56,6 +65,11 @@ public class MaintenanceRecord {
     }
 
     public MaintenanceRecord(UUID ownerUserId, String item, Instant nextDueAt) {
+        this(ownerUserId, item, nextDueAt, null);
+    }
+
+    public MaintenanceRecord(UUID ownerUserId, String item, Instant nextDueAt, Integer intervalMonths) {
+        this.intervalMonths = intervalMonths;
         this.ownerUserId = ownerUserId;
         this.item = item;
         this.nextDueAt = nextDueAt;
@@ -79,6 +93,10 @@ public class MaintenanceRecord {
 
     public Instant getNextDueAt() {
         return nextDueAt;
+    }
+
+    public Integer getIntervalMonths() {
+        return intervalMonths;
     }
 
     public MaintenanceStatus getStatus() {
@@ -109,11 +127,18 @@ public class MaintenanceRecord {
 
     /** Partial update — a null argument leaves the corresponding field unchanged. */
     public void applyEdit(String item, Instant nextDueAt) {
+        applyEdit(item, nextDueAt, null);
+    }
+
+    public void applyEdit(String item, Instant nextDueAt, Integer intervalMonths) {
         if (item != null) {
             this.item = item;
         }
         if (nextDueAt != null) {
             this.nextDueAt = nextDueAt;
+        }
+        if (intervalMonths != null) {
+            this.intervalMonths = intervalMonths;
         }
         this.updatedAt = Instant.now();
     }

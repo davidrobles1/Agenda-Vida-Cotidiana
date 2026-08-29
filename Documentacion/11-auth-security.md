@@ -35,6 +35,25 @@ No implementar criptografía/autenticación propia.
 - protección contra replay según mecanismo elegido;
 - credenciales almacenadas de forma segura en Android.
 
+### DECISION (DEC-016/ADR-017) — Expiración por inactividad: 2 horas
+Decidido por el Product Owner el 2026-08-28. Aplica a la SPA Web; Android/iOS quedan **TBD** hasta que exista su cliente de sesión (no se asume que el plazo sea el mismo en móvil).
+
+| Parámetro | Valor | Dónde se aplica |
+|---|---|---|
+| Inactividad máxima | **2 h** (7200 s) | Web: `web/src/core/auth/authClient.ts` (`IDLE_TIMEOUT_MS`). Keycloak: `ssoSessionIdleTimeout` en `infra/keycloak/realm-vida-cotidiana*.json` |
+| Vida absoluta de sesión | 10 h (36000 s) | Keycloak `ssoSessionMaxLifespan` — **sin cambios**, es un tope independiente del de inactividad |
+| Vida del access token | 5 min (300 s) | Keycloak `accessTokenLifespan` — **sin cambios** |
+
+**Por qué hacen falta las dos mitades y no basta con Keycloak:** la renovación silenciosa de la SPA (`prompt=none` cada ~4,5 min) reinicia el contador de inactividad de Keycloak en cada renovación. Con la app abierta ese contador nunca avanzaba, así que la sesión sobrevivía hasta el tope absoluto de 10 h. Por eso:
+
+- **Con la app abierta manda el cliente**: mide interacción real del usuario (`mousedown`, `keydown`, `touchstart`, `scroll`), corta la renovación al vencer el plazo y termina la sesión SSO llamando al endpoint de logout de Keycloak — soltar el token del navegador no bastaría, porque el siguiente `prompt=none` volvería a entrar solo.
+- **Con la app cerrada manda Keycloak**: si nadie renueva, `ssoSessionIdleTimeout` caduca la sesión en el mismo plazo.
+- **Al volver a abrir la app**, el cliente compara la marca de última actividad (compartida entre pestañas del mismo navegador, `localStorage`, solo una marca de tiempo — la regla WEB-002 de no persistir el token sigue intacta) antes de intentar restaurar la sesión.
+
+El usuario siempre ve el motivo del cierre en la pantalla de login; no se le devuelve al login en silencio.
+
+**ASSUMPTION:** "actividad" se define como interacción real del usuario, no como tráfico de la aplicación. Que la pestaña esté abierta, visible o haciendo peticiones en segundo plano **no** cuenta como actividad.
+
 ## Seguridad API
 - HTTPS;
 - validación Bean Validation;

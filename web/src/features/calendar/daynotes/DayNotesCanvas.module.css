@@ -1,346 +1,291 @@
 /* =====================================================
-   Canvas de notas por día (pedido explícito del usuario, 2026-08-22)
+   NOTAS DEL DÍA — "Notas en el margen"
+   Propuesta visual aprobada por el usuario (2026-08-23).
+
+   Una nota es una ANOTACIÓN DE TEXTO: sin tarjeta, sin sombra, sin
+   fondo, sin forma. Solo un filete guía al margen y el texto completo.
+   Los cuatro temas comparten esta estructura y solo cambian el acento
+   del margen (ver el bloque de temas al final).
    ===================================================== */
 
 .wrapper {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-  min-width: 0;
+
+  /* `min-height: 0` es lo que permite que la lista sea más corta que su
+     contenido y desborde hacia adentro en vez de alargar la página. */
+  min-height: 0;
   height: 100%;
+  min-width: 0;
 }
 
-.toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-}
+.colLabel {
+  flex: 0 0 auto;
+  margin-bottom: 10px;
 
-.toolbarTitle {
-  font-weight: 600;
-  font-size: 0.9375rem;
-  color: var(--color-text);
-}
+  color: var(--color-primary);
 
-.toolbarActions {
-  display: flex;
-  gap: var(--space-2);
-}
-
-.addButton {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 5px 10px;
-  border: 1px solid var(--color-border);
-  border-radius: 20px;;
-  background: var(--color-surface-variant);
-  color: var(--color-text);
-  font-size: 0.8125rem;
-  cursor: pointer;
-  transition: background-color 150ms ease, border-color 150ms ease;
-}
-
-.addButton:hover {
-  background: var(--color-primary-container);
-  border-color: var(--color-primary);
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
 }
 
 .error {
+  flex: 0 0 auto;
+  margin: 0 0 6px;
   color: var(--color-error);
   font-size: 0.8125rem;
 }
 
 .hint {
+  margin: 0;
+  padding: 6px 0;
   color: var(--color-text-secondary);
   font-size: 0.8125rem;
-  padding: var(--space-2) 0;
-}
-
-/* Mismo tinte de "mesa de trabajo" que VisionBoardCanvas.module.css's
-   .viewport, generalizado a un canvas mucho más pequeño. */
-.canvas {
-  position: relative;
-  min-width: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-  border: 1px solid var(--color-border);
-  border-radius: 20px;;
-  background: color-mix(in srgb, var(--color-text) 3%, var(--color-surface));
-  padding: var(--space-2);
-}
-
-.guideVertical {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 1px;
-  background: var(--color-primary);
-  opacity: 0.6;
-  pointer-events: none;
-}
-
-.guideHorizontal {
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: var(--color-primary);
-  opacity: 0.6;
-  pointer-events: none;
 }
 
 /* =====================================================
-   ELEMENTOS — solo 2 tipos, pedido explícito ("1 tipo de forma:
-   sticker/banner. 1 tipo de texto").
+   LISTA — el único contenedor con scroll
    ===================================================== */
 
-/* Hallazgo real (2026-08-23): `.deleteButton` se posiciona A PROPÓSITO
-   fuera de la caja (`top:-8px; right:-8px`, para leerse como una insignia
-   en la esquina) y antes vivía como hijo directo de este mismo nodo con
-   `overflow: hidden` — así que la mitad del botón (y, en formas más
-   angostas, hasta la propia forma del banner) se recortaba sin importar
-   dónde estuviera el elemento. Mismo split que Vision Board ya usa
-   (VisionBoardCanvas.module.css's `.element` vs `.elementContent`): esta
-   caja externa ahora solo posiciona/arrastra (`overflow` normal, nunca
-   recorta), y `.elementInner` de abajo es la que recorta el contenido
-   real (forma del banner + texto) contra su propio borde. */
-.elementBanner,
-.elementText {
-  position: absolute;
-  cursor: grab;
-  user-select: none;
-  touch-action: none;
-}
+.noteList {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
 
-.elementBanner:active,
-.elementText:active {
-  cursor: grabbing;
-}
-
-.elementInner {
-  position: relative;
-  width: 100%;
-  height: 100%;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 var(--space-3);
-  text-align: center;
-  overflow: hidden;
-  border-radius: inherit;
+  flex-direction: column;
+
+  scrollbar-width: thin;
 }
 
-.bannerShape {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 0;
-}
+/* =====================================================
+   NOTA — texto y nada más
+   ===================================================== */
 
-.bannerShape path {
-  fill: var(--color-terracotta-container);
-  stroke: var(--color-terracotta);
-  stroke-width: 2;
-}
+.note {
+  position: relative;
+  flex: 0 0 auto;
 
-.elementBanner {
-  color: var(--color-terracotta-text);
-}
+  padding: 7px 26px 7px 14px;
 
-.elementText {
-  background: var(--color-surface-variant);
-  border: 1px solid var(--color-border);
-  border-radius: 20px;;
+  border-radius: var(--radius-control);
+
   color: var(--color-text);
-  box-shadow: 0 1px 4px rgba(44, 66, 91, 0.08);
-}
+  font-size: 0.88rem;
+  line-height: 1.5;
 
-/* Área segura de texto de un banner — caja posicionada (no `padding` en %,
-   ver bannerTextInsetStyle's propio comentario sobre por qué), con los
-   insets por forma que vienen en línea. Recorta por su cuenta para que un
-   texto demasiado largo se corte DENTRO de la silueta en vez de
-   desbordarse hacia el fondo del canvas. */
-.textSafeArea {
-  position: absolute;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  pointer-events: none;
-}
-
-.textLabel {
-  position: relative;
-  z-index: 1;
-  min-width: 0;
-  max-width: 100%;
-  font-size: 0.875rem;
-  line-height: 1.3;
+  /* Texto completo SIEMPRE: envuelve y nunca se recorta. */
+  white-space: pre-wrap;
   overflow-wrap: break-word;
-  word-break: break-word;
-  pointer-events: none;
+
+  cursor: text;
 }
 
-/* Hallazgo real (Playwright, 2026-08-23): `src/index.css`'s global
-   `button { min-height: 44px }` (objetivo táctil de los botones normales)
-   ganaba sobre este `height: 20px`, así que el botón se renderizaba como
-   una ELIPSE de 20×44 sobresaliendo muy por encima del banner — eso era la
-   "otra forma rara arriba" y el "botón a la mitad" del reporte del
-   usuario. `min-height: 0` es obligatorio en cualquier botón-insignia de
-   este archivo que fije su propia altura pequeña (ver también
-   `.formatButton`/`.shapeSwatch` abajo). */
-.deleteButton {
+/* El "bullet" es un filete vertical fino alineado al texto — la marca de
+   margen de una agenda, no una viñeta decorativa. */
+.note::before {
+  content: '';
   position: absolute;
-  top: -8px;
-  right: -8px;
-  z-index: 2;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+
+  width: 2px;
+  border-radius: 2px;
+
+  background: color-mix(in srgb, var(--color-primary) 38%, transparent);
+}
+
+.note:hover {
+  background: color-mix(in srgb, var(--color-primary) 5%, transparent);
+}
+
+.noteDelete {
+  position: absolute;
+  right: 2px;
+  top: 5px;
+
   width: 20px;
   height: 20px;
   min-height: 0;
   padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  border: 1px solid var(--color-border);
-  background: var(--color-surface-variant);
-  color: var(--color-error);
+
+  display: grid;
+  place-items: center;
+
+  border: none;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--color-text-secondary);
+
+  font-size: 0.9rem;
+  line-height: 1;
+
   cursor: pointer;
-  opacity: 0.7;
-  transition: opacity 150ms ease;
+  opacity: 0;
 }
 
-.elementBanner:hover .deleteButton,
-.elementText:hover .deleteButton {
+.note:hover .noteDelete,
+.noteDelete:focus-visible {
   opacity: 1;
 }
 
+.noteDelete:hover {
+  color: var(--color-error);
+}
+
+/* Edición en el sitio: el textarea ocupa el renglón de la nota, sin
+   capas flotantes ni diálogos. Hereda la tipografía para que el texto no
+   "salte" al entrar y salir de edición. */
+.noteEditor {
+  width: 100%;
+  padding: 0;
+
+  border: none;
+  background: transparent;
+  color: var(--color-text);
+
+  font: inherit;
+  font-size: 0.88rem;
+  line-height: 1.5;
+
+  resize: none;
+  overflow: hidden;
+  outline: none;
+}
+
 /* =====================================================
-   EDICIÓN INLINE — clic directo sobre el texto/forma, pedido explícito.
+   ESCRITURA DIRECTA
    ===================================================== */
 
-.editorLayer {
-  position: absolute;
-  inset: 0;
-  z-index: 5;
+.composer {
+  flex: 0 0 auto;
+
   display: flex;
-  background: var(--color-surface-variant);
-  border-radius: 20px;;
-  box-shadow: 0 4px 14px rgba(44, 66, 91, 0.18);
+  align-items: flex-start;
+  gap: 8px;
+
+  margin-top: 6px;
+  padding-top: 10px;
+
+  border-top: 1px dashed color-mix(in srgb, var(--color-border) 34%, transparent);
 }
 
-/* Hallazgo real (Playwright, 2026-08-23): el toolbar flota SIEMPRE arriba
-   del elemento, pero los elementos nuevos nacen pegados al borde superior
-   del canvas y abren el editor de inmediato — así que caía fuera del
-   canvas, que tiene `overflow-y: auto`, quedando invisible y sin poder
-   recibir clics. `.editorToolbarBelow` lo voltea hacia abajo cuando no hay
-   espacio arriba (ver TOOLBAR_FLIP_THRESHOLD en DayNotesCanvas.tsx). */
-.editorToolbar {
-  position: absolute;
-  bottom: calc(100% + 6px);
-  left: 0;
-  z-index: 6;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px;
-  padding: 3px;
-  max-width: 236px;
-  border: 1px solid var(--color-border);
-  border-radius: 14px;
-  background: var(--color-surface-variant);
-  box-shadow: 0 2px 8px rgba(44, 66, 91, 0.14);
-}
-
-.editorToolbarBelow {
-  bottom: auto;
-  top: calc(100% + 6px);
-}
-
-.formatButton,
-.formatButtonActive {
-  width: 24px;
-  height: 24px;
-  min-height: 0;
-  padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  border-radius: 4px;
-  background: transparent;
-  color: var(--color-text-secondary);
-  cursor: pointer;
-}
-
-.formatButtonActive {
-  background: var(--color-primary-container);
+.composerMark {
   color: var(--color-primary);
+  font-size: 0.95rem;
+  line-height: 1.6;
 }
 
-.fontSelect {
-  height: 24px;
-  border: 1px solid var(--color-border);
-  border-radius: 4px;
-  background: var(--color-surface);
-  color: var(--color-text);
-  font-size: 0.6875rem;
-  padding: 0 4px;
-  cursor: pointer;
-}
-
-.shapeSwatches {
-  display: flex;
-  gap: 3px;
-}
-
-.shapeSwatch,
-.shapeSwatchActive {
-  width: 22px;
-  height: 22px;
-  min-height: 0;
-  padding: 3px;
-  border: 1px solid var(--color-border);
-  border-radius: 5px;
-  background: var(--color-surface);
-  color: var(--color-text-secondary);
-  cursor: pointer;
-}
-
-.shapeSwatch svg,
-.shapeSwatchActive svg {
-  width: 100%;
-  height: 100%;
-  fill: currentColor;
-}
-
-.shapeSwatchActive {
-  border-color: var(--color-primary);
-  background: var(--color-primary-container);
-  color: var(--color-primary);
-}
-
-.editorTextarea {
+.composerInput {
   flex: 1;
-  width: 100%;
-  height: 100%;
-  resize: none;
+  min-width: 0;
+  padding: 0;
+
   border: none;
-  outline: none;
   background: transparent;
   color: var(--color-text);
+
   font: inherit;
-  font-size: 0.875rem;
-  text-align: center;
-  padding: var(--space-1) var(--space-2);
+  font-size: 0.88rem;
+  line-height: 1.5;
+
+  resize: none;
+  overflow: hidden;
+  outline: none;
 }
 
-@media (max-width: 859px) {
-  .canvas {
-    max-height: 360px;
-  }
+.composerInput::placeholder {
+  color: var(--color-text-secondary);
+}
+
+.composerHint {
+  flex: 0 0 auto;
+  margin: 6px 0 0 22px;
+
+  color: var(--color-text-secondary);
+
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.08em;
+}
+
+/* =====================================================
+   TEMAS — misma estructura, distinto acento de margen
+   ===================================================== */
+
+/* Editorial: papel rayado real y rótulo con carácter. */
+:global(.theme-editorial) .noteList {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 33px,
+    color-mix(in srgb, var(--color-border) 15%, transparent) 33px,
+    color-mix(in srgb, var(--color-border) 15%, transparent) 34px
+  );
+}
+
+:global(.theme-editorial) .colLabel {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 0.8rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: none;
+}
+
+/* Minimal: sin filetes ni fondos — la jerarquía la da el espacio, y la
+   separación una línea divisoria. */
+:global(.theme-minimal) .note {
+  padding-top: 10px;
+  padding-bottom: 10px;
+  padding-left: 0;
+
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 90%, transparent);
+  border-radius: 0;
+}
+
+:global(.theme-minimal) .note:last-child {
+  border-bottom: none;
+}
+
+:global(.theme-minimal) .note::before {
+  background: none;
+}
+
+:global(.theme-minimal) .note:hover {
+  background: none;
+}
+
+:global(.theme-minimal) .colLabel {
+  color: var(--color-text-secondary);
+  letter-spacing: 0.26em;
+}
+
+/* Productivity: más densidad y una marca de color más presente. */
+:global(.theme-productivity) .note {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+:global(.theme-productivity) .note::before {
+  width: 3px;
+  background: var(--color-terracotta);
+  opacity: 0.75;
+}
+
+/* Organic: aire, curvas y trazo suave. */
+:global(.theme-organic) .note {
+  padding-top: 9px;
+  padding-bottom: 9px;
+}
+
+:global(.theme-organic) .note::before {
+  width: 6px;
+  border-radius: 999px;
+  opacity: 0.5;
 }

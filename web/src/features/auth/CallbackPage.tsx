@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { consumeJustRegistered, handleCallback } from '../../core/auth/authClient'
+import { consumeJustRegistered, consumePostLoginPath, handleCallback } from '../../core/auth/authClient'
 import { getCurrentUser } from '../../core/user/api'
 import { resolveModeState } from '../../core/user/modes'
 
@@ -31,6 +31,15 @@ export function CallbackPage() {
           navigate('/onboarding', { replace: true })
           return
         }
+        // Reautenticación silenciosa a nivel de pestaña (authClient
+        // escalateToTopLevelReauth): el usuario no pidió iniciar sesión, se
+        // le sacó de donde estaba para revalidar. Devolverlo a Calendario
+        // sería perder su sitio, así que vuelve exactamente a su pantalla.
+        const back = consumePostLoginPath()
+        if (back) {
+          navigate(back, { replace: true })
+          return
+        }
         try {
           const user = await getCurrentUser()
           const state = resolveModeState(user)
@@ -41,7 +50,13 @@ export function CallbackPage() {
           navigate('/calendar', { replace: true })
         }
       })
-      .catch((e) => setError(e instanceof Error ? e.message : 'Login failed'))
+      .catch((e) => {
+        // Un fallo aquí no debe dejar al usuario atrapado en /callback
+        // mirando un mensaje técnico: authClient ya dejó escrito el motivo
+        // legible (getSessionNotice) y el login lo muestra.
+        setError(e instanceof Error ? e.message : 'Login failed')
+        navigate('/', { replace: true })
+      })
   }, [navigate])
 
   if (error) return <p role="alert">{error}</p>

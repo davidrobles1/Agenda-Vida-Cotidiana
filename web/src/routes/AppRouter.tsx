@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
-import { isAuthenticated, subscribe } from '../core/auth/authClient'
+import { getAuthStatus, subscribe, type AuthStatus } from '../core/auth/authClient'
+import { SessionRestoring } from '../core/auth/SessionRestoring'
 import { PersonalLayout, LaboralLayout } from '../core/user/ActiveModeContext'
 import { LoginPage } from '../features/auth/LoginPage'
 import { CallbackPage } from '../features/auth/CallbackPage'
@@ -8,7 +9,6 @@ import { OnboardingPage } from '../features/onboarding/OnboardingPage'
 import { SettingsPage } from '../features/settings/SettingsPage'
 import { HomePage } from '../features/home/HomePage'
 import { CalendarPage } from '../features/calendar/CalendarPage'
-import { RemindersPage } from '../features/reminders/RemindersPage'
 import { VisionBoardPage } from '../features/visionboard/VisionBoardPage'
 import { InvitationsPage } from '../features/sharing/InvitationsPage'
 import { NotificationsPage } from '../features/notifications/NotificationsPage'
@@ -19,7 +19,6 @@ import { MaintenancePage } from '../features/maintenance/MaintenancePage'
 import { SubscriptionsPage } from '../features/subscriptions/SubscriptionsPage'
 import { FamilyPage } from '../features/family/FamilyPage'
 import { HoyPage } from '../features/laboral/HoyPage'
-import { TareasPage } from '../features/laboral/TareasPage'
 import { InboxPage } from '../features/laboral/InboxPage'
 import { PeoplePage } from '../features/people/PeoplePage'
 import { ProjectsPage } from '../features/projects/ProjectsPage'
@@ -27,19 +26,36 @@ import { CommitmentsPage } from '../features/commitments/CommitmentsPage'
 import { ObjectivesPage } from '../features/objectives/ObjectivesPage'
 import { RoutinesPage } from '../features/routines/RoutinesPage'
 
-function useIsAuthenticated(): boolean {
-  return useSyncExternalStore(subscribe, isAuthenticated)
+function useAuthStatus(): AuthStatus {
+  return useSyncExternalStore(subscribe, getAuthStatus)
 }
 
+/**
+ * El estado `restoring` es la diferencia clave respecto a la versión
+ * anterior, que solo preguntaba `isAuthenticated()`: al arrancar, la
+ * respuesta todavía no se sabe (authClient está comprobando la sesión SSO
+ * en un iframe oculto). Contestar "no" mientras tanto es lo que mandaba al
+ * login en cada recarga aun teniendo sesión válida.
+ */
 function RequireAuth({ children }: { children: React.ReactElement }) {
-  const authenticated = useIsAuthenticated()
-  return authenticated ? children : <Navigate to="/" replace />
+  const status = useAuthStatus()
+  if (status === 'restoring') return <SessionRestoring />
+  return status === 'authenticated' ? children : <Navigate to="/" replace />
+}
+
+/** Misma espera para "/": si la sesión se recupera, el login no llega ni a
+    verse y se entra directo a Calendario — el mismo destino que usa
+    CallbackPage tras un login normal (ADR-015(d)/FR-015). */
+function LoginRoute() {
+  const status = useAuthStatus()
+  if (status === 'restoring') return <SessionRestoring />
+  return status === 'authenticated' ? <Navigate to="/calendar" replace /> : <LoginPage />
 }
 
 export function AppRouter() {
   return (
     <Routes>
-      <Route path="/" element={<LoginPage />} />
+      <Route path="/" element={<LoginRoute />} />
       <Route path="/callback" element={<CallbackPage />} />
       <Route
         path="/onboarding"
@@ -65,14 +81,13 @@ export function AppRouter() {
           </RequireAuth>
         }
       />
-      <Route
-        path="/reminders"
-        element={
-          <RequireAuth>
-            <RemindersPage />
-          </RequireAuth>
-        }
-      />
+      {/* Rutas de `RemindersPage` retiradas (2026-08-28, pedido explícito
+          del usuario: el botón "Nuevo", su destino y su contenido dejan de
+          existir a nivel visual). Eran tres — la plana heredada y las dos
+          mode-scoped de abajo. `features/reminders/RemindersPage.tsx` sigue
+          en el repositorio, ya sin enrutar: no se borran componentes, y los
+          REMINDER siguen siendo datos vivos que se ven en el Calendario y en
+          Hoy. */}
       <Route
         path="/invitations"
         element={
@@ -104,7 +119,6 @@ export function AppRouter() {
       >
         <Route path="home" element={<HomePage />} />
         <Route path="calendar" element={<CalendarPage />} />
-        <Route path="reminders" element={<RemindersPage />} />
         <Route path="vision-board" element={<VisionBoardPage />} />
         <Route path="shared" element={<InvitationsPage />} />
       </Route>
@@ -118,7 +132,6 @@ export function AppRouter() {
       >
         <Route path="home" element={<HomePage />} />
         <Route path="calendar" element={<CalendarPage />} />
-        <Route path="reminders" element={<RemindersPage />} />
         <Route path="vision-board" element={<VisionBoardPage />} />
         <Route path="shared" element={<InvitationsPage />} />
         {/* ADR-016 (Módulo Laboral, 2026-08-22): 6 pantallas nuevas del
@@ -129,7 +142,12 @@ export function AppRouter() {
             el navbar de Laboral: pedido explícito del usuario de no borrar
             módulos/rutas/componentes, solo el enlace del menú. */}
         <Route path="hoy" element={<HoyPage />} />
-        <Route path="tasks" element={<TareasPage />} />
+        {/* "Tareas" retirada de Laboral (2026-08-28, pedido explícito del
+            usuario: el botón, su destino y su contenido dejan de existir a
+            nivel visual). A diferencia de vision-board/shared más arriba,
+            aquí NO se conserva la ruta sin enlace: se pidió que el destino
+            tampoco existiera. `features/laboral/TareasPage.tsx` sigue en el
+            repositorio, ya sin enrutar — no se borran componentes. */}
         <Route path="people" element={<PeoplePage />} />
         <Route path="projects" element={<ProjectsPage />} />
         <Route path="commitments" element={<CommitmentsPage />} />

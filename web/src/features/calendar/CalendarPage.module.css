@@ -40,24 +40,152 @@
 
 /* Pedido explícito del usuario (2026-08-22): "reservar aproximadamente el
    40% del espacio derecho para las notas" en la vista diaria. */
-.dayFullPane {
+/* =====================================================
+   LA HOJA DEL DÍA — "Notas en el margen"
+   Propuesta visual aprobada por el usuario (2026-08-23): agenda y notas
+   dejan de ser dos cajas pegadas y pasan a ser UNA hoja. Lo que lo
+   consigue es la cabecera cruzando ambas columnas (`grid-column: 1/-1`)
+   dentro de un único borde exterior.
+   ===================================================== */
+
+.daySheet {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+
   min-width: 0;
-  display: flex;
-  flex-direction: row;
-  align-items: flex-start;
-  gap: var(--space-4);
+
+  /* Sin fondo ni sombra propios A PROPÓSITO: la hoja vive dentro de
+     ListSectionCard, que ya pinta `--color-surface-variant` y
+     `--shadow-card`. Repetirlos daría superficie-sobre-superficie (dos
+     sombras y cero contraste). Lo que hace legible "una sola hoja" es el
+     borde único, la cabecera cruzando ambas columnas y el filete divisor
+     — eso sí se conserva del diseño aprobado. */
+  border: 1px solid color-mix(in srgb, var(--color-border) 42%, transparent);
+  border-radius: var(--radius-card);
+
+  overflow: hidden;
 }
 
-.dayAgendaColumn {
-  flex: 1 1 60%;
-  min-width: 0;
+.daySheetHead {
+  grid-column: 1 / -1;
+
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+
+  padding: 20px 24px 16px;
+
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 34%, transparent);
+}
+
+.daySheetDate {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.daySheetDateNum {
+  font-family: var(--font-serif);
+  font-size: 2.6rem;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  color: var(--color-text);
+}
+
+.daySheetDateMeta {
   display: flex;
   flex-direction: column;
 }
 
-.dayNotesColumn {
-  flex: 1 1 40%;
-  min-width: 260px;
+.daySheetDow {
+  color: var(--color-text);
+  font-size: 0.98rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.daySheetMonth {
+  color: var(--color-text-secondary);
+  font-size: 0.8rem;
+  text-transform: capitalize;
+}
+
+.daySheetCount {
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* Rótulo de columna — el mismo en Agenda y en Notas, para que se lean
+   como dos secciones de la misma hoja. */
+.daySheetColLabel {
+  margin-bottom: 10px;
+
+  color: var(--color-primary);
+
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+/* ADR-018: banda de alertas de fecha dentro de la hoja del día. No se
+   parece a la agenda a propósito — es seguimiento, no actividades. */
+.daySheetAlerts {
+  flex: 0 0 auto;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px dashed color-mix(in srgb, var(--color-border) 40%, transparent);
+}
+
+.daySheetAgenda {
+  min-width: 0;
+  padding: 14px 20px 22px;
+  border-right: 1px solid color-mix(in srgb, var(--color-border) 34%, transparent);
+}
+
+.daySheetNotes {
+  min-width: 0;
+
+  /* El área de notas se adapta al alto disponible y desborda hacia
+     adentro; nunca alarga la página. */
+  /* display: flex; */
+  min-height: 0;
+  max-height: 460px;
+  flex: 1 1 auto;
+  overflow: hidden;
+  padding: 14px 20px 16px;
+}
+
+/* Editorial: el rótulo de columna en cursiva, igual que en la maqueta. */
+:global(.theme-editorial) .daySheetColLabel {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 0.8rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: none;
+}
+
+/* Minimal: sin sombra, borde nítido y rótulos muy espaciados. */
+:global(.theme-minimal) .daySheet {
+  border-color: var(--color-border);
+}
+
+:global(.theme-minimal) .daySheetColLabel {
+  color: var(--color-text-secondary);
+  letter-spacing: 0.26em;
+}
+
+/* Productivity: la fecha usa la sans del tema, no la serif. */
+:global(.theme-productivity) .daySheetDateNum {
+  font-family: var(--font-sans);
 }
 
 /* =====================================================
@@ -977,13 +1105,19 @@
     min-width: 145px;
   }
 
-  .dayFullPane {
-    flex-direction: column;
+  /* En pantalla angosta la hoja se apila: notas debajo de la agenda,
+     separadas por una línea en vez del filete vertical. */
+  .daySheet {
+    grid-template-columns: 1fr;
   }
 
-  .dayNotesColumn {
-    min-width: 0;
-    width: 100%;
+  .daySheetAgenda {
+    border-right: none;
+    border-bottom: 1px solid color-mix(in srgb, var(--color-border) 34%, transparent);
+  }
+
+  .daySheetNotes {
+    max-height: 340px;
   }
 }
 

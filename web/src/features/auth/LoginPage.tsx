@@ -1,4 +1,11 @@
-import { login, register } from '../../core/auth/authClient'
+import { useSyncExternalStore } from 'react'
+import {
+  dismissSessionNotice,
+  getSessionNotice,
+  login,
+  register,
+  subscribe,
+} from '../../core/auth/authClient'
 import {
   IconArrowRight,
   IconHeart,
@@ -13,6 +20,11 @@ import styles from './LoginPage.module.css'
 import logo from './assets/libro_hojas.jpeg'
 
 export function LoginPage() {
+  // Si la sesión terminó de verdad, authClient deja escrito el motivo antes
+  // de mandar aquí (ver getSessionNotice): caer al login sin una palabra es
+  // indistinguible de que la app se haya roto.
+  const notice = useSyncExternalStore(subscribe, getSessionNotice)
+
   return (
     <main className={styles.container}>
 
@@ -101,6 +113,20 @@ export function LoginPage() {
             <h3>Bienvenido</h3>
             <p>Inicia sesión para continuar</p>
           </div>
+
+          {notice && (
+            <div className={styles.sessionNotice} role="status">
+              <p className={styles.sessionNoticeText}>{notice}</p>
+              <button
+                type="button"
+                className={styles.sessionNoticeDismiss}
+                aria-label="Descartar aviso"
+                onClick={dismissSessionNotice}
+              >
+                ×
+              </button>
+            </div>
+          )}
 
           <div className={styles.actions}>
 

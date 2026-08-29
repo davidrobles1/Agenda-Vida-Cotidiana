@@ -2,7 +2,6 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { logout } from '../../auth/authClient'
 import { getCurrentUser } from '../../user/api'
-import { useModePath } from '../../user/ActiveModeContext'
 import { useModeContext } from '../../user/ModeContext'
 import { useVocabulary } from '../../user/useVocabulary'
 import type { ProfileVocabulary } from '../../user/vocabulary'
@@ -18,13 +17,10 @@ import {
   IconLayoutGrid,
   IconLogout,
   IconMenu,
-  IconPlus,
   IconRepeat,
-  IconSearch,
   IconSettings,
   IconShared,
   IconShield,
-  IconTasks,
   IconUsers,
   IconWrench,
 } from '../icons'
@@ -59,7 +55,15 @@ const personalNavItems = [
 
 /**
  * ADR-016 (Módulo Laboral, 2026-08-22): Laboral pasa de 4 ítems genéricos a
- * las 7 secciones núcleo del espacio profesional (FR-021 a FR-028) —
+ * las secciones núcleo del espacio profesional (FR-021 a FR-028) —
+ *
+ * ACTUALIZACIÓN (2026-08-28, pedido explícito del usuario): "Tareas" se
+ * retira de la navegación. Eran 7 secciones núcleo; ahora son 6. A
+ * diferencia de Vision Board/Compartidos (que conservaron su ruta sin
+ * enlace), aquí el usuario pidió que tampoco existiera el destino, así que
+ * la ruta `/laboral/tasks` se retiró de `AppRouter.tsx`. `TareasPage.tsx`
+ * sigue en el repositorio, sin enrutar: no se borran componentes.
+ *
  * "Agenda" reutiliza la misma ruta/componente que antes era "Calendario
  * laboral" (`/laboral/calendar` → `CalendarPage`, sin cambios), solo cambia
  * la etiqueta. Pedido explícito del usuario: esto es *solo* un cambio de
@@ -79,7 +83,6 @@ function buildLaboralNavItems(vocabulary: ProfileVocabulary) {
   return [
     { to: '/laboral/hoy', label: 'Hoy', icon: IconHome },
     { to: '/laboral/calendar', label: 'Agenda', icon: IconCalendar },
-    { to: '/laboral/tasks', label: 'Tareas', icon: IconTasks },
     { to: '/laboral/people', label: vocabulary.personPlural, icon: IconUsers },
     { to: '/laboral/projects', label: vocabulary.projectPlural, icon: IconFolder },
     { to: '/laboral/commitments', label: 'Seguimientos', icon: IconRepeat },
@@ -99,8 +102,6 @@ export function AppShell({ title, subtitle, children }: AppShellProps) {
   const { personalEnabled, laboralEnabled } = useModeContext()
   const { theme } = useVisualTheme()
   const vocabulary = useVocabulary()
-
-  const modeRemindersPath = useModePath('reminders')
 
   // Corrección de navegación (2026-08-18): el contexto del sidebar ya no se
   // deriva únicamente del wrapper de ruta activo (`ActiveModeContext`, que
@@ -225,9 +226,14 @@ export function AppShell({ title, subtitle, children }: AppShellProps) {
             >
               Calendario
             </NavLink>
+            {/* Pedido explícito del usuario (2026-08-28): cambiar de módulo
+                debe llevar a su pantalla de entrada, no al calendario del
+                módulo — Personal → Inicio, Laboral → Hoy. Solo cambia el
+                destino de estos dos enlaces; las rutas de calendario siguen
+                existiendo y accesibles desde el menú lateral. */}
             {personalEnabled && (
               <NavLink
-                to="/personal/calendar"
+                to="/personal/home"
                 className={`${styles.modePill} ${sidebarContext === 'PERSONAL' ? styles.modePillActive : ''}`}
               >
                 Personal
@@ -235,7 +241,7 @@ export function AppShell({ title, subtitle, children }: AppShellProps) {
             )}
             {laboralEnabled && (
               <NavLink
-                to="/laboral/calendar"
+                to="/laboral/hoy"
                 className={`${styles.modePill} ${sidebarContext === 'LABORAL' ? styles.modePillActive : ''}`}
               >
                 Laboral
@@ -244,13 +250,16 @@ export function AppShell({ title, subtitle, children }: AppShellProps) {
           </nav>
 
           <div className={styles.topBarActions}>
-            <IconSearch className={styles.searchIcon} width={20} height={20} />
             <NavLink to="/notifications" className={styles.bellLink} aria-label="Notifications">
               <IconBell width={20} height={20} />
             </NavLink>
-            <NavLink to={modeRemindersPath} className={styles.newButton}>
-              <IconPlus width={16} height={16} /> Nuevo
-            </NavLink>
+            {/* Retirado el botón "Nuevo" (2026-08-28, pedido explícito del
+                usuario). Era el único acceso a `RemindersPage` — la pantalla
+                del módulo de Tareas/Recordatorios —, así que quitarlo la
+                deja fuera de la aplicación junto con sus rutas
+                (`AppRouter.tsx`). Crear tareas sigue disponible donde de
+                verdad se usa: el alta rápida del Calendario y el detalle de
+                Persona/Proyecto en Laboral. */}
 
             <ThemeSwitcher />
 

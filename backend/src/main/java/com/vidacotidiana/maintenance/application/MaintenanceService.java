@@ -29,7 +29,14 @@ public class MaintenanceService {
 
     @Transactional
     public MaintenanceRecord create(UUID ownerUserId, String item, Instant nextDueAt) {
-        MaintenanceRecord record = new MaintenanceRecord(ownerUserId, item, nextDueAt);
+        return create(ownerUserId, item, nextDueAt, null);
+    }
+
+    /** Sobrecarga aditiva (V24): `intervalMonths` nulo = mantenimiento de una
+        sola fecha, el comportamiento que tenían todos hasta ahora. */
+    @Transactional
+    public MaintenanceRecord create(UUID ownerUserId, String item, Instant nextDueAt, Integer intervalMonths) {
+        MaintenanceRecord record = new MaintenanceRecord(ownerUserId, item, nextDueAt, intervalMonths);
         return maintenanceRecordRepository.save(record);
     }
 
@@ -66,6 +73,12 @@ public class MaintenanceService {
 
     @Transactional
     public MaintenanceRecord edit(UUID recordId, UUID callerUserId, String item, Instant nextDueAt, int expectedVersion) {
+        return edit(recordId, callerUserId, item, nextDueAt, null, expectedVersion);
+    }
+
+    @Transactional
+    public MaintenanceRecord edit(UUID recordId, UUID callerUserId, String item, Instant nextDueAt,
+                                  Integer intervalMonths, int expectedVersion) {
         MaintenanceRecord record = getOwnedOrThrow(recordId, callerUserId);
 
         if (expectedVersion != record.getVersion()) {
@@ -74,7 +87,7 @@ public class MaintenanceService {
                             + expectedVersion + ", current version " + record.getVersion() + ").");
         }
 
-        record.applyEdit(item, nextDueAt);
+        record.applyEdit(item, nextDueAt, intervalMonths);
         try {
             return maintenanceRecordRepository.save(record);
         } catch (ObjectOptimisticLockingFailureException raceLostToConcurrentUpdate) {

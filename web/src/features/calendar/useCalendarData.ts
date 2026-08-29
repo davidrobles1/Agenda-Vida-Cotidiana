@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useState,
 } from 'react'
 
@@ -37,6 +38,17 @@ import {
   type MaintenanceRecord,
 } from '../maintenance/api'
 
+import {
+  listSubscriptions,
+  type Subscription,
+} from '../subscriptions/api'
+
+import {
+  buildDateAlerts,
+  groupAlertsByDay,
+  type DateAlert,
+} from './alerts/dateAlerts'
+
 export interface CalendarState {
   loading: boolean
   error: string | null
@@ -46,6 +58,15 @@ export interface CalendarState {
 
   warranties: Warranty[]
   maintenanceRecords: MaintenanceRecord[]
+  subscriptions: Subscription[]
+
+  /**
+   * ADR-018: alertas de fecha DERIVADAS de garantías/mantenimientos/
+   * suscripciones — no son entidades ni tareas, se recalculan en cada
+   * carga. Ver features/calendar/alerts/dateAlerts.ts.
+   */
+  alerts: DateAlert[]
+  alertsByDay: Record<string, DateAlert[]>
 
   completeReminderAction: (
     reminder: Reminder,
@@ -118,6 +139,13 @@ export function useCalendarData(): CalendarState {
   >([])
 
   const [
+    subscriptions,
+    setSubscriptions,
+  ] = useState<Subscription[]>(
+    [],
+  )
+
+  const [
     loading,
     setLoading,
   ] = useState(true)
@@ -142,12 +170,14 @@ export function useCalendarData(): CalendarState {
             invitationsList,
             warrantiesPage,
             maintenanceRecordsPage,
+            subscriptionsPage,
           ] =
             await Promise.all([
               listReminders(),
               listMyInvitations(),
               listWarranties(),
               listMaintenanceRecords(),
+              listSubscriptions(),
             ])
 
           setReminders(
@@ -173,6 +203,10 @@ export function useCalendarData(): CalendarState {
             maintenanceRecordsPage.items,
           )
 
+          setSubscriptions(
+            subscriptionsPage.items,
+          )
+
           setError(null)
         } catch (e) {
           setError(
@@ -190,6 +224,31 @@ export function useCalendarData(): CalendarState {
   useEffect(() => {
     refresh()
   }, [refresh])
+
+  /* =====================================================
+     ALERTAS DE FECHA (ADR-018)
+     ===================================================== */
+
+  /**
+   * Se recalculan cada vez que cambian los datos de origen. Por eso "si
+   * cambia la fecha del registro original, las alertas se actualizan" no
+   * necesita ningún mecanismo de sincronización: no existe una copia que
+   * pueda quedarse vieja.
+   */
+  const alerts = useMemo(
+    () =>
+      buildDateAlerts({
+        warranties,
+        maintenanceRecords,
+        subscriptions,
+      }),
+    [warranties, maintenanceRecords, subscriptions],
+  )
+
+  const alertsByDay = useMemo(
+    () => groupAlertsByDay(alerts),
+    [alerts],
+  )
 
   /* =====================================================
      COMPLETE REMINDER
@@ -350,6 +409,10 @@ export function useCalendarData(): CalendarState {
 
     warranties,
     maintenanceRecords,
+    subscriptions,
+
+    alerts,
+    alertsByDay,
 
     completeReminderAction,
     completeWarrantyAction,
