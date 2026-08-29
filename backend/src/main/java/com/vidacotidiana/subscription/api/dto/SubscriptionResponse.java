@@ -17,7 +17,9 @@ public record SubscriptionResponse(
         String billingCycle,
         int version,
         Instant createdAt,
-        Instant updatedAt
+        Instant updatedAt,
+        /** ADR-019: módulo propietario del recurso. */
+        String context
 ) {
     public static SubscriptionResponse from(Subscription subscription) {
         return new SubscriptionResponse(
@@ -30,7 +32,8 @@ public record SubscriptionResponse(
                 subscription.getBillingCycle().name(),
                 subscription.getVersion(),
                 subscription.getCreatedAt(),
-                subscription.getUpdatedAt()
+                subscription.getUpdatedAt(),
+                subscription.getContext().name()
         );
     }
 }

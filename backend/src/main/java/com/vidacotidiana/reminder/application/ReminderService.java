@@ -97,7 +97,17 @@ public class ReminderService {
     /** FR-003/FR-004: owned reminders plus reminders shared with the caller as an ACTIVE collaborator. */
     @Transactional(readOnly = true)
     public Page<Reminder> listAccessibleTo(UUID callerUserId, Pageable pageable) {
-        return reminderRepository.findAccessibleTo(callerUserId, pageable);
+        return listAccessibleTo(callerUserId, null, pageable);
+    }
+
+    /** ADR-019: `context` nulo = sin filtrar (Calendario general). */
+    @Transactional(readOnly = true)
+    public Page<Reminder> listAccessibleTo(UUID callerUserId, String context, Pageable pageable) {
+        if (context == null || context.isBlank()) {
+            return reminderRepository.findAccessibleTo(callerUserId, pageable);
+        }
+        return reminderRepository.findAccessibleToByContext(
+                callerUserId, ReminderContext.valueOf(context.trim().toUpperCase()), pageable);
     }
 
     @Transactional(readOnly = true)

@@ -1,4 +1,5 @@
 import { apiFetch } from '../../core/api/httpClient'
+import { creationContext, withContext, type ModuleContext } from '../../core/user/moduleContext'
 
 export type MaintenanceStatus = 'AL_DIA' | 'PROXIMO' | 'VENCIDO' | 'COMPLETADO'
 
@@ -24,8 +25,8 @@ interface MaintenanceRecordsPage {
   totalPages: number
 }
 
-export async function listMaintenanceRecords(): Promise<MaintenanceRecordsPage> {
-  const response = await apiFetch('/maintenance-records?size=100')
+export async function listMaintenanceRecords(context?: ModuleContext | null): Promise<MaintenanceRecordsPage> {
+  const response = await apiFetch(withContext('/maintenance-records?size=100', context))
   if (!response.ok) throw new Error(`GET /maintenance-records failed: ${response.status}`)
   return response.json()
 }
@@ -34,10 +35,11 @@ export async function createMaintenanceRecord(
   item: string,
   nextDueAt: string,
   intervalMonths?: number,
+  context?: ModuleContext | null,
 ): Promise<MaintenanceRecord> {
   const response = await apiFetch('/maintenance-records', {
     method: 'POST',
-    body: JSON.stringify({ item, nextDueAt, intervalMonths }),
+    body: JSON.stringify({ item, nextDueAt, intervalMonths, context: creationContext(context) }),
   })
   if (!response.ok) throw new Error(`POST /maintenance-records failed: ${response.status}`)
   return response.json()

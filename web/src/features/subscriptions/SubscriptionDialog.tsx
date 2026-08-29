@@ -13,6 +13,7 @@ import {
   type Subscription,
 } from './api'
 import styles from './SubscriptionDialog.module.css'
+import { useActiveMode } from '../../core/user/ActiveModeContext'
 
 const MotionDialog = motion.create(Dialog)
 
@@ -34,6 +35,10 @@ function toDateInputValue(iso: string): string {
     el usuario no lo pidió en esta especificación y CLAUDE.md excluye
     Finanzas de V1 (ver V15__subscriptions.sql). */
 export function SubscriptionDialog({ subscription, trigger, onSaved }: SubscriptionDialogProps) {
+  // ADR-019: el recurso nace en el módulo desde el que se crea, y la
+  // lista solo pide los de ese módulo. Fuera de /personal y /laboral
+  // `activeMode` es null: se devuelve todo y las altas nacen PERSONAL.
+  const activeMode = useActiveMode()
   const isEdit = subscription !== undefined
   const [isOpen, setIsOpen] = useState(false)
   const [service, setService] = useState(subscription?.service ?? '')
@@ -66,7 +71,7 @@ export function SubscriptionDialog({ subscription, trigger, onSaved }: Subscript
       const saved =
         isEdit && subscription
           ? await updateSubscription(subscription.id, service.trim(), company.trim(), plan.trim(), isoDate, billingCycle, subscription.version)
-          : await createSubscription(service.trim(), company.trim(), plan.trim(), isoDate, billingCycle)
+          : await createSubscription(service.trim(), company.trim(), plan.trim(), isoDate, billingCycle, activeMode)
       onSaved(saved)
       setIsOpen(false)
     } catch (e) {

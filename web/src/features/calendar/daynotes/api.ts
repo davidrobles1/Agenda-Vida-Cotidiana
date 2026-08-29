@@ -1,4 +1,5 @@
 import { apiFetch } from '../../../core/api/httpClient'
+import { creationContext, withContext, type ModuleContext } from '../../../core/user/moduleContext'
 
 /**
  * Canvas de notas por día (pedido explícito del usuario, 2026-08-22).
@@ -63,16 +64,22 @@ export interface CreateDayNoteElementInput {
   data?: DayNoteElementData
 }
 
-export async function listDayNoteElements(dateKey: string): Promise<DayNoteElement[]> {
-  const response = await apiFetch(`/day-notes?date=${dateKey}`)
+export async function listDayNoteElements(
+  dateKey: string,
+  context?: ModuleContext | null,
+): Promise<DayNoteElement[]> {
+  const response = await apiFetch(withContext(`/day-notes?date=${dateKey}`, context))
   if (!response.ok) throw new Error(`GET /day-notes failed: ${response.status}`)
   return response.json()
 }
 
-export async function createDayNoteElement(input: CreateDayNoteElementInput): Promise<DayNoteElement> {
+export async function createDayNoteElement(
+  input: CreateDayNoteElementInput,
+  context?: ModuleContext | null,
+): Promise<DayNoteElement> {
   const response = await apiFetch('/day-notes', {
     method: 'POST',
-    body: JSON.stringify(input),
+    body: JSON.stringify({ ...input, context: creationContext(context) }),
   })
   if (!response.ok) throw new Error(`POST /day-notes failed: ${response.status}`)
   return response.json()

@@ -1,5 +1,6 @@
 package com.vidacotidiana.daynote.domain;
 
+import com.vidacotidiana.shared.domain.ModuleContext;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -22,4 +23,16 @@ public interface DayNoteElementRepository extends JpaRepository<DayNoteElement, 
     @Query("SELECT e FROM DayNoteElement e WHERE e.ownerUserId = :ownerUserId AND e.noteDate = :noteDate "
             + "ORDER BY e.zIndex ASC, e.createdAt ASC, e.id ASC")
     List<DayNoteElement> findByOwnerUserIdAndNoteDateOrderByZIndexAsc(@Param("ownerUserId") UUID ownerUserId, @Param("noteDate") LocalDate noteDate);
+
+    /**
+     * ADR-019: misma consulta acotada al módulo activo. Explícita en JPQL
+     * por el mismo motivo que la de arriba: el parser de consultas derivadas
+     * no resuelve la propiedad `zIndex`.
+     */
+    @Query("SELECT e FROM DayNoteElement e WHERE e.ownerUserId = :ownerUserId AND e.noteDate = :noteDate "
+            + "AND e.context = :context ORDER BY e.zIndex ASC, e.createdAt ASC, e.id ASC")
+    List<DayNoteElement> findByOwnerUserIdAndNoteDateAndContextOrderByZIndexAsc(
+            @Param("ownerUserId") UUID ownerUserId,
+            @Param("noteDate") LocalDate noteDate,
+            @Param("context") ModuleContext context);
 }

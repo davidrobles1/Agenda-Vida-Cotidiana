@@ -7,6 +7,7 @@ import { handleRadiogroupKeyDown, radioTabIndex } from '../../core/ui/keyboard/r
 import shellStyles from '../../core/ui/dialogs/DialogShell.module.css'
 import { createMaintenanceRecord, type MaintenanceRecord } from './api'
 import styles from './CreateMaintenanceDialog.module.css'
+import { useActiveMode } from '../../core/user/ActiveModeContext'
 
 const MotionDialog = motion.create(Dialog)
 
@@ -35,6 +36,10 @@ function dateFromMonthsFromNow(months: number): string {
     (1/3/6/12 meses) la calcula con un clic; seguir editable a mano para
     cualquier otra fecha. */
 export function CreateMaintenanceDialog({ onCreated }: CreateMaintenanceDialogProps) {
+  // ADR-019: el recurso nace en el módulo desde el que se crea, y la
+  // lista solo pide los de ese módulo. Fuera de /personal y /laboral
+  // `activeMode` es null: se devuelve todo y las altas nacen PERSONAL.
+  const activeMode = useActiveMode()
   const [isOpen, setIsOpen] = useState(false)
   const [item, setItem] = useState('')
   const [nextDueAt, setNextDueAt] = useState('')
@@ -73,6 +78,7 @@ export function CreateMaintenanceDialog({ onCreated }: CreateMaintenanceDialogPr
         item.trim(),
         new Date(nextDueAt).toISOString(),
         interval?.months,
+        activeMode,
       )
       onCreated(created)
       setIsOpen(false)

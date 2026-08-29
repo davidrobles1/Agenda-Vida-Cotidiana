@@ -162,12 +162,16 @@ export function CalendarPage() {
   const scopedReminders =
     useMemo(
       () =>
+        // ADR-019: el aislamiento real lo hace el servidor (`listReminders`
+        // manda `?context=`). Esto se queda como segunda barrera, pero
+        // ESTRICTA: antes dejaba pasar los recordatorios sin contexto en
+        // AMBOS módulos, que era precisamente la fuga. La migración V25
+        // rellenó esos nulos con PERSONAL, así que ya no existen.
         activeMode
           ? state.reminders.filter(
               (reminder) =>
-                !reminder.context ||
-                reminder.context ===
-                  activeMode,
+                (reminder.context ?? 'PERSONAL') ===
+                activeMode,
             )
           : state.reminders,
       [

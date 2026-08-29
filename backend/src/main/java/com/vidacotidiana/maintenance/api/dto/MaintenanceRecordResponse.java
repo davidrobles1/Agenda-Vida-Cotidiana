@@ -27,7 +27,9 @@ public record MaintenanceRecordResponse(
         String status,
         int version,
         Instant createdAt,
-        Instant updatedAt
+        Instant updatedAt,
+        /** ADR-019: módulo propietario del recurso. */
+        String context
 ) {
     private static final long PROXIMO_THRESHOLD_DAYS = 30;
 
@@ -45,7 +47,8 @@ public record MaintenanceRecordResponse(
                 computeStatus(record, now),
                 record.getVersion(),
                 record.getCreatedAt(),
-                record.getUpdatedAt()
+                record.getUpdatedAt(),
+                record.getContext().name()
         );
     }
 

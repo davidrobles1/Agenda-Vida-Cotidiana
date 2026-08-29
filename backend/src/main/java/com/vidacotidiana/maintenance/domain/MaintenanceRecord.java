@@ -1,5 +1,7 @@
 package com.vidacotidiana.maintenance.domain;
 
+import com.vidacotidiana.shared.domain.ModuleContext;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -50,6 +52,14 @@ public class MaintenanceRecord {
     @Column(nullable = false)
     private MaintenanceStatus status = MaintenanceStatus.ACTIVE;
 
+    /**
+     * ADR-019: módulo propietario. Se fija al crear y NO cambia durante el
+     * ciclo de vida del recurso — `applyEdit` no lo toca a propósito.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private ModuleContext context = ModuleContext.PERSONAL;
+
     @Version
     @Column(nullable = false)
     private int version;
@@ -69,6 +79,13 @@ public class MaintenanceRecord {
     }
 
     public MaintenanceRecord(UUID ownerUserId, String item, Instant nextDueAt, Integer intervalMonths) {
+        this(ownerUserId, item, nextDueAt, intervalMonths, ModuleContext.PERSONAL);
+    }
+
+    /** ADR-019: alta con módulo propietario explícito. */
+    public MaintenanceRecord(UUID ownerUserId, String item, Instant nextDueAt, Integer intervalMonths,
+                             ModuleContext context) {
+        this.context = (context != null) ? context : ModuleContext.PERSONAL;
         this.intervalMonths = intervalMonths;
         this.ownerUserId = ownerUserId;
         this.item = item;
@@ -85,6 +102,10 @@ public class MaintenanceRecord {
 
     public UUID getOwnerUserId() {
         return ownerUserId;
+    }
+
+    public ModuleContext getContext() {
+        return context;
     }
 
     public String getItem() {

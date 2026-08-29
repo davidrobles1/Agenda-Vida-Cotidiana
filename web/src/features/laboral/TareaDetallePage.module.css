@@ -1,0 +1,145 @@
+/* =====================================================
+   LABORAL → DETALLE DE TAREA
+
+   Trasladado del prototipo aprobado ("Agenda Laboral", artifact fca1566a,
+   `pageTareaDetalle()`): breadcrumb, tarjeta con título y badge de estado,
+   fila de indicadores con la fecha límite, chips de Persona/Proyecto y una
+   fila de acciones fantasma.
+
+   Todo lo compartido se compone desde `core/ui/laboral/LaboralUI.module.css`.
+   ===================================================== */
+
+.error {
+  composes: error from '../../core/ui/laboral/LaboralUI.module.css';
+}
+
+.emptyHint {
+  composes: emptyHint from '../../core/ui/laboral/LaboralUI.module.css';
+}
+
+.emptyState {
+  composes: emptyState from '../../core/ui/laboral/LaboralUI.module.css';
+}
+
+.breadcrumb {
+  composes: breadcrumb from '../../core/ui/laboral/LaboralUI.module.css';
+}
+
+.breadcrumbLink {
+  composes: breadcrumbLink from '../../core/ui/laboral/LaboralUI.module.css';
+}
+
+.breadcrumbSep {
+  composes: breadcrumbSep from '../../core/ui/laboral/LaboralUI.module.css';
+}
+
+.breadcrumbCurrent {
+  composes: breadcrumbCurrent from '../../core/ui/laboral/LaboralUI.module.css';
+}
+
+.card {
+  composes: card from '../../core/ui/laboral/LaboralUI.module.css';
+}
+
+.cardHeader {
+  composes: cardHeader from '../../core/ui/laboral/LaboralUI.module.css';
+}
+
+.badge {
+  composes: badge from '../../core/ui/laboral/LaboralUI.module.css';
+}
+
+.statRow {
+  composes: statRow from '../../core/ui/laboral/LaboralUI.module.css';
+  margin-bottom: var(--space-4);
+}
+
+.stat {
+  composes: stat from '../../core/ui/laboral/LaboralUI.module.css';
+}
+
+.statLbl {
+  composes: statLbl from '../../core/ui/laboral/LaboralUI.module.css';
+}
+
+/* En el detalle de tarea el prototipo baja el tamaño del dato: es una
+   fecha, no un recuento de dos dígitos. */
+.statNum {
+  composes: statNum from '../../core/ui/laboral/LaboralUI.module.css';
+  font-size: 1.1rem;
+}
+
+.chip {
+  composes: chip from '../../core/ui/laboral/LaboralUI.module.css';
+}
+
+.chipPlain {
+  composes: chipPlain from '../../core/ui/laboral/LaboralUI.module.css';
+}
+
+.chipAvatar {
+  composes: avatar from '../../core/ui/laboral/LaboralUI.module.css';
+  composes: avatarSm from '../../core/ui/laboral/LaboralUI.module.css';
+
+  background: var(--color-surface-variant);
+}
+
+.ghostButton {
+  composes: btnGhost from '../../core/ui/laboral/LaboralUI.module.css';
+}
+
+/* =====================================================
+   PROPIO DE ESTA PANTALLA
+   ===================================================== */
+
+/* Título de la tarjeta: el prototipo lo pone como encabezado de tarjeta, no
+   como título de página — el título de página lo lleva la barra superior. */
+.taskTitle {
+  margin: 0;
+
+  color: var(--color-text);
+
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+/* Fila de vínculos (`.field-row` del prototipo): los chips envuelven cuando
+   no caben en vez de comprimirse. */
+.linkRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.linkEmpty {
+  color: var(--color-text-secondary);
+  font-size: 0.8125rem;
+}
+
+/* Un chip que navega responde al puntero; el que solo informa, no. */
+.chipLink {
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+
+.chipLink:hover {
+  filter: brightness(0.96);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chipLink {
+    transition: none;
+  }
+}
+
+/* Fila de acciones: el prototipo reutiliza aquí la misma cabecera de
+   tarjeta, separada del bloque anterior. */
+.actionRow {
+  composes: cardHeader from '../../core/ui/laboral/LaboralUI.module.css';
+
+  justify-content: flex-start;
+  flex-wrap: wrap;
+
+  margin-top: var(--space-4);
+  margin-bottom: 0;
+}

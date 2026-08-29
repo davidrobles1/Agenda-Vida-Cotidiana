@@ -2565,6 +2565,13 @@ components:
           type: string
           format: date-time
           description: ISO-8601 timestamp in UTC.
+        context:
+          type: string
+          enum: [PERSONAL, LABORAL]
+          description: >
+            ADR-019 — módulo propietario del recurso. En las peticiones de
+            creación es opcional y su ausencia equivale a PERSONAL; se fija
+            al crear y no cambia después. En las respuestas siempre viene.
     UpdateWarrantyRequest:
       type: object
       description: Partial update. version is required to detect concurrent modifications (optimistic locking).
@@ -2626,6 +2633,13 @@ components:
         updatedAt:
           type: string
           format: date-time
+        context:
+          type: string
+          enum: [PERSONAL, LABORAL]
+          description: >
+            ADR-019 — módulo propietario del recurso. En las peticiones de
+            creación es opcional y su ausencia equivale a PERSONAL; se fija
+            al crear y no cambia después. En las respuestas siempre viene.
     CreateMaintenanceRecordRequest:
       type: object
       required: [item, nextDueAt]
@@ -2647,6 +2661,13 @@ components:
             Opcional: si se omite, el mantenimiento tiene una sola fecha y no
             se repite. El cliente la usa para proyectar las siguientes fechas
             en el calendario (ADR-018).
+        context:
+          type: string
+          enum: [PERSONAL, LABORAL]
+          description: >
+            ADR-019 — módulo propietario del recurso. En las peticiones de
+            creación es opcional y su ausencia equivale a PERSONAL; se fija
+            al crear y no cambia después. En las respuestas siempre viene.
     UpdateMaintenanceRecordRequest:
       type: object
       description: Partial update. version is required to detect concurrent modifications (optimistic locking).
@@ -2726,6 +2747,13 @@ components:
         updatedAt:
           type: string
           format: date-time
+        context:
+          type: string
+          enum: [PERSONAL, LABORAL]
+          description: >
+            ADR-019 — módulo propietario del recurso. En las peticiones de
+            creación es opcional y su ausencia equivale a PERSONAL; se fija
+            al crear y no cambia después. En las respuestas siempre viene.
     CreatePersonRequest:
       type: object
       required: [name]

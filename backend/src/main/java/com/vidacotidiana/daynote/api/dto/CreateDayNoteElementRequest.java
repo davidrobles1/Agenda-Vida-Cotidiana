@@ -21,6 +21,8 @@ public record CreateDayNoteElementRequest(
         @NotNull Double y,
         @NotNull Double width,
         @NotNull Double height,
-        Map<String, Object> data
+        Map<String, Object> data,
+        /** ADR-019: módulo desde el que se crea. Ausente ⇒ PERSONAL. */
+        @Pattern(regexp = "PERSONAL|LABORAL") String context
 ) {
 }

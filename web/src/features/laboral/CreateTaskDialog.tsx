@@ -9,6 +9,7 @@ import type { Project } from '../projects/api'
 import { createPlace, placeLocationText, type Place } from '../places/api'
 import { createReminder, type CreateReminderInput, type Reminder } from '../reminders/api'
 import shellStyles from '../../core/ui/dialogs/DialogShell.module.css'
+import laboralUI from '../../core/ui/laboral/LaboralUI.module.css'
 
 const MotionDialog = motion.create(Dialog)
 
@@ -114,7 +115,11 @@ export function CreateTaskDialog({ people, projects, places, onCreated, onPlaceC
 
   return (
     <DialogTrigger isOpen={isOpen} onOpenChange={handleOpenChange}>
-      <Button>
+      {/* El `button` global de la app mide 44px de alto, va a 15px y usa un
+          radio de 20px; el prototipo pide la acción primaria a 9px/16px,
+          14px y radio de control. Se aplica la clase del sistema de Laboral
+          en vez de tocar el estilo global, que también viste a Personal. */}
+      <Button className={laboralUI.btnPrimary}>
         <IconPlus width={16} height={16} /> Nueva tarea
       </Button>
       <Modal isDismissable className={shellStyles.modalOverlay}>

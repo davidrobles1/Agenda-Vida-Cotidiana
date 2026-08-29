@@ -3,6 +3,7 @@ package com.vidacotidiana.daynote.application;
 import com.vidacotidiana.daynote.domain.DayNoteElement;
 import com.vidacotidiana.daynote.domain.DayNoteElementRepository;
 import com.vidacotidiana.daynote.domain.DayNoteElementType;
+import com.vidacotidiana.shared.domain.ModuleContext;
 import com.vidacotidiana.shared.domain.ConflictException;
 import com.vidacotidiana.shared.domain.NotFoundException;
 import com.vidacotidiana.shared.domain.ValidationException;
@@ -34,16 +35,40 @@ public class DayNoteService {
     @Transactional
     public DayNoteElement create(UUID ownerUserId, LocalDate noteDate, DayNoteElementType type,
                                   double x, double y, double width, double height, Map<String, Object> data) {
-        List<DayNoteElement> siblings = repository.findByOwnerUserIdAndNoteDateOrderByZIndexAsc(ownerUserId, noteDate);
+        return create(ownerUserId, noteDate, type, x, y, width, height, data, ModuleContext.PERSONAL);
+    }
+
+    /**
+     * ADR-019: alta con el módulo desde el que se creó. La comprobación de
+     * solapamiento se hace SOLO contra las notas del mismo módulo: dos notas
+     * de módulos distintos no comparten lienzo, así que una nota Personal no
+     * puede estorbar a una Laboral (regla 2 del pedido).
+     */
+    @Transactional
+    public DayNoteElement create(UUID ownerUserId, LocalDate noteDate, DayNoteElementType type,
+                                  double x, double y, double width, double height, Map<String, Object> data,
+                                  ModuleContext context) {
+        ModuleContext resolved = (context != null) ? context : ModuleContext.PERSONAL;
+        List<DayNoteElement> siblings =
+                repository.findByOwnerUserIdAndNoteDateAndContextOrderByZIndexAsc(ownerUserId, noteDate, resolved);
         assertNoOverlap(siblings, null, x, y, width, height);
         int nextZIndex = siblings.stream().mapToInt(DayNoteElement::getZIndex).max().orElse(-1) + 1;
-        DayNoteElement element = new DayNoteElement(ownerUserId, noteDate, type, x, y, width, height, nextZIndex, data);
+        DayNoteElement element =
+                new DayNoteElement(ownerUserId, noteDate, type, x, y, width, height, nextZIndex, data, resolved);
         return repository.save(element);
     }
 
     @Transactional(readOnly = true)
     public List<DayNoteElement> listForDay(UUID ownerUserId, LocalDate noteDate) {
         return repository.findByOwnerUserIdAndNoteDateOrderByZIndexAsc(ownerUserId, noteDate);
+    }
+
+    /** ADR-019: notas del día acotadas al módulo activo. */
+    @Transactional(readOnly = true)
+    public List<DayNoteElement> listForDay(UUID ownerUserId, LocalDate noteDate, ModuleContext context) {
+        return (context == null)
+                ? repository.findByOwnerUserIdAndNoteDateOrderByZIndexAsc(ownerUserId, noteDate)
+                : repository.findByOwnerUserIdAndNoteDateAndContextOrderByZIndexAsc(ownerUserId, noteDate, context);
     }
 
     @Transactional(readOnly = true)
@@ -64,7 +89,11 @@ public class DayNoteService {
         DayNoteElement element = getOwnedOrThrow(elementId, callerUserId);
         checkVersion(element, expectedVersion);
 
-        List<DayNoteElement> siblings = repository.findByOwnerUserIdAndNoteDateOrderByZIndexAsc(element.getOwnerUserId(), element.getNoteDate());
+        // ADR-019: el anti-solapamiento compara solo contra el MISMO módulo —
+        // una nota Personal y una Laboral no comparten lienzo, así que una no
+        // puede bloquear el movimiento de la otra (regla 2 del pedido).
+        List<DayNoteElement> siblings = repository.findByOwnerUserIdAndNoteDateAndContextOrderByZIndexAsc(
+                element.getOwnerUserId(), element.getNoteDate(), element.getContext());
         assertNoOverlap(siblings, elementId, x, y, width, height);
 
         element.applyPosition(x, y, width, height);
@@ -83,7 +112,11 @@ public class DayNoteService {
     public DayNoteElement bringToFront(UUID elementId, UUID callerUserId, int expectedVersion) {
         DayNoteElement element = getOwnedOrThrow(elementId, callerUserId);
         checkVersion(element, expectedVersion);
-        List<DayNoteElement> siblings = repository.findByOwnerUserIdAndNoteDateOrderByZIndexAsc(element.getOwnerUserId(), element.getNoteDate());
+        // ADR-019: el anti-solapamiento compara solo contra el MISMO módulo —
+        // una nota Personal y una Laboral no comparten lienzo, así que una no
+        // puede bloquear el movimiento de la otra (regla 2 del pedido).
+        List<DayNoteElement> siblings = repository.findByOwnerUserIdAndNoteDateAndContextOrderByZIndexAsc(
+                element.getOwnerUserId(), element.getNoteDate(), element.getContext());
         int maxZ = siblings.stream().mapToInt(DayNoteElement::getZIndex).max().orElse(0);
         element.applyZIndex(maxZ + 1);
         return saveOrConflict(element);

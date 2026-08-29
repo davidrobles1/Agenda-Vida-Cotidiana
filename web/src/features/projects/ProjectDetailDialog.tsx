@@ -1,7 +1,6 @@
 import { useState, type FormEvent } from 'react'
-import { Button, Dialog, DialogTrigger, Heading, Modal } from 'react-aria-components'
+import { Dialog, DialogTrigger, Heading, Modal } from 'react-aria-components'
 import { motion } from 'motion/react'
-import { Eye } from 'lucide-react'
 import { motionTokens } from '../../core/motion/tokens'
 import { completeReminder, createReminder, type Reminder } from '../reminders/api'
 import { createNote, resolveNoteTaskSuggestion } from '../calendar/notes/api'
@@ -21,6 +20,9 @@ import styles from './ProjectsPage.module.css'
 const MotionDialog = motion.create(Dialog)
 
 interface ProjectDetailDialogProps {
+  /** Apertura controlada desde ProjectsPage (fila de la lista o `?open=`). */
+  isOpen: boolean
+  onOpenChange: (open: boolean) => void
   project: Project
   clientPerson?: Person
   tasks: Reminder[]
@@ -46,10 +48,11 @@ function formatDate(iso: string): string {
 /**
  * UC-19. Diálogo de solo lectura + "Nueva tarea"/"Nueva nota" embebidas,
  * vinculadas automáticamente a este Proyecto. Mismo patrón que
- * PersonDetailDialog.tsx.
+ * PersonDetailDialog.tsx, incluida la apertura controlada: la fila de la
+ * lista es el disparador, y `?open=<id>` permite abrirlo directamente —
+ * es el destino de los chips de Proyecto desde una Tarea.
  */
-export function ProjectDetailDialog({ project, clientPerson, tasks, notes, documents, resources, onTaskCreated, onTaskUpdated, onNoteCreated, onResourceCreated, onNoteUpdated }: ProjectDetailDialogProps) {
-  const [isOpen, setIsOpen] = useState(false)
+export function ProjectDetailDialog({ project, isOpen, onOpenChange, clientPerson, tasks, notes, documents, resources, onTaskCreated, onTaskUpdated, onNoteCreated, onResourceCreated, onNoteUpdated }: ProjectDetailDialogProps) {
   const [activeForm, setActiveForm] = useState<ActiveForm>('none')
   const [taskView, setTaskView] = useState<TaskView>('list')
   const [movingTaskId, setMovingTaskId] = useState<string | null>(null)
@@ -115,7 +118,7 @@ export function ProjectDetailDialog({ project, clientPerson, tasks, notes, docum
   }
 
   function handleOpenChange(open: boolean) {
-    setIsOpen(open)
+    onOpenChange(open)
     if (!open) {
       setActiveForm('none')
       setTitle('')
@@ -216,9 +219,6 @@ export function ProjectDetailDialog({ project, clientPerson, tasks, notes, docum
 
   return (
     <DialogTrigger isOpen={isOpen} onOpenChange={handleOpenChange}>
-      <Button className={styles.iconButton} aria-label={`Ver ${project.name}`}>
-        <Eye width={16} height={16} />
-      </Button>
       <Modal isDismissable className={shellStyles.modalOverlay}>
         <MotionDialog
           className={shellStyles.panel}

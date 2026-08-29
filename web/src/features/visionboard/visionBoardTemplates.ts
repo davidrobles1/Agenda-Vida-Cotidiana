@@ -3,11 +3,18 @@ import type { VisionBoardElementType } from './api'
 
 /**
  * FASE 12: static, frontend-only template data — no backend storage, no new
- * element types. Every element uses only the types the model already
- * supports (TEXT/NOTE/STICKER/SHAPE); IMAGE is deliberately never used
- * here — a template pointing at some external URL would be one broken
- * image away from looking unfinished, and "no implementes almacenamiento
- * de imágenes" already rules out shipping real image assets of our own.
+ * element types.
+ *
+ * Las plantillas GENÉRICAS de este archivo siguen sin usar IMAGE, por la
+ * razón original: apuntar a una URL externa las dejaría a un fallo de
+ * distancia de verse a medio terminar.
+ *
+ * ACTUALIZACIÓN (2026-08-29): las plantillas del portal
+ * (`templates/portalTemplates.ts`) sí llevan IMAGE, y eso no contradice lo
+ * anterior — sus imágenes no son externas: se exportaron byte a byte desde
+ * la base de datos a `templates/assets` y viajan con la aplicación, así que
+ * no dependen de ninguna red ni de ningún registro que alguien pueda
+ * borrar.
  *
  * Every template is authored against a fixed reference canvas
  * (TEMPLATE_REFERENCE_WIDTH/HEIGHT, matching the real default board size —
@@ -41,6 +48,20 @@ export interface VisionBoardTemplate {
   id: string
   name: string
   description: string
+  /**
+   * 2026-08-29: `portal` son las plantillas que el usuario diseñó en el
+   * propio Vision Board y pidió conservar como plantillas reales
+   * (`templates/portalTemplates.ts`); `generic` son las de partida que ya
+   * existían aquí. Se separan en el diálogo, no se mezclan: unas son obra
+   * del usuario y las otras un punto de arranque. Por omisión, `generic`.
+   */
+  kind?: 'generic' | 'portal'
+  /** Solo en las del portal: el tablero del que se exportó, para poder
+      rastrear el origen sin abrir la base de datos. */
+  sourceBoardName?: string
+  /** Tema con el que se diseñó el tablero original. Informativo: aplicar
+      una plantilla no cambia el tema del tablero destino. */
+  theme?: string
   elements: VisionBoardTemplateElement[]
 }
 

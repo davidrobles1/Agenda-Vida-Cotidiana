@@ -2,6 +2,7 @@ package com.vidacotidiana.warranty.api;
 
 import com.vidacotidiana.identity.infrastructure.CurrentUser;
 import com.vidacotidiana.shared.api.PageResponse;
+import com.vidacotidiana.shared.domain.ModuleContext;
 import com.vidacotidiana.warranty.api.dto.CompleteWarrantyRequest;
 import com.vidacotidiana.warranty.api.dto.UpdateWarrantyRequest;
 import com.vidacotidiana.warranty.api.dto.WarrantyResponse;
@@ -58,8 +59,11 @@ public class WarrantyController {
     public ResponseEntity<WarrantyResponse> create(
             @RequestPart("file") MultipartFile file,
             @RequestParam("item") String item,
-            @RequestParam("expiresAt") Instant expiresAt) {
-        Warranty created = warrantyService.create(currentUser.userId(), item, expiresAt, file);
+            @RequestParam("expiresAt") Instant expiresAt,
+            // ADR-019: módulo desde el que se crea. Ausente ⇒ PERSONAL.
+            @RequestParam(value = "context", required = false) String context) {
+        Warranty created = warrantyService.create(currentUser.userId(), item, expiresAt, file,
+                ModuleContext.fromNullable(context));
         return ResponseEntity.status(HttpStatus.CREATED).body(WarrantyResponse.from(created));
     }
 
@@ -75,9 +79,13 @@ public class WarrantyController {
     @GetMapping
     public PageResponse<WarrantyResponse> list(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
+            @RequestParam(defaultValue = "20") int size,
+            // ADR-019: sin `context` se devuelve todo (Calendario general);
+            // con contexto, el filtro baja hasta la consulta SQL.
+            @RequestParam(value = "context", required = false) String context) {
         Pageable pageable = PageRequest.of(page, Math.min(size, 100));
-        Page<Warranty> warranties = warrantyService.listOwnedBy(currentUser.userId(), pageable);
+        Page<Warranty> warranties = warrantyService.listOwnedBy(
+                currentUser.userId(), ModuleContext.filterFromNullable(context), pageable);
         return PageResponse.from(warranties.map(WarrantyResponse::from));
     }
 

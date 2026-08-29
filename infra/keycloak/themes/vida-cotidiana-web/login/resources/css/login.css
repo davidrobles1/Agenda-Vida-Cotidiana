@@ -1,50 +1,112 @@
-/* UX-005/UX-008/Documentacion/02-ux-ui/login-theme.md — Web split-panel login.
-   UX-008 (2026-08-17): homologated to match the current LoginPage.tsx (Web)
-   redesign — warm beige hero + elegant-blue accents + serif/script
-   typography, replacing UX-005/UX-006's original indigo dark-mode-token
-   palette. LoginPage.tsx is the source of truth for these values (its own
-   .module.css) — re-declared here because this page is Keycloak's own
-   server-rendered HTML, outside the Vite build that owns LoginPage.tsx.
-   Error tokens are the one exception: kept as the app's real, WCAG-AA
-   verified `--color-error`/`--color-error-container` (design-system.md §1,
-   ACC-001) rather than inventing a new warm-palette red — legibility of a
-   real error message matters more than palette purity here. */
-:root {
-  --vc-ink: #2c425b;
-  --vc-ink-soft: #3a4758;
-  --vc-text-secondary: #54657c;
-  --vc-text-muted: #64768f;
-  --vc-accent: #2c5f8c;
-  --vc-accent-hover: #255077;
-  --vc-accent-light: #3f72a6;
-  --vc-accent-soft: #9ab4cc;
-  --vc-terracotta: #b47b48;
-  --vc-card-bg: rgba(251, 248, 240, 0.94);
-  --vc-card-border: rgba(66, 99, 133, 0.15);
-  --vc-input-border: rgba(66, 99, 133, 0.3);
-  /* Reused as-is from design-system.md — already WCAG AA verified (ACC-001). */
-  --vc-error: #b91c1c;
-  --vc-error-container: #fee2e2;
-  --vc-radius-control: 16px;
+/* =====================================================
+   VIDA COTIDIANA — LOGIN / REGISTRO DE KEYCLOAK
+
+   UX-016 (2026-08-29). Puerto FIEL de la UI que el portal tenía en
+   `web/src/features/auth/LoginPage.module.css` y que se retiró al reducir
+   las pantallas de autenticación de 3 a 2.
+
+   POR QUÉ ESTE ARCHIVO SE REESCRIBIÓ ENTERO: la versión anterior (UX-008)
+   homologaba el aspecto "a ojo" — hexadecimales aproximados, Georgia en vez
+   de Fraunces, #ffffff en vez del crema real, radios de 16px donde el portal
+   usa 20/24px. Se parecía, pero no era la misma UI. Aquí se declaran los
+   MISMOS tokens que `web/src/index.css` (mismos nombres y valores) y cada
+   regla es la del portal copiada, no reinterpretada: así una diferencia
+   futura se detecta leyendo, sin comparar capturas.
+
+   Los valores se re-declaran porque esta página es HTML servido por
+   Keycloak, fuera del build de Vite que posee `index.css`.
+
+   Lo que NO viene del portal, porque el portal no tenía formulario: campos,
+   checkbox y mensajes de error. Esos se toman del sistema de diseño de la
+   propia app (`index.css` §input, §a, §[role=alert]), que es la fuente
+   correcta para elementos que la pantalla original no contenía.
+   ===================================================== */
+
+/* =====================================================
+   TIPOGRAFÍAS
+
+   Los mismos archivos que `main.tsx` carga vía @fontsource, servidos por el
+   theme. Antes esta página caía en system-ui/Georgia/'Brush Script MT', y
+   esa última solo existe en Windows: fuera de Windows no había script.
+   ===================================================== */
+
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../fonts/inter-latin-400-normal.woff2') format('woff2');
 }
+
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('../fonts/inter-latin-600-normal.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Fraunces';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('../fonts/fraunces-latin-500-normal.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Alex Brush';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../fonts/alex-brush-latin-400-normal.woff2') format('woff2');
+}
+
+/* =====================================================
+   TOKENS — copiados de web/src/index.css, mismos nombres
+   ===================================================== */
+
+:root {
+  --color-primary: #2c5f8c;
+  --color-on-primary: #ffffff;
+  --color-terracotta: #b47b48;
+  --color-surface: #f5eedf;
+  --color-surface-variant: #fffcf6;
+  --color-border: #6e8192;
+  --color-text: #2c425b;
+  --color-text-secondary: #556479;
+
+  /* Verificados WCAG AA en design-system.md §1 (ACC-001). */
+  --color-error: #b91c1c;
+  --color-error-container: #fee2e2;
+
+  --space-2: 8px;
+  --space-3: 12px;
+
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-serif: 'Fraunces', Georgia, 'Times New Roman', serif;
+  --font-script: 'Alex Brush', var(--font-serif);
+}
+
+/* =====================================================
+   BASE — `.container`
+   ===================================================== */
 
 body.vc-theme-web {
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  color: var(--vc-ink-soft);
+  font-family: var(--font-sans);
+  color: var(--color-text-secondary);
   margin: 0;
-  background:
-    radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.55), transparent 32%),
-    linear-gradient(135deg, #e5d9c2 0%, #f3eadb 48%, #dcd0bc 100%);
+
+  background: url('../img/fondo.jpeg') left center / cover no-repeat
+    var(--color-surface);
 }
 
-/* Real bug found verifying this in UX-005 (Playwright boundingBox() on
-   .vc-hero came out short of the container edge): PatternFly's own base
-   styles.css puts real horizontal padding on .pf-v5-c-login and
-   .pf-v5-c-login__container (for the stock centered-card layout, where it's
-   wanted) and never sets box-sizing:border-box, so that inherited padding
-   was silently eating into the grid's content box. Confirmed against
-   getComputedStyle before treating it as final, not just re-eyeballing the
-   screenshot — kept unchanged in this restyle, still needed. */
+/* Bug real encontrado al verificar esto en UX-005 (boundingBox() de la
+   columna quedaba corto respecto al borde del contenedor): la styles.css de
+   PatternFly mete padding horizontal en `.pf-v5-c-login` y
+   `.pf-v5-c-login__container` (para su tarjeta centrada, donde sí lo quiere)
+   y nunca fija box-sizing:border-box, así que ese padding heredado se comía
+   la caja de contenido de la rejilla. Se mantiene. */
 body.vc-theme-web,
 body.vc-theme-web * {
   box-sizing: border-box;
@@ -59,312 +121,470 @@ body.vc-theme-web .pf-v5-c-login {
 }
 
 /* =====================================================
-   SPLIT LAYOUT
+   LAYOUT — tres columnas
+
+   +--------------------+---------------+---------------+
+   |       LIBRO        |   ESLOGANES   |  FORMULARIO   |
+   |        40%         |      30%      |      30%      |
+   +--------------------+---------------+---------------+
    ===================================================== */
 
 body.vc-theme-web .vc-split-container {
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(420px, 0.85fr);
-  /* PatternFly's own base .pf-v5-c-login__container sets a 64px column-gap
-     for its own (unused-by-us) internal responsive grid — zeroing it here,
-     not just overriding the properties we care about, since PatternFly could
-     still set it after us in a `stylesCommon` reload. */
+  grid-template-columns: 40% 30% 30%;
+  /* PatternFly fija un column-gap de 64px en su rejilla interna (que no
+     usamos); se pone a cero en vez de solo sobrescribir lo que nos importa,
+     porque podría recargarse después que nosotros vía `stylesCommon`. */
   gap: 0;
-  min-height: 100vh;
+  height: 100vh;
   max-width: none;
   padding: 0;
   margin: 0;
+  overflow: hidden;
 }
 
 body.vc-theme-web .pf-v5-c-login__container {
   align-items: stretch;
 }
 
-@media (max-width: 1000px) {
-  body.vc-theme-web .vc-split-container {
-    grid-template-columns: 1fr;
-  }
-  body.vc-theme-web .vc-hero {
-    min-height: 45vh;
-    padding: 60px 40px;
-  }
-  body.vc-theme-web .vc-hero-frame {
-    inset: 25px;
-  }
-  body.vc-theme-web .vc-hero-title {
-    font-size: clamp(3.5rem, 10vw, 5rem);
-  }
-}
-
-@media (max-width: 600px) {
-  body.vc-theme-web .vc-hero {
-    min-height: 40vh;
-    padding: 45px 25px;
-  }
-  body.vc-theme-web .vc-hero-frame {
-    inset: 15px;
-    border-radius: 20px;
-  }
-  body.vc-theme-web .vc-hero-title {
-    font-size: 3.5rem;
-  }
-  body.vc-theme-web .vc-hero-script {
-    font-size: 1.5rem;
-  }
-  body.vc-theme-web .vc-hero-house {
-    display: none;
-  }
-  body.vc-theme-web .pf-v5-c-login__main {
-    padding: 25px 18px 45px;
-  }
-  body.vc-theme-web .vc-card {
-    padding: 40px 28px;
-    border-radius: 20px;
-  }
-}
-
 /* =====================================================
-   HERO (left) — matches LoginPage.module.css's .hero
+   COLUMNA 1 — LIBRO (`.bookSection`)
    ===================================================== */
 
-body.vc-theme-web .vc-hero {
+body.vc-theme-web .vc-book {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 80px;
+  min-width: 0;
+  padding: 40px 30px;
   overflow: hidden;
 }
 
-body.vc-theme-web .vc-hero-frame {
-  position: absolute;
-  inset: 40px;
-  border: 1px solid rgba(58, 83, 114, 0.15);
-  border-radius: 28px;
-  pointer-events: none;
-}
-
-body.vc-theme-web .vc-hero-inner {
-  position: relative;
-  z-index: 1;
-  max-width: 620px;
-  text-align: center;
-}
-
-body.vc-theme-web .vc-hero-icon {
-  margin-bottom: 12px;
-  color: var(--vc-accent-light);
-  font-family: Georgia, serif;
-  font-size: 3rem;
-}
-
-body.vc-theme-web .vc-hero-title {
-  margin: 0;
-  color: var(--vc-ink);
-  font-family: Georgia, 'Times New Roman', serif;
-  font-size: clamp(4rem, 7vw, 6.5rem);
-  font-weight: 500;
-  line-height: 0.85;
-  letter-spacing: -0.05em;
-}
-
-body.vc-theme-web .vc-hero-script {
-  margin: 18px 0 0;
-  color: var(--vc-terracotta);
-  font-family: 'Brush Script MT', 'Segoe Script', cursive;
-  font-size: clamp(1.75rem, 2.5vw, 2.5rem);
-}
-
-body.vc-theme-web .vc-hero-divider {
-  width: 180px;
-  height: 1px;
-  margin: 35px auto;
-  background: var(--vc-accent-soft);
-}
-
-body.vc-theme-web .vc-hero-text {
-  margin: 0;
-  color: var(--vc-text-secondary);
-  font-family: Georgia, 'Times New Roman', serif;
-  font-size: 1.1rem;
-  line-height: 1.8;
-}
-
-body.vc-theme-web .vc-hero-house {
-  width: 190px;
-  height: 110px;
-  margin: 42px auto 28px;
+/* El contenido del libro se acerca 90px al bloque de eslóganes. */
+body.vc-theme-web .vc-book-content {
+  width: 100%;
+  max-width: 560px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-bottom: 3px solid var(--vc-accent-light);
-  color: var(--vc-accent-light);
-  font-family: Georgia, serif;
-  font-size: 6rem;
-  opacity: 0.75;
+  transform: translateX(90px);
 }
 
-body.vc-theme-web .vc-hero-quote {
-  margin: 0;
-  color: var(--vc-terracotta);
-  font-family: 'Brush Script MT', 'Segoe Script', cursive;
-  font-size: 1.5rem;
+body.vc-theme-web .vc-book-stack {
+  position: relative;
+  width: 100%;
+  max-width: 300px;
+  margin: 0 auto;
+}
+
+/* HOJA TRASERA — `.heroLogoStack::after` */
+body.vc-theme-web .vc-book-stack::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+
+  background: color-mix(in srgb, var(--color-surface-variant) 97%, var(--color-terracotta) 3%);
+  border: 1px solid color-mix(in srgb, var(--color-text) 8%, transparent);
+  border-radius: 10px 26px 12px 30px;
+
+  transform: rotate(-5deg) translate(-12px, 15px);
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--color-text) 10%, transparent);
+}
+
+/* HOJA DELANTERA — `.heroLogoStack::before` */
+body.vc-theme-web .vc-book-stack::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+
+  background: color-mix(in srgb, var(--color-surface-variant) 98%, var(--color-terracotta) 2%);
+  border: 1px solid color-mix(in srgb, var(--color-text) 7%, transparent);
+  border-radius: 26px 10px 30px 12px;
+
+  transform: rotate(4deg) translate(12px, 10px);
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--color-text) 8%, transparent);
+}
+
+/* `.heroLogo` */
+body.vc-theme-web .vc-book-img {
+  position: relative;
+  z-index: 2;
+
+  display: block;
+  width: 100%;
+  max-width: 500px;
+  max-height: 540px;
+  height: auto;
+
+  object-fit: contain;
+  object-position: center;
+
+  border-radius: 18px 28px 16px 26px;
+
+  box-shadow:
+    0 26px 46px color-mix(in srgb, var(--color-text) 18%, transparent),
+    0 8px 16px color-mix(in srgb, var(--color-text) 10%, transparent);
 }
 
 /* =====================================================
-   RIGHT — login card, matches LoginPage.module.css's
-   .loginSection/.loginCard
+   COLUMNA 2 — ESLOGANES (`.sloganSection`)
+   ===================================================== */
+
+body.vc-theme-web .vc-slogans {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  min-width: 0;
+  padding: 40px 30px;
+  overflow: hidden;
+}
+
+body.vc-theme-web .vc-slogans-content {
+  width: 100%;
+  max-width: 430px;
+  text-align: center;
+}
+
+/* `.valueRow` */
+body.vc-theme-web .vc-value-row {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 17px;
+
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+body.vc-theme-web .vc-value-row li {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+body.vc-theme-web .vc-value-icon {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  color: color-mix(in srgb, var(--color-primary) 70%, white);
+}
+
+body.vc-theme-web .vc-value-row span {
+  min-width: 150px;
+  text-align: left;
+
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+
+  color: var(--color-text-secondary);
+}
+
+/* `.heroDivider` */
+body.vc-theme-web .vc-hero-divider {
+  width: 150px;
+  height: 1px;
+  margin: 32px auto 26px;
+  background: color-mix(in srgb, var(--color-primary) 40%, var(--color-surface-variant));
+}
+
+/* `.heroQuote` */
+body.vc-theme-web .vc-hero-quote {
+  margin: 0 0 18px;
+  color: var(--color-terracotta);
+
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 1.3rem;
+  line-height: 1.45;
+}
+
+/* `.heroText` — "Meraki" */
+body.vc-theme-web .vc-hero-script-word {
+  margin: 18px 0 8px;
+  color: var(--color-terracotta);
+
+  font-family: var(--font-script);
+  font-weight: 400;
+  font-size: 2.8rem;
+  line-height: 1;
+}
+
+/* `.heroTextUno` */
+body.vc-theme-web .vc-hero-text {
+  margin: 0;
+  color: var(--color-text-secondary);
+
+  font-family: var(--font-sans);
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+/* =====================================================
+   COLUMNA 3 — TARJETA (`.loginSection` / `.loginCard`)
    ===================================================== */
 
 body.vc-theme-web .pf-v5-c-login__main {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 60px;
-  /* Without this, .vc-hero (a sibling grid item) stretches to the row's full
-     height by default but this one didn't — found for real via
-     boundingBox() in UX-005, still needed with the new card layout. */
+  min-width: 0;
+  padding: 40px 35px;
+  /* Sin esto la columna no se estiraba a la altura de la fila mientras sus
+     hermanas sí — encontrado con boundingBox() en UX-005. */
   align-self: stretch;
   height: 100%;
+  /* El portal no tenía formulario, así que nunca desbordaba; el de registro
+     sí puede ser largo. */
+  overflow-y: auto;
 }
 
 body.vc-theme-web .vc-card {
-  width: min(100%, 470px);
-  padding: 55px 52px;
-  background: var(--vc-card-bg);
-  border: 1px solid var(--vc-card-border);
+  width: 100%;
+  max-width: 430px;
+  padding: 48px 45px;
+
+  background: color-mix(in srgb, var(--color-surface-variant) 94%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-text) 15%, transparent);
   border-radius: 24px;
+
   box-shadow:
-    0 30px 70px rgba(44, 66, 91, 0.12),
-    0 5px 15px rgba(44, 66, 91, 0.06);
+    0 30px 70px color-mix(in srgb, var(--color-text) 12%, transparent),
+    0 5px 15px color-mix(in srgb, var(--color-text) 6%, transparent);
 }
 
-/* Brand block (login.ftl/register.ftl's "vc-brand" div, nested inside the
-   real <h1>) — matches LoginPage.module.css's .brand. */
+/* =====================================================
+   MARCA (`.brandIcon` / `.brand`)
+   ===================================================== */
+
 body.vc-theme-web .vc-brand {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  display: block;
   margin: 0 0 45px;
   text-align: center;
 }
 
+body.vc-theme-web .vc-brand-icon {
+  display: block;
+  width: 26px;
+  height: 26px;
+  margin: 0 auto 10px;
+  color: color-mix(in srgb, var(--color-primary) 70%, white);
+}
+
 body.vc-theme-web .vc-brand-title {
   display: block;
-  color: var(--vc-ink);
-  font-family: Georgia, 'Times New Roman', serif;
-  font-size: 2.6rem;
+  margin: 0;
+  color: var(--color-text);
+
+  font-family: var(--font-serif);
+  font-size: 3.2rem;
   font-weight: 500;
+  line-height: 1.1;
 }
 
 body.vc-theme-web .vc-brand-script {
   display: block;
-  margin-top: 4px;
-  color: var(--vc-terracotta);
-  font-family: 'Brush Script MT', 'Segoe Script', cursive;
-  font-size: 1.5rem;
+  margin-top: 5px;
+  color: var(--color-terracotta);
+
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 0.95rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
 }
 
-/* The real, accessible title text (${msg("loginAccountTitle")}) — sits right
-   after .vc-brand inside the same <h1>. Styled to read like LoginPage's
-   "Bienvenido" welcome line; the exact copy still comes from Keycloak's own
-   message bundle (login-theme.md §10 — see the note on why the wording
-   itself wasn't hardcoded to match "Bienvenido"/"Inicia sesión para
-   continuar" verbatim). */
+/* =====================================================
+   BIENVENIDA (`.welcome`)
+   ===================================================== */
+
+body.vc-theme-web .vc-welcome {
+  margin-bottom: 32px;
+  text-align: center;
+}
+
+body.vc-theme-web .vc-welcome-title {
+  margin: 0;
+  color: var(--color-text);
+
+  font-family: var(--font-serif);
+  font-size: 2rem;
+  font-weight: 500;
+}
+
+body.vc-theme-web .vc-welcome-text {
+  margin: 8px 0 0;
+  color: var(--color-text-secondary);
+  font-size: 0.95rem;
+}
+
+/* En Login el <h1> real de Keycloak se oculta (el texto visible ya lo pone
+   el bloque `.vc-welcome`), pero sigue en el DOM para lectores de pantalla. */
+body.vc-theme-web .vc-accessible-title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* En Registro no hay `.vc-welcome`, así que este título SÍ se ve y hace de
+   "Bienvenido": mismo tamaño y misma tipografía, para que las dos pantallas
+   tengan la misma jerarquía. */
 body.vc-theme-web .pf-v5-c-title {
   display: block;
+  margin: 0 0 32px;
   text-align: center;
-  color: var(--vc-ink-soft);
-  font-family: Georgia, 'Times New Roman', serif;
-  font-size: 1.6rem;
+  color: var(--color-text);
+
+  font-family: var(--font-serif);
+  font-size: 2rem;
   font-weight: 500;
-  margin: 0 0 28px;
-  /* Real bug found verifying the register page in UX-005: PatternFly's base
-     styles.css inherits word-break:break-word on this title, and the narrow
-     form column shrinks a flex child below its own content width. A
-     multi-word heading wraps at spaces so this never showed before, but a
-     single unbreakable word ("Register") broke mid-word — confirmed via
-     getComputedStyle/boundingBox() before treating it as fixed. Kept. */
+
+  /* Bug real encontrado verificando Registro en UX-005: PatternFly hereda
+     word-break:break-word aquí y la columna estrecha encoge al hijo flex por
+     debajo del ancho de su contenido, así que una sola palabra larga se
+     partía a mitad. Se mantiene. */
   word-break: normal;
   overflow-wrap: normal;
 }
 
 body.vc-theme-web .pf-v5-c-login__main-header {
   text-align: center;
+  padding: 0;
 }
 
-body.vc-theme-web .pf-v5-c-form__label-text {
-  color: var(--vc-ink-soft);
+/* =====================================================
+   CAMPOS — sistema de diseño de la app (`index.css` §input)
+   ===================================================== */
+
+body.vc-theme-web .pf-v5-c-form__label-text,
+body.vc-theme-web label {
+  color: var(--color-text);
+  font-family: var(--font-sans);
   font-weight: 500;
   font-size: 0.9375rem;
 }
 
 body.vc-theme-web input[type='text'],
-body.vc-theme-web input[type='password'] {
-  border: 1px solid var(--vc-input-border);
-  border-radius: var(--vc-radius-control);
-  padding: 8px 12px;
-  min-height: 44px; /* accessibility.md: 44px Web touch-target minimum — kept */
+body.vc-theme-web input[type='email'],
+body.vc-theme-web input[type='password'],
+body.vc-theme-web .vc-input-wrapper input {
   width: 100%;
-  box-sizing: border-box;
+
+  font-family: inherit;
   font-size: 0.9375rem;
-  background: #ffffff;
-  color: var(--vc-ink-soft);
+
+  border: 1px solid var(--color-border);
+  border-radius: 20px;
+  padding: var(--space-2) var(--space-3);
+  min-height: 44px;
+
+  /* Crema, no blanco ni el beige de la página: un campo del mismo tono que
+     el fondo solo se distingue por su borde (mismo razonamiento que
+     index.css). */
+  background: var(--color-surface-variant);
+  color: var(--color-text);
 }
 
 body.vc-theme-web input[type='text']:focus-visible,
-body.vc-theme-web input[type='password']:focus-visible {
-  outline: 3px solid rgba(44, 95, 140, 0.25);
+body.vc-theme-web input[type='email']:focus-visible,
+body.vc-theme-web input[type='password']:focus-visible,
+body.vc-theme-web .vc-input-wrapper input:focus-visible {
+  outline: 2px solid var(--color-primary);
   outline-offset: 2px;
+}
+
+body.vc-theme-web .vc-form-group,
+body.vc-theme-web .pf-v5-c-form__group {
+  margin-bottom: 18px;
 }
 
 body.vc-theme-web .checkbox label,
 body.vc-theme-web #kc-form-options span {
-  color: var(--vc-text-secondary);
+  color: var(--color-text-secondary);
   font-size: 0.875rem;
 }
 
 body.vc-theme-web input[type='checkbox'] {
-  accent-color: var(--vc-accent);
+  accent-color: var(--color-primary);
+}
+
+/* Mostrar/ocultar contraseña (passwordVisibility.js) — mismo botón y mismo
+   comportamiento, solo entonado. */
+body.vc-theme-web .pf-v5-c-form-control__utilities button,
+body.vc-theme-web [data-password-toggle] {
+  color: var(--color-text-secondary);
+  background: transparent;
+  border: none;
 }
 
 /* =====================================================
-   BUTTONS — matches LoginPage.module.css's
-   .loginButton/.registerButton
+   BOTONES (`.loginButton` / `.registerButton`)
    ===================================================== */
 
-body.vc-theme-web #kc-login {
+body.vc-theme-web #kc-login,
+body.vc-theme-web .vc-login-button,
+body.vc-theme-web #kc-form-buttons input[type='submit'] {
+  display: flex;
+  align-items: center;
+  /* `space-between` y no `center`: el botón lleva icono a cada lado, igual
+     que `.loginButton` del portal (IconUser · texto · IconArrowRight). */
+  justify-content: space-between;
+  gap: 10px;
+
   width: 100%;
   min-height: 54px;
-  border: 1px solid #2c5f8c;
+  padding: 0 20px;
+
+  border: 1px solid var(--color-primary);
   border-radius: 12px;
-  background: linear-gradient(135deg, #2c5f8c, #3f72a6);
-  color: #ffffff;
+
+  background: linear-gradient(
+    135deg,
+    var(--color-primary),
+    color-mix(in srgb, var(--color-primary) 70%, white)
+  );
+  color: var(--color-on-primary);
+
   font-family: inherit;
   font-size: 0.98rem;
   font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 8px 20px rgba(44, 95, 140, 0.22);
+
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--color-primary) 22%, transparent);
+
   transition:
     transform 160ms ease,
     box-shadow 160ms ease,
     background-color 160ms ease;
 }
 
-body.vc-theme-web #kc-login:hover {
-  background: linear-gradient(135deg, #255077, #346290);
+body.vc-theme-web #kc-login:hover,
+body.vc-theme-web .vc-login-button:hover,
+body.vc-theme-web #kc-form-buttons input[type='submit']:hover {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-primary) 85%, black),
+    var(--color-primary)
+  );
   transform: translateY(-1px);
-  box-shadow: 0 12px 25px rgba(44, 95, 140, 0.3);
+  box-shadow: 0 12px 25px color-mix(in srgb, var(--color-primary) 30%, transparent);
 }
 
-body.vc-theme-web #kc-login:focus-visible {
-  outline: 3px solid rgba(44, 95, 140, 0.25);
-  outline-offset: 3px;
-}
-
-/* The real registration link (#kc-registration a, url.registrationUrl) —
-   restyled as a full-width outlined button to match .registerButton, same
-   href/behavior, no HTML tag change (still a real <a>, not a fake button). */
+/* El enlace real de registro (`url.registrationUrl`) con la piel del botón
+   `.registerButton`: mismo href y mismo comportamiento, sigue siendo un <a>
+   de verdad, no un botón simulado. */
 body.vc-theme-web #kc-registration {
   margin-top: 14px;
   text-align: center;
@@ -374,93 +594,392 @@ body.vc-theme-web #kc-registration span {
   display: block;
 }
 
-body.vc-theme-web #kc-registration a {
+body.vc-theme-web #kc-registration a,
+body.vc-theme-web .vc-back-to-login a {
   display: block;
   width: 100%;
   min-height: 54px;
-  line-height: 54px;
+  line-height: 52px;
   margin-top: 6px;
-  border: 1px solid var(--vc-accent-soft);
+
+  border: 1px solid var(--color-border);
   border-radius: 12px;
   background: transparent;
-  color: var(--vc-accent);
+  color: var(--color-primary);
+
+  font-size: 0.98rem;
   font-weight: 600;
   text-decoration: none;
-  transition: background-color 160ms ease, transform 160ms ease;
+
+  transition:
+    transform 160ms ease,
+    background-color 160ms ease;
 }
 
-body.vc-theme-web #kc-registration a:hover {
-  background: rgba(44, 95, 140, 0.08);
+body.vc-theme-web #kc-registration a:hover,
+body.vc-theme-web .vc-back-to-login a:hover {
+  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
   transform: translateY(-1px);
 }
 
+/* "¿Olvidaste tu contraseña?" se queda como enlace de texto: el portal no
+   tenía un tercer botón y convertirlo en uno inventaría jerarquía. */
+body.vc-theme-web a#forgot-password,
+body.vc-theme-web #kc-form-options a {
+  font-size: 0.875rem;
+}
+
 body.vc-theme-web a {
-  color: var(--vc-accent);
+  color: var(--color-primary);
 }
 
 body.vc-theme-web a:focus-visible,
-body.vc-theme-web button:focus-visible {
-  outline: 3px solid rgba(44, 95, 140, 0.25);
+body.vc-theme-web button:focus-visible,
+body.vc-theme-web input[type='submit']:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-primary) 25%, transparent);
   outline-offset: 3px;
 }
 
-/* Password show/hide toggle (passwordVisibility.js) — icon only, same
-   button/behavior, just tinted to the new palette instead of default black. */
-body.vc-theme-web .pf-v5-c-form-control__utilities button,
-body.vc-theme-web [data-password-toggle] {
-  color: var(--vc-text-muted);
+
+/* =====================================================
+   CLASES PROPIAS DE login.ftl (`.actions`, `.buttonIcon`,
+   `.registerButton`, grupos de campo)
+
+   login.ftl ya reproducía la estructura del portal con estos nombres desde
+   UX-008; lo que faltaba era el CSS. Sin estas reglas, el botón de registro
+   y los grupos de campo caían en los estilos por defecto de PatternFly, que
+   es la razón principal de que la pantalla "no se viera migrada".
+   ===================================================== */
+
+/* `.actions` */
+body.vc-theme-web .vc-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* `.buttonIcon` */
+body.vc-theme-web .vc-button-icon {
+  flex: none;
+  width: 18px;
+  height: 18px;
+}
+
+/* `.registerButton` — un <a> real, con la piel del botón contorneado. */
+body.vc-theme-web .vc-register-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+
+  width: 100%;
+  min-height: 54px;
+  padding: 0 20px;
+
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--color-primary);
+
+  font-family: inherit;
+  font-size: 0.98rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease,
+    background-color 160ms ease;
+}
+
+body.vc-theme-web .vc-register-button:hover {
+  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+  transform: translateY(-1px);
+}
+
+/* Grupos de campo y etiquetas */
+body.vc-theme-web .vc-form-group {
+  margin-bottom: 18px;
+}
+
+body.vc-theme-web .vc-form-label {
+  display: block;
+  margin-bottom: 6px;
+
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 0.9375rem;
+}
+
+body.vc-theme-web .vc-input-wrapper {
+  display: block;
+  width: 100%;
+}
+
+/* La contraseña y su botón de mostrar/ocultar comparten fila sin que el
+   botón deforme el campo. */
+body.vc-theme-web .vc-password-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+body.vc-theme-web .vc-password-wrapper .vc-input-wrapper {
+  flex: 1;
+  min-width: 0;
+}
+
+body.vc-theme-web .vc-password-toggle {
+  flex: none;
+
+  display: grid;
+  place-items: center;
+
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+
+  border: 1px solid var(--color-border);
+  border-radius: 20px;
+  background: var(--color-surface-variant);
+  color: var(--color-text-secondary);
+
+  cursor: pointer;
+}
+
+body.vc-theme-web .vc-password-toggle:hover {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+/* `.vc-form-options` está vacío cuando el realm no tiene "recordarme" ni
+   recuperación de contraseña: sin esto dejaría un hueco muerto. */
+body.vc-theme-web .vc-form-options:empty {
+  display: none;
+}
+
+body.vc-theme-web .vc-form-options {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
 }
 
 /* =====================================================
-   FOOTER TAGLINE (login.ftl's decorative "vc-form-footer")
-   — matches LoginPage.module.css's .footerText
+   PIE (`.footerDivider` / `.footerText` / `.footerIcon`)
    ===================================================== */
 
 body.vc-theme-web .vc-form-footer {
-  margin: 35px 0 0;
-  color: var(--vc-text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+
+  margin: 28px 0 0;
+  padding-top: 16px;
+  border-top: 1px solid color-mix(in srgb, var(--color-text) 12%, transparent);
+
+  color: var(--color-text-secondary);
   text-align: center;
-  font-family: Georgia, 'Times New Roman', serif;
+
+  font-family: var(--font-serif);
   font-size: 0.82rem;
 }
 
+body.vc-theme-web .vc-footer-icon {
+  flex: none;
+  width: 13px;
+  height: 13px;
+}
+
 /* =====================================================
-   ERROR MESSAGES — real WCAG-AA verified tokens (ACC-001),
-   not the decorative palette
+   MENSAJES — tokens reales verificados AA (ACC-001), no la
+   paleta decorativa
    ===================================================== */
 
-body.vc-theme-web .pf-v5-c-alert.pf-m-danger {
-  background: var(--vc-error-container);
-  color: var(--vc-error);
-  border-radius: var(--vc-radius-control);
+body.vc-theme-web .pf-v5-c-alert {
   border: none;
-  padding: 12px 16px;
+  border-radius: 20px;
+  padding: var(--space-2) var(--space-3);
   margin-bottom: 16px;
+  font-size: 0.875rem;
 }
 
-body.vc-theme-web #input-error {
-  color: var(--vc-error);
+body.vc-theme-web .pf-v5-c-alert.pf-m-danger {
+  background: var(--color-error-container);
+  color: var(--color-error);
+}
+
+body.vc-theme-web .pf-v5-c-alert.pf-m-success {
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  color: var(--color-primary);
+}
+
+body.vc-theme-web .pf-v5-c-alert.pf-m-warning,
+body.vc-theme-web .pf-v5-c-alert.pf-m-info {
+  background: color-mix(in srgb, var(--color-terracotta) 12%, transparent);
+  color: var(--color-terracotta);
+}
+
+body.vc-theme-web #input-error,
+body.vc-theme-web [id^='input-error'],
+body.vc-theme-web .pf-v5-c-form__helper-text.pf-m-error {
+  display: block;
+  margin-top: 6px;
+  color: var(--color-error);
+  font-size: 0.8125rem;
+}
+
+body.vc-theme-web input[aria-invalid='true'] {
+  border-color: var(--color-error);
 }
 
 /* =====================================================
-   SOCIAL PROVIDERS — no identityProviders configured today
-   (realm-vida-cotidiana*.json), styled for when one is added
-   so it doesn't land unstyled/off-palette.
+   PROVEEDORES SOCIALES — hoy no hay ninguno configurado
+   (realm-vida-cotidiana*.json); estilados por si se añade uno,
+   para que no aterrice sin estilo.
    ===================================================== */
 
 body.vc-theme-web .pf-v5-c-login__main-footer-links a,
 body.vc-theme-web [id^='social-'] {
   display: block;
   width: 100%;
-  min-height: 44px;
-  border: 1px solid var(--vc-card-border);
-  border-radius: var(--vc-radius-control);
-  color: var(--vc-ink-soft);
+  min-height: 54px;
+  line-height: 52px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  color: var(--color-text);
   text-decoration: none;
   text-align: center;
-  line-height: 42px;
 }
 
 body.vc-theme-web [id^='social-']:hover {
-  background: rgba(44, 95, 140, 0.06);
+  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+}
+
+body.vc-theme-web .pf-v5-c-login__main-footer {
+  padding: 0;
+}
+
+/* =====================================================
+   RESPONSIVE — mismos cortes que el portal
+   ===================================================== */
+
+@media (max-width: 1000px) {
+  body.vc-theme-web {
+    background: var(--color-surface);
+  }
+
+  body.vc-theme-web .vc-split-container {
+    grid-template-columns: 1fr;
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+  }
+
+  body.vc-theme-web .vc-book {
+    min-height: 55vh;
+    padding: 60px 40px;
+  }
+
+  /* En vertical desaparece el desplazamiento. */
+  body.vc-theme-web .vc-book-content {
+    transform: none;
+  }
+
+  body.vc-theme-web .vc-book-stack {
+    max-width: 500px;
+  }
+
+  body.vc-theme-web .vc-slogans {
+    min-height: auto;
+    padding: 60px 40px;
+    justify-content: center;
+  }
+
+  body.vc-theme-web .pf-v5-c-login__main {
+    padding: 40px 30px 70px;
+    height: auto;
+    overflow-y: visible;
+  }
+}
+
+@media (max-width: 600px) {
+  body.vc-theme-web .vc-book {
+    min-height: 48vh;
+    padding: 45px 25px;
+  }
+
+  body.vc-theme-web .vc-book-stack {
+    max-width: 420px;
+  }
+
+  body.vc-theme-web .vc-slogans {
+    padding: 45px 25px;
+  }
+
+  body.vc-theme-web .vc-slogans-content {
+    max-width: 350px;
+  }
+
+  body.vc-theme-web .vc-value-row {
+    gap: 14px;
+  }
+
+  body.vc-theme-web .vc-value-row span {
+    min-width: 135px;
+    font-size: 0.68rem;
+  }
+
+  body.vc-theme-web .vc-hero-quote {
+    font-size: 1.15rem;
+  }
+
+  body.vc-theme-web .vc-hero-script-word {
+    font-size: 2.3rem;
+  }
+
+  body.vc-theme-web .vc-hero-text {
+    font-size: 0.85rem;
+  }
+
+  body.vc-theme-web .pf-v5-c-login__main {
+    padding: 25px 18px 45px;
+  }
+
+  body.vc-theme-web .vc-card {
+    padding: 40px 28px;
+    border-radius: 20px;
+  }
+
+  body.vc-theme-web .vc-brand-title {
+    font-size: 2.6rem;
+  }
+}
+
+/* =====================================================
+   MOVIMIENTO REDUCIDO — el portal apoya sus transiciones en
+   `transform`; aquí se respetan las preferencias del sistema.
+   ===================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  body.vc-theme-web #kc-login,
+  body.vc-theme-web #kc-registration a,
+  body.vc-theme-web input[type='submit'] {
+    transition: none;
+  }
+
+  body.vc-theme-web #kc-login:hover,
+  body.vc-theme-web #kc-registration a:hover,
+  body.vc-theme-web input[type='submit']:hover {
+    transform: none;
+  }
 }

@@ -3,6 +3,7 @@ package com.vidacotidiana.maintenance.application;
 import com.vidacotidiana.maintenance.domain.MaintenanceRecord;
 import com.vidacotidiana.maintenance.domain.MaintenanceRecordRepository;
 import com.vidacotidiana.shared.domain.ConflictException;
+import com.vidacotidiana.shared.domain.ModuleContext;
 import com.vidacotidiana.shared.domain.NotFoundException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -36,13 +37,33 @@ public class MaintenanceService {
         sola fecha, el comportamiento que tenían todos hasta ahora. */
     @Transactional
     public MaintenanceRecord create(UUID ownerUserId, String item, Instant nextDueAt, Integer intervalMonths) {
-        MaintenanceRecord record = new MaintenanceRecord(ownerUserId, item, nextDueAt, intervalMonths);
+        return create(ownerUserId, item, nextDueAt, intervalMonths, ModuleContext.PERSONAL);
+    }
+
+    /** ADR-019: alta con el módulo desde el que se creó. */
+    @Transactional
+    public MaintenanceRecord create(UUID ownerUserId, String item, Instant nextDueAt, Integer intervalMonths,
+                                    ModuleContext context) {
+        MaintenanceRecord record = new MaintenanceRecord(ownerUserId, item, nextDueAt, intervalMonths, context);
         return maintenanceRecordRepository.save(record);
     }
 
     @Transactional(readOnly = true)
     public Page<MaintenanceRecord> listOwnedBy(UUID ownerUserId, Pageable pageable) {
-        return maintenanceRecordRepository.findByOwnerUserId(ownerUserId, pageable);
+        return listOwnedBy(ownerUserId, null, pageable);
+    }
+
+    /**
+     * ADR-019: `context` nulo = sin filtrar, que es lo que necesita el
+     * Calendario general (el modo que muestra Personal y Laboral juntos).
+     * Con contexto, el filtro va en la consulta: los recursos del otro
+     * módulo ni siquiera se leen.
+     */
+    @Transactional(readOnly = true)
+    public Page<MaintenanceRecord> listOwnedBy(UUID ownerUserId, ModuleContext context, Pageable pageable) {
+        return (context == null)
+                ? maintenanceRecordRepository.findByOwnerUserId(ownerUserId, pageable)
+                : maintenanceRecordRepository.findByOwnerUserIdAndContext(ownerUserId, context, pageable);
     }
 
     @Transactional(readOnly = true)

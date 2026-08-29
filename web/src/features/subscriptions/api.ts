@@ -1,4 +1,5 @@
 import { apiFetch } from '../../core/api/httpClient'
+import { creationContext, withContext, type ModuleContext } from '../../core/user/moduleContext'
 
 export type BillingCycle = 'WEEKLY' | 'MONTHLY' | 'YEARLY'
 
@@ -31,8 +32,8 @@ interface SubscriptionsPageResponse {
   totalPages: number
 }
 
-export async function listSubscriptions(): Promise<SubscriptionsPageResponse> {
-  const response = await apiFetch('/subscriptions?size=100')
+export async function listSubscriptions(context?: ModuleContext | null): Promise<SubscriptionsPageResponse> {
+  const response = await apiFetch(withContext('/subscriptions?size=100', context))
   if (!response.ok) throw new Error(`GET /subscriptions failed: ${response.status}`)
   return response.json()
 }
@@ -43,10 +44,18 @@ export async function createSubscription(
   plan: string | undefined,
   nextPaymentDate: string,
   billingCycle: BillingCycle,
+  context?: ModuleContext | null,
 ): Promise<Subscription> {
   const response = await apiFetch('/subscriptions', {
     method: 'POST',
-    body: JSON.stringify({ service, company: company || undefined, plan: plan || undefined, nextPaymentDate, billingCycle }),
+    body: JSON.stringify({
+      service,
+      company: company || undefined,
+      plan: plan || undefined,
+      nextPaymentDate,
+      billingCycle,
+      context: creationContext(context),
+    }),
   })
   if (!response.ok) throw new Error(`POST /subscriptions failed: ${response.status}`)
   return response.json()

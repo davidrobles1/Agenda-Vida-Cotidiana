@@ -163,6 +163,17 @@ function registrationUrl(params: Record<string, string>): string {
   return `${authConfig.issuer}/protocol/openid-connect/registrations?${new URLSearchParams(params)}`
 }
 
+/**
+ * UX-016: se mantiene **intacto** por pedido explícito del usuario, aunque
+ * desde 2026-08-29 ninguna pantalla de la aplicación lo llame: la portada
+ * que tenía el botón "Crear una cuenta" se retiró, y ahora al registro se
+ * llega desde el enlace que el propio formulario de Keycloak ya renderiza
+ * (`#kc-registration`, activado por `registrationAllowed` en el realm),
+ * estilado como el mismo botón que había en el portal.
+ *
+ * Sigue siendo la vía correcta si alguna pantalla necesita mandar a alguien
+ * directo al alta sin pasar por el formulario de acceso.
+ */
 export async function register(): Promise<void> {
   const verifier = generateCodeVerifier()
   const challenge = await generateCodeChallenge(verifier)
@@ -369,6 +380,10 @@ function enforceIdleTimeout(): boolean {
   if (!tokenSet) return false
   if (idleForMs() < IDLE_TIMEOUT_MS) return false
 
+  // Igual que en `logout()`: la URL se arma con el token todavía vivo.
+  const url = logoutUrl(tokenSet?.idToken)
+  loggingOut = true
+
   // Se limpia ANTES de salir: si la marca vieja siguiera ahí, al volver del
   // logout `restoreSession()` volvería a verla caducada y redirigiría otra
   // vez — un bucle.
@@ -379,7 +394,7 @@ function enforceIdleTimeout(): boolean {
   // de Keycloak siga viva, el siguiente `prompt=none` volvería a entrar
   // solo, y "expiró por inactividad" sería mentira. Esto la termina de
   // verdad y devuelve al usuario al login.
-  window.location.assign(logoutUrl())
+  window.location.assign(url)
   return true
 }
 
@@ -709,8 +724,11 @@ export function restoreSession(): Promise<void> {
     clearStoredActivity()
     endSession(IDLE_NOTICE)
     restorePromise = Promise.resolve()
+    loggingOut = true
     // El logout de Keycloak termina la cookie SSO: sin esto, "Iniciar
-    // sesión" volvería a entrar sin pedir credenciales.
+    // sesión" volvería a entrar sin pedir credenciales. Aquí no hay
+    // `id_token_hint` que ofrecer (la app acaba de arrancar sin token), así
+    // que Keycloak pedirá confirmación; es el único camino en que eso pasa.
     window.location.assign(logoutUrl())
     return restorePromise
   }
@@ -747,18 +765,57 @@ export function restoreSession(): Promise<void> {
   return restorePromise
 }
 
-/** RP-initiated logout de Keycloak: termina la cookie SSO, no solo el token
-    de esta pestaña. Lo comparten el cierre manual y el cierre por
-    inactividad (`enforceIdleTimeout`). */
-function logoutUrl(): string {
-  return `${authConfig.issuer}/protocol/openid-connect/logout?${new URLSearchParams({
+/**
+ * RP-initiated logout de Keycloak: termina la cookie SSO, no solo el token
+ * de esta pestaña. Lo comparten el cierre manual y el cierre por inactividad
+ * (`enforceIdleTimeout`).
+ *
+ * `id_token_hint` importa: sin él, Keycloak 18+ no cierra la sesión de
+ * inmediato — muestra una página de confirmación ("¿quieres cerrar
+ * sesión?"), y si el usuario no la confirma la sesión SSO sigue viva. Con el
+ * hint, Keycloak identifica la sesión, la cierra y vuelve directo al
+ * `post_logout_redirect_uri`, sin pantalla intermedia.
+ *
+ * OJO AL ORDEN: hay que construir esta URL **antes** de limpiar el estado,
+ * porque el id_token sale del `tokenSet` que `endSession` borra.
+ */
+function logoutUrl(idToken?: string): string {
+  const params: Record<string, string> = {
     client_id: authConfig.clientId,
     post_logout_redirect_uri: window.location.origin,
-  })}`
+  }
+  if (idToken) params.id_token_hint = idToken
+  return `${authConfig.issuer}/protocol/openid-connect/logout?${new URLSearchParams(params)}`
+}
+
+/**
+ * DEFECTO REAL (2026-08-29, reportado por el usuario: "al dar logout en el
+ * botón del portal no me cierra la sesión").
+ *
+ * Causa: `logout()` pide la navegación al endpoint de cierre, pero antes
+ * llama a `endSession`, que notifica a React. El re-render es SÍNCRONO y
+ * ocurre antes de que el navegador procese esa navegación: `RequireAuth` ve
+ * "anonymous", manda a "/", y `AuthGateway` —que desde UX-016 redirige solo
+ * al formulario de acceso— dispara `login()` con OTRO
+ * `window.location.assign`. Gana el último: el navegador iba al endpoint de
+ * autorización en vez de al de cierre, Keycloak veía la cookie SSO todavía
+ * viva y devolvía un código al instante. Resultado: el usuario volvía a
+ * entrar sin haber salido nunca.
+ *
+ * Esta bandera corta esa carrera: mientras un cierre está en vuelo, nada
+ * más puede iniciar un login.
+ */
+let loggingOut = false
+
+export function isLoggingOut(): boolean {
+  return loggingOut
 }
 
 export function logout(): void {
+  // La URL se construye con el token todavía en memoria (ver logoutUrl).
+  const url = logoutUrl(tokenSet?.idToken)
+  loggingOut = true
   clearStoredActivity()
   endSession(null)
-  window.location.assign(logoutUrl())
+  window.location.assign(url)
 }

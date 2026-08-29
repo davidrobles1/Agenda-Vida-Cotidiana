@@ -1,8 +1,8 @@
 import { useState, type FormEvent } from 'react'
-import { Button, Dialog, DialogTrigger, Heading, Modal } from 'react-aria-components'
+import { Dialog, DialogTrigger, Heading, Modal } from 'react-aria-components'
 import { motion } from 'motion/react'
-import { Eye } from 'lucide-react'
 import { motionTokens } from '../../core/motion/tokens'
+import { IconCheckSquare, IconFolder, IconRepeat } from '../../core/ui/icons'
 import { createCommitment, type Commitment, type CommitmentDirection } from '../commitments/api'
 import type { Reminder } from '../reminders/api'
 import type { Project } from '../projects/api'
@@ -16,7 +16,9 @@ import {
   type Resource,
   type ResourceType,
 } from '../resources/api'
+import { useVocabulary } from '../../core/user/useVocabulary'
 import type { Person } from './api'
+import { computeLastInteraction, formatRelativeDate, initialsOf } from './personSummary'
 import shellStyles from '../../core/ui/dialogs/DialogShell.module.css'
 import styles from './PeoplePage.module.css'
 
@@ -24,6 +26,9 @@ const MotionDialog = motion.create(Dialog)
 
 interface PersonDetailDialogProps {
   person: Person
+  /** Apertura controlada: la tarjeta de PeoplePage es el disparador. */
+  isOpen: boolean
+  onOpenChange: (open: boolean) => void
   commitments: Commitment[]
   tasks: Reminder[]
   projects: Project[]
@@ -47,44 +52,45 @@ function formatDate(iso: string): string {
 }
 
 /**
- * ADR-016 Fase 3c (candidato V4, `34-laboral-module-proposal.md` §"Agenda
- * como memoria externa"): "última interacción" no es un campo propio de
- * Persona — se deriva del `updatedAt` más reciente entre sus Compromisos,
- * Tareas y Notas ya vinculados (todos disponibles como props, sin fetch
- * adicional). Sin endpoint nuevo, sin campo nuevo en el backend.
+ * `commitmentBadge` del prototipo, con sus cuatro estados. Es el mismo
+ * criterio que ya usa la pantalla "Hoy": un compromiso resuelto, uno
+ * atrasado, uno que vence pronto y el resto.
  */
-function computeLastInteraction(commitments: Commitment[], tasks: Reminder[], notes: Note[]): string | null {
-  const timestamps = [
-    ...commitments.map((c) => c.updatedAt),
-    ...tasks.map((t) => t.updatedAt),
-    ...notes.map((n) => n.updatedAt),
-  ]
-  if (timestamps.length === 0) return null
-  return timestamps.reduce((latest, current) => (current > latest ? current : latest))
+function commitmentBadge(commitment: Commitment): { label: string; tone: string } {
+  if (commitment.status !== 'OPEN') return { label: 'Resuelto', tone: 'success' }
+  const days = Math.round((new Date(commitment.dueAt).getTime() - Date.now()) / 86400000)
+  if (days < 0) return { label: 'Atrasado', tone: 'error' }
+  if (days <= 2) return { label: 'Próximo', tone: 'warning' }
+  return { label: 'En curso', tone: 'info' }
 }
 
-function formatRelativeDate(iso: string): string {
-  const then = new Date(iso)
-  const days = Math.round((Date.now() - then.getTime()) / 86400000)
-  if (days <= 0) return 'hoy'
-  if (days === 1) return 'ayer'
-  if (days < 30) return `hace ${days} días`
-  const months = Math.round(days / 30)
-  if (months < 12) return `hace ${months} mes${months === 1 ? '' : 'es'}`
-  return formatDate(iso)
-}
 
 /**
- * UC-18/UC-19 (parcial, vista desde Persona). Diálogo de solo lectura +
- * formulario embebido para "Crear seguimiento" (UC-18) — se evitó anidar un
- * segundo Modal dentro de este (no había necesidad real de esa complejidad
- * para un formulario de 3 campos). No existía un patrón de página con tabs
- * en el código para "ver contexto de proyecto/persona"; este Modal
- * reutiliza el mismo shell que los diálogos de creación
- * (`DialogShell.module.css`), sin inventar un componente nuevo.
+ * UC-18/UC-19 (parcial, vista desde Persona). Detalle de solo lectura +
+ * formularios embebidos para "Crear seguimiento" (UC-18), nota y recurso.
+ *
+ * REDISEÑO (2026-08-28, artifact fca1566a `pagePersonaDetalle()`): la
+ * cabecera reproduce la del prototipo —avatar grande, nombre, "rol ·
+ * organización" y la acción primaria "Crear seguimiento" a la derecha— y
+ * debajo va su fila de cuatro indicadores (yo debo actuar / esperando de X /
+ * proyectos / tareas). Las secciones siguen el mismo orden del prototipo:
+ * Compromisos, Notas relacionadas, Proyectos, Tareas.
+ *
+ * El prototipo lo modela como una PÁGINA con breadcrumb
+ * (`/laboral/personas/:id`); aquí sigue siendo un diálogo, que es el patrón
+ * real de la aplicación y el mismo que usa Proyectos. Convertirlo en ruta
+ * habría sido un cambio de navegación que nadie pidió, así que se traslada
+ * su contenido y su jerarquía, no su envoltorio.
+ *
+ * Documentos y Recursos no aparecen en el prototipo pero se conservan: son
+ * funcionalidad existente (FR-030/FR-034) y quitarlos habría sido una
+ * decisión funcional, no visual.
+ *
+ * La apertura la controla `PeoplePage`: la tarjeta de la lista es el
+ * disparador, así que este componente ya no dibuja el suyo.
  */
-export function PersonDetailDialog({ person, commitments, tasks, projects, notes, documents, resources, onCommitmentCreated, onNoteCreated, onResourceCreated, onNoteUpdated, onTaskCreated }: PersonDetailDialogProps) {
-  const [isOpen, setIsOpen] = useState(false)
+export function PersonDetailDialog({ person, isOpen, onOpenChange, commitments, tasks, projects, notes, documents, resources, onCommitmentCreated, onNoteCreated, onResourceCreated, onNoteUpdated, onTaskCreated }: PersonDetailDialogProps) {
+  const vocabulary = useVocabulary()
   const [activeForm, setActiveForm] = useState<ActiveForm>('none')
   const [description, setDescription] = useState('')
   const [direction, setDirection] = useState<CommitmentDirection>('MINE')
@@ -103,7 +109,7 @@ export function PersonDetailDialog({ person, commitments, tasks, projects, notes
   const lastInteractionAt = computeLastInteraction(commitments, tasks, notes)
 
   function handleOpenChange(open: boolean) {
-    setIsOpen(open)
+    onOpenChange(open)
     if (!open) {
       setActiveForm('none')
       setDescription('')
@@ -237,9 +243,6 @@ export function PersonDetailDialog({ person, commitments, tasks, projects, notes
 
   return (
     <DialogTrigger isOpen={isOpen} onOpenChange={handleOpenChange}>
-      <Button className={styles.iconButton} aria-label={`Ver ${person.name}`}>
-        <Eye width={16} height={16} />
-      </Button>
       <Modal isDismissable className={shellStyles.modalOverlay}>
         <MotionDialog
           className={shellStyles.panel}
@@ -249,51 +252,138 @@ export function PersonDetailDialog({ person, commitments, tasks, projects, notes
         >
           {({ close }) => (
             <div className={shellStyles.panelScroll}>
+              {/* Cabecera del prototipo: identidad a la izquierda, acción
+                  primaria a la derecha. El botón de cerrar es propio del
+                  diálogo y no existe en la página del prototipo. */}
               <div className={shellStyles.headerRow}>
-                <Heading slot="title" className={shellStyles.heading}>
-                  {person.name}
-                </Heading>
-                <button type="button" className={shellStyles.closeButton} onClick={close} aria-label="Cerrar">
-                  ×
-                </button>
+                <div className={styles.detailIdentity}>
+                  <span className={`${styles.avatar} ${styles.avatarLg}`} aria-hidden="true">
+                    {initialsOf(person.name)}
+                  </span>
+                  <div>
+                    <Heading slot="title" className={styles.detailName}>
+                      {person.name}
+                    </Heading>
+                    {(person.role || person.organization) && (
+                      <p className={styles.detailMeta}>
+                        {[person.role, person.organization].filter(Boolean).join(' · ')}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className={styles.detailHeadActions}>
+                  {activeForm !== 'commitment' && (
+                    <button
+                      type="button"
+                      className={styles.primaryAction}
+                      onClick={() => setActiveForm('commitment')}
+                    >
+                      <IconRepeat width={16} height={16} aria-hidden="true" />
+                      Crear seguimiento
+                    </button>
+                  )}
+                  <button type="button" className={shellStyles.closeButton} onClick={close} aria-label="Cerrar">
+                    ×
+                  </button>
+                </div>
               </div>
 
-              {(person.role || person.organization) && (
-                <p className={styles.detailMeta}>
-                  {[person.role, person.organization].filter(Boolean).join(' · ')}
-                </p>
-              )}
-
               <p className={styles.detailMeta}>
-                {lastInteractionAt ? `Última interacción: ${formatRelativeDate(lastInteractionAt)}` : 'Sin interacciones registradas todavía.'}
+                {lastInteractionAt
+                  ? `Última interacción: ${formatRelativeDate(lastInteractionAt)}`
+                  : 'Sin interacciones registradas'}
               </p>
 
-              <h3 className={styles.detailSectionTitle}>Compromisos abiertos</h3>
-              {openCommitments.length === 0 && <p className={styles.emptyHint}>Sin compromisos abiertos.</p>}
-              <ul className={styles.detailList}>
-                {openCommitments.map((c) => (
-                  <li key={c.id}>
-                    {c.direction === 'MINE' ? 'Tú → ' : '← '}
-                    {c.description} — {formatDate(c.dueAt)}
-                  </li>
-                ))}
-              </ul>
+              {/* Fila de indicadores del prototipo (`.stat-row`), con los
+                  mismos cuatro recuentos y en el mismo orden. */}
+              <div className={styles.statRow}>
+                <div className={styles.stat}>
+                  <div className={styles.statNum}>
+                    {openCommitments.filter((c) => c.direction === 'MINE').length}
+                  </div>
+                  <div className={styles.statLbl}>Yo debo actuar</div>
+                </div>
+                <div className={styles.stat}>
+                  <div className={styles.statNum}>
+                    {openCommitments.filter((c) => c.direction === 'THEIRS').length}
+                  </div>
+                  <div className={styles.statLbl}>Esperando de {person.name.split(' ')[0]}</div>
+                </div>
+                <div className={styles.stat}>
+                  <div className={styles.statNum}>{projects.length}</div>
+                  <div className={styles.statLbl}>{vocabulary.projectPlural}</div>
+                </div>
+                <div className={styles.stat}>
+                  <div className={styles.statNum}>{tasks.length}</div>
+                  <div className={styles.statLbl}>Tareas</div>
+                </div>
+              </div>
 
-              <h3 className={styles.detailSectionTitle}>Proyectos</h3>
-              {projects.length === 0 && <p className={styles.emptyHint}>Sin proyectos vinculados.</p>}
-              <ul className={styles.detailList}>
-                {projects.map((p) => (
-                  <li key={p.id}>{p.name}</li>
-                ))}
-              </ul>
+              {/* El prototipo lista TODOS los compromisos, no solo los
+                  abiertos: su badge es lo que distingue el estado. */}
+              <h3 className={styles.detailSectionTitle}>Compromisos</h3>
+              {commitments.length === 0 ? (
+                <div className={styles.emptyState}>
+                  <IconRepeat width={28} height={28} aria-hidden="true" />
+                  <p>Sin compromisos registrados.</p>
+                </div>
+              ) : (
+                <ul className={styles.detailList}>
+                  {commitments.map((c) => {
+                    const badge = commitmentBadge(c)
+                    return (
+                      <li key={c.id} className={styles.detailListItem}>
+                        <div className={styles.detailListBody}>
+                          <div className={styles.detailListTitle}>
+                            {c.direction === 'MINE' ? 'Tú → ' : '← '}
+                            {c.description}
+                          </div>
+                          <div className={styles.detailListMeta}>{formatDate(c.dueAt)}</div>
+                        </div>
+                        <span className={styles.badge} data-tone={badge.tone}>
+                          {badge.label}
+                        </span>
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+
+              <h3 className={styles.detailSectionTitle}>{vocabulary.projectPlural}</h3>
+              {projects.length === 0 ? (
+                <p className={styles.emptyHint}>
+                  Sin {vocabulary.projectPlural.toLowerCase()} vinculados.
+                </p>
+              ) : (
+                <ul className={styles.detailList}>
+                  {projects.map((p) => (
+                    <li key={p.id} className={styles.detailListItem}>
+                      <IconFolder width={16} height={16} aria-hidden="true" />
+                      <div className={styles.detailListBody}>
+                        <div className={styles.detailListTitle}>{p.name}</div>
+                        {p.status && <div className={styles.detailListMeta}>{p.status}</div>}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
 
               <h3 className={styles.detailSectionTitle}>Tareas</h3>
-              {tasks.length === 0 && <p className={styles.emptyHint}>Sin tareas vinculadas.</p>}
-              <ul className={styles.detailList}>
-                {tasks.map((t) => (
-                  <li key={t.id}>{t.title}</li>
-                ))}
-              </ul>
+              {tasks.length === 0 ? (
+                <p className={styles.emptyHint}>Sin tareas vinculadas.</p>
+              ) : (
+                <ul className={styles.detailList}>
+                  {tasks.map((t) => (
+                    <li key={t.id} className={styles.detailListItem}>
+                      <IconCheckSquare width={16} height={16} aria-hidden="true" />
+                      <div className={styles.detailListBody}>
+                        <div className={styles.detailListTitle}>{t.title}</div>
+                        {t.dueAt && <div className={styles.detailListMeta}>{formatDate(t.dueAt)}</div>}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
 
               <h3 className={styles.detailSectionTitle}>Notas</h3>
               {notes.length === 0 && <p className={styles.emptyHint}>Sin notas vinculadas.</p>}
@@ -368,6 +458,10 @@ export function PersonDetailDialog({ person, commitments, tasks, projects, notes
                 ))}
               </ul>
 
+              {/* "Crear seguimiento" subió a la cabecera, que es donde el
+                  prototipo pone la acción primaria. Aquí quedan las dos
+                  altas que el prototipo no dibuja pero la aplicación sí
+                  tiene (nota y recurso). */}
               {activeForm === 'none' && (
                 <div className={shellStyles.formActions}>
                   <button type="button" data-variant="secondary" onClick={() => setActiveForm('note')}>
@@ -375,9 +469,6 @@ export function PersonDetailDialog({ person, commitments, tasks, projects, notes
                   </button>
                   <button type="button" data-variant="secondary" onClick={() => setActiveForm('resource')}>
                     Nuevo recurso
-                  </button>
-                  <button type="button" data-variant="secondary" onClick={() => setActiveForm('commitment')}>
-                    Crear seguimiento
                   </button>
                 </div>
               )}

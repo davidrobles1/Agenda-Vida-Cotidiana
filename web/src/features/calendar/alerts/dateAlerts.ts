@@ -68,11 +68,19 @@ export const SEVERITY_RANK: Record<AlertSeverity, number> = {
   low: 2,
 }
 
-/** Traducción al vocabulario de tonos que ya usa el calendario. */
+/**
+ * Traducción al vocabulario de tonos que ya usa el calendario.
+ *
+ * `error` queda deliberadamente FUERA de esta tabla (2026-08-28, pedido del
+ * usuario: las alertas se veían agresivas, en rojo). Ese rojo está reservado
+ * para lo que está mal — una tarea vencida, un fallo —, y una alerta de
+ * fecha no es eso: avisa de algo que todavía no ocurre. La jerarquía se
+ * mantiene con tres tonos que sí se distinguen entre sí sin alarmar.
+ */
 export const SEVERITY_TONE: Record<AlertSeverity, Tone> = {
-  high: 'error',
-  medium: 'warning',
-  low: 'info',
+  high: 'warning',
+  medium: 'info',
+  low: 'primary',
 }
 
 export const SOURCE_LABELS: Record<AlertSource, string> = {

@@ -1,5 +1,6 @@
 package com.vidacotidiana.warranty.application;
 
+import com.vidacotidiana.shared.domain.ModuleContext;
 import com.vidacotidiana.shared.domain.ConflictException;
 import com.vidacotidiana.shared.domain.NotFoundException;
 import com.vidacotidiana.shared.domain.ValidationException;
@@ -49,6 +50,12 @@ public class WarrantyService {
         V14__warranty_documents.sql). */
     @Transactional
     public Warranty create(UUID ownerUserId, String item, Instant expiresAt, MultipartFile file) {
+        return create(ownerUserId, item, expiresAt, file, ModuleContext.PERSONAL);
+    }
+
+    /** ADR-019: alta con el módulo desde el que se creó. */
+    @Transactional
+    public Warranty create(UUID ownerUserId, String item, Instant expiresAt, MultipartFile file, ModuleContext context) {
         // Real gap found in live testing: switching this endpoint from a
         // `@Valid @RequestBody` JSON DTO (which had `@NotBlank`) to plain
         // multipart `@RequestParam`s dropped that validation entirely —
@@ -69,7 +76,7 @@ public class WarrantyService {
         if (file.getSize() > MAX_SIZE_BYTES) {
             throw new ValidationException("Document exceeds the " + (MAX_SIZE_BYTES / (1024 * 1024)) + "MB limit.");
         }
-        Warranty warranty = new Warranty(ownerUserId, item, expiresAt);
+        Warranty warranty = new Warranty(ownerUserId, item, expiresAt, context);
         try {
             warranty.attachDocument(contentType, file.getBytes());
         } catch (IOException e) {
@@ -91,7 +98,20 @@ public class WarrantyService {
 
     @Transactional(readOnly = true)
     public Page<Warranty> listOwnedBy(UUID ownerUserId, Pageable pageable) {
-        return warrantyRepository.findByOwnerUserId(ownerUserId, pageable);
+        return listOwnedBy(ownerUserId, null, pageable);
+    }
+
+    /**
+     * ADR-019: `context` nulo = sin filtrar, que es lo que necesita el
+     * Calendario general (el modo que muestra Personal y Laboral juntos).
+     * Con contexto, el filtro va en la consulta: los recursos del otro
+     * módulo ni siquiera se leen.
+     */
+    @Transactional(readOnly = true)
+    public Page<Warranty> listOwnedBy(UUID ownerUserId, ModuleContext context, Pageable pageable) {
+        return (context == null)
+                ? warrantyRepository.findByOwnerUserId(ownerUserId, pageable)
+                : warrantyRepository.findByOwnerUserIdAndContext(ownerUserId, context, pageable);
     }
 
     @Transactional(readOnly = true)

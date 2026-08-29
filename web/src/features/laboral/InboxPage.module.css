@@ -1,36 +1,27 @@
+/* =====================================================
+   LABORAL → INBOX
+
+   Homologación visual (2026-08-29): se compone desde
+   `core/ui/laboral/LaboralUI.module.css`. Las filas del Inbox usaban su
+   propio separador (`--color-border` a plena intensidad) en vez del 18% que
+   usa el resto del módulo; ahora componen la lista compartida.
+   ===================================================== */
+
 .error {
-  margin: 0 0 var(--space-3);
-  padding: var(--space-2) var(--space-3);
-  border-radius: 20px;;
-  background: var(--color-error-container);
-  color: var(--color-error);
-  font-size: 0.8125rem;
+  composes: error from '../../core/ui/laboral/LaboralUI.module.css';
 }
 
 .emptyHint {
-  margin: 0;
-  padding: var(--space-4) 0;
-  color: var(--color-text-secondary);
-  font-size: 0.875rem;
-  text-align: center;
-}
-
-.captureForm {
-  display: flex;
-  gap: var(--space-2);
-}
-
-.captureInput {
-  flex: 1;
+  composes: emptyHint from '../../core/ui/laboral/LaboralUI.module.css';
 }
 
 .item {
-  padding: var(--space-3) 0;
-  border-bottom: 1px solid var(--color-border);
-}
+  composes: listItem from '../../core/ui/laboral/LaboralUI.module.css';
 
-.item:last-child {
-  border-bottom: none;
+  /* A diferencia de una fila normal, un ítem del Inbox puede desplegar el
+     formulario de conversión debajo: apila en vez de alinear en una línea. */
+  flex-direction: column;
+  align-items: stretch;
 }
 
 .itemRow {
@@ -42,21 +33,32 @@
 }
 
 .itemText {
+  composes: listItemTitle from '../../core/ui/laboral/LaboralUI.module.css';
+
   flex: 1;
   min-width: 160px;
-  color: var(--color-text);
-  font-size: 0.9375rem;
+  font-weight: 500;
 }
 
 .itemActions {
+  composes: rowActions from '../../core/ui/laboral/LaboralUI.module.css';
+}
+
+/* Captura rápida y conversión: formularios en línea propios de esta pantalla. */
+.captureForm {
   display: flex;
   gap: var(--space-2);
+}
+
+.captureInput {
+  flex: 1;
 }
 
 .convertForm {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  margin-top: var(--space-2);
   flex-wrap: wrap;
+
+  margin-top: var(--space-2);
 }

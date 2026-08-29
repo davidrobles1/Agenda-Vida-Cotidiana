@@ -9,6 +9,7 @@ import com.vidacotidiana.daynote.application.DayNoteService;
 import com.vidacotidiana.daynote.domain.DayNoteElement;
 import com.vidacotidiana.daynote.domain.DayNoteElementType;
 import com.vidacotidiana.identity.infrastructure.CurrentUser;
+import com.vidacotidiana.shared.domain.ModuleContext;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -52,13 +53,18 @@ public class DayNoteController {
                 request.noteDate(),
                 DayNoteElementType.valueOf(request.type()),
                 request.x(), request.y(), request.width(), request.height(),
-                request.data());
+                request.data(),
+                ModuleContext.fromNullable(request.context()));
         return ResponseEntity.status(HttpStatus.CREATED).body(DayNoteElementResponse.from(created));
     }
 
     @GetMapping
-    public List<DayNoteElementResponse> listForDay(@RequestParam LocalDate date) {
-        return dayNoteService.listForDay(currentUser.userId(), date).stream()
+    public List<DayNoteElementResponse> listForDay(
+            @RequestParam LocalDate date,
+            // ADR-019: sin `context` se devuelve todo (Calendario general);
+            // con contexto, el filtro baja hasta la consulta SQL.
+            @RequestParam(value = "context", required = false) String context) {
+        return dayNoteService.listForDay(currentUser.userId(), date, ModuleContext.filterFromNullable(context)).stream()
                 .map(DayNoteElementResponse::from)
                 .toList();
     }

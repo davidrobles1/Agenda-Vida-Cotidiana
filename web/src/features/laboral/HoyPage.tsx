@@ -1,16 +1,10 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AppShell } from '../../core/ui/layout/AppShell'
-import { ListItemRow } from '../../core/ui/components/ListItemRow'
-import { ListSectionCard } from '../../core/ui/components/ListSectionCard'
-import { IconBell, IconCheckCircle, IconPlus, IconRepeat, IconTarget } from '../../core/ui/icons'
+import { IconBell, IconCheckCircle, IconPlus } from '../../core/ui/icons'
 import { listReminders, type Reminder } from '../reminders/api'
 import { listCommitments, type Commitment } from '../commitments/api'
 import { listPeople, type Person } from '../people/api'
-import { listObjectives, type Objective } from '../objectives/api'
-import { executeRoutine, FREQUENCY_LABELS, listRoutines, type Routine } from '../routines/api'
-import { AlertList } from '../calendar/alerts/AlertList'
-import { useDateAlerts } from '../calendar/alerts/useDateAlerts'
 import { addInboxItem } from './inboxStorage'
 import styles from './HoyPage.module.css'
 
@@ -80,61 +74,45 @@ interface TimelineItem {
  * del prototipo es "sin perder de vista lo personal", y por eso el filete
  * de color distingue el origen de cada elemento en vez de esconderlo.
  *
- * La lógica de negocio y los datos son los mismos de siempre: los mismos
- * cinco endpoints, los mismos filtros de FR-026/FR-031/FR-032 y el mismo
- * `executeRoutine`. No se introduce ningún dato simulado.
+ * ALCANCE FINAL (2026-08-28, recorte del propio usuario sobre esta
+ * pantalla): Hoy queda **exactamente** con las secciones del artifact —
+ * cabecera, banner, y la rejilla "Tu día" / ["Requiere tu atención",
+ * "Captura rápida"]. Se retiraron de aquí las tarjetas de Rutinas (FR-032)
+ * y Objetivos (FR-031) y la de Alertas próximas (ADR-018); con ellas se
+ * retiraron también sus peticiones, que ya no alimentaban nada. Ninguna
+ * funcionalidad desapareció del producto: Rutinas y Objetivos conservan sus
+ * páginas (`/laboral/routines`, `/laboral/objectives`) y las alertas de
+ * fecha siguen en Inicio y en el Calendario.
+ *
+ * No se introduce ningún dato simulado: todo sale de `listReminders`,
+ * `listCommitments` y `listPeople`.
  */
 export function HoyPage() {
   const navigate = useNavigate()
   const [tasks, setTasks] = useState<Reminder[]>([])
   const [commitments, setCommitments] = useState<Commitment[]>([])
   const [people, setPeople] = useState<Person[]>([])
-  const [objectives, setObjectives] = useState<Objective[]>([])
-  const [routines, setRoutines] = useState<Routine[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [quickCapture, setQuickCapture] = useState('')
   const [captured, setCaptured] = useState(false)
-  const [busyRoutineId, setBusyRoutineId] = useState<string | null>(null)
-
-  // ADR-018: al entrar (Laboral aterriza aquí), lo que vence pronto debe
-  // verse de inmediato y ordenado por importancia — sin convertirse en tarea.
-  const { alerts } = useDateAlerts(30)
 
   async function refresh() {
     setLoading(true)
     setError(null)
     try {
-      const [remindersPage, commitmentsPage, peoplePage, objectivesPage, routinesPage] = await Promise.all([
+      const [remindersPage, commitmentsPage, peoplePage] = await Promise.all([
         listReminders(),
         listCommitments(),
         listPeople(),
-        listObjectives(),
-        listRoutines(),
       ])
       setTasks(remindersPage.items)
       setCommitments(commitmentsPage.items)
       setPeople(peoplePage.items)
-      setObjectives(objectivesPage.items)
-      setRoutines(routinesPage.items)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo cargar tu día.')
     } finally {
       setLoading(false)
-    }
-  }
-
-  /** UC-25: marcar la ocurrencia de hoy sin salir de "Hoy". */
-  async function handleExecuteRoutine(routine: Routine) {
-    setBusyRoutineId(routine.id)
-    setError(null)
-    try {
-      const updated = await executeRoutine(routine.id, routine.version)
-      setRoutines((current) => current.map((r) => (r.id === updated.id ? updated : r)))
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo marcar la rutina.')
-    } finally {
-      setBusyRoutineId(null)
     }
   }
 
@@ -180,13 +158,6 @@ export function HoyPage() {
   const waitingOverdue = commitments.filter(
     (c) => c.status === 'OPEN' && c.direction === 'THEIRS' && daysUntil(c.dueAt) < 0,
   )
-
-  // FR-031/AC-018: un Objetivo cumplido deja de aparecer en Hoy.
-  const openObjectives = objectives.filter((o) => !o.completed).slice(0, 4)
-  // FR-032: solo rutinas activas que ya tocan (hoy o antes).
-  const dueRoutines = routines
-    .filter((r) => r.active && daysUntil(r.nextExecutionDate) <= 0)
-    .sort((a, b) => daysUntil(a.nextExecutionDate) - daysUntil(b.nextExecutionDate))
 
   function handleQuickCapture(event: FormEvent) {
     event.preventDefault()

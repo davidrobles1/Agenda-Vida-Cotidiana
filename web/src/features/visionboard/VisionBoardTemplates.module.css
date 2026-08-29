@@ -137,3 +137,49 @@
   justify-content: flex-end;
   gap: var(--space-2);
 }
+
+/* =====================================================
+   PLANTILLAS DEL PORTAL (2026-08-29)
+
+   Las cuatro que el usuario diseñó en su propio Vision Board. Se separan de
+   las genéricas con un rótulo y un acento en la tarjeta: son obra suya, no
+   un punto de arranque prediseñado.
+   ===================================================== */
+
+.templateGroupLabel {
+  margin: var(--space-4) 0 var(--space-2);
+
+  color: var(--color-text-secondary);
+
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.templateGroupLabel:first-of-type {
+  margin-top: var(--space-2);
+}
+
+.templateCardPortal {
+  border-color: color-mix(in srgb, var(--color-terracotta) 45%, transparent);
+  background: color-mix(in srgb, var(--color-terracotta) 5%, var(--color-surface));
+}
+
+.templateCardPortal:hover {
+  border-color: var(--color-terracotta);
+}
+
+/* La vista previa de estas plantillas es la propia fotografía. */
+.previewImage {
+  overflow: hidden;
+  border-radius: 4px;
+}
+
+.previewImageImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}

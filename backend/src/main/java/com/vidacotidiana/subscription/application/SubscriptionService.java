@@ -1,5 +1,6 @@
 package com.vidacotidiana.subscription.application;
 
+import com.vidacotidiana.shared.domain.ModuleContext;
 import com.vidacotidiana.shared.domain.ConflictException;
 import com.vidacotidiana.shared.domain.NotFoundException;
 import com.vidacotidiana.subscription.domain.BillingCycle;
@@ -26,13 +27,31 @@ public class SubscriptionService {
 
     @Transactional
     public Subscription create(UUID ownerUserId, String service, String company, String plan, Instant nextPaymentDate, BillingCycle billingCycle) {
-        Subscription subscription = new Subscription(ownerUserId, service, company, plan, nextPaymentDate, billingCycle);
+        return create(ownerUserId, service, company, plan, nextPaymentDate, billingCycle, ModuleContext.PERSONAL);
+    }
+
+    /** ADR-019: alta con el módulo desde el que se creó. */
+    @Transactional
+    public Subscription create(UUID ownerUserId, String service, String company, String plan, Instant nextPaymentDate,
+                               BillingCycle billingCycle, ModuleContext context) {
+        Subscription subscription = new Subscription(ownerUserId, service, company, plan, nextPaymentDate, billingCycle, context);
         return subscriptionRepository.save(subscription);
     }
 
     @Transactional(readOnly = true)
     public Page<Subscription> listOwnedBy(UUID ownerUserId, Pageable pageable) {
-        return subscriptionRepository.findByOwnerUserId(ownerUserId, pageable);
+        return listOwnedBy(ownerUserId, null, pageable);
+    }
+
+    /**
+     * ADR-019: `context` nulo = sin filtrar (Calendario general). Con
+     * contexto, el filtro va en la consulta.
+     */
+    @Transactional(readOnly = true)
+    public Page<Subscription> listOwnedBy(UUID ownerUserId, ModuleContext context, Pageable pageable) {
+        return (context == null)
+                ? subscriptionRepository.findByOwnerUserId(ownerUserId, pageable)
+                : subscriptionRepository.findByOwnerUserIdAndContext(ownerUserId, context, pageable);
     }
 
     @Transactional(readOnly = true)

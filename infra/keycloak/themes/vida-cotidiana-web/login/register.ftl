@@ -13,9 +13,34 @@
 <#import "register-commons.ftl" as registerCommons>
 <@layout.registrationLayout displayMessage=messagesPerField.exists('global') displayRequiredFields=true; section>
     <#if section = "header">
+        <#-- UX-016: mismo bloque de marca que login.ftl (icono incluido) para
+             que "Iniciar sesión" y "Crear usuario" se lean como la misma
+             aplicación, que es lo que pidió el usuario al reducir de 3
+             pantallas a 2. Puramente decorativo. -->
         <div class="vc-brand" aria-hidden="true">
-            <span class="vc-brand-title">Agenda</span>
-            <span class="vc-brand-script">vida Cotidiana</span>
+            <svg
+                class="vc-brand-icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+            >
+                <path
+                    d="M11 20c0-6 3-10 9-11 0 6-3 10-9 11Z"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linejoin="round"
+                />
+                <path
+                    d="M11 20c-4 0-7-3-7-7 0-1 .2-2 .6-2.8"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                />
+            </svg>
+            <div class="vc-brand-text">
+                <span class="vc-brand-title">Agenda</span>
+                <span class="vc-brand-script">vida Cotidiana</span>
+            </div>
         </div>
         <#if messageHeader??>
             ${kcSanitize(msg("${messageHeader}"))?no_esc}
@@ -107,13 +132,27 @@
             </div>
             <div class="${properties.kcFormGroupClass!} pf-v5-c-login__main-footer-band">
                 <div id="kc-form-options" class="${properties.kcFormOptionsClass!} pf-v5-c-login__main-footer-band-item">
-                    <div class="${properties.kcFormOptionsWrapperClass!}">
+                    <#-- UX-016: "vc-back-to-login" es solo un gancho de estilo para
+                         darle a este enlace la piel del botón contorneado que el
+                         portal usaba en "Crear una cuenta". El href, el mensaje y
+                         el comportamiento son los de Keycloak, sin tocar. -->
+                    <div class="${properties.kcFormOptionsWrapperClass!} vc-back-to-login">
                         <span><a href="${url.loginUrl}">${kcSanitize(msg("backToLogin"))?no_esc}</a></span>
                     </div>
                 </div>
             </div>
 
         </form>
+
+        <#-- UX-016: mismo pie que la tarjeta de LoginPage/login.ftl. -->
+        <div class="vc-form-footer" aria-hidden="true">
+            <svg class="vc-footer-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="5" y="10" width="14" height="10" rx="2" stroke="currentColor" stroke-width="1.6"/>
+                <path d="M8 10V7C8 4.79 9.79 3 12 3C14.21 3 16 4.79 16 7V10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+            </svg>
+            <span>Tu hogar, tus momentos, tu agenda.</span>
+        </div>
+
         <script type="module" src="${url.resourcesPath}/js/passwordVisibility.js"></script>
     </#if>
 </@layout.registrationLayout>

@@ -1,48 +1,33 @@
+/* =====================================================
+   LABORAL → RUTINAS
+
+   Homologación visual (2026-08-29): todo lo que esta pantalla comparte con
+   el resto del módulo se compone ahora desde
+   `core/ui/laboral/LaboralUI.module.css`, la fuente única del lenguaje del
+   prototipo. Antes este archivo redefinía sus propias copias de `.error`,
+   `.emptyHint`, `.rowActions` y sus botones, que habían divergido de las de
+   las demás secciones.
+   ===================================================== */
+
 .error {
-  margin: 0 0 var(--space-3);
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-control);
-  background: var(--color-error-container);
-  color: var(--color-error);
-  font-size: 0.8125rem;
+  composes: error from '../../core/ui/laboral/LaboralUI.module.css';
 }
 
 .emptyHint {
-  margin: 0;
-  padding: var(--space-4) 0;
-  color: var(--color-text-secondary);
-  font-size: 0.875rem;
-  text-align: center;
+  composes: emptyHint from '../../core/ui/laboral/LaboralUI.module.css';
 }
 
 .rowActions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
+  composes: rowActions from '../../core/ui/laboral/LaboralUI.module.css';
 }
 
-.completeButton,
+/* "Hecha" y "Pausar" son la misma jerarquía: acción secundaria de una fila. */
+.completeButton {
+  composes: btnGhost from '../../core/ui/laboral/LaboralUI.module.css';
+  composes: btnSm from '../../core/ui/laboral/LaboralUI.module.css';
+}
+
 .pauseButton {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-control);
-  background: var(--color-surface);
-  color: var(--color-text);
-  font-size: 0.8125rem;
-  cursor: pointer;
-}
-
-.completeButton:hover:not(:disabled),
-.pauseButton:hover:not(:disabled) {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
-}
-
-.completeButton:disabled,
-.pauseButton:disabled {
-  opacity: 0.6;
-  cursor: default;
+  composes: btnGhost from '../../core/ui/laboral/LaboralUI.module.css';
+  composes: btnSm from '../../core/ui/laboral/LaboralUI.module.css';
 }

@@ -2,6 +2,7 @@ package com.vidacotidiana.subscription.api;
 
 import com.vidacotidiana.identity.infrastructure.CurrentUser;
 import com.vidacotidiana.shared.api.PageResponse;
+import com.vidacotidiana.shared.domain.ModuleContext;
 import com.vidacotidiana.subscription.api.dto.CreateSubscriptionRequest;
 import com.vidacotidiana.subscription.api.dto.SubscriptionResponse;
 import com.vidacotidiana.subscription.api.dto.UpdateSubscriptionRequest;
@@ -42,16 +43,21 @@ public class SubscriptionController {
     @PostMapping
     public ResponseEntity<SubscriptionResponse> create(@Valid @RequestBody CreateSubscriptionRequest request) {
         Subscription created = subscriptionService.create(
-                currentUser.userId(), request.service(), request.company(), request.plan(), request.nextPaymentDate(), request.billingCycle());
+                currentUser.userId(), request.service(), request.company(), request.plan(), request.nextPaymentDate(),
+                request.billingCycle(), ModuleContext.fromNullable(request.context()));
         return ResponseEntity.status(HttpStatus.CREATED).body(SubscriptionResponse.from(created));
     }
 
     @GetMapping
     public PageResponse<SubscriptionResponse> list(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
+            @RequestParam(defaultValue = "20") int size,
+            // ADR-019: sin `context` se devuelve todo (Calendario general);
+            // con contexto, el filtro baja hasta la consulta SQL.
+            @RequestParam(value = "context", required = false) String context) {
         Pageable pageable = PageRequest.of(page, Math.min(size, 100));
-        Page<Subscription> subscriptions = subscriptionService.listOwnedBy(currentUser.userId(), pageable);
+        Page<Subscription> subscriptions = subscriptionService.listOwnedBy(
+                currentUser.userId(), ModuleContext.filterFromNullable(context), pageable);
         return PageResponse.from(subscriptions.map(SubscriptionResponse::from));
     }
 

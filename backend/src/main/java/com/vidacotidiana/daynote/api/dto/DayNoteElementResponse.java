@@ -20,7 +20,9 @@ public record DayNoteElementResponse(
         Map<String, Object> data,
         int version,
         Instant createdAt,
-        Instant updatedAt
+        Instant updatedAt,
+        /** ADR-019: módulo propietario del recurso. */
+        String context
 ) {
     public static DayNoteElementResponse from(DayNoteElement element) {
         return new DayNoteElementResponse(
@@ -36,7 +38,8 @@ public record DayNoteElementResponse(
                 element.getData(),
                 element.getVersion(),
                 element.getCreatedAt(),
-                element.getUpdatedAt()
+                element.getUpdatedAt(),
+                element.getContext().name()
         );
     }
 }

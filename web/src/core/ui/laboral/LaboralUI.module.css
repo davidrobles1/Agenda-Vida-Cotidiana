@@ -1,0 +1,896 @@
+/* =====================================================
+   SISTEMA VISUAL DEL MÓDULO LABORAL
+
+   Fuente única del lenguaje visual que el prototipo aprobado ("Agenda
+   Laboral", artifact fca1566a) define para todo el módulo. Antes cada
+   sección repetía sus propias copias de `.error`, `.card`, `.badge`,
+   `.iconButton`… y esas copias habían divergido: `.error` tenía dos radios
+   distintos (`20px` en siete archivos, `--radius-control` en dos) y
+   `.iconButton` era literalmente dos componentes diferentes con el mismo
+   nombre (34px sin borde en Tareas, 32px circular con borde en Personas y
+   Proyectos).
+
+   Cada sección compone desde aquí con `composes:` en vez de redefinir, así
+   que un cambio en el sistema llega a todas a la vez. Lo que queda en cada
+   `.module.css` de sección es solo lo genuinamente propio de esa pantalla.
+
+   Las medidas son las del prototipo; los COLORES salen siempre de los
+   tokens de la app, nunca de los literales del artifact, para que los
+   cuatro temas visuales sigan funcionando.
+   ===================================================== */
+
+/* =====================================================
+   1. CABECERA DE PÁGINA
+   ===================================================== */
+
+.pageHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+
+  margin: 0;
+}
+
+/* Variante en columna: antetítulo, título y bajada, sin acción a la derecha. */
+.pageHeadStacked {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.kicker {
+  margin: 0;
+
+  color: var(--color-accent-text, var(--color-primary));
+
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.pageTitle {
+  margin: 0;
+
+  color: var(--color-text);
+
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.pageLead {
+  margin: 0;
+
+  color: var(--color-text-secondary);
+  font-size: 0.8125rem;
+}
+
+/* =====================================================
+   2. SUPERFICIES: TARJETA Y SEPARADOR
+   ===================================================== */
+
+/* El prototipo levanta la tarjeta con sombra, no con borde
+   (`box-shadow:var(--shadow-card)`). La aplicación ya define `--shadow-card`
+   por tema —Minimal lo pone en `none`—, así que usar el token reproduce el
+   prototipo y respeta cada tema sin reglas aparte. */
+.card {
+  min-width: 0;
+  padding: var(--space-4);
+
+  border: none;
+  border-radius: var(--radius-card, 12px);
+
+  background: var(--color-surface-variant);
+  box-shadow: var(--shadow-card);
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+
+  margin-bottom: var(--space-3);
+}
+
+.cardHeader h2,
+.cardHeader h3 {
+  margin: 0;
+
+  color: var(--color-text);
+
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+/* Papel rayado: la pauta va detrás del contenido, nunca sobre él. */
+.notebookBg {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 26px,
+    color-mix(in srgb, var(--color-border) 18%, transparent) 27px,
+    transparent 28px
+  );
+}
+
+.divider {
+  height: 1px;
+  margin: var(--space-3) 0;
+
+  border: none;
+  background: color-mix(in srgb, var(--color-border) 20%, transparent);
+}
+
+/* =====================================================
+   3. BOTONES
+
+   Tres jerarquías y una sola forma: mismo radio, misma altura, misma
+   transición. `disabled` se comporta igual en las tres.
+   ===================================================== */
+
+.btnBase {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+
+  padding: 9px 16px;
+  min-height: 0;
+
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    filter 0.15s ease;
+}
+
+.btnBase:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btnBase {
+    transition: none;
+  }
+}
+
+.btnPrimary {
+  composes: btnBase;
+
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+.btnPrimary:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.btnGhost {
+  composes: btnBase;
+
+  border-color: color-mix(in srgb, var(--color-border) 45%, transparent);
+  background: transparent;
+  color: var(--color-text);
+}
+
+.btnGhost:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+}
+
+/* Acción destructiva: sale del gris solo cuando de verdad se va a usar. */
+.btnDangerGhost {
+  composes: btnBase;
+
+  border-color: color-mix(in srgb, var(--color-error) 35%, transparent);
+  background: transparent;
+  color: var(--color-error);
+}
+
+.btnDangerGhost:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-error) 8%, transparent);
+}
+
+/* Tamaño reducido, para acciones dentro de una tarjeta o una fila. */
+.btnSm {
+  padding: 6px 12px;
+  font-size: 0.8125rem;
+}
+
+/* Botón de solo icono. Una única definición: 34px, sin borde, radio de
+   control — la de Tareas, que es la del prototipo. Personas y Proyectos
+   usaban 32px circular con borde; ahora componen esta. */
+.iconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+
+  width: 34px;
+  height: 34px;
+  min-height: 0;
+  padding: 0;
+
+  border: none;
+  border-radius: var(--radius-control);
+
+  background: transparent;
+  color: var(--color-text-secondary);
+
+  cursor: pointer;
+
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.iconButton:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  color: var(--color-text);
+}
+
+.iconButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .iconButton {
+    transition: none;
+  }
+}
+
+/* =====================================================
+   4. BADGES
+
+   Un solo componente con seis tonos, elegidos por `data-tone`.
+   ===================================================== */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+
+  padding: 3px 9px;
+
+  border-radius: var(--radius-pill, 9999px);
+
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badge[data-tone='success'] {
+  background: var(--color-success-container);
+  color: var(--color-success);
+}
+
+.badge[data-tone='warning'] {
+  background: var(--color-warning-container);
+  color: var(--color-warning);
+}
+
+.badge[data-tone='info'] {
+  background: var(--color-info-container, var(--color-primary-container));
+  color: var(--color-info, var(--color-primary));
+}
+
+.badge[data-tone='error'] {
+  background: var(--color-error-container);
+  color: var(--color-error);
+}
+
+.badge[data-tone='accent'] {
+  background: var(--color-accent-container, var(--color-primary-container));
+  color: var(--color-accent-text, var(--color-primary));
+}
+
+.badge[data-tone='neutral'] {
+  background: color-mix(in srgb, var(--color-border) 20%, transparent);
+  color: var(--color-text-secondary);
+}
+
+/* =====================================================
+   5. CHIPS Y AVATARES
+   ===================================================== */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+
+  padding: 4px 10px 4px 4px;
+  min-height: 0;
+
+  border: none;
+  border-radius: var(--radius-pill, 9999px);
+
+  background: var(--color-primary-container);
+  color: var(--color-primary);
+
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Sin avatar delante, el chip recupera su sangría izquierda. */
+.chipPlain {
+  padding-left: 10px;
+}
+
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+
+  width: 32px;
+  height: 32px;
+
+  border-radius: 50%;
+
+  background: var(--color-primary-container);
+  color: var(--color-primary);
+
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.avatarLg {
+  width: 48px;
+  height: 48px;
+  font-size: 0.9375rem;
+}
+
+.avatarSm {
+  width: 20px;
+  height: 20px;
+  font-size: 0.5625rem;
+}
+
+/* =====================================================
+   6. LISTAS
+   ===================================================== */
+
+.list {
+  display: flex;
+  flex-direction: column;
+
+  margin: 0;
+  padding: 0;
+
+  list-style: none;
+}
+
+.listItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+
+  padding: var(--space-3) var(--space-2);
+
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 18%, transparent);
+
+  transition: background-color 0.15s ease;
+}
+
+.listItem:last-child {
+  border-bottom: none;
+}
+
+/* El prototipo ilumina toda fila de lista al pasar por encima, sea o no un
+   destino en sí misma — en Tareas, por ejemplo, la fila no navega pero sus
+   controles sí responden, y el realce indica dónde está el puntero. */
+.listItem:hover {
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-primary) 6%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .listItem {
+    transition: none;
+  }
+}
+
+.listItemBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.listItemTitle {
+  color: var(--color-text);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.listItemMeta {
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+}
+
+/* Fila que además es un destino: añade la respuesta al hover. Se separa de
+   `.listItem` porque una fila que no lleva a ninguna parte no debe
+   iluminarse al pasar por encima. */
+.listItemInteractive {
+  composes: listItem;
+
+  width: 100%;
+
+  border-left: none;
+  border-right: none;
+  border-top: none;
+  border-radius: 0;
+
+  background: none;
+  color: var(--color-text);
+
+  text-align: left;
+  cursor: pointer;
+
+  transition: background-color 0.15s ease;
+}
+
+.listItemInteractive:hover {
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--color-primary) 6%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .listItemInteractive {
+    transition: none;
+  }
+}
+
+/* Acciones al final de una fila. */
+.rowActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* =====================================================
+   7. PESTAÑAS
+   ===================================================== */
+
+.tabs {
+  display: flex;
+  gap: var(--space-1);
+
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 25%, transparent);
+}
+
+.tab {
+  margin-bottom: -1px;
+  padding: 8px 14px;
+  min-height: 0;
+
+  border: none;
+  border-bottom: 2px solid transparent;
+
+  background: none;
+  color: var(--color-text-secondary);
+
+  font-size: 0.845rem;
+  font-weight: 600;
+  cursor: pointer;
+
+  transition:
+    color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.tab:hover {
+  color: var(--color-text);
+}
+
+.tabActive {
+  composes: tab;
+
+  border-bottom-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab {
+    transition: none;
+  }
+}
+
+/* =====================================================
+   8. LÍNEA DE TIEMPO
+   ===================================================== */
+
+.timeline {
+  display: flex;
+  flex-direction: column;
+}
+
+.timelineItem {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+
+  padding: var(--space-2) 0;
+}
+
+.timelineTime {
+  flex: none;
+  width: 52px;
+  padding-top: 2px;
+
+  color: var(--color-text-secondary);
+
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* El filete distingue trabajo de vida personal de un vistazo. */
+.timelineBar {
+  flex: none;
+  align-self: stretch;
+
+  width: 4px;
+  min-height: 28px;
+
+  border-radius: 2px;
+}
+
+.timelineBar[data-kind='lab'] {
+  background: var(--color-primary);
+}
+
+.timelineBar[data-kind='per'] {
+  background: var(--color-terracotta, var(--color-accent, #b47b48));
+}
+
+.timelineBody {
+  flex: 1;
+  min-width: 0;
+
+  padding-bottom: var(--space-2);
+
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 14%, transparent);
+
+  color: var(--color-text);
+  font-size: 0.875rem;
+}
+
+.timelineItem:last-child .timelineBody {
+  border-bottom: none;
+}
+
+.timelineLink {
+  width: 100%;
+  min-height: 0;
+  padding: 0;
+
+  border: none;
+  background: none;
+  color: inherit;
+
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  transition: color 0.15s ease;
+}
+
+.timelineLink:hover {
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .timelineLink {
+    transition: none;
+  }
+}
+
+/* =====================================================
+   9. INDICADORES (stat row)
+   ===================================================== */
+
+.statRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+/* Mismo tratamiento que `.card` en el prototipo: sombra, no borde. */
+.stat {
+  flex: 1;
+  min-width: 160px;
+  padding: var(--space-4);
+
+  border: none;
+  border-radius: var(--radius-card, 12px);
+
+  background: var(--color-surface-variant);
+  box-shadow: var(--shadow-card);
+}
+
+.statNum {
+  color: var(--color-text);
+
+  font-size: 1.7rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.statLbl {
+  color: var(--color-text-secondary);
+
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* =====================================================
+   10. MENSAJES Y ESTADOS
+
+   `.error` tenía dos radios distintos repartidos por el módulo; aquí queda
+   uno solo, el de tarjeta, igual que el banner.
+   ===================================================== */
+
+.error {
+  margin: 0 0 var(--space-3);
+  padding: var(--space-3) var(--space-4);
+
+  border-radius: var(--radius-card, 12px);
+
+  background: var(--color-error-container);
+  color: var(--color-error);
+
+  font-size: 0.845rem;
+  line-height: 1.45;
+}
+
+.banner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+
+  padding: var(--space-3) var(--space-4);
+
+  border-radius: var(--radius-card, 12px);
+
+  background: color-mix(in srgb, var(--color-warning, #b8860b) 14%, transparent);
+  color: var(--color-text);
+
+  font-size: 0.845rem;
+  line-height: 1.45;
+}
+
+.banner svg {
+  flex: none;
+  margin-top: 1px;
+  color: var(--color-warning, #b8860b);
+}
+
+.banner b {
+  font-weight: 700;
+}
+
+/* Estado vacío con icono: alineado a la izquierda, como en el prototipo. */
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+
+  padding: var(--space-6) var(--space-2);
+
+  color: var(--color-text-secondary);
+}
+
+.emptyState svg {
+  margin-bottom: 4px;
+  opacity: 0.5;
+}
+
+.emptyState p {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+/* Aviso breve de una línea, sin icono. */
+.emptyHint {
+  margin: 0;
+  padding: var(--space-4) 0;
+
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+/* =====================================================
+   11. REJILLAS
+   ===================================================== */
+
+.gridCards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--space-4);
+}
+
+.grid2 {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: var(--space-4);
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .grid2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* =====================================================
+   12. TEMAS VISUALES
+
+   La estructura y la UX no cambian entre temas: solo se ajusta lo que cada
+   tema ya define para el resto de la aplicación, para que Laboral no se
+   salga del conjunto.
+
+   Estas reglas vivían únicamente en la hoja de "Hoy", así que esa pantalla
+   respondía a los cuatro temas y las demás secciones del módulo no. Al
+   estar aquí aplican a cualquier pantalla que componga el sistema, que es
+   lo que hace que el módulo se vea como uno solo en todos los temas.
+   ===================================================== */
+
+/* Editorial: papel real y títulos con serif. */
+:global(.theme-editorial) .pageTitle,
+:global(.theme-editorial) .detailName,
+:global(.theme-editorial) .cardHeader h2,
+:global(.theme-editorial) .cardHeader h3,
+:global(.theme-editorial) .statNum {
+  font-family: var(--font-serif);
+  font-weight: 500;
+}
+
+:global(.theme-editorial) .kicker {
+  font-family: var(--font-serif);
+  font-style: italic;
+  letter-spacing: 0.04em;
+  text-transform: none;
+}
+
+/* Minimal: sin pauta ni relleno de tarjeta; manda el espacio. */
+:global(.theme-minimal) .notebookBg {
+  background-image: none;
+}
+
+:global(.theme-minimal) .card,
+:global(.theme-minimal) .stat {
+  background: transparent;
+}
+
+/* Productivity: más densidad, como el resto del tema. */
+:global(.theme-productivity) .timelineItem {
+  padding: 5px 0;
+}
+
+:global(.theme-productivity) .listItem,
+:global(.theme-productivity) .listItemInteractive {
+  padding: var(--space-2);
+}
+
+:global(.theme-productivity) .card {
+  padding: var(--space-3);
+}
+
+/* Organic: curvas. */
+:global(.theme-organic) .card,
+:global(.theme-organic) .stat {
+  border-radius: 22px;
+}
+
+:global(.theme-organic) .timelineBar {
+  width: 6px;
+  border-radius: 999px;
+}
+
+:global(.theme-organic) .btnBase,
+:global(.theme-organic) .iconButton {
+  border-radius: 999px;
+}
+
+/* =====================================================
+   13. ELECCIÓN DE DIRECCIÓN DEL COMPROMISO
+
+   El mismo grupo de opciones aparece al crear un seguimiento desde
+   Seguimientos y desde el detalle de una Persona. Estaba duplicado en las
+   dos hojas.
+   ===================================================== */
+
+.directionFieldset {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  margin: 0 0 var(--space-3);
+  padding: 0;
+
+  border: none;
+
+  color: var(--color-text);
+  font-size: 0.875rem;
+}
+
+.directionFieldset label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* =====================================================
+   14. BREADCRUMB
+
+   Ruta de regreso de las pantallas de detalle del prototipo: siempre
+   arranca en "Laboral" con un galón, y el último tramo es la posición
+   actual, sin enlace.
+   ===================================================== */
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+
+  color: var(--color-text-secondary);
+  font-size: 0.8125rem;
+}
+
+.breadcrumbLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+
+  min-height: 0;
+  padding: 0;
+
+  border: none;
+  background: none;
+  color: var(--color-text-secondary);
+
+  font-size: inherit;
+  font-weight: 600;
+  cursor: pointer;
+
+  transition: color 0.15s ease;
+}
+
+.breadcrumbLink:hover {
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
+.breadcrumbSep {
+  opacity: 0.5;
+}
+
+/* El tramo actual no es un enlace: es dónde está el usuario. */
+.breadcrumbCurrent {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .breadcrumbLink {
+    transition: none;
+  }
+}

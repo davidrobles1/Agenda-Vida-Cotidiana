@@ -1,5 +1,7 @@
 package com.vidacotidiana.warranty.domain;
 
+import com.vidacotidiana.shared.domain.ModuleContext;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -42,6 +44,14 @@ public class Warranty {
     @Column(nullable = false)
     private WarrantyStatus status = WarrantyStatus.ACTIVE;
 
+    /**
+     * ADR-019: módulo propietario. Se fija al crear y NO cambia durante el
+     * ciclo de vida del recurso — `applyEdit` no lo toca a propósito.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private ModuleContext context = ModuleContext.PERSONAL;
+
     @Version
     @Column(nullable = false)
     private int version;
@@ -71,6 +81,12 @@ public class Warranty {
     }
 
     public Warranty(UUID ownerUserId, String item, Instant expiresAt) {
+        this(ownerUserId, item, expiresAt, ModuleContext.PERSONAL);
+    }
+
+    /** ADR-019: alta con módulo propietario explícito. */
+    public Warranty(UUID ownerUserId, String item, Instant expiresAt, ModuleContext context) {
+        this.context = (context != null) ? context : ModuleContext.PERSONAL;
         this.ownerUserId = ownerUserId;
         this.item = item;
         this.expiresAt = expiresAt;
@@ -86,6 +102,10 @@ public class Warranty {
 
     public UUID getOwnerUserId() {
         return ownerUserId;
+    }
+
+    public ModuleContext getContext() {
+        return context;
     }
 
     public String getItem() {

@@ -1,153 +1,76 @@
+/* =====================================================
+   LABORAL → PROYECTOS
+
+   Homologación visual (2026-08-29): se compone desde
+   `core/ui/laboral/LaboralUI.module.css`.
+
+   Cambios visibles respecto a la versión anterior:
+   - `.error` usaba `border-radius: 20px`, distinto del resto del módulo.
+   - `.iconButton` era circular de 32px con borde, mientras que en Tareas el
+     mismo nombre significaba 34px sin borde. Ahora hay uno solo.
+   - El toggle Lista/Kanban y las tarjetas del tablero tenían sus propios
+     radios y colores; ahora usan los del sistema.
+   ===================================================== */
+
 .error {
-  margin: 0 0 var(--space-3);
-  padding: var(--space-2) var(--space-3);
-  border-radius: 20px;;
-  background: var(--color-error-container);
-  color: var(--color-error);
-  font-size: 0.8125rem;
+  composes: error from '../../core/ui/laboral/LaboralUI.module.css';
 }
 
 .emptyHint {
-  margin: 0;
-  padding: var(--space-4) 0;
-  color: var(--color-text-secondary);
-  font-size: 0.875rem;
-  text-align: center;
+  composes: emptyHint from '../../core/ui/laboral/LaboralUI.module.css';
 }
 
 .rowActions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
+  composes: rowActions from '../../core/ui/laboral/LaboralUI.module.css';
 }
 
 .iconButton {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border: 1px solid var(--color-border);
-  border-radius: 50%;
-  background: var(--color-surface);
-  color: var(--color-text);
-  cursor: pointer;
-}
-
-.iconButton:hover {
-  background: var(--color-surface-variant);
-  color: var(--color-primary);
+  composes: iconButton from '../../core/ui/laboral/LaboralUI.module.css';
 }
 
 .detailMeta {
+  composes: listItemMeta from '../../core/ui/laboral/LaboralUI.module.css';
   margin: 0 0 var(--space-3);
-  color: var(--color-text-secondary);
-  font-size: 0.875rem;
 }
 
 .detailSectionTitle {
-  margin: var(--space-3) 0 var(--space-2);
-  color: var(--color-text-secondary);
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  margin: var(--space-4) 0 var(--space-2);
+
+  color: var(--color-text);
+
+  font-size: 1.05rem;
+  font-weight: 600;
 }
 
 .detailList {
-  margin: 0 0 var(--space-2);
-  padding-left: var(--space-4);
-  color: var(--color-text);
-  font-size: 0.875rem;
-  line-height: 1.6;
+  composes: list from '../../core/ui/laboral/LaboralUI.module.css';
 }
 
-/* ADR-016 Fase 3f (candidato V4): toggle Lista/Kanban + tablero. */
-.taskSectionHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
+.detailListItem {
+  composes: listItem from '../../core/ui/laboral/LaboralUI.module.css';
 }
 
-.taskViewToggle {
-  display: inline-flex;
-  gap: 2px;
-  padding: 2px;
-  border-radius: var(--radius-control);
-  background: var(--color-surface);
+.detailListBody {
+  composes: listItemBody from '../../core/ui/laboral/LaboralUI.module.css';
 }
 
-.taskViewButton,
-.taskViewButtonActive {
-  padding: 4px 10px;
-  border: none;
-  border-radius: calc(var(--radius-control) - 2px);
-  background: transparent;
-  color: var(--color-text-secondary);
-  font-size: 0.75rem;
-  font-weight: 600;
-  cursor: pointer;
+.detailListTitle {
+  composes: listItemTitle from '../../core/ui/laboral/LaboralUI.module.css';
 }
 
-.taskViewButtonActive {
-  background: var(--color-primary);
-  color: var(--color-on-primary);
+.detailListMeta {
+  composes: listItemMeta from '../../core/ui/laboral/LaboralUI.module.css';
 }
 
-.kanbanBoard {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-3);
-  margin-bottom: var(--space-2);
-}
-
-.kanbanColumn {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: var(--space-2);
-  border-radius: var(--radius-control);
-  background: var(--color-surface);
-  min-height: 60px;
-}
-
-.kanbanColumnTitle {
-  margin-bottom: 4px;
-  color: var(--color-text-secondary);
-  font-size: 0.6875rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.kanbanCard {
-  padding: 8px 10px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-control);
-  background: var(--color-surface-variant);
-  color: var(--color-text);
-  font-size: 0.8125rem;
-  text-align: left;
-  cursor: pointer;
-}
-
-.kanbanCard:hover {
-  border-color: var(--color-primary);
-}
-
-.kanbanCard:disabled {
-  opacity: 0.6;
-  cursor: default;
-}
-
-/* ADR-016 Fase 3e4/FR-034: tipo del recurso en la lista de detalle. */
 .resourceType {
   color: var(--color-text-secondary);
   font-size: 0.8125rem;
 }
 
-/* ADR-016 Fase 3d/FR-035: disparador manual "Sugerir tarea" en cada nota. */
+/* =====================================================
+   ADR-016 Fase 3d/FR-035: sugerir tarea desde una nota
+   ===================================================== */
+
 .noteRow {
   display: flex;
   align-items: center;
@@ -156,25 +79,123 @@
 }
 
 .suggestButton {
+  composes: btnGhost from '../../core/ui/laboral/LaboralUI.module.css';
+
   flex-shrink: 0;
   padding: 3px 9px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-control);
-  background: var(--color-surface);
+
   color: var(--color-text-secondary);
   font-size: 0.75rem;
-  cursor: pointer;
+  font-weight: 500;
 }
 
 .suggestButton:hover {
-  border-color: var(--color-primary);
   color: var(--color-primary);
 }
 
 .suggestionBox {
   margin: var(--space-2) 0;
   padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--color-border);
+
+  border: 1px solid color-mix(in srgb, var(--color-border) 35%, transparent);
   border-radius: var(--radius-control);
+
   background: var(--color-surface);
+}
+
+/* =====================================================
+   ADR-016 Fase 3f: toggle Lista/Kanban y tablero
+   ===================================================== */
+
+.taskSectionHeader {
+  composes: cardHeader from '../../core/ui/laboral/LaboralUI.module.css';
+  margin-bottom: 0;
+}
+
+/* El toggle es un grupo de dos pestañas, así que usa el componente de
+   pestañas del sistema en vez de un tercer estilo de botón segmentado. */
+.taskViewToggle {
+  composes: tabs from '../../core/ui/laboral/LaboralUI.module.css';
+  border-bottom: none;
+}
+
+.taskViewButton {
+  composes: tab from '../../core/ui/laboral/LaboralUI.module.css';
+  padding: 4px 10px;
+  font-size: 0.75rem;
+}
+
+.taskViewButtonActive {
+  composes: tabActive from '../../core/ui/laboral/LaboralUI.module.css';
+  padding: 4px 10px;
+  font-size: 0.75rem;
+}
+
+.kanbanBoard {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+
+  margin-bottom: var(--space-2);
+}
+
+.kanbanColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  min-height: 60px;
+  padding: var(--space-2);
+
+  border-radius: var(--radius-card, 12px);
+
+  background: var(--color-surface);
+}
+
+.kanbanColumnTitle {
+  composes: statLbl from '../../core/ui/laboral/LaboralUI.module.css';
+  margin-bottom: 4px;
+}
+
+/* Una tarjeta del tablero es una fila de lista movible: mismo tipo y mismo
+   radio que el resto del módulo. */
+.kanbanCard {
+  padding: 8px 10px;
+
+  border: 1px solid color-mix(in srgb, var(--color-border) 35%, transparent);
+  border-radius: var(--radius-control);
+
+  background: var(--color-surface-variant);
+  color: var(--color-text);
+
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.kanbanCard:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.kanbanCard:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kanbanCard {
+    transition: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .kanbanBoard {
+    grid-template-columns: 1fr;
+  }
 }

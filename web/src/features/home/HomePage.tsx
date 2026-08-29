@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { AppShell } from '../../core/ui/layout/AppShell'
-import { useModePath } from '../../core/user/ActiveModeContext'
+import { useActiveMode, useModePath } from '../../core/user/ActiveModeContext'
 import { MetricCard } from '../../core/ui/components/MetricCard'
 import { DonutChart } from '../../core/ui/components/DonutChart'
 import { HomeIllustration } from '../../core/ui/components/HomeIllustration'
@@ -38,12 +38,17 @@ export function HomePage() {
   // or the legacy bare one otherwise, so a click never drops the user out of
   // the mode they were just in. Documentos/Familia stay bare — outside
   // ADR-015's scope, no mode-scoped equivalent exists.
+  const activeMode = useActiveMode()
   const calendarPath = useModePath('calendar')
   const sharedPath = useModePath('shared')
   // 2026-08-28: `RemindersPage` se retiró de la aplicación junto con el
   // botón "Nuevo" (ver AppShell.tsx/AppRouter.tsx). Los dos accesos que
   // apuntaban ahí pasan al Calendario, que es donde de verdad se crea y se
   // consulta una tarea — la capacidad no se pierde, cambia de puerta.
+  // Ojo: dos accesos apuntan al Calendario desde que `RemindersPage` se
+  // retiró, así que la clave de React NO puede ser `to` — sería la misma
+  // para ambos y React descartaría uno de los dos <li> (defecto real: la
+  // lista perdía un botón en silencio). Se usa `label`, que sí es único.
   const quickLinks = [
     { to: calendarPath, label: 'Crear nueva tarea', icon: IconPlus },
     { to: calendarPath, label: 'Ver calendario', icon: IconCalendar },
@@ -65,7 +70,9 @@ export function HomePage() {
 
   // ADR-018: Personal aterriza aquí al entrar, así que es donde deben verse
   // las alertas de fecha próximas, priorizadas — sin volverse tareas.
-  const { alerts } = useDateAlerts(30)
+  // ADR-019: Inicio vive tanto en /personal como en /laboral; las alertas se
+  // acotan al módulo en el que está el usuario.
+  const { alerts } = useDateAlerts(30, activeMode)
 
   return (
     <AppShell
@@ -328,7 +335,7 @@ export function HomePage() {
 
             <ul className={styles.quickList}>
               {quickLinks.map((link) => (
-                <li key={link.to}>
+                <li key={link.label}>
                   <button
                     type="button"
                     className={styles.quickLink}

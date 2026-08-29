@@ -6,6 +6,7 @@ import {
   listDayNoteElements,
   type DayNoteElement,
 } from './api'
+import { useActiveMode } from '../../../core/user/ActiveModeContext'
 import styles from './DayNotesCanvas.module.css'
 
 /**
@@ -45,6 +46,9 @@ interface DayNotesCanvasProps {
 }
 
 export function DayNotesCanvas({ dateKey, onCountChange }: DayNotesCanvasProps) {
+  // ADR-019: las notas del día pertenecen al módulo desde el que se
+  // escriben; las del otro módulo ni se piden.
+  const activeMode = useActiveMode()
   const [elements, setElements] = useState<DayNoteElement[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -64,7 +68,7 @@ export function DayNotesCanvas({ dateKey, onCountChange }: DayNotesCanvasProps) 
     setError(null)
     setEditingId(null)
 
-    listDayNoteElements(dateKey)
+    listDayNoteElements(dateKey, activeMode)
       .then((data) => {
         if (!cancelled) setElements(data)
       })
@@ -78,7 +82,7 @@ export function DayNotesCanvas({ dateKey, onCountChange }: DayNotesCanvasProps) 
     return () => {
       cancelled = true
     }
-  }, [dateKey])
+  }, [dateKey, activeMode])
 
   useEffect(() => {
     onCountChange?.(elements.length)
@@ -117,14 +121,17 @@ export function DayNotesCanvas({ dateKey, onCountChange }: DayNotesCanvasProps) 
     const y = elements.reduce((max, el) => Math.max(max, el.y), 0) + ORDER_STEP
 
     try {
-      const created = await createDayNoteElement({
-        noteDate: dateKey,
-        type: 'TEXT',
-        x: 0,
-        y,
-        ...STORED_SIZE,
-        data: { text, bold: false, italic: false, font: 'sans' },
-      })
+      const created = await createDayNoteElement(
+        {
+          noteDate: dateKey,
+          type: 'TEXT',
+          x: 0,
+          y,
+          ...STORED_SIZE,
+          data: { text, bold: false, italic: false, font: 'sans' },
+        },
+        activeMode,
+      )
 
       setElements((prev) => [...prev, created])
       requestAnimationFrame(() => {
@@ -180,7 +187,7 @@ export function DayNotesCanvas({ dateKey, onCountChange }: DayNotesCanvasProps) 
       await deleteDayNoteElement(id)
     } catch {
       setError('No se pudo eliminar la nota.')
-      listDayNoteElements(dateKey).then(setElements).catch(() => undefined)
+      listDayNoteElements(dateKey, activeMode).then(setElements).catch(() => undefined)
     }
   }
 

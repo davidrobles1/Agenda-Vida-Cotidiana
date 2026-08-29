@@ -1,4 +1,5 @@
 import { apiFetch } from '../../core/api/httpClient'
+import { withContext, type ModuleContext } from '../../core/user/moduleContext'
 
 export interface Reminder {
   id: string
@@ -35,8 +36,11 @@ interface RemindersPage {
   totalPages: number
 }
 
-export async function listReminders(): Promise<RemindersPage> {
-  const response = await apiFetch('/reminders')
+export async function listReminders(context?: ModuleContext | null): Promise<RemindersPage> {
+  // ADR-019: hasta ahora el aislamiento de recordatorios era solo visual
+  // (CalendarPage filtraba en el cliente). Ahora el contexto viaja al
+  // servidor y los del otro módulo ni se leen.
+  const response = await apiFetch(withContext('/reminders', context))
   if (!response.ok) throw new Error(`GET /reminders failed: ${response.status}`)
   return response.json()
 }

@@ -1,40 +1,150 @@
+/* =====================================================
+   LABORAL → TAREAS
+
+   Lista del prototipo ("Agenda Laboral", artifact fca1566a,
+   `pageTareas()`): cabecera con antetítulo "Núcleo" y acción primaria a la
+   derecha, pestañas de filtro, y la lista con casilla, título con su fecha
+   relativa y chips de Persona/Proyecto.
+
+   Homologación visual (2026-08-29): cabecera, pestañas, tarjeta, lista,
+   chips, botón de icono y mensajes se componen desde
+   `core/ui/laboral/LaboralUI.module.css`. Aquí queda solo lo propio de esta
+   pantalla: el estado tachado de una tarea completada y su responsive.
+   ===================================================== */
+
 .error {
-  margin: 0 0 var(--space-3);
-  padding: var(--space-2) var(--space-3);
-  border-radius: 20px;;
-  background: var(--color-error-container);
-  color: var(--color-error);
-  font-size: 0.8125rem;
+  composes: error from '../../core/ui/laboral/LaboralUI.module.css';
 }
 
 .emptyHint {
-  margin: 0;
-  padding: var(--space-4) 0;
-  color: var(--color-text-secondary);
-  font-size: 0.875rem;
-  text-align: center;
+  composes: emptyHint from '../../core/ui/laboral/LaboralUI.module.css';
 }
 
-.rowActions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
+.emptyState {
+  composes: emptyState from '../../core/ui/laboral/LaboralUI.module.css';
 }
 
-.completeButton {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border: 1px solid var(--color-border);
-  border-radius: 20px;;
-  background: var(--color-surface);
-  color: var(--color-text);
-  font-size: 0.8125rem;
+.pageHead {
+  composes: pageHead from '../../core/ui/laboral/LaboralUI.module.css';
+}
+
+.kicker {
+  composes: kicker from '../../core/ui/laboral/LaboralUI.module.css';
+}
+
+.pageTitle {
+  composes: pageTitle from '../../core/ui/laboral/LaboralUI.module.css';
+}
+
+.tabs {
+  composes: tabs from '../../core/ui/laboral/LaboralUI.module.css';
+}
+
+.tab {
+  composes: tab from '../../core/ui/laboral/LaboralUI.module.css';
+}
+
+.tabActive {
+  composes: tabActive from '../../core/ui/laboral/LaboralUI.module.css';
+}
+
+.card {
+  composes: card from '../../core/ui/laboral/LaboralUI.module.css';
+}
+
+.list {
+  composes: list from '../../core/ui/laboral/LaboralUI.module.css';
+}
+
+.listItem {
+  composes: listItem from '../../core/ui/laboral/LaboralUI.module.css';
+}
+
+/* El cuerpo de la fila abre el detalle, así que es un botón: se le quita el
+   cromado del botón y se le deja la caja de la fila. */
+.itemBody {
+  composes: listItemBody from '../../core/ui/laboral/LaboralUI.module.css';
+
+  min-height: 0;
+  padding: 0;
+
+  border: none;
+  background: none;
+  color: inherit;
+
+  font: inherit;
+  text-align: left;
   cursor: pointer;
 }
 
-.completeButton:hover {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
+/* Un chip que navega responde al puntero; el que solo informa, no. */
+.chipLink {
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+
+.chipLink:hover {
+  filter: brightness(0.96);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chipLink {
+    transition: none;
+  }
+}
+
+.itemTitle {
+  composes: listItemTitle from '../../core/ui/laboral/LaboralUI.module.css';
+}
+
+.itemMeta {
+  composes: listItemMeta from '../../core/ui/laboral/LaboralUI.module.css';
+}
+
+.iconButton {
+  composes: iconButton from '../../core/ui/laboral/LaboralUI.module.css';
+}
+
+.chip {
+  composes: chip from '../../core/ui/laboral/LaboralUI.module.css';
+}
+
+.chipPlain {
+  composes: chipPlain from '../../core/ui/laboral/LaboralUI.module.css';
+}
+
+.chipAvatar {
+  composes: avatar from '../../core/ui/laboral/LaboralUI.module.css';
+  composes: avatarSm from '../../core/ui/laboral/LaboralUI.module.css';
+
+  /* Dentro de un chip el avatar va sobre el contenedor, no sobre la
+     superficie de la tarjeta: invierte el par de color para no fundirse. */
+  background: var(--color-surface-variant);
+}
+
+/* =====================================================
+   PROPIO DE ESTA PANTALLA
+   ===================================================== */
+
+/* Una tarea completada se tacha y baja de jerarquía, no desaparece. */
+.itemTitleDone {
+  color: var(--color-text-secondary);
+  text-decoration: line-through;
+}
+
+.iconButtonDone {
+  color: var(--color-success, #4d6b46);
+}
+
+/* Por debajo del ancho del prototipo la fila deja de caber en una línea:
+   los chips bajan bajo el título en vez de comprimirlo. */
+@media (max-width: 720px) {
+  .listItem {
+    flex-wrap: wrap;
+  }
+
+  .itemBody {
+    flex: 1 1 100%;
+    order: -1;
+  }
 }

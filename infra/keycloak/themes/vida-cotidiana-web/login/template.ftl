@@ -106,16 +106,69 @@
     x-id="['language-select']"
 >
   <div class="pf-v5-c-login__container vc-split-container">
-    <aside class="vc-hero" aria-hidden="true">
-      <div class="vc-hero-frame"></div>
-      <div class="vc-hero-inner">
-        <div class="vc-hero-icon">&#8962;</div>
-        <h2 class="vc-hero-title">Agenda</h2>
-        <p class="vc-hero-script">vida Cotidiana</p>
+    <#-- UX-016 (2026-08-29): las dos columnas decorativas de LoginPage.tsx —
+         el libro y los eslóganes — trasladadas aquí tal cual. Sustituyen al
+         hero de una sola columna de UX-008: la página del portal que las
+         mostraba se retiró, y su identidad visual no debía perderse con
+         ella. Son puramente decorativas (aria-hidden) — el formulario real,
+         sus mensajes y su accesibilidad siguen siendo los de Keycloak, sin
+         tocar. -->
+    <aside class="vc-book" aria-hidden="true">
+      <div class="vc-book-content">
+        <div class="vc-book-stack">
+          <img
+            class="vc-book-img"
+            src="${url.resourcesPath}/img/libro_hojas.jpeg"
+            alt=""
+          />
+        </div>
+      </div>
+    </aside>
+
+    <aside class="vc-slogans" aria-hidden="true">
+      <div class="vc-slogans-content">
+
+        <ul class="vc-value-row">
+          <li>
+            <svg class="vc-value-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M3 10.5 12 3l9 7.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M5.5 9.5V20h13V9.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>Tu hogar</span>
+          </li>
+          <li>
+            <svg class="vc-value-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 20.5S4 15.6 4 10.2A4.2 4.2 0 0 1 12 8a4.2 4.2 0 0 1 8 2.2c0 5.4-8 10.3-8 10.3Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+            </svg>
+            <span>Tu esencia</span>
+          </li>
+          <li>
+            <svg class="vc-value-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M11 20c0-6 3-10 9-11 0 6-3 10-9 11Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+              <path d="M11 20c-4 0-7-3-7-7 0-1 .2-2 .6-2.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+            </svg>
+            <span>Tu crecimiento</span>
+          </li>
+          <li>
+            <svg class="vc-value-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="m12 3 2.1 5.4L19.5 10l-5.4 1.6L12 17l-2.1-5.4L4.5 10l5.4-1.6L12 3Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+            </svg>
+            <span>Tu ritmo</span>
+          </li>
+        </ul>
+
         <div class="vc-hero-divider"></div>
-        <p class="vc-hero-text">Un lugar para organizar tus d&iacute;as,<br>tus momentos y tu hogar.</p>
-        <div class="vc-hero-house"><span>&#8962;</span></div>
+
         <p class="vc-hero-quote">&ldquo;Cada d&iacute;a tiene su propia historia.&rdquo;</p>
+
+        <p class="vc-hero-script-word">Meraki</p>
+
+        <p class="vc-hero-text">
+          el acto de poner el alma, la creatividad,<br>
+          el amor y la pasi&oacute;n en todo lo que haces.<br>
+          Es dejar una huella de tu esencia en tu trabajo.
+        </p>
+
       </div>
     </aside>
     <main class="pf-v5-c-login__main">

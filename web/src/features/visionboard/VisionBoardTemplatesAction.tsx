@@ -6,6 +6,7 @@ import { motionTokens } from '../../core/motion/tokens'
 import { findStickerOption } from '../../core/ui/pickers/pickerCatalog'
 import shellStyles from '../../core/ui/dialogs/DialogShell.module.css'
 import toolbarStyles from './VisionBoardToolbar.module.css'
+import { PORTAL_VISION_BOARD_TEMPLATES } from './templates/portalTemplates'
 import styles from './VisionBoardTemplates.module.css'
 import {
   VISION_BOARD_TEMPLATES,
@@ -163,6 +164,26 @@ export function VisionBoardTemplatesAction({
                   <p className={styles.templateIntro}>
                     Agrega una composición prediseñada a tu Vision Board — no reemplaza lo que ya tienes.
                   </p>
+                  {/* Dos grupos, no una lista revuelta: las del portal son
+                      obra del propio usuario y las genéricas un punto de
+                      arranque. */}
+                  <p className={styles.templateGroupLabel}>Plantillas del portal</p>
+                  <div className={styles.templateGrid}>
+                    {PORTAL_VISION_BOARD_TEMPLATES.map((template) => (
+                      <button
+                        key={template.id}
+                        type="button"
+                        className={`${styles.templateCard} ${styles.templateCardPortal}`}
+                        onClick={() => setPicked(template)}
+                      >
+                        <TemplatePreview template={template} width={CARD_PREVIEW_WIDTH} height={CARD_PREVIEW_HEIGHT} />
+                        <p className={styles.templateCardName}>{template.name}</p>
+                        <p className={styles.templateCardDescription}>{template.description}</p>
+                      </button>
+                    ))}
+                  </div>
+
+                  <p className={styles.templateGroupLabel}>Plantillas de partida</p>
                   <div className={styles.templateGrid}>
                     {VISION_BOARD_TEMPLATES.map((template) => (
                       <button
@@ -235,7 +256,16 @@ function PreviewElement({ element }: { element: FittedTemplateElement }) {
         variant === 'circle' ? styles.previewShapeCircle : variant === 'line' ? styles.previewShapeLine : ''
       return <span className={`${styles.previewElement} ${styles.previewShape} ${variantClass}`} style={style} />
     }
-    case 'IMAGE':
-      return null
+    case 'IMAGE': {
+      // Antes devolvía `null` porque ninguna plantilla llevaba imágenes. En
+      // las del portal la fotografía ES la composición: sin esto, sus
+      // tarjetas saldrían vacías y no habría forma de distinguirlas.
+      const url = typeof element.data.url === 'string' ? element.data.url : undefined
+      return (
+        <span className={`${styles.previewElement} ${styles.previewImage}`} style={style}>
+          {url && <img src={url} alt="" className={styles.previewImageImg} loading="lazy" decoding="async" />}
+        </span>
+      )
+    }
   }
 }

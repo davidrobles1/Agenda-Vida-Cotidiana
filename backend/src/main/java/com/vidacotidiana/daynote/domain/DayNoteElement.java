@@ -1,5 +1,7 @@
 package com.vidacotidiana.daynote.domain;
 
+import com.vidacotidiana.shared.domain.ModuleContext;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -69,6 +71,14 @@ public class DayNoteElement {
     @Column(nullable = false)
     private Map<String, Object> data;
 
+    /**
+     * ADR-019: módulo propietario. Se fija al crear y NO cambia durante el
+     * ciclo de vida del recurso — `applyEdit` no lo toca a propósito.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private ModuleContext context = ModuleContext.PERSONAL;
+
     @Version
     @Column(nullable = false)
     private int version;
@@ -85,6 +95,14 @@ public class DayNoteElement {
 
     public DayNoteElement(UUID ownerUserId, LocalDate noteDate, DayNoteElementType type,
                            double x, double y, double width, double height, int zIndex, Map<String, Object> data) {
+        this(ownerUserId, noteDate, type, x, y, width, height, zIndex, data, ModuleContext.PERSONAL);
+    }
+
+    /** ADR-019: alta con módulo propietario explícito. */
+    public DayNoteElement(UUID ownerUserId, LocalDate noteDate, DayNoteElementType type,
+                           double x, double y, double width, double height, int zIndex, Map<String, Object> data,
+                           ModuleContext context) {
+        this.context = (context != null) ? context : ModuleContext.PERSONAL;
         this.ownerUserId = ownerUserId;
         this.noteDate = noteDate;
         this.type = type;
@@ -105,6 +123,10 @@ public class DayNoteElement {
 
     public UUID getOwnerUserId() {
         return ownerUserId;
+    }
+
+    public ModuleContext getContext() {
+        return context;
     }
 
     public LocalDate getNoteDate() {

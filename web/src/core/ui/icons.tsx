@@ -110,6 +110,25 @@ export function IconInbox(props: IconProps) {
   )
 }
 
+/** Casilla de verificación del prototipo "Agenda Laboral" (artifact fca1566a, icono `check`): el control de completar una tarea en su lista. */
+export function IconCheckSquare(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <rect x="3.5" y="4.5" width="17" height="17" rx="3" />
+      <path d="M8 12.5l2.5 2.5 5.5-6" />
+    </svg>
+  )
+}
+
+/** Palomita suelta del mismo prototipo (icono `check2`): el estado ya completado, sin la caja. */
+export function IconCheck(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M5 13l4.5 4.5L19 8" />
+    </svg>
+  )
+}
+
 /** ADR-016 Fase 3e1 (Módulo Laboral) — Objetivos (FR-031). Diana concéntrica, sin precedente en el set existente. */
 export function IconTarget(props: IconProps) {
   return (

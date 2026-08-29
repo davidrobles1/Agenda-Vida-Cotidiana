@@ -1,79 +1,48 @@
+/* =====================================================
+   LABORAL → SEGUIMIENTOS
+
+   Homologación visual (2026-08-29): se compone desde
+   `core/ui/laboral/LaboralUI.module.css`.
+
+   Cambio visible: las pestañas Mías/Esperando eran de tipo píldora (fondo
+   redondeado, activa en primario sólido), distintas de las de Tareas, que
+   son las del prototipo (filete inferior). Ahora ambas usan el mismo
+   componente — un filtro de pestañas debe verse igual en todo el módulo.
+   ===================================================== */
+
 .error {
-  margin: 0 0 var(--space-3);
-  padding: var(--space-2) var(--space-3);
-  border-radius: 20px;;
-  background: var(--color-error-container);
-  color: var(--color-error);
-  font-size: 0.8125rem;
+  composes: error from '../../core/ui/laboral/LaboralUI.module.css';
 }
 
 .emptyHint {
-  margin: 0;
-  padding: var(--space-4) 0;
-  color: var(--color-text-secondary);
-  font-size: 0.875rem;
-  text-align: center;
+  composes: emptyHint from '../../core/ui/laboral/LaboralUI.module.css';
 }
 
 .tabs {
-  display: inline-flex;
-  gap: 2px;
-  padding: 3px;
+  composes: tabs from '../../core/ui/laboral/LaboralUI.module.css';
   margin-bottom: var(--space-4);
-  border-radius: 20px;;
-  background: var(--color-surface);
 }
 
 .tab {
-  padding: 6px 16px;
-  border: none;
-  border-radius: calc(var(--radius-control) - 2px);
-  background: transparent;
-  color: var(--color-text-secondary);
-  font-size: 0.875rem;
-  font-weight: 600;
-  cursor: pointer;
+  composes: tab from '../../core/ui/laboral/LaboralUI.module.css';
 }
 
 .tabActive {
-  background: var(--color-primary);
-  color: var(--color-on-primary);
+  composes: tabActive from '../../core/ui/laboral/LaboralUI.module.css';
 }
 
 .rowActions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
+  composes: rowActions from '../../core/ui/laboral/LaboralUI.module.css';
 }
 
+/* "Resolver" es una acción secundaria de fila, igual que "Hecha" en Rutinas
+   o "Completar" en Objetivos. */
 .resolveButton {
-  padding: 6px 12px;
-  border: 1px solid var(--color-border);
-  border-radius: 20px;;
-  background: var(--color-surface);
-  color: var(--color-text);
-  font-size: 0.8125rem;
-  cursor: pointer;
+  composes: btnGhost from '../../core/ui/laboral/LaboralUI.module.css';
+  composes: btnSm from '../../core/ui/laboral/LaboralUI.module.css';
 }
 
-.resolveButton:hover {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
-}
-
+/* El mismo grupo de dirección que usa el detalle de una Persona. */
 .directionFieldset {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin: 0 0 var(--space-3);
-  padding: 0;
-  border: none;
-  font-size: 0.875rem;
-  color: var(--color-text);
-}
-
-.directionFieldset label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  composes: directionFieldset from '../../core/ui/laboral/LaboralUI.module.css';
 }

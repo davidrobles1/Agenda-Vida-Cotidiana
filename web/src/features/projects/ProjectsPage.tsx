@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { AppShell } from '../../core/ui/layout/AppShell'
 import { ListItemRow } from '../../core/ui/components/ListItemRow'
 import { ListSectionCard } from '../../core/ui/components/ListSectionCard'
 import { SimpleDeleteConfirm } from '../../core/ui/dialogs/SimpleDeleteConfirm'
 import { IconFolder } from '../../core/ui/icons'
+import { Eye } from 'lucide-react'
 import { listPeople, type Person } from '../people/api'
 import { listReminders, type Reminder } from '../reminders/api'
 import { listNotes } from '../calendar/notes/api'
@@ -29,6 +31,17 @@ export function ProjectsPage() {
   const [resources, setResources] = useState<Resource[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  /** Registro cuyo detalle está abierto. */
+  const [openProjectId, setOpenProjectId] = useState<string | null>(null)
+
+  /* `?open=<id>` abre ese detalle directamente: es el destino al que llevan
+     los chips de Proyecto desde una Tarea. */
+  const [searchParams, setSearchParams] = useSearchParams()
+  const requestedProjectId = searchParams.get('open')
+
+  useEffect(() => {
+    if (requestedProjectId) setOpenProjectId(requestedProjectId)
+  }, [requestedProjectId])
 
   async function refresh() {
     setLoading(true)
@@ -89,6 +102,8 @@ export function ProjectsPage() {
     setProjects((current) => current.filter((p) => p.id !== id))
   }
 
+  const openProject = projects.find((p) => p.id === openProjectId) ?? null
+
   return (
     <AppShell
       title={vocabulary.projectPlural}
@@ -126,19 +141,14 @@ export function ProjectsPage() {
                 pillTone="info"
                 trailing={
                   <div className={styles.rowActions}>
-                    <ProjectDetailDialog
-                      project={project}
-                      clientPerson={clientPerson}
-                      tasks={projectTasks}
-                      notes={notes.filter((n) => n.projectId === project.id)}
-                      documents={documents.filter((d) => d.projectId === project.id)}
-                      resources={resources.filter((r) => r.projectId === project.id)}
-                      onTaskCreated={handleTaskCreated}
-                      onTaskUpdated={handleTaskUpdated}
-                      onNoteCreated={handleNoteCreated}
-                      onResourceCreated={handleResourceCreated}
-                      onNoteUpdated={handleNoteUpdated}
-                    />
+                    <button
+                      type="button"
+                      className={styles.iconButton}
+                      aria-label={`Ver ${project.name}`}
+                      onClick={() => setOpenProjectId(project.id)}
+                    >
+                      <Eye width={16} height={16} />
+                    </button>
                     <SimpleDeleteConfirm
                       resourceLabel={vocabulary.project.toLowerCase()}
                       itemName={project.name}
@@ -151,6 +161,32 @@ export function ProjectsPage() {
             )
           })}
       </ListSectionCard>
+
+      {openProject && (
+        <ProjectDetailDialog
+          key={openProject.id}
+          project={openProject}
+          isOpen
+          onOpenChange={(open) => {
+            if (!open) {
+              setOpenProjectId(null)
+              // Al cerrar se limpia el parámetro: si no, volver atrás
+              // reabriría el mismo detalle.
+              if (requestedProjectId) setSearchParams({}, { replace: true })
+            }
+          }}
+          clientPerson={people.find((p) => p.id === openProject.clientPersonId)}
+          tasks={tasks.filter((t) => t.projectId === openProject.id)}
+          notes={notes.filter((n) => n.projectId === openProject.id)}
+          documents={documents.filter((d) => d.projectId === openProject.id)}
+          resources={resources.filter((r) => r.projectId === openProject.id)}
+          onTaskCreated={handleTaskCreated}
+          onTaskUpdated={handleTaskUpdated}
+          onNoteCreated={handleNoteCreated}
+          onResourceCreated={handleResourceCreated}
+          onNoteUpdated={handleNoteUpdated}
+        />
+      )}
     </AppShell>
   )
 }

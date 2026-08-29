@@ -3,7 +3,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { getAuthStatus, subscribe, type AuthStatus } from '../core/auth/authClient'
 import { SessionRestoring } from '../core/auth/SessionRestoring'
 import { PersonalLayout, LaboralLayout } from '../core/user/ActiveModeContext'
-import { LoginPage } from '../features/auth/LoginPage'
+import { AuthGateway } from '../features/auth/AuthGateway'
 import { CallbackPage } from '../features/auth/CallbackPage'
 import { OnboardingPage } from '../features/onboarding/OnboardingPage'
 import { SettingsPage } from '../features/settings/SettingsPage'
@@ -19,6 +19,9 @@ import { MaintenancePage } from '../features/maintenance/MaintenancePage'
 import { SubscriptionsPage } from '../features/subscriptions/SubscriptionsPage'
 import { FamilyPage } from '../features/family/FamilyPage'
 import { HoyPage } from '../features/laboral/HoyPage'
+import { AgendaPage } from '../features/laboral/AgendaPage'
+import { TareasPage } from '../features/laboral/TareasPage'
+import { TareaDetallePage } from '../features/laboral/TareaDetallePage'
 import { InboxPage } from '../features/laboral/InboxPage'
 import { PeoplePage } from '../features/people/PeoplePage'
 import { ProjectsPage } from '../features/projects/ProjectsPage'
@@ -43,13 +46,19 @@ function RequireAuth({ children }: { children: React.ReactElement }) {
   return status === 'authenticated' ? children : <Navigate to="/" replace />
 }
 
-/** Misma espera para "/": si la sesión se recupera, el login no llega ni a
-    verse y se entra directo a Calendario — el mismo destino que usa
-    CallbackPage tras un login normal (ADR-015(d)/FR-015). */
+/**
+ * Misma espera para "/": si la sesión se recupera, no llega ni a verse y se
+ * entra directo a Calendario — el mismo destino que usa CallbackPage tras un
+ * login normal (ADR-015(d)/FR-015).
+ *
+ * UX-016: cuando no hay sesión, esta ruta ya no dibuja una portada propia
+ * (`LoginPage`, retirada) sino que manda directo al formulario de Keycloak,
+ * que ahora lleva la identidad visual del portal. Ver `AuthGateway`.
+ */
 function LoginRoute() {
   const status = useAuthStatus()
   if (status === 'restoring') return <SessionRestoring />
-  return status === 'authenticated' ? <Navigate to="/calendar" replace /> : <LoginPage />
+  return status === 'authenticated' ? <Navigate to="/calendar" replace /> : <AuthGateway />
 }
 
 export function AppRouter() {
@@ -131,7 +140,15 @@ export function AppRouter() {
         }
       >
         <Route path="home" element={<HomePage />} />
-        <Route path="calendar" element={<CalendarPage />} />
+        {/* "Agenda" (2026-08-28): la ruta no cambia — sigue siendo
+            `/laboral/calendar`, el mismo enlace del navbar — pero ahora
+            renderiza `AgendaPage`, la vista semanal del prototipo aprobado
+            ("Agenda Laboral", artifact fca1566a). `CalendarPage` queda
+            intacta y la siguen usando Personal (`/personal/calendar`) y el
+            Calendario general (`/calendar`): el propio artifact modela esas
+            tres como pantallas distintas, así que rehacer el componente
+            compartido habría cambiado las tres a la vez. */}
+        <Route path="calendar" element={<AgendaPage />} />
         <Route path="vision-board" element={<VisionBoardPage />} />
         <Route path="shared" element={<InvitationsPage />} />
         {/* ADR-016 (Módulo Laboral, 2026-08-22): 6 pantallas nuevas del
@@ -142,12 +159,16 @@ export function AppRouter() {
             el navbar de Laboral: pedido explícito del usuario de no borrar
             módulos/rutas/componentes, solo el enlace del menú. */}
         <Route path="hoy" element={<HoyPage />} />
-        {/* "Tareas" retirada de Laboral (2026-08-28, pedido explícito del
-            usuario: el botón, su destino y su contenido dejan de existir a
-            nivel visual). A diferencia de vision-board/shared más arriba,
-            aquí NO se conserva la ruta sin enlace: se pidió que el destino
-            tampoco existiera. `features/laboral/TareasPage.tsx` sigue en el
-            repositorio, ya sin enrutar — no se borran componentes. */}
+        {/* "Tareas" se retiró el 2026-08-28 y se restauró el 2026-08-29,
+            ambas veces por pedido explícito del usuario ("debe estar siempre
+            en este módulo"). Vuelve a su sitio del prototipo: tercera
+            sección, entre Agenda y Personas. */}
+        <Route path="tasks" element={<TareasPage />} />
+        {/* Detalle de una Tarea (2026-08-29). El prototipo lo modela como
+            pantalla propia con breadcrumb `Laboral / Tareas / <título>`, y
+            un breadcrumb solo tiene sentido sobre navegación real: es lo que
+            sitúa al usuario y lo devuelve al listado. */}
+        <Route path="tasks/:taskId" element={<TareaDetallePage />} />
         <Route path="people" element={<PeoplePage />} />
         <Route path="projects" element={<ProjectsPage />} />
         <Route path="commitments" element={<CommitmentsPage />} />

@@ -9,6 +9,7 @@ import { SimpleDeleteConfirm } from '../../core/ui/dialogs/SimpleDeleteConfirm'
 import { completeWarranty, deleteWarranty, listWarranties, type Warranty, type WarrantyStatus } from './api'
 import { CreateWarrantyDialog } from './CreateWarrantyDialog'
 import styles from './WarrantiesPage.module.css'
+import { useActiveMode } from '../../core/user/ActiveModeContext'
 
 const toneByStatus: Record<WarrantyStatus, 'success' | 'warning' | 'error'> = {
   VIGENTE: 'success',
@@ -39,6 +40,10 @@ function formatExpiresAt(iso: string): string {
  * ciclo de vida ya existente en el backend.
  */
 export function WarrantiesPage() {
+  // ADR-019: el recurso nace en el módulo desde el que se crea, y la
+  // lista solo pide los de ese módulo. Fuera de /personal y /laboral
+  // `activeMode` es null: se devuelve todo y las altas nacen PERSONAL.
+  const activeMode = useActiveMode()
   const [warranties, setWarranties] = useState<Warranty[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -48,7 +53,7 @@ export function WarrantiesPage() {
     setLoading(true)
     setError(null)
     try {
-      const page = await listWarranties()
+      const page = await listWarranties(activeMode)
       setWarranties(page.items)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudieron cargar las garantías.')

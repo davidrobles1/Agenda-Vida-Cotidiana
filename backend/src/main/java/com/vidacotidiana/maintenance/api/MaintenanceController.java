@@ -8,6 +8,7 @@ import com.vidacotidiana.maintenance.api.dto.UpdateMaintenanceRecordRequest;
 import com.vidacotidiana.maintenance.application.MaintenanceService;
 import com.vidacotidiana.maintenance.domain.MaintenanceRecord;
 import com.vidacotidiana.shared.api.PageResponse;
+import com.vidacotidiana.shared.domain.ModuleContext;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -44,16 +45,21 @@ public class MaintenanceController {
 
     @PostMapping
     public ResponseEntity<MaintenanceRecordResponse> create(@Valid @RequestBody CreateMaintenanceRecordRequest request) {
-        MaintenanceRecord created = maintenanceService.create(currentUser.userId(), request.item(), request.nextDueAt(), request.intervalMonths());
+        MaintenanceRecord created = maintenanceService.create(currentUser.userId(), request.item(), request.nextDueAt(),
+                request.intervalMonths(), ModuleContext.fromNullable(request.context()));
         return ResponseEntity.status(HttpStatus.CREATED).body(MaintenanceRecordResponse.from(created));
     }
 
     @GetMapping
     public PageResponse<MaintenanceRecordResponse> list(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
+            @RequestParam(defaultValue = "20") int size,
+            // ADR-019: sin `context` se devuelve todo (Calendario general);
+            // con contexto, el filtro baja hasta la consulta SQL.
+            @RequestParam(value = "context", required = false) String context) {
         Pageable pageable = PageRequest.of(page, Math.min(size, 100));
-        Page<MaintenanceRecord> records = maintenanceService.listOwnedBy(currentUser.userId(), pageable);
+        Page<MaintenanceRecord> records = maintenanceService.listOwnedBy(
+                currentUser.userId(), ModuleContext.filterFromNullable(context), pageable);
         return PageResponse.from(records.map(MaintenanceRecordResponse::from));
     }
 

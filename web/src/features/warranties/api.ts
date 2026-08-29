@@ -1,4 +1,5 @@
 import { apiFetch } from '../../core/api/httpClient'
+import { creationContext, withContext, type ModuleContext } from '../../core/user/moduleContext'
 
 /**
  * BE-037/WEB-009. `status` matches the real backend contract
@@ -39,17 +40,26 @@ async function parseErrorMessage(response: Response, fallback: string): Promise<
   return body?.message ?? fallback
 }
 
-export async function listWarranties(): Promise<WarrantiesPage> {
-  const response = await apiFetch('/warranties?size=100')
+export async function listWarranties(context?: ModuleContext | null): Promise<WarrantiesPage> {
+  // ADR-019: el filtro viaja al servidor; sin contexto se devuelve todo
+  // (Calendario general).
+  const response = await apiFetch(withContext('/warranties?size=100', context))
   if (!response.ok) throw new Error(`GET /warranties failed: ${response.status}`)
   return response.json()
 }
 
-export async function createWarranty(item: string, expiresAt: string, file: File): Promise<Warranty> {
+export async function createWarranty(
+  item: string,
+  expiresAt: string,
+  file: File,
+  context?: ModuleContext | null,
+): Promise<Warranty> {
   const formData = new FormData()
   formData.append('file', file)
   formData.append('item', item)
   formData.append('expiresAt', expiresAt)
+  // ADR-019: el módulo queda fijado en el alta y no cambia después.
+  formData.append('context', creationContext(context))
   const response = await apiFetch('/warranties', { method: 'POST', body: formData })
   if (!response.ok) {
     if (response.status === 400) throw new Error(await parseErrorMessage(response, 'Los datos de la garantía no son válidos.'))

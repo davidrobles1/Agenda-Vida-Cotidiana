@@ -1,0 +1,127 @@
+/* =====================================================
+   UX-016 — puerta de entrada a Keycloak.
+
+   Esta pantalla no compite con el formulario: en el camino normal solo se
+   ve una fracción de segundo mientras el navegador redirige. Su única
+   variante visible es el aviso de sesión terminada, y se dibuja con el
+   mismo lenguaje que la tarjeta del portal para que el salto a Keycloak no
+   se note como un cambio de aplicación.
+   ===================================================== */
+
+.container {
+  min-height: 100vh;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+
+  padding: 40px 24px;
+
+  background: var(--color-surface);
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+
+  background: var(--color-primary);
+
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+.label {
+  margin: 0;
+
+  color: var(--color-text-secondary);
+
+  font-size: 0.875rem;
+  letter-spacing: 0.04em;
+}
+
+/* Mismas medidas que `.loginCard` tenía en el portal, para que el aviso no
+   aparezca como una pantalla ajena. */
+.card {
+  width: 100%;
+  max-width: 430px;
+
+  padding: 48px 45px;
+
+  border: 1px solid color-mix(in srgb, var(--color-text) 15%, transparent);
+  border-radius: 24px;
+
+  background: color-mix(in srgb, var(--color-surface-variant) 94%, transparent);
+
+  box-shadow:
+    0 30px 70px color-mix(in srgb, var(--color-text) 12%, transparent),
+    0 5px 15px color-mix(in srgb, var(--color-text) 6%, transparent);
+
+  text-align: center;
+}
+
+.notice {
+  margin: 0 0 24px;
+
+  color: var(--color-text);
+
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.continueButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 100%;
+  min-height: 54px;
+
+  border: 1px solid var(--color-primary);
+  border-radius: 12px;
+
+  background: linear-gradient(
+    135deg,
+    var(--color-primary),
+    color-mix(in srgb, var(--color-primary) 70%, white)
+  );
+  color: var(--color-on-primary);
+
+  font-family: inherit;
+  font-size: 0.98rem;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--color-primary) 22%, transparent);
+
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease,
+    background-color 160ms ease;
+}
+
+.continueButton:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 25px color-mix(in srgb, var(--color-primary) 30%, transparent);
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dot {
+    animation: none;
+    opacity: 0.6;
+  }
+}

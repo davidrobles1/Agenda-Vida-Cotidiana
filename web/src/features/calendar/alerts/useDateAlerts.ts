@@ -3,6 +3,7 @@ import { listWarranties, type Warranty } from '../../warranties/api'
 import { listMaintenanceRecords, type MaintenanceRecord } from '../../maintenance/api'
 import { listSubscriptions, type Subscription } from '../../subscriptions/api'
 import { buildDateAlerts, upcomingAlerts, type DateAlert } from './dateAlerts'
+import type { ModuleContext } from '../../../core/user/moduleContext'
 
 /**
  * Alertas de fecha próximas, para las pantallas de entrada (ADR-018).
@@ -13,7 +14,7 @@ import { buildDateAlerts, upcomingAlerts, type DateAlert } from './dateAlerts'
  * hook carga exactamente los tres orígenes y nada más — misma función pura
  * (`buildDateAlerts`), sin duplicar la regla de negocio.
  */
-export function useDateAlerts(horizonDays = 30): {
+export function useDateAlerts(horizonDays = 30, context?: ModuleContext | null): {
   alerts: DateAlert[]
   loading: boolean
 } {
@@ -25,7 +26,9 @@ export function useDateAlerts(horizonDays = 30): {
   useEffect(() => {
     let cancelled = false
 
-    Promise.all([listWarranties(), listMaintenanceRecords(), listSubscriptions()])
+    // ADR-019: las alertas se derivan de recursos, así que heredan su
+    // aislamiento — se piden ya acotadas al módulo.
+    Promise.all([listWarranties(context), listMaintenanceRecords(context), listSubscriptions(context)])
       .then(([warrantiesPage, maintenancePage, subscriptionsPage]) => {
         if (cancelled) return
         setWarranties(warrantiesPage.items)
@@ -44,7 +47,7 @@ export function useDateAlerts(horizonDays = 30): {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [context])
 
   const alerts = useMemo(
     () =>

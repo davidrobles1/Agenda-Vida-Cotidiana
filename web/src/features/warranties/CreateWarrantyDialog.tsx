@@ -6,6 +6,7 @@ import { motionTokens } from '../../core/motion/tokens'
 import shellStyles from '../../core/ui/dialogs/DialogShell.module.css'
 import { createWarranty, type Warranty } from './api'
 import styles from './CreateWarrantyDialog.module.css'
+import { useActiveMode } from '../../core/user/ActiveModeContext'
 
 const MotionDialog = motion.create(Dialog)
 
@@ -18,6 +19,10 @@ interface CreateWarrantyDialogProps {
     central será el registro." Mismo dropzone que documents/UploadDocumentDialog.tsx —
     el archivo es obligatorio aquí (WarrantyService#create lo exige). */
 export function CreateWarrantyDialog({ onCreated }: CreateWarrantyDialogProps) {
+  // ADR-019: el recurso nace en el módulo desde el que se crea, y la
+  // lista solo pide los de ese módulo. Fuera de /personal y /laboral
+  // `activeMode` es null: se devuelve todo y las altas nacen PERSONAL.
+  const activeMode = useActiveMode()
   const [isOpen, setIsOpen] = useState(false)
   const [item, setItem] = useState('')
   const [expiresAt, setExpiresAt] = useState('')
@@ -51,7 +56,7 @@ export function CreateWarrantyDialog({ onCreated }: CreateWarrantyDialogProps) {
     setSaving(true)
     setError(null)
     try {
-      const created = await createWarranty(item.trim(), new Date(expiresAt).toISOString(), file)
+      const created = await createWarranty(item.trim(), new Date(expiresAt).toISOString(), file, activeMode)
       onCreated(created)
       setIsOpen(false)
       reset()

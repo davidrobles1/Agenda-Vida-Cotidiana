@@ -173,11 +173,15 @@ export function useCalendarData(): CalendarState {
             subscriptionsPage,
           ] =
             await Promise.all([
-              listReminders(),
+              // ADR-019: el módulo activo acota TODAS las fuentes del
+              // calendario en el servidor. Sin módulo (Calendario general)
+              // se pasa `null` y se devuelve todo, que es el propósito de
+              // ese modo.
+              listReminders(activeMode),
               listMyInvitations(),
-              listWarranties(),
-              listMaintenanceRecords(),
-              listSubscriptions(),
+              listWarranties(activeMode),
+              listMaintenanceRecords(activeMode),
+              listSubscriptions(activeMode),
             ])
 
           setReminders(
@@ -218,7 +222,7 @@ export function useCalendarData(): CalendarState {
           setLoading(false)
         }
       },
-      [],
+      [activeMode],
     )
 
   useEffect(() => {

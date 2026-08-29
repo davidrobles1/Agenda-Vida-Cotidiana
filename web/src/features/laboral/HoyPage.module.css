@@ -1,110 +1,147 @@
 /* =====================================================
    LABORAL → HOY
 
-   Trasladado del prototipo aprobado ("Agenda Laboral", artifact fca1566a):
-   cabecera con antetítulo, banner, rejilla 2fr/1fr, tarjeta de papel rayado
-   con línea de tiempo, lista con avatar y badge, y captura rápida.
+   Pantalla del prototipo ("Agenda Laboral", artifact fca1566a, `pageHoy()`):
+   cabecera con antetítulo, banner de compromisos atrasados, y una rejilla
+   2fr/1fr con la línea de tiempo del día sobre papel rayado a la izquierda
+   y las tarjetas de atención y captura rápida a la derecha.
 
-   Las medidas y proporciones son las del prototipo (52px de columna de
-   hora, filete de 4px, avatar de 32px, badge de 12px…), pero los COLORES
-   salen siempre de los tokens de la app, nunca de los literales del
-   artifact: así los cuatro temas visuales siguen funcionando.
+   Homologación visual (2026-08-29): todo lo compartido se compone desde
+   `core/ui/laboral/LaboralUI.module.css`. Las adaptaciones por tema visual
+   (editorial/minimal/productivity/organic) vivían aquí y solo afectaban a
+   esta pantalla; se movieron al sistema, así que ahora aplican a todo el
+   módulo. Aquí queda únicamente lo propio de "Hoy": la rejilla 2fr/1fr y la
+   captura rápida.
    ===================================================== */
 
 .error {
-  margin: 0 0 var(--space-3);
-  padding: var(--space-2) var(--space-3);
-  border-radius: 20px;
-  background: var(--color-error-container);
-  color: var(--color-error);
-  font-size: 0.8125rem;
+  composes: error from '../../core/ui/laboral/LaboralUI.module.css';
 }
 
 .emptyHint {
-  margin: 0;
-  padding: var(--space-4) 0;
-  color: var(--color-text-secondary);
-  font-size: 0.875rem;
-  text-align: center;
+  composes: emptyHint from '../../core/ui/laboral/LaboralUI.module.css';
 }
 
-/* =====================================================
-   CABECERA DE PÁGINA
-   ===================================================== */
+.emptyState {
+  composes: emptyState from '../../core/ui/laboral/LaboralUI.module.css';
+}
 
 .pageHead {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  composes: pageHeadStacked from '../../core/ui/laboral/LaboralUI.module.css';
 }
 
 .kicker {
-  margin: 0;
-
-  color: var(--color-accent-text, var(--color-primary));
-
-  font-size: 0.6875rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  composes: kicker from '../../core/ui/laboral/LaboralUI.module.css';
 }
 
 .pageTitle {
-  margin: 0;
-
-  color: var(--color-text);
-
-  font-size: 1.5rem;
-  font-weight: 600;
-  line-height: 1.2;
+  composes: pageTitle from '../../core/ui/laboral/LaboralUI.module.css';
 }
 
 .pageLead {
-  margin: 0;
-
-  color: var(--color-text-secondary);
-  font-size: 0.8125rem;
+  composes: pageLead from '../../core/ui/laboral/LaboralUI.module.css';
 }
-
-/* =====================================================
-   BANNER
-   ===================================================== */
 
 .banner {
+  composes: banner from '../../core/ui/laboral/LaboralUI.module.css';
+}
+
+.card {
+  composes: card from '../../core/ui/laboral/LaboralUI.module.css';
+}
+
+.cardHeader {
+  composes: cardHeader from '../../core/ui/laboral/LaboralUI.module.css';
+}
+
+.notebookBg {
+  composes: notebookBg from '../../core/ui/laboral/LaboralUI.module.css';
+}
+
+.ghostButton {
+  composes: btnGhost from '../../core/ui/laboral/LaboralUI.module.css';
+  composes: btnSm from '../../core/ui/laboral/LaboralUI.module.css';
+  font-weight: 500;
+}
+
+.timeline {
+  composes: timeline from '../../core/ui/laboral/LaboralUI.module.css';
+}
+
+.timelineItem {
+  composes: timelineItem from '../../core/ui/laboral/LaboralUI.module.css';
+}
+
+.timelineTime {
+  composes: timelineTime from '../../core/ui/laboral/LaboralUI.module.css';
+}
+
+.timelineBar {
+  composes: timelineBar from '../../core/ui/laboral/LaboralUI.module.css';
+}
+
+.timelineBody {
+  composes: timelineBody from '../../core/ui/laboral/LaboralUI.module.css';
+}
+
+.timelineLink {
+  composes: timelineLink from '../../core/ui/laboral/LaboralUI.module.css';
+}
+
+.list {
+  composes: list from '../../core/ui/laboral/LaboralUI.module.css';
+}
+
+/* Las filas de "Requiere tu atención" llevan a Seguimientos. */
+.listItem {
+  composes: listItemInteractive from '../../core/ui/laboral/LaboralUI.module.css';
+}
+
+.listItemBody {
+  composes: listItemBody from '../../core/ui/laboral/LaboralUI.module.css';
+
   display: flex;
-  align-items: flex-start;
-  gap: var(--space-3);
-
-  padding: var(--space-3) var(--space-4);
-
-  border-radius: var(--radius-card, 12px);
-
-  background: color-mix(in srgb, var(--color-warning, #b8860b) 14%, transparent);
-  color: var(--color-text);
-
-  font-size: 0.845rem;
-  line-height: 1.45;
+  flex-direction: column;
+  gap: 1px;
 }
 
-.banner svg {
+/* En una columna estrecha el texto se corta antes que empujar el badge. */
+.listItemTitle {
+  composes: listItemTitle from '../../core/ui/laboral/LaboralUI.module.css';
+
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.listItemMeta {
+  composes: listItemMeta from '../../core/ui/laboral/LaboralUI.module.css';
+
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.avatar {
+  composes: avatar from '../../core/ui/laboral/LaboralUI.module.css';
+}
+
+.badge {
+  composes: badge from '../../core/ui/laboral/LaboralUI.module.css';
   flex: none;
-  margin-top: 1px;
-  color: var(--color-warning, #b8860b);
 }
 
-.banner b {
-  font-weight: 700;
+.routineDoneButton {
+  composes: btnGhost from '../../core/ui/laboral/LaboralUI.module.css';
+  composes: btnSm from '../../core/ui/laboral/LaboralUI.module.css';
 }
 
 /* =====================================================
-   REJILLA 2fr / 1fr
+   PROPIO DE ESTA PANTALLA: REJILLA
    ===================================================== */
 
 .grid2 {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: var(--space-4);
-  align-items: start;
+  composes: grid2 from '../../core/ui/laboral/LaboralUI.module.css';
 }
 
 .sideColumn {
@@ -112,57 +149,6 @@
   flex-direction: column;
   gap: var(--space-4);
   min-width: 0;
-}
-
-@media (max-width: 900px) {
-  .grid2 {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* Se conserva por si alguna otra vista de Laboral la usa. */
-.grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-4);
-}
-
-@media (max-width: 900px) {
-  .grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* =====================================================
-   TARJETA
-   ===================================================== */
-
-.card {
-  min-width: 0;
-  padding: var(--space-4);
-
-  border: 1px solid color-mix(in srgb, var(--color-border) 35%, transparent);
-  border-radius: var(--radius-card, 12px);
-
-  background: var(--color-surface-variant);
-}
-
-.cardHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-
-  margin-bottom: var(--space-3);
-}
-
-.cardHeader h3 {
-  margin: 0;
-
-  color: var(--color-text);
-
-  font-size: 1.05rem;
-  font-weight: 600;
 }
 
 .cardHeaderMeta {
@@ -180,273 +166,8 @@
   font-size: 0.8125rem;
 }
 
-/* Papel rayado del prototipo: la pauta va detrás de la línea de tiempo. */
-.notebookBg {
-  background-image: repeating-linear-gradient(
-    to bottom,
-    transparent 0,
-    transparent 26px,
-    color-mix(in srgb, var(--color-border) 18%, transparent) 27px,
-    transparent 28px
-  );
-}
-
-.ghostButton {
-  padding: 6px 12px;
-  min-height: 0;
-
-  border: 1px solid color-mix(in srgb, var(--color-border) 45%, transparent);
-  border-radius: var(--radius-control);
-
-  background: transparent;
-  color: var(--color-text);
-
-  font-size: 0.8125rem;
-  font-weight: 500;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.ghostButton:hover {
-  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
-}
-
 /* =====================================================
-   LÍNEA DE TIEMPO
-   ===================================================== */
-
-.timeline {
-  display: flex;
-  flex-direction: column;
-}
-
-.timelineItem {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-3);
-
-  padding: var(--space-2) 0;
-}
-
-.timelineTime {
-  flex: none;
-  width: 52px;
-  padding-top: 2px;
-
-  color: var(--color-text-secondary);
-
-  font-size: 0.78rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-
-/* El filete es lo que distingue trabajo de vida personal de un vistazo. */
-.timelineBar {
-  flex: none;
-  align-self: stretch;
-
-  width: 4px;
-  min-height: 28px;
-
-  border-radius: 2px;
-}
-
-.timelineBar[data-kind='lab'] {
-  background: var(--color-primary);
-}
-
-.timelineBar[data-kind='per'] {
-  background: var(--color-terracotta, var(--color-accent, #b47b48));
-}
-
-.timelineBody {
-  flex: 1;
-  min-width: 0;
-
-  padding-bottom: var(--space-2);
-
-  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 14%, transparent);
-
-  color: var(--color-text);
-  font-size: 0.875rem;
-}
-
-.timelineItem:last-child .timelineBody {
-  border-bottom: none;
-}
-
-.timelineLink {
-  width: 100%;
-  min-height: 0;
-  padding: 0;
-
-  border: none;
-  background: none;
-  color: inherit;
-
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.timelineLink:hover {
-  color: var(--color-primary);
-  text-decoration: underline;
-}
-
-/* =====================================================
-   LISTA CON AVATAR
-   ===================================================== */
-
-.list {
-  display: flex;
-  flex-direction: column;
-}
-
-.listItem {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-
-  width: 100%;
-  padding: var(--space-3) var(--space-2);
-  min-height: 0;
-
-  border: none;
-  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 18%, transparent);
-  border-radius: 0;
-
-  background: none;
-  color: var(--color-text);
-
-  text-align: left;
-  cursor: pointer;
-}
-
-.listItem:last-child {
-  border-bottom: none;
-}
-
-.listItem:hover {
-  background: color-mix(in srgb, var(--color-primary) 6%, transparent);
-  border-radius: 8px;
-}
-
-.avatar {
-  flex: none;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  width: 32px;
-  height: 32px;
-
-  border-radius: 50%;
-
-  background: color-mix(in srgb, var(--color-primary) 16%, transparent);
-  color: var(--color-primary);
-
-  font-size: 0.75rem;
-  font-weight: 700;
-}
-
-.listItemBody {
-  flex: 1;
-  min-width: 0;
-
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-
-.listItemTitle {
-  font-size: 0.875rem;
-  font-weight: 600;
-
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.listItemMeta {
-  color: var(--color-text-secondary);
-  font-size: 0.75rem;
-
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* =====================================================
-   BADGE
-   ===================================================== */
-
-.badge {
-  flex: none;
-
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-
-  padding: 3px 9px;
-  min-height: 0;
-
-  border: none;
-  border-radius: 9999px;
-
-  font-size: 0.75rem;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.badge[data-tone='success'] {
-  background: var(--color-success-container, color-mix(in srgb, var(--color-success, #4d6b46) 18%, transparent));
-  color: var(--color-success, #4d6b46);
-}
-
-.badge[data-tone='warning'] {
-  background: color-mix(in srgb, var(--color-warning, #b8860b) 18%, transparent);
-  color: var(--color-warning, #8a5a12);
-}
-
-.badge[data-tone='info'] {
-  background: color-mix(in srgb, var(--color-primary) 14%, transparent);
-  color: var(--color-primary);
-}
-
-.badge[data-tone='error'] {
-  background: var(--color-error-container);
-  color: var(--color-error);
-}
-
-/* =====================================================
-   ESTADO VACÍO
-   ===================================================== */
-
-.emptyState {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 6px;
-
-  padding: var(--space-6) var(--space-2);
-
-  color: var(--color-text-secondary);
-  font-size: 0.8125rem;
-}
-
-.emptyState svg {
-  opacity: 0.5;
-  margin-bottom: 4px;
-}
-
-.emptyState p {
-  margin: 0;
-}
-
-/* =====================================================
-   CAPTURA RÁPIDA
+   PROPIO DE ESTA PANTALLA: CAPTURA RÁPIDA
    ===================================================== */
 
 .captureForm {
@@ -459,106 +180,23 @@
   min-width: 0;
 }
 
+/* Cuadrado y del alto del input que acompaña, no del alto de un botón de
+   fila: forman una sola pieza. */
 .captureButton {
-  flex: none;
+  composes: btnPrimary from '../../core/ui/laboral/LaboralUI.module.css';
 
   display: grid;
   place-items: center;
+  flex: none;
 
   width: 38px;
   height: 38px;
-  min-height: 0;
   padding: 0;
-
-  border: none;
-  border-radius: var(--radius-control);
-
-  background: var(--color-primary);
-  color: var(--color-on-primary);
-
-  cursor: pointer;
-}
-
-.captureButton:hover {
-  filter: brightness(1.08);
 }
 
 .captureHint {
   margin: var(--space-2) 0 0;
+
   color: var(--color-text-secondary);
   font-size: 0.8125rem;
-}
-
-/* ADR-016 Fase 3e2/FR-032: acción "Hecha" de una rutina desde Hoy. */
-.routineDoneButton {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  min-height: 0;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-control);
-  background: var(--color-surface);
-  color: var(--color-text);
-  font-size: 0.8125rem;
-  cursor: pointer;
-}
-
-.routineDoneButton:hover:not(:disabled) {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
-}
-
-.routineDoneButton:disabled {
-  opacity: 0.6;
-  cursor: default;
-}
-
-/* =====================================================
-   TEMAS VISUALES
-
-   La estructura no cambia; solo se ajusta lo que cada tema ya define para
-   el resto de la app, para que Hoy no se salga del conjunto.
-   ===================================================== */
-
-/* Editorial: papel real y títulos con serif. */
-:global(.theme-editorial) .pageTitle,
-:global(.theme-editorial) .cardHeader h3 {
-  font-family: var(--font-serif);
-  font-weight: 500;
-}
-
-:global(.theme-editorial) .kicker {
-  font-family: var(--font-serif);
-  font-style: italic;
-  letter-spacing: 0.04em;
-  text-transform: none;
-}
-
-/* Minimal: sin pauta ni relleno de tarjeta; manda el espacio. */
-:global(.theme-minimal) .notebookBg {
-  background-image: none;
-}
-
-:global(.theme-minimal) .card {
-  background: transparent;
-}
-
-/* Productivity: más densidad, como el resto del tema. */
-:global(.theme-productivity) .timelineItem {
-  padding: 5px 0;
-}
-
-:global(.theme-productivity) .listItem {
-  padding: var(--space-2);
-}
-
-/* Organic: curvas. */
-:global(.theme-organic) .card {
-  border-radius: 22px;
-}
-
-:global(.theme-organic) .timelineBar {
-  width: 6px;
-  border-radius: 999px;
 }

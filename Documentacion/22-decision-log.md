@@ -322,3 +322,43 @@ Las cuatro mantienen el mismo patrón de autorización dueño-únicamente que `P
 **Consecuencias:** una columna nueva nullable (`V24`) y tres campos nuevos opcionales en la API de Mantenimiento (`intervalMonths` en create/update/response, `openapi.yaml` actualizado); ningún cambio en Garantías ni Suscripciones. El Calendario carga ahora también `GET /subscriptions`. Al cambiar la fecha de un registro, sus alertas cambian en la siguiente lectura sin ninguna acción adicional. **Riesgo asumido y declarado:** las alertas solo existen mientras el cliente está abierto — no hay recordatorio push ni correo asociado; si en el futuro se quiere notificar fuera de la app, esa sí sería una decisión nueva (candidata a job en backend) y debe registrarse aparte.
 
 **TBD:** horizonte de proyección (hoy 12 ocurrencias, elegido por el equipo técnico, no por el Product Owner); si el usuario debe poder silenciar una alerta concreta; si las alertas deben aparecer también en el contexto Laboral del calendario o solo en Personal (hoy aparecen en ambos, igual que Garantías/Mantenimiento antes).
+
+## ADR-019 Aislamiento de recursos por módulo (Personal / Laboral)
+**Estado:** Accepted (2026-08-28)
+
+**Contexto:** el Product Owner solicitó (2026-08-28) que todo recurso que alimenta el Calendario pertenezca exclusivamente al módulo desde el que se creó, que no interfiera con el otro módulo (ni en visualización ni en CRUD, estados, filtros, conteos ni información derivada), y que el Calendario respete el módulo activo. Con una condición explícita: **"no soluciones esto únicamente ocultando elementos mediante filtros visuales; el aislamiento debe existir también en la lógica de negocio y en las consultas/fuentes de datos"**.
+
+**Auditoría previa (lo que ya existía, y lo que no):**
+
+| Recurso | Contexto persistido | Filtro en servidor | Filtro en cliente |
+|---|---|---|---|
+| `REMINDER` | Sí (ADR-015, nullable) | **No** | Sí — y **con fuga**: dejaba pasar los de `context = NULL` en los DOS módulos |
+| `WARRANTY` | No | No | No |
+| `MAINTENANCE_RECORD` | No | No | No |
+| `SUBSCRIPTION` | No | No | No |
+| `DAY_NOTE_ELEMENT` | No | No | No |
+
+Es decir: el requisito **no existía**, salvo un filtro de cliente en recordatorios que además era exactamente el tipo de solución que el Product Owner descartó.
+
+**Decisión:**
+(a) columna `context VARCHAR(16) NOT NULL DEFAULT 'PERSONAL'` en `warranties`, `maintenance_records`, `subscriptions` y `day_note_elements` (**migración V25**), más `UPDATE reminders SET context='PERSONAL' WHERE context IS NULL` para cerrar la fuga descrita arriba. Índices `(owner_user_id, context)` en las cinco tablas;
+(b) el enum vive en `shared.domain.ModuleContext` porque lo comparten cuatro agregados sin relación entre sí. `reminder.domain.ReminderContext` **no se toca**: ya existía y ya está persistido; son dos representaciones del mismo concepto que conviven sin coste;
+(c) el filtro baja **hasta la consulta**: `findByOwnerUserIdAndContext(...)` en cada repositorio y una variante de `findAccessibleTo` con contexto para recordatorios. Los recursos del otro módulo no se leen de la base de datos;
+(d) `?context=` es **opcional** en los listados. Ausente ⇒ sin filtrar, que es exactamente lo que necesita el **Calendario general** (el tercer modo, que existe para ver Personal y Laboral juntos — ADR-015(b)). El cliente lo envía cuando hay módulo activo y lo omite cuando no;
+(e) en el alta, `context` ausente ⇒ **PERSONAL**, nunca "sin módulo". Esto implementa la regla 4 del pedido y cubre además Garantías/Mantenimiento/Suscripciones, cuyas pantallas cuelgan del menú de Personal pero viven en rutas planas donde `useActiveMode()` es `null`;
+(f) el contexto **se fija al crear y no cambia**: ningún `applyEdit` lo toca;
+(g) los recordatorios **compartidos** también se filtran por contexto: el contexto es del recurso, no de quien lo mira, así que una tarea laboral que alguien comparte contigo sigue siendo laboral;
+(h) el anti-solapamiento de las notas del día compara solo contra notas del mismo módulo — dos módulos no comparten lienzo, así que una nota Personal no puede bloquear el movimiento de una Laboral;
+(i) el filtro de cliente de `CalendarPage` se conserva como segunda barrera, pero **estricto** (`context ?? 'PERSONAL'`), no como mecanismo principal.
+
+**Alternativas consideradas:**
+(a) filtrar solo en el cliente — **descartada por prohibición explícita** del Product Owner, y además ya se había demostrado insuficiente: el filtro existente tenía una fuga real con los contextos nulos;
+(b) reutilizar `ReminderContext` en los cuatro agregados nuevos — descartada: acoplaría cuatro módulos al módulo `reminder` sin ninguna ganancia; un enum compartido en `shared` es la dependencia correcta en un monolito modular (ADR-001);
+(c) hacer `?context=` obligatorio — descartada: rompería el Calendario general, que es una funcionalidad existente que el pedido manda mantener intacta;
+(d) inferir el contexto de la pantalla en el servidor — imposible: el servidor no sabe desde qué navbar se llamó; el cliente es el único que conoce el módulo activo.
+
+**Consecuencias:** una columna nueva en cuatro tablas y un backfill en `reminders` (V25, sin pérdida de datos: todo lo existente queda en Personal, como pidió la regla 4). Un parámetro opcional `context` en cinco listados y en cuatro altas; `context` expuesto en las respuestas para que el cliente pueda verificarlo. Las alertas de fecha (ADR-018) heredan el aislamiento sin cambios propios, porque se derivan de recursos ya filtrados. `NOTE` (`features/calendar/notes`) queda **fuera de alcance**: pese al nombre de su carpeta no lo consume el Calendario, sino Personas/Proyectos.
+
+**Límite declarado, no implementado:** el aislamiento cubre lectura y alta. Una **mutación dirigida por id** (completar/borrar un recurso del otro módulo conociendo su UUID) sigue siendo posible para el propio dueño, porque no hay frontera de seguridad entre los módulos de un mismo usuario — son la misma cuenta. En la práctica es inalcanzable: ninguna pantalla del módulo contrario muestra ese recurso. Si se quisiera cerrar también, habría que exigir el contexto en cada mutación y rechazar los desajustes; **TBD**, no se asume.
+
+**TBD:** si el usuario debe poder mover un recurso de un módulo a otro (hoy el contexto es inmutable por decisión (f)); si Documentos/Inventario/Familia —que no alimentan el Calendario— deben adoptar la misma regla.

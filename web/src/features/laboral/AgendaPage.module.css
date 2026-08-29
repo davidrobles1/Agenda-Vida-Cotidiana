@@ -1,0 +1,146 @@
+/* =====================================================
+   LABORAL → AGENDA
+
+   Vista semanal del prototipo ("Agenda Laboral", artifact fca1566a,
+   `pageAgenda()`): antetítulo "Vista semanal", y una sola tarjeta de papel
+   rayado que apila seis grupos de día, cada uno con su encabezado y su
+   línea de tiempo, separados por un filete.
+
+   Homologación visual (2026-08-29): cabecera, tarjeta, papel rayado, línea
+   de tiempo, separador y mensajes se componen desde
+   `core/ui/laboral/LaboralUI.module.css`. Aquí queda solo lo propio de esta
+   pantalla: los grupos de día y la leyenda.
+   ===================================================== */
+
+.error {
+  composes: error from '../../core/ui/laboral/LaboralUI.module.css';
+}
+
+.emptyHint {
+  composes: emptyHint from '../../core/ui/laboral/LaboralUI.module.css';
+}
+
+.pageHead {
+  composes: pageHeadStacked from '../../core/ui/laboral/LaboralUI.module.css';
+}
+
+.kicker {
+  composes: kicker from '../../core/ui/laboral/LaboralUI.module.css';
+}
+
+.pageTitle {
+  composes: pageTitle from '../../core/ui/laboral/LaboralUI.module.css';
+}
+
+.pageLead {
+  composes: pageLead from '../../core/ui/laboral/LaboralUI.module.css';
+}
+
+.card {
+  composes: card from '../../core/ui/laboral/LaboralUI.module.css';
+}
+
+.notebookBg {
+  composes: notebookBg from '../../core/ui/laboral/LaboralUI.module.css';
+}
+
+.divider {
+  composes: divider from '../../core/ui/laboral/LaboralUI.module.css';
+}
+
+.timeline {
+  composes: timeline from '../../core/ui/laboral/LaboralUI.module.css';
+}
+
+.timelineItem {
+  composes: timelineItem from '../../core/ui/laboral/LaboralUI.module.css';
+}
+
+.timelineTime {
+  composes: timelineTime from '../../core/ui/laboral/LaboralUI.module.css';
+}
+
+.timelineBar {
+  composes: timelineBar from '../../core/ui/laboral/LaboralUI.module.css';
+}
+
+.timelineBody {
+  composes: timelineBody from '../../core/ui/laboral/LaboralUI.module.css';
+}
+
+.timelineLink {
+  composes: timelineLink from '../../core/ui/laboral/LaboralUI.module.css';
+}
+
+/* =====================================================
+   PROPIO DE ESTA PANTALLA: GRUPOS DE DÍA
+   ===================================================== */
+
+.dayGroup + .dayGroup {
+  margin-top: var(--space-4);
+}
+
+.dayHeading {
+  margin: 0 0 var(--space-2);
+
+  color: var(--color-text-secondary);
+
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* El día de hoy se distingue por color, no por un adorno aparte. */
+.dayHeadingToday {
+  color: var(--color-primary);
+}
+
+.dayEmpty {
+  margin: 0;
+  padding: 4px 0 var(--space-3);
+
+  color: var(--color-text-secondary);
+  font-size: 0.8125rem;
+}
+
+/* =====================================================
+   PROPIO DE ESTA PANTALLA: LEYENDA
+
+   Cumple la promesa del subtítulo ("conviven sin mezclarse"): sin ella el
+   filete de color no se explica. Los puntos reutilizan los mismos tonos
+   que el filete de la línea de tiempo.
+   ===================================================== */
+
+.legend {
+  display: flex;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+
+  margin-top: var(--space-4);
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
+  color: var(--color-text-secondary);
+  font-size: 0.8125rem;
+}
+
+.legendDot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+
+  border-radius: 50%;
+}
+
+.legendDot[data-kind='lab'] {
+  background: var(--color-primary);
+}
+
+.legendDot[data-kind='per'] {
+  background: var(--color-terracotta, var(--color-accent, #b47b48));
+}

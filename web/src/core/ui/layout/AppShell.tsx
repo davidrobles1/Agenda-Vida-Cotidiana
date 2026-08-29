@@ -10,6 +10,7 @@ import { ThemeSwitcher } from '../../theme/ThemeSwitcher'
 import {
   IconBell,
   IconCalendar,
+  IconCheckSquare,
   IconFolder,
   IconHome,
   IconInbox,
@@ -57,12 +58,12 @@ const personalNavItems = [
  * ADR-016 (Módulo Laboral, 2026-08-22): Laboral pasa de 4 ítems genéricos a
  * las secciones núcleo del espacio profesional (FR-021 a FR-028) —
  *
- * ACTUALIZACIÓN (2026-08-28, pedido explícito del usuario): "Tareas" se
- * retira de la navegación. Eran 7 secciones núcleo; ahora son 6. A
- * diferencia de Vision Board/Compartidos (que conservaron su ruta sin
- * enlace), aquí el usuario pidió que tampoco existiera el destino, así que
- * la ruta `/laboral/tasks` se retiró de `AppRouter.tsx`. `TareasPage.tsx`
- * sigue en el repositorio, sin enrutar: no se borran componentes.
+ * "Tareas" se retiró de la navegación el 2026-08-28 y se restauró el
+ * 2026-08-29, ambas veces por pedido explícito del usuario ("debe estar
+ * siempre en este módulo"). Vuelven a ser las 7 secciones núcleo, en el
+ * mismo orden y con el mismo icono que el prototipo aprobado ("Agenda
+ * Laboral", artifact fca1566a, `laboralNavItems()`): Tareas va en tercer
+ * lugar, entre Agenda y Personas, con la casilla como icono.
  *
  * "Agenda" reutiliza la misma ruta/componente que antes era "Calendario
  * laboral" (`/laboral/calendar` → `CalendarPage`, sin cambios), solo cambia
@@ -83,6 +84,7 @@ function buildLaboralNavItems(vocabulary: ProfileVocabulary) {
   return [
     { to: '/laboral/hoy', label: 'Hoy', icon: IconHome },
     { to: '/laboral/calendar', label: 'Agenda', icon: IconCalendar },
+    { to: '/laboral/tasks', label: 'Tareas', icon: IconCheckSquare },
     { to: '/laboral/people', label: vocabulary.personPlural, icon: IconUsers },
     { to: '/laboral/projects', label: vocabulary.projectPlural, icon: IconFolder },
     { to: '/laboral/commitments', label: 'Seguimientos', icon: IconRepeat },

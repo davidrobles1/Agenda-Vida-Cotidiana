@@ -33,7 +33,9 @@ public record WarrantyResponse(
         /** null cuando la garantía no tiene archivo adjunto — nunca los
             bytes en sí, esos solo viven en GET /{id}/content (mismo split
             que DocumentResponse). */
-        String documentContentType
+        String documentContentType,
+        /** ADR-019: módulo propietario del recurso. */
+        String context
 ) {
     private static final long POR_VENCER_THRESHOLD_DAYS = 30;
 
@@ -51,7 +53,8 @@ public record WarrantyResponse(
                 warranty.getVersion(),
                 warranty.getCreatedAt(),
                 warranty.getUpdatedAt(),
-                warranty.getDocumentContentType()
+                warranty.getDocumentContentType(),
+                warranty.getContext().name()
         );
     }
 

@@ -1,5 +1,7 @@
 package com.vidacotidiana.subscription.domain;
 
+import com.vidacotidiana.shared.domain.ModuleContext;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -47,6 +49,14 @@ public class Subscription {
     @Column(name = "billing_cycle", nullable = false)
     private BillingCycle billingCycle;
 
+    /**
+     * ADR-019: módulo propietario. Se fija al crear y NO cambia durante el
+     * ciclo de vida del recurso — `applyEdit` no lo toca a propósito.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private ModuleContext context = ModuleContext.PERSONAL;
+
     @Version
     @Column(nullable = false)
     private int version;
@@ -62,6 +72,13 @@ public class Subscription {
     }
 
     public Subscription(UUID ownerUserId, String service, String company, String plan, Instant nextPaymentDate, BillingCycle billingCycle) {
+        this(ownerUserId, service, company, plan, nextPaymentDate, billingCycle, ModuleContext.PERSONAL);
+    }
+
+    /** ADR-019: alta con módulo propietario explícito. */
+    public Subscription(UUID ownerUserId, String service, String company, String plan, Instant nextPaymentDate,
+                        BillingCycle billingCycle, ModuleContext context) {
+        this.context = (context != null) ? context : ModuleContext.PERSONAL;
         this.ownerUserId = ownerUserId;
         this.service = service;
         this.company = company;
@@ -79,6 +96,10 @@ public class Subscription {
 
     public UUID getOwnerUserId() {
         return ownerUserId;
+    }
+
+    public ModuleContext getContext() {
+        return context;
     }
 
     public String getService() {

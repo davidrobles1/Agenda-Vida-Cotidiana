@@ -19,6 +19,24 @@ import {
 import styles from './LoginPage.module.css'
 import logo from './assets/libro_hojas.jpeg'
 
+/**
+ * RETIRADA DE LA APLICACIÓN (UX-016, 2026-08-29, pedido explícito del
+ * usuario: pasar de 3 pantallas de autenticación a 2).
+ *
+ * Esta portada era la pantalla intermedia: no autenticaba nada, solo tenía
+ * dos botones que llevaban a Keycloak. Su identidad visual **no se perdió**:
+ * se trasladó íntegra al theme de Keycloak
+ * (`infra/keycloak/themes/vida-cotidiana-web/login`) — la fotografía del
+ * libro con sus hojas giradas, la columna de eslóganes con los cuatro
+ * valores, el divisor, la frase, "Meraki" en Alex Brush, la tarjeta, los
+ * botones y el pie con el candado; y ahora también las tipografías reales
+ * (Inter/Fraunces/Alex Brush servidas por el propio theme) y la fotografía
+ * de fondo, que antes el theme solo aproximaba.
+ *
+ * `/` ya no la monta: `AuthGateway` manda directo al formulario de Keycloak
+ * (ver `routes/AppRouter.tsx`). El archivo se conserva sin enrutar, como
+ * `TareasPage`/`RemindersPage` en su momento: no se borran componentes.
+ */
 export function LoginPage() {
   // Si la sesión terminó de verdad, authClient deja escrito el motivo antes
   // de mandar aquí (ver getSessionNotice): caer al login sin una palabra es

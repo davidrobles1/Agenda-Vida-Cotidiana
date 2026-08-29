@@ -55,9 +55,12 @@ public class ReminderController {
     @GetMapping
     public PageResponse<ReminderResponse> list(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
+            @RequestParam(defaultValue = "20") int size,
+            // ADR-019: sin `context` se devuelve todo (Calendario general);
+            // con contexto, el filtro baja hasta la consulta SQL.
+            @RequestParam(value = "context", required = false) String context) {
         Pageable pageable = PageRequest.of(page, Math.min(size, 100));
-        Page<Reminder> reminders = reminderService.listAccessibleTo(currentUser.userId(), pageable);
+        Page<Reminder> reminders = reminderService.listAccessibleTo(currentUser.userId(), context, pageable);
         return PageResponse.from(reminders.map(ReminderResponse::from));
     }
 
