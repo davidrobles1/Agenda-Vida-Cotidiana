@@ -43,6 +43,18 @@
    non-interactive.
    -------------------------------------------------------------------------- */
 
+/*
+ * Decorative sidebar image
+ *
+ * Large decorative leaves anchored to the bottom-left of the sidebar.
+ * The image lives behind all sidebar content while remaining completely
+ * non-interactive.
+ *
+ * 2026-09-05: se retiró al implementar ADR-023 y el Product Owner pidió
+ * devolverla — misma ubicación y mismo tamaño, en los seis temas nuevos y
+ * en los tres conservados. Va sin condicionar por tema a propósito: así se
+ * comporta exactamente como antes de quitarla.
+ */
 .sidebar::after {
   content: '';
 
@@ -87,30 +99,36 @@
   }
 }
 
+/* Identidad «A · Tiempo»: el hueco de marca es solo un hueco. No define
+   tipografía, peso ni color — todo eso pertenece al logo (`BrandMark`), que
+   debe verse igual aquí que en cualquier otra superficie. Lo único que le toca
+   decidir al contenedor es la ESCALA, porque depende de dónde se coloca.
+
+   Barra ancha (232px, menos 32px de padding = 200px útiles). A 34px de cuerpo
+   el rótulo más largo —"Cotidiana"— mide ~143px y el arco 85px: la marca
+   ocupa el ancho de la barra sin llegar a tocarlo. El 15px del prototipo era
+   el tamaño de una maqueta pequeña y aquí desaparecía. */
 .logo {
+  --brand-size: 34px;
+
   display: flex;
   align-items: center;
-  gap: var(--space-2);
 
-  font-weight: 700;
-  font-size: 1.0625rem;
-  color: var(--color-primary);
+  background: transparent;
 }
 
-.logoMark {
-  width: 28px;
-  height: 28px;
+/* Firma del Portal en la barra superior (el Portal no tiene barra lateral, así
+   que este es su único soporte de marca y tiene que sostenerse solo). Va más
+   contenida que en la barra lateral porque comparte línea con el título de
+   pantalla, que mide 22px. */
+.topBarBrand {
+  --brand-size: 26px;
 
-  border-radius: 20px;;
-  background: var(--color-primary);
-  color: var(--color-on-primary);
-
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-
-  font-weight: 700;
   flex-shrink: 0;
+
+  /* Aire propio frente al título: la marca no debe leerse como parte del
+     encabezado de la pantalla. */
+  margin-right: var(--space-4);
 }
 
 /* --------------------------------------------------------------------------
@@ -124,7 +142,7 @@
 
   padding: var(--space-1);
   background: transparent;
-  border-radius: 20px;;
+  border-radius: var(--r-lg, 20px);
 
   flex: 1 1 auto;
   justify-content: center;
@@ -137,7 +155,7 @@
 
   padding: var(--space-1) var(--space-4);
 
-  border-radius: 20px;;
+  border-radius: var(--r-lg, 20px);
   border: 1px solid var(--color-border);
 
   color: var(--color-text-secondary);
@@ -179,7 +197,7 @@
 
   padding: var(--space-2) var(--space-3);
 
-  border-radius: 20px;;
+  border-radius: var(--r-lg, 20px);
 
   color: var(--color-text-secondary);
   text-decoration: none;
@@ -332,7 +350,7 @@
   padding: 0;
 
   border: none;
-  border-radius: 20px;;
+  border-radius: var(--r-lg, 20px);
 
   background: transparent;
   color: var(--color-text-secondary);
@@ -404,7 +422,7 @@
   background: var(--color-primary);
   color: var(--color-on-primary);
 
-  border-radius: 20px;;
+  border-radius: var(--r-lg, 20px);
 
   padding: var(--space-2) var(--space-4);
 
@@ -476,6 +494,18 @@
       border-color 220ms ease;
   }
 
+  /* La barra lateral pasa a ser una fila y es su altura la que manda: el
+     lock-up apilado a 34px la haría el doble de alta que la navegación. Misma
+     construcción, escala menor — la marca sigue siendo lo más alto de la fila,
+     así que no deja de notarse. */
+  .logo {
+    --brand-size: 22px;
+  }
+
+  .topBarBrand {
+    --brand-size: 20px;
+  }
+
   /*
    * The content remains the only vertical scroll container on mobile.
    */
@@ -526,46 +556,263 @@
     display: none;
   }
 }
+/* ==========================================================================
+   ADR-023 — FIRMAS DE TEMA DEL ARTEFACTO APROBADO (artifact bb294d3e)
 
-/* =====================================================
-   UX-014 — VISUAL THEME SYSTEM (Sidebar + Topbar)
-   ===================================================== */
+   Los bloques anteriores (Editorial/Minimal colapsaban la barra a 66px sin
+   etiquetas; Productivity le ponía un degradado oscuro) se retiraron: el
+   artefacto tiene barra ancha con etiquetas visibles en los SEIS temas y
+   ningún degradado de chrome. Esto los sustituye, copiando los valores tal
+   cual — capa decorativa, marca del activo, filete y radios.
+   ========================================================================== */
 
-/* --------------------------------------------------------------------------
-   EDITORIAL / MINIMAL
-   -------------------------------------------------------------------------- */
+/* La capa decorativa de fondo: cada tema tiene la suya y ninguna es la de
+   otro. Va sobre `.shell`, que es la raíz que lleva la clase de tema. */
+.shell::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+.shell { position: relative; isolation: isolate; }
+.shell > * { position: relative; z-index: 1; }
 
-:global(.theme-editorial) .sidebar,
+/* Aurora — velo de luz fría cayendo desde arriba. */
+:global(.theme-aurora) .shell::before,
+:global(.theme-aurora).shell::before {
+  background:
+    radial-gradient(90ch 46ch at 78% -12%, rgba(132, 176, 255, 0.16), transparent 62%),
+    radial-gradient(70ch 40ch at 12% -6%, rgba(195, 155, 255, 0.11), transparent 60%);
+}
+/* Papel — renglones de cuaderno cada 30px. */
+:global(.theme-papel) .shell::before,
+:global(.theme-papel).shell::before {
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0 30px,
+    rgba(36, 48, 60, 0.055) 30px 31px
+  );
+  opacity: 0.85;
+}
+/* Neo — retícula técnica visible, como un cartel impreso. */
+:global(.theme-neo) .shell::before,
+:global(.theme-neo).shell::before {
+  background:
+    linear-gradient(rgba(0, 0, 0, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.045) 1px, transparent 1px);
+  background-size: 34px 34px;
+}
+/* Calm — dos manchas cálidas muy difusas, como luz de tarde. */
+:global(.theme-calm) .shell::before,
+:global(.theme-calm).shell::before {
+  background:
+    radial-gradient(60ch 40ch at 88% 4%, rgba(207, 143, 96, 0.13), transparent 62%),
+    radial-gradient(52ch 36ch at 2% 82%, rgba(125, 143, 104, 0.12), transparent 60%);
+}
+/* Studio — grano de papel prensado. */
+:global(.theme-studio) .shell::before,
+:global(.theme-studio).shell::before {
+  background-image: radial-gradient(circle at 1px 1px, rgba(25, 23, 19, 0.055) 1px, transparent 0);
+  background-size: 4px 4px;
+  opacity: 0.7;
+}
+/* Lumen — ninguna. El vacío es su identidad. */
+
+/* --- Barra lateral: fondo y filete por tema (artefacto) --- */
+:global(.theme-aurora) .sidebar { background: rgba(255, 255, 255, 0.02); backdrop-filter: blur(2px); }
+:global(.theme-lumen) .sidebar,
+:global(.theme-studio) .sidebar { background: var(--bg); }
+:global(.theme-neo) .sidebar { border-right: 2px solid var(--ink); background: var(--surface); }
+:global(.theme-calm) .sidebar { background: var(--surface); border-right: 0; }
+:global(.theme-papel) .sidebar { background: rgba(255, 252, 244, 0.72); }
+
+/* Papel — el margen rojo de la libreta, pegado al filete de la barra. */
+:global(.theme-papel) .sidebar::before {
+  content: '';
+  position: absolute;
+  right: -1px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--second);
+  opacity: 0.28;
+  z-index: 2;
+}
+
+/* --- Enlaces de navegación: el radio y la marca del activo son del tema --- */
+.navLink { border-radius: var(--nav-r, 20px); transition: background 0.2s var(--ease), color 0.2s, padding-left 0.22s var(--ease); }
+.navLink:hover { background: var(--sunken, var(--color-surface-variant)); }
+.navLinkActive { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+
+/* Aurora — barra de acento con halo a la izquierda. */
+:global(.theme-aurora) .navLink:hover { background: var(--veil); }
+:global(.theme-aurora) .navLinkActive::before {
+  content: '';
+  position: absolute;
+  left: -6px;
+  top: 20%;
+  bottom: 20%;
+  width: 3px;
+  border-radius: 3px;
+  background: var(--accent);
+  box-shadow: 0 0 14px var(--accent);
+}
+/* Lumen — sin fondo: una regla corta y el texto desplazado. */
+:global(.theme-lumen) .navLinkActive {
+  background: transparent;
+  color: var(--ink);
+  padding-left: calc(var(--space-3) + 14px);
+}
+:global(.theme-lumen) .navLinkActive::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 9px;
+  height: 1.5px;
+  background: var(--ink);
+}
+/* Neo — bloque de tinta plena, recto. */
+:global(.theme-neo) .navLink:hover { background: var(--sunken); }
+:global(.theme-neo) .navLinkActive { background: var(--ink); color: var(--surface); }
+/* Calm — píldora completa en color de acento. */
+:global(.theme-calm) .navLink:hover { background: var(--sunken); }
+:global(.theme-calm) .navLinkActive { background: var(--accent); color: var(--on-accent); }
+/* Studio — sin fondo: serif y subrayado fino. */
+:global(.theme-studio) .navLinkActive {
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: var(--t-md);
+}
+:global(.theme-studio) .navLinkActive::after {
+  content: '';
+  position: absolute;
+  left: var(--space-3);
+  right: var(--space-3);
+  bottom: 2px;
+  height: 1px;
+  background: var(--ink);
+}
+/* Papel — acento suave con filete terracota a la izquierda. */
+:global(.theme-papel) .navLink:hover { background: var(--veil); }
+:global(.theme-papel) .navLinkActive { box-shadow: inset 3px 0 0 var(--second); }
+
+/* --- Cabecera y marca --- */
+:global(.theme-neo) .topBar { border-bottom: 2px solid var(--ink); }
+:global(.theme-lumen) .topBar,
+:global(.theme-studio) .topBar { border-bottom-color: transparent; }
+
+/* Los temas visuales ya no revisten la marca: vestían la placa «VC» (radio,
+   fondo, rotación), y esa placa dejó de existir con la identidad «A · Tiempo».
+   Un logo que cambia de FORMA según el tema no es un logo — la construcción
+   del arco es la misma en los nueve temas, igual que en cualquier soporte
+   fuera de la aplicación.
+
+   Lo que sí cambia por tema es la ESCALA, y no de forma arbitraria: sigue al
+   `--air` que cada agenda ya declara en `themes.css`, el token que gobierna su
+   generosidad de espacio. Una agenda que respira más da a la marca más sitio;
+   una densa la planta más ceñida. La proporción interna del logo no se toca en
+   ninguno de los casos. */
+
+/* Van acotadas a la barra vertical a propósito: por debajo de 900px la barra
+   se convierte en una fila y la altura la manda ella, no el tema. Sin este
+   `min-width` estas reglas ganarían por especificidad a la escala móvil, que
+   se declara antes en el archivo. */
+@media (min-width: 901px) {
+  /* Studio (--air 1.75) y Lumen (--air 1.6): las dos agendas editoriales, las
+     de más aire. Aquí la marca puede llevar el peso de la barra entera. */
+  :global(.theme-studio) .logo { --brand-size: 40px; }
+  :global(.theme-lumen) .logo { --brand-size: 38px; }
+
+  /* Calm (--air 1.2). */
+  :global(.theme-calm) .logo { --brand-size: 36px; }
+
+  /* Neo (--air 0.85, --density 0.9): brutalista y apretada. La marca se ciñe
+     al ritmo denso del resto de la barra en vez de flotar sobre él. */
+  :global(.theme-neo) .logo { --brand-size: 30px; }
+}
+
+/* --- Marca sobre fondo oscuro ---------------------------------------------
+
+   Medido, no supuesto (contraste WCAG del rótulo contra el píxel real de la
+   superficie que lo aloja, los nueve temas × los tres contextos):
+
+     lumen 17.7 · neo 18.0 · calm 17.8 · studio 15.7 · papel 17.2 ·
+     minimal 18.0 · organic 17.2 · productivity 5.1  →  se distinguen bien,
+     no se toca ninguno.
+
+     aurora 1.01  →  tinta casi negra (#16161a) sobre un fondo casi negro
+     (#13151e): el rótulo desaparecía literalmente, y el punto de Laboral
+     quedaba en 1.44. Único caso en el que el fondo compromete la marca.
+
+   La corrección no añade borde, sombra ni caja: cambia el juego de tokens
+   completo por la **paleta de fondo oscuro que la propia dirección aprobada
+   ya define**. Arco, punto y rótulo conservan entre sí exactamente la misma
+   relación, así que es el mismo logo, no una variante. */
+:global(.theme-aurora) .logo,
+:global(.theme-aurora) .topBarBrand,
+:global(.theme-productivity) .logo {
+  --brand-ink: #f0eee9;
+  --brand-arc-portal: #d4ac6e;
+  --brand-arc-personal: #e08a6e;
+  --brand-arc-laboral: #8fb3d4;
+}
+
+/* --- Márgenes del contenido: el aire es identidad del tema (artefacto) --- */
+.content { padding: var(--gutter, var(--space-6)); }
+
+.greetingTitle { font-family: var(--font-display); letter-spacing: -0.025em; }
+:global(.theme-studio) .greetingTitle { font-weight: 400; letter-spacing: -0.005em; }
+:global(.theme-lumen) .greetingTitle { font-weight: 200; letter-spacing: -0.04em; }
+:global(.theme-neo) .greetingTitle { font-weight: 900; text-transform: uppercase; letter-spacing: -0.035em; }
+:global(.theme-papel) .greetingTitle { font-weight: 500; }
+
+
+/* ==========================================================================
+   TEMAS UX-014 CONSERVADOS — reglas devueltas el 2026-09-02.
+
+   Premium Minimal / Modern Productivity / Organic / Human se retiraron por
+   error al implementar ADR-023: la petición era eliminar **solo Editorial**.
+   Estas son sus reglas originales, tal cual estaban; de los selectores que
+   compartían con Editorial se conserva únicamente su parte.
+   ========================================================================== */
 :global(.theme-minimal) .sidebar {
   width: 66px;
 }
 
-:global(.theme-editorial) .sidebarClosed,
 :global(.theme-minimal) .sidebarClosed {
   width: 0;
 }
 
-:global(.theme-editorial) .navLink span:last-child,
-:global(.theme-minimal) .navLink span:last-child,
-:global(.theme-editorial) .logo span:last-child,
-:global(.theme-minimal) .logo span:last-child {
+:global(.theme-minimal) .navLink span:last-child {
   display: none;
 }
 
-:global(.theme-editorial) .navLink,
-:global(.theme-minimal) .navLink,
-:global(.theme-editorial) .logo {
+/* BARRA ANGOSTA — rail de 66px. Se retira el rótulo y queda el arco solo, que
+   es la versión reducida legítima del logo (no un dibujo distinto). Se apunta
+   al rótulo por su atributo porque `span:last-child` ahora alcanzaría al
+   lock-up entero. */
+:global(.theme-minimal) .logo [data-brand='name'] {
+  display: none;
+}
+
+/* El arco toma el rail completo en vez de encogerse dentro del padding: con
+   66px de ancho y márgenes negativos quedan 20px de cuerpo → 50px de arco,
+   con 8px de aire a cada lado. Ceñido al padding medía 34px y se leía como un
+   icono más de la navegación, no como la marca. */
+:global(.theme-minimal) .logo {
+  --brand-size: 20px;
+
+  justify-content: center;
+  margin-inline: calc(var(--space-4) * -1);
+}
+
+:global(.theme-minimal) .navLink {
   justify-content: center;
 }
-
-:global(.theme-editorial) .navLinkActive {
-  background: transparent;
-  box-shadow: inset 3px 0 0 var(--color-terracotta);
-}
-
-/* --------------------------------------------------------------------------
-   MODERN PRODUCTIVITY — dark command center chrome
-   -------------------------------------------------------------------------- */
 
 :global(.theme-productivity) .sidebar {
   background:
@@ -602,7 +849,6 @@
 }
 
 :global(.theme-productivity) .logo {
-  color: #8fb4d6;
   position: relative;
   z-index: 1;
 }
@@ -636,36 +882,11 @@
   box-shadow: 0 4px 14px rgba(44, 95, 140, 0.28);
 }
 
-/* --------------------------------------------------------------------------
-   EDITORIAL BUTTON
-   -------------------------------------------------------------------------- */
-
-:global(.theme-editorial) .newButton {
-  background:
-    linear-gradient(
-      135deg,
-      var(--color-primary),
-      color-mix(
-        in srgb,
-        var(--color-primary) 65%,
-        white
-      )
-    );
-}
-
-/* --------------------------------------------------------------------------
-   ORGANIC BUTTON
-   -------------------------------------------------------------------------- */
-
 :global(.theme-organic) .newButton {
   border-radius:
     255px 15px 225px 15px /
     15px 225px 15px 255px;
 }
-
-/* --------------------------------------------------------------------------
-   ORGANIC / HUMAN — floating rounded panel
-   -------------------------------------------------------------------------- */
 
 :global(.theme-organic) .shell {
   padding: 14px;
@@ -749,5 +970,56 @@
   :global(.theme-productivity) .sidebar,
   :global(.theme-organic) .sidebar {
     transition: none;
+  }
+}
+
+
+/* Barra de acciones de sección — requisito §9 (ADR-025).
+
+   VIVE FUERA DE `.content`, que es el único contenedor con scroll. Esa es toda
+   la diferencia con el `position: sticky` que tenía antes: el contenido ya no
+   pasa por detrás, así que la barra NO necesita un fondo opaco para taparlo
+   —la franja que ocultaba filas y botones— y aun así queda siempre visible.
+
+   Sin borde inferior propio: el de `.topBar` justo encima ya separa la zona de
+   chrome del contenido, y una segunda línea a pocos píxeles se lee como un
+   error de maquetación. */
+.pageActions {
+  flex-shrink: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+
+  padding: var(--space-3) var(--gutter, var(--space-6)) 0;
+
+  background: var(--color-surface);
+}
+
+.pageActionsHint {
+  margin-right: auto;
+
+  color: var(--color-text-secondary);
+  font-size: 0.82rem;
+}
+
+.pageActionsGroup {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+@media (max-width: 640px) {
+  .pageActions {
+    justify-content: stretch;
+  }
+
+  .pageActionsHint {
+    width: 100%;
+    margin-right: 0;
   }
 }

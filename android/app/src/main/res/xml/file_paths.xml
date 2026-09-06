@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Solo la carpeta de documentos dentro de la cache. Se expone lo minimo: el
+  resto del almacenamiento privado de la aplicacion no queda alcanzable por la
+  aplicacion con la que se comparte.
+-->
+<paths>
+    <cache-path name="documentos" path="documentos/" />
+</paths>

@@ -21,6 +21,9 @@ public record DocumentResponse(
         String sharedWithEmail,
         UUID personId,
         UUID projectId,
+        /** ADR-022: módulo propietario del recurso (el del dueño, no el de
+            quien lo recibe compartido). */
+        String context,
         int version,
         Instant createdAt,
         Instant updatedAt
@@ -37,6 +40,7 @@ public record DocumentResponse(
                 document.getSharedWithEmail(),
                 document.getPersonId(),
                 document.getProjectId(),
+                document.getContext().name(),
                 document.getVersion(),
                 document.getCreatedAt(),
                 document.getUpdatedAt()

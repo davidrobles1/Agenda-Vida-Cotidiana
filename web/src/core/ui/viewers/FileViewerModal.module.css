@@ -16,7 +16,7 @@
   width: min(880px, calc(100vw - 48px));
   height: min(760px, calc(100vh - 48px));
   background: var(--color-surface-variant);
-  border-radius: 28px;;
+  border-radius: var(--r-xl, 28px);
   box-shadow: 0 16px 40px rgba(44, 66, 91, 0.24);
   outline: none;
   overflow: hidden;

@@ -10,6 +10,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 
+import com.vidacotidiana.shared.domain.ModuleContext;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -70,6 +71,16 @@ public class Document {
     @Column(name = "project_id")
     private UUID projectId;
 
+    /**
+     * ADR-022: módulo propietario. Se fija al subir el documento y no
+     * cambia después — `edit` no lo toca. En un documento compartido el
+     * contexto sigue siendo el del dueño: el recurso pertenece al módulo
+     * desde el que se creó, no al de quien lo recibe.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private ModuleContext context = ModuleContext.PERSONAL;
+
     @Version
     @Column(nullable = false)
     private int version;
@@ -92,6 +103,12 @@ public class Document {
     /** ADR-016 Fase 3b/FR-030: personId/projectId, both optional. */
     public Document(UUID ownerUserId, String name, DocumentCategory category, String contentType, byte[] data,
                      UUID personId, UUID projectId) {
+        this(ownerUserId, name, category, contentType, data, personId, projectId, ModuleContext.PERSONAL);
+    }
+
+    public Document(UUID ownerUserId, String name, DocumentCategory category, String contentType, byte[] data,
+                     UUID personId, UUID projectId, ModuleContext context) {
+        this.context = (context != null) ? context : ModuleContext.PERSONAL;
         this.ownerUserId = ownerUserId;
         this.name = name;
         this.category = category;
@@ -108,6 +125,10 @@ public class Document {
 
     public UUID getId() {
         return id;
+    }
+
+    public ModuleContext getContext() {
+        return context;
     }
 
     public UUID getOwnerUserId() {

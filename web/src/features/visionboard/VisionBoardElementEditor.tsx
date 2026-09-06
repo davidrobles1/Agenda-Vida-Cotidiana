@@ -23,6 +23,7 @@ import {
   fontStackOf,
 } from './visionBoardFonts'
 import { VisionBoardShapePicker } from './VisionBoardShapePicker'
+import { VisionBoardShapeColorFields } from './VisionBoardShapeColorFields'
 import libraryStyles from './VisionBoardElementLibrary.module.css'
 import styles from './VisionBoardToolbar.module.css'
 
@@ -68,7 +69,15 @@ function draftFromElement(element: VisionBoardElement): Draft {
         emojiId: typeof element.data.emojiId === 'string' ? element.data.emojiId : undefined,
       }
     case 'SHAPE':
-      return { shape: shapeVariantOf(element.data) }
+      // `fill`/`textColor` viajan en el draft por el mismo motivo que
+      // `imageId` en IMAGE: handleEditElement reemplaza el `data` completo
+      // al guardar, así que editar la variante sin tocar el color borraría
+      // el color en silencio.
+      return {
+        shape: shapeVariantOf(element.data),
+        fill: typeof element.data.fill === 'string' ? element.data.fill : undefined,
+        textColor: typeof element.data.textColor === 'string' ? element.data.textColor : undefined,
+      }
     case 'TABLE':
       // 2026-08-22: nada editable todavía — ver EditFields' propio caso
       // TABLE y TableElementContent's doc comment en VisionBoardElementView.tsx.
@@ -367,14 +376,19 @@ function EditFields({ element, draft, onDraftChange, onImageUploadingChange }: E
     case 'SHAPE': {
       const shape = typeof draft.shape === 'string' ? draft.shape : 'rectangle'
       return (
-        <div className={shellStyles.field}>
-          <span className={shellStyles.fieldLabel}>Variante</span>
-          <VisionBoardShapePicker
-            value={shape}
-            onChange={(id) => onDraftChange({ ...draft, shape: id })}
-            label="Variante de forma"
-          />
-        </div>
+        <>
+          <div className={shellStyles.field}>
+            <span className={shellStyles.fieldLabel}>Variante</span>
+            <VisionBoardShapePicker
+              value={shape}
+              onChange={(id) => onDraftChange({ ...draft, shape: id })}
+              label="Variante de forma"
+            />
+          </div>
+          {/* Color de fondo y de texto. Se añade DEBAJO de la variante, sin
+              tocar el selector de formas ni ninguna otra opción existente. */}
+          <VisionBoardShapeColorFields data={draft} onChange={onDraftChange} />
+        </>
       )
     }
     case 'TABLE':

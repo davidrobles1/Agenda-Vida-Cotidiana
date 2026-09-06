@@ -4,6 +4,8 @@ import com.vidacotidiana.identity.infrastructure.CurrentUser;
 import com.vidacotidiana.shared.api.PageResponse;
 import com.vidacotidiana.shared.domain.ModuleContext;
 import com.vidacotidiana.subscription.api.dto.CreateSubscriptionRequest;
+import com.vidacotidiana.subscription.api.dto.MarkPaidRequest;
+import com.vidacotidiana.subscription.api.dto.PaymentRecordResponse;
 import com.vidacotidiana.subscription.api.dto.SubscriptionResponse;
 import com.vidacotidiana.subscription.api.dto.UpdateSubscriptionRequest;
 import com.vidacotidiana.subscription.application.SubscriptionService;
@@ -44,7 +46,7 @@ public class SubscriptionController {
     public ResponseEntity<SubscriptionResponse> create(@Valid @RequestBody CreateSubscriptionRequest request) {
         Subscription created = subscriptionService.create(
                 currentUser.userId(), request.service(), request.company(), request.plan(), request.nextPaymentDate(),
-                request.billingCycle(), ModuleContext.fromNullable(request.context()));
+                request.billingCycle(), ModuleContext.fromNullable(request.context()), request.toPaymentDetails());
         return ResponseEntity.status(HttpStatus.CREATED).body(SubscriptionResponse.from(created));
     }
 
@@ -71,7 +73,7 @@ public class SubscriptionController {
     public SubscriptionResponse update(@PathVariable UUID id, @Valid @RequestBody UpdateSubscriptionRequest request) {
         Subscription subscription = subscriptionService.edit(
                 id, currentUser.userId(), request.service(), request.company(), request.plan(),
-                request.nextPaymentDate(), request.billingCycle(), request.version());
+                request.nextPaymentDate(), request.billingCycle(), request.version(), request.toPaymentDetails());
         return SubscriptionResponse.from(subscription);
     }
 
@@ -79,5 +81,50 @@ public class SubscriptionController {
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
         subscriptionService.delete(id, currentUser.userId());
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * ADR-020(f): marca el ciclo actual como pagado y avanza al siguiente.
+     * Idempotente — ver `SubscriptionService.markAsPaid`.
+     */
+    @PostMapping("/{id}/payments")
+    public SubscriptionResponse markPaid(@PathVariable UUID id,
+                                         @Valid @RequestBody(required = false) MarkPaidRequest request) {
+        Subscription updated = subscriptionService.markAsPaid(
+                id,
+                currentUser.userId(),
+                request != null ? request.amount() : null,
+                request != null ? request.currency() : null);
+        return SubscriptionResponse.from(updated);
+    }
+
+    /**
+     * Historial de un compromiso. Existe porque el detalle debe poder
+     * responder "¿ya pagué esto el mes pasado?" — hasta ahora los registros
+     * se guardaban y no había forma de verlos.
+     */
+    @GetMapping("/{id}/payments")
+    public java.util.List<PaymentRecordResponse> listPaymentsFor(@PathVariable UUID id) {
+        return subscriptionService.listPaymentRecordsFor(id, currentUser.userId()).stream()
+                .map(PaymentRecordResponse::from)
+                .toList();
+    }
+
+    /** Deshace el último pago registrado y retrocede la fecha. */
+    @DeleteMapping("/{id}/payments/last")
+    public SubscriptionResponse undoLastPayment(@PathVariable UUID id) {
+        return SubscriptionResponse.from(subscriptionService.undoLastPayment(id, currentUser.userId()));
+    }
+
+    /**
+     * Todos los ciclos pagados del usuario. En bloque y no por compromiso:
+     * la pantalla necesita saber qué filas van marcadas como pagadas, y
+     * pedirlo uno por uno sería una consulta por fila.
+     */
+    @GetMapping("/payments")
+    public java.util.List<PaymentRecordResponse> listPayments() {
+        return subscriptionService.listPaymentRecords(currentUser.userId()).stream()
+                .map(PaymentRecordResponse::from)
+                .toList();
     }
 }

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  El fondo del icono es la MISMA crema sobre la que aterriza el usuario:
+  `color-surface` (#F5EEDF) del template de login. Icono, introducción y
+  login comparten superficie, así que abrir la aplicación no cambia de mundo.
+
+  ADR-024(d) dice que el logo no lleva fondo: ni placa, ni círculo, ni sombra.
+  Esto NO es una placa — es la capa de fondo que el icono adaptativo exige, y
+  que es justamente «la superficie que lo aloja». Por eso no hay ningún
+  círculo ni contorno alrededor de la marca: el ocre se apoya en la crema, sin
+  contenedor.
+
+  El degradado radial es mínimo (crema apenas más clara en el centro): da
+  cuerpo bajo la máscara sin convertirse en ornamento.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path android:pathData="M0,0h108v108h-108z">
+        <aapt:attr xmlns:aapt="http://schemas.android.com/aapt" name="android:fillColor">
+            <gradient
+                android:type="radial"
+                android:centerX="54"
+                android:centerY="46"
+                android:gradientRadius="76"
+                android:startColor="#FFFCF6"
+                android:endColor="#F2E9D6" />
+        </aapt:attr>
+    </path>
+</vector>

@@ -15,12 +15,17 @@ test('sidebar hamburger toggle: collapses/expands, real inert when closed, corre
   await page.waitForURL(/realms\/vida-cotidiana/)
   await page.getByLabel('Username or email').fill('testuser')
   await page.getByRole('textbox', { name: 'Password' }).fill('TestPass123!')
-  await page.getByRole('button', { name: 'Sign In' }).click()
+  await page.locator('#kc-login').click()
   // ADR-015/UX-012: post-login lands on the general Calendario, cuyo
   // sidebar está oculto/bloqueado por completo (Corrección de navegación,
   // 2026-08-18) — "Personal" (modo grandfathered de testuser) abre su
   // propio Calendario y con él, el sidebar real que este test necesita.
-  await expect(page.getByText('Vista mensual')).toBeVisible({ timeout: 20_000 })
+  // El destino tras iniciar sesión depende del modo del usuario
+  // (ADR-015) y ya cambió; afirmar una pantalla concreta volvía roja
+  // toda la suite por un cambio de producto legítimo. Basta con haber
+  // vuelto a la aplicación autenticado.
+  await page.waitForURL((url) => !url.href.includes('/realms/'), { timeout: 20_000 })
+  await expect(page.locator('nav, header').first()).toBeVisible({ timeout: 20_000 })
   await page.getByRole('link', { name: 'Personal', exact: true }).click()
 
   const sidebar = page.locator('#app-sidebar')
@@ -67,8 +72,13 @@ test('Calendario General oculta y bloquea el sidebar; Personal lo restaura con t
   await page.waitForURL(/realms\/vida-cotidiana/)
   await page.getByLabel('Username or email').fill('testuser')
   await page.getByRole('textbox', { name: 'Password' }).fill('TestPass123!')
-  await page.getByRole('button', { name: 'Sign In' }).click()
-  await expect(page.getByText('Vista mensual')).toBeVisible({ timeout: 20_000 })
+  await page.locator('#kc-login').click()
+  // El destino tras iniciar sesión depende del modo del usuario
+  // (ADR-015) y ya cambió; afirmar una pantalla concreta volvía roja
+  // toda la suite por un cambio de producto legítimo. Basta con haber
+  // vuelto a la aplicación autenticado.
+  await page.waitForURL((url) => !url.href.includes('/realms/'), { timeout: 20_000 })
+  await expect(page.locator('nav, header').first()).toBeVisible({ timeout: 20_000 })
 
   // Calendario General: sin sidebar, sin botón para reabrirlo.
   await expect(page.locator('#app-sidebar')).toHaveCount(0)

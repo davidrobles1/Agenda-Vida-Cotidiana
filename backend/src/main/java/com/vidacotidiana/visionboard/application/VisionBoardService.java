@@ -108,7 +108,12 @@ public class VisionBoardService {
     public VisionBoardElement addElement(UUID boardId, UUID callerUserId, VisionBoardElementType type, double x,
                                           double y, double width, double height, Map<String, Object> data) {
         getOwnedOrThrow(boardId, callerUserId);
-        VisionBoardElement element = new VisionBoardElement(boardId, type, x, y, width, height, data);
+        // Un elemento nuevo nace SIEMPRE por encima de lo que ya hay: nacer
+        // en la capa 0 lo dejaba escondido detrás de cualquier elemento que
+        // se hubiera subido de capa antes.
+        Integer highest = visionBoardElementRepository.findMaxZIndex(boardId);
+        int nextLayer = (highest != null) ? highest + 1 : 0;
+        VisionBoardElement element = new VisionBoardElement(boardId, type, x, y, width, height, data, nextLayer);
         return visionBoardElementRepository.save(element);
     }
 

@@ -105,7 +105,12 @@ public class WarrantyController {
 
     @PatchMapping("/{id}")
     public WarrantyResponse update(@PathVariable UUID id, @Valid @RequestBody UpdateWarrantyRequest request) {
-        Warranty warranty = warrantyService.edit(id, currentUser.userId(), request.item(), request.expiresAt(), request.version());
+        Warranty warranty = warrantyService.edit(id, currentUser.userId(), request.item(), request.expiresAt(),
+                request.version(), request.inventoryItemId(),
+                // ADR-022: solo se toca el enlace si el cliente lo pide de
+                // forma explícita; así `null` puede significar "desenlazar"
+                // sin que omitirlo borre un enlace existente.
+                Boolean.TRUE.equals(request.linkInventoryItem()));
         return WarrantyResponse.from(warranty);
     }
 

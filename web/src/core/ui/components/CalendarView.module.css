@@ -102,7 +102,9 @@
 
   text-align: center;
 
-  text-transform: capitalize;
+  /* `capitalize` sube también las palabras de enlace: en español daba
+     "Septiembre De 2026". Solo la primera letra. */
+  text-transform: none;
 }
 
 .navButton {
@@ -385,7 +387,7 @@
   background:
     var(--color-primary);
 
-  color: #fff;
+  color: var(--on-accent, #fff);
 
   font-weight: 700;
 
@@ -690,34 +692,42 @@
     display: none;
   }
 }
-
-/* =====================================================
-   UX-014 — VISUAL THEME SYSTEM (Vista Mes)
-   `[data-today]`/`[data-selected]` are React Aria's own CalendarCell
-   attributes (already used above) — no new markup, no logic change.
-   ===================================================== */
-
-:global(.theme-editorial) .dayCell[data-today]::before {
-  content: '';
-  position: absolute;
-  top: 2px;
-  right: 10px;
-  width: 12px;
-  height: 20px;
-  z-index: 2;
-  background: linear-gradient(180deg, #b85b49, var(--color-terracotta) 60%, #8a3b2d);
-  clip-path: polygon(0 0, 100% 0, 100% 78%, 50% 100%, 0 78%);
-  box-shadow: 1px 3px 6px rgba(44, 66, 91, 0.25);
+@keyframes themeCalBreathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
 }
+/* ADR-023 — firmas del calendario (artifact bb294d3e). */
+:global(.theme-neo) .grid { border: 2px solid var(--ink); border-radius: 0; }
+:global(.theme-lumen) .grid,
+:global(.theme-studio) .grid { border-radius: 0; }
+:global(.theme-neo) .dayNumber { border-radius: 0; font-family: 'IBM Plex Mono', monospace; }
+:global(.theme-studio) .dayNumber {
+  font-family: var(--font-display);
+  font-size: var(--t-md);
+  font-weight: 400;
+  border-radius: 0;
+}
+:global(.theme-calm) .dayNumber { border-radius: 50%; }
 
+
+/* ==========================================================================
+   TEMAS UX-014 CONSERVADOS — reglas devueltas el 2026-09-02.
+
+   Premium Minimal / Modern Productivity / Organic / Human se retiraron por
+   error al implementar ADR-023: la petición era eliminar **solo Editorial**.
+   Estas son sus reglas originales, tal cual estaban; de los selectores que
+   compartían con Editorial se conserva únicamente su parte.
+   ========================================================================== */
 :global(.theme-minimal) .dayCell {
   border-radius: 0;
 }
+
 :global(.theme-minimal) .dayCell[data-today] .dayNumber {
   border-radius: 0;
   border: none;
   border-bottom: 1.5px solid var(--color-primary);
 }
+
 :global(.theme-minimal) .dayCell[data-selected] .dayNumber {
   border-radius: 0;
   box-shadow: none;
@@ -730,16 +740,18 @@
 :global(.theme-organic) .dayCell {
   border-radius: 14px;
 }
+
 :global(.theme-organic) .dayCell[data-today] .dayNumber {
   animation: themeCalBreathe 3.4s ease-in-out infinite;
-}
-@keyframes themeCalBreathe {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.08); }
 }
 
 @media (prefers-reduced-motion: reduce) {
   :global(.theme-organic) .dayCell[data-today] .dayNumber {
     animation: none;
   }
+}
+
+
+.monthLabel::first-letter {
+  text-transform: uppercase;
 }

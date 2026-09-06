@@ -133,7 +133,7 @@
 }
 
 .iconButtonDone {
-  color: var(--color-success, #4d6b46);
+  color: var(--color-success, var(--ok));
 }
 
 /* Por debajo del ancho del prototipo la fila deja de caber en una línea:

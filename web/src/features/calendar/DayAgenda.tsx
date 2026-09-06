@@ -98,13 +98,17 @@ export function DayAgenda({
   const { theme } = useVisualTheme()
 
   // UX-014: presentational-only — which reminder (if any) is mid "complete"
-  // micro-animation right now. Purely a CSS class toggle for the Organic
-  // theme's ripple-bloom; never touches completeReminderAction's own
-  // request/refresh cycle, which still runs exactly as before.
+  // micro-animation right now. Purely un toggle de clase CSS; nunca toca el
+  // ciclo de petición/refresco de completeReminderAction.
+  //
+  // ADR-023: la ondita pertenecía al tema Organic, retirado. Se conserva en
+  // **Calm**, que es su sucesor declarado en la migración de preferencias
+  // (VisualThemeContext.RETIRED) y comparte su lenguaje orgánico. No se
+  // extiende a los otros cinco: el artefacto no la contempla para ellos.
   const [bloomingId, setBloomingId] = useState<string | null>(null)
 
   function handleComplete(reminder: Reminder) {
-    if (theme === 'organic' && reminder.status !== 'COMPLETED') {
+    if (theme === 'calm' && reminder.status !== 'COMPLETED') {
       setBloomingId(reminder.id)
       window.setTimeout(() => {
         setBloomingId((current) => (current === reminder.id ? null : current))

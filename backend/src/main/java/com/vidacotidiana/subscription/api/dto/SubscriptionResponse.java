@@ -3,6 +3,7 @@ package com.vidacotidiana.subscription.api.dto;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.vidacotidiana.subscription.domain.Subscription;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -19,7 +20,22 @@ public record SubscriptionResponse(
         Instant createdAt,
         Instant updatedAt,
         /** ADR-019: módulo propietario del recurso. */
-        String context
+        String context,
+        /** ADR-020 — compromisos de pago. */
+        String kind,
+        BigDecimal amount,
+        String currency,
+        String paymentMethod,
+        String notes,
+        boolean variableAmount,
+        Integer statementDay,
+        Integer dueDay,
+        BigDecimal minPayment,
+        BigDecimal noInterestPayment,
+        String institution,
+        String lastFour,
+        Integer totalInstallments,
+        Integer currentInstallment
 ) {
     public static SubscriptionResponse from(Subscription subscription) {
         return new SubscriptionResponse(
@@ -33,7 +49,21 @@ public record SubscriptionResponse(
                 subscription.getVersion(),
                 subscription.getCreatedAt(),
                 subscription.getUpdatedAt(),
-                subscription.getContext().name()
+                subscription.getContext().name(),
+                subscription.getKind().name(),
+                subscription.getAmount(),
+                subscription.getCurrency(),
+                subscription.getPaymentMethod(),
+                subscription.getNotes(),
+                subscription.isVariableAmount(),
+                subscription.getStatementDay(),
+                subscription.getDueDay(),
+                subscription.getMinPayment(),
+                subscription.getNoInterestPayment(),
+                subscription.getInstitution(),
+                subscription.getLastFour(),
+                subscription.getTotalInstallments(),
+                subscription.getCurrentInstallment()
         );
     }
 }

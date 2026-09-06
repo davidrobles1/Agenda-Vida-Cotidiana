@@ -1,0 +1,642 @@
+/* ==========================================================================
+   ADR-023 — SISTEMA DE TEMAS "SEIS AGENDAS" (portal post-login)
+
+   Seis identidades aprobadas: Aurora · Lumen · Neo · Calm · Studio · Papel.
+   **Editorial queda eliminado** (decisión del Product Owner, 2026-09-01).
+
+   Los valores de este archivo son los del artefacto aprobado
+   (artifact bb294d3e), copiados literalmente. No se reinterpretan.
+
+   Se aplica como clase sobre la raíz `.shell` de AppShell — el mismo
+   mecanismo que ya usaba `.laboral-theme`, que sigue combinándose con
+   cualquiera de los seis. Nunca toca `:root`, así que LoginPage y Keycloak
+   quedan intactos.
+
+   ── DOS FAMILIAS DE TOKENS EN EL MISMO BLOQUE, A PROPÓSITO ──
+
+   1. Los nombres NUEVOS del artefacto (`--bg`, `--ink`, `--line`, `--air`,
+      `--t-*`, `--r-scale`, `--density`, `--font-display`…). Son los que
+      expresan lo que el sistema anterior no podía: escalera de superficies,
+      tres tintas, dos filetes, escala tipográfica real, y densidad y radio
+      como identidad del tema.
+
+   2. Los nombres HEREDADOS (`--color-surface`, `--color-text`,
+      `--color-border`…), que consumen los ~40 `.module.css` ya existentes.
+      Aquí se DERIVAN de los nuevos con `var()`.
+
+   No es duplicación: es un puente con una sola fuente de verdad por valor.
+   Redefinirlos aquí propaga la identidad del tema a todo el portal sin
+   tocar componente por componente, que es justo lo que pide el encargo.
+   ========================================================================== */
+
+/* ── Fundación compartida por los seis ──
+   Las escalas no cambian de valor entre temas: cambian de MULTIPLICADOR
+   (`--t-scale`, `--r-scale`, `--density`, `--air`). Eso es lo que permite
+   que Lumen respire un 60% más y Neo un 15% menos sin duplicar una regla. */
+.theme-aurora,
+.theme-lumen,
+.theme-neo,
+.theme-calm,
+.theme-studio,
+.theme-papel {
+  --s-1: 2px;   --s-2: 4px;   --s-3: 6px;   --s-4: 8px;
+  --s-5: 12px;  --s-6: 16px;  --s-7: 20px;  --s-8: 24px;
+  --s-9: 32px;  --s-10: 44px; --s-11: 64px; --s-12: 88px;
+
+  --r-xs: calc(3px * var(--r-scale));
+  --r-sm: calc(6px * var(--r-scale));
+  --r-md: calc(10px * var(--r-scale));
+  --r-lg: calc(16px * var(--r-scale));
+  --r-xl: calc(24px * var(--r-scale));
+  --r-full: 999px;
+
+  --t-2xs: calc(11px * var(--t-scale));
+  --t-xs: calc(12px * var(--t-scale));
+  --t-sm: calc(13px * var(--t-scale));
+  --t-base: calc(15px * var(--t-scale));
+  --t-md: calc(17px * var(--t-scale));
+  --t-lg: calc(22px * var(--t-scale));
+  --t-xl: calc(28px * var(--t-scale));
+  --t-2xl: calc(38px * var(--t-scale));
+  --t-3xl: calc(54px * var(--t-scale));
+  --t-hero: calc(76px * var(--t-scale));
+
+  --row-y: calc(11px * var(--density));
+  --card-p: calc(20px * var(--density));
+  --gutter: calc(36px * var(--air));
+  --ease: cubic-bezier(0.2, 0.75, 0.28, 1);
+
+  /* Puente hacia los nombres heredados. */
+  --color-surface: var(--bg);
+  --color-surface-variant: var(--surface);
+  --color-text: var(--ink);
+  --color-text-secondary: var(--ink-2);
+  --color-border: var(--line-strong);
+  --color-primary: var(--accent);
+  --color-primary-container: var(--accent-soft);
+  --color-on-primary: var(--on-accent);
+  --color-terracotta: var(--second);
+  --color-terracotta-text: var(--second);
+  --color-terracotta-container: var(--second-soft);
+  --color-success: var(--ok);
+  --color-success-text: var(--ok);
+  --color-success-container: var(--ok-soft);
+  --color-warning: var(--warn);
+  --color-warning-text: var(--warn);
+  --color-warning-container: var(--warn-soft);
+  --color-error: var(--danger);
+  --color-error-container: var(--danger-soft);
+  --color-info: var(--accent);
+  --color-info-text: var(--accent);
+  --color-info-container: var(--accent-soft);
+  --radius-card: var(--r-lg);
+  --radius-control: var(--r-sm);
+  --shadow-card: var(--shadow-1);
+  --font-sans: var(--font-body);
+  --font-serif: var(--font-display);
+  --font-mono: var(--font-label);
+
+  font-family: var(--font-body);
+  line-height: var(--lh);
+  background: var(--bg);
+  color: var(--ink);
+}
+
+/* ─────────────── AURORA · noche premium, tecnológico ─────────────── */
+.theme-aurora {
+  --bg: #0a0d14;
+  --sunken: #111725;
+  --surface: #131a28;
+  --surface-2: #1a2333;
+  --veil: rgba(255, 255, 255, 0.045);
+
+  --ink: #eaf0fa;
+  --ink-2: #93a1bb;
+  --ink-3: #62708c;
+
+  --accent: #84b0ff;
+  --accent-soft: rgba(132, 176, 255, 0.14);
+  --on-accent: #08101f;
+  --second: #c39bff;
+  --second-soft: rgba(195, 155, 255, 0.15);
+
+  --ok: #63d59a;      --ok-soft: rgba(99, 213, 154, 0.14);
+  --warn: #f0c169;    --warn-soft: rgba(240, 193, 105, 0.14);
+  --danger: #ff8a80;  --danger-soft: rgba(255, 138, 128, 0.14);
+
+  --line: rgba(255, 255, 255, 0.07);
+  --line-strong: rgba(255, 255, 255, 0.15);
+
+  --font-display: 'Sora', system-ui, sans-serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --font-label: 'Sora', system-ui, sans-serif;
+
+  --shadow-1: 0 1px 3px rgba(0, 0, 0, 0.5);
+  --shadow-2: 0 18px 40px -18px rgba(0, 0, 0, 0.8);
+  --shadow-3: 0 34px 70px -26px rgba(0, 0, 0, 0.9);
+  --focus: 0 0 0 3px var(--accent-soft), 0 0 0 4px var(--accent);
+
+  --r-scale: 1.1;
+  --density: 1;
+  --air: 1;
+  --t-scale: 1;
+  --lh: 1.55;
+  --nav-r: var(--r-sm);
+  --btn-r: var(--r-sm);
+
+  color-scheme: dark;
+}
+
+/* ─────────────── LUMEN · aire y tipografía ─────────────── */
+.theme-lumen {
+  --bg: #fdfdfc;
+  --sunken: #f4f4f2;
+  --surface: #fdfdfc;
+  --surface-2: #ffffff;
+  --veil: rgba(0, 0, 0, 0.02);
+
+  --ink: #0f1012;
+  --ink-2: #5c6067;
+  --ink-3: #9aa0a8;
+
+  --accent: #0f1012;
+  --accent-soft: #eeeeec;
+  --on-accent: #ffffff;
+  --second: #8a7f6d;
+  --second-soft: #f1efe9;
+
+  --ok: #3d7a4f;      --ok-soft: #ecf2ed;
+  --warn: #8f6414;    --warn-soft: #f6f0e1;
+  --danger: #a43a33;  --danger-soft: #f8eae8;
+
+  --line: rgba(15, 16, 18, 0.06);
+  --line-strong: rgba(15, 16, 18, 0.14);
+
+  --font-display: 'Manrope', system-ui, sans-serif;
+  --font-body: 'Manrope', system-ui, sans-serif;
+  --font-label: 'Manrope', system-ui, sans-serif;
+
+  --shadow-1: none;
+  --shadow-2: none;
+  --shadow-3: 0 24px 60px -28px rgba(15, 16, 18, 0.22);
+  --focus: 0 0 0 2px var(--bg), 0 0 0 3.5px var(--ink);
+
+  --r-scale: 0.3;
+  --density: 1.25;
+  --air: 1.6;
+  --t-scale: 1;
+  --lh: 1.68;
+  --nav-r: var(--r-sm);
+  --btn-r: var(--r-sm);
+}
+
+/* ─────────────── NEO · cartel, alto contraste ─────────────── */
+.theme-neo {
+  --bg: #ececea;
+  --sunken: #dedddb;
+  --surface: #ffffff;
+  --surface-2: #ffffff;
+  --veil: rgba(0, 0, 0, 0.04);
+
+  --ink: #000000;
+  --ink-2: #33343a;
+  --ink-3: #6d6f78;
+
+  --accent: #000000;
+  --accent-soft: #e2e2e0;
+  --on-accent: #ffffff;
+  --second: #ff3b18;
+  --second-soft: #ffe4de;
+
+  --ok: #00713f;      --ok-soft: #d6f0e2;
+  --warn: #8f5200;    --warn-soft: #ffeccc;
+  --danger: #d10f0f;  --danger-soft: #ffdede;
+
+  --line: rgba(0, 0, 0, 0.14);
+  --line-strong: #000000;
+
+  --font-display: 'Archivo', system-ui, sans-serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --font-label: 'IBM Plex Mono', monospace;
+
+  /* Firma de Neo: sombra dura desplazada, sin desenfoque. */
+  --shadow-1: 3px 3px 0 var(--ink);
+  --shadow-2: 5px 5px 0 var(--ink);
+  --shadow-3: 10px 10px 0 var(--ink);
+  --focus: 0 0 0 3px var(--second);
+
+  --r-scale: 0;
+  --density: 0.9;
+  --air: 0.85;
+  --t-scale: 1;
+  --lh: 1.55;
+  --nav-r: 0;
+  --btn-r: 0;
+}
+
+/* ─────────────── CALM · cálido y orgánico ─────────────── */
+.theme-calm {
+  --bg: #f8f4ee;
+  --sunken: #f0e9e0;
+  --surface: #fffdfa;
+  --surface-2: #ffffff;
+  --veil: rgba(120, 90, 60, 0.03);
+
+  --ink: #33291f;
+  --ink-2: #6f6355;
+  --ink-3: #a2978a;
+
+  --accent: #7d8f68;
+  --accent-soft: #e9eee0;
+  --on-accent: #ffffff;
+  --second: #cf8f60;
+  --second-soft: #faece0;
+
+  --ok: #5f8560;      --ok-soft: #e8f0e6;
+  --warn: #b5813a;    --warn-soft: #f9eede;
+  --danger: #b45c4e;  --danger-soft: #f9e8e4;
+
+  --line: rgba(51, 41, 31, 0.07);
+  --line-strong: rgba(51, 41, 31, 0.14);
+
+  --font-display: 'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-body: 'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-label: 'Plus Jakarta Sans', system-ui, sans-serif;
+
+  --shadow-1: 0 2px 6px rgba(80, 60, 40, 0.05);
+  --shadow-2: 0 8px 26px -10px rgba(80, 60, 40, 0.16);
+  --shadow-3: 0 26px 60px -22px rgba(80, 60, 40, 0.26);
+  --focus: 0 0 0 3px var(--accent-soft), 0 0 0 4px var(--accent);
+
+  --r-scale: 2;
+  --density: 1.2;
+  --air: 1.2;
+  --t-scale: 1;
+  --lh: 1.65;
+  --nav-r: var(--r-full);
+  --btn-r: var(--r-full);
+}
+
+/* ─────────────── STUDIO · revista ─────────────── */
+.theme-studio {
+  --bg: #f2efe9;
+  --sunken: #e7e2d9;
+  --surface: #fbfaf7;
+  --surface-2: #ffffff;
+  --veil: rgba(28, 26, 23, 0.03);
+
+  --ink: #191713;
+  --ink-2: #5f594f;
+  --ink-3: #9b948a;
+
+  --accent: #191713;
+  --accent-soft: #e9e5dd;
+  --on-accent: #fbfaf7;
+  --second: #96412f;
+  --second-soft: #f2e3de;
+
+  --ok: #3f5c3c;      --ok-soft: #e8ede5;
+  --warn: #7d5a14;    --warn-soft: #f2ead6;
+  --danger: #96412f;  --danger-soft: #f2e3de;
+
+  --line: rgba(25, 23, 19, 0.11);
+  --line-strong: rgba(25, 23, 19, 0.28);
+
+  --font-display: 'Instrument Serif', Georgia, serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --font-label: 'Inter', system-ui, sans-serif;
+
+  --shadow-1: none;
+  --shadow-2: 0 2px 4px rgba(25, 23, 19, 0.05);
+  --shadow-3: 0 30px 70px -30px rgba(25, 23, 19, 0.35);
+  --focus: 0 0 0 2px var(--bg), 0 0 0 3.5px var(--ink);
+
+  --r-scale: 0.15;
+  --density: 1.3;
+  --air: 1.75;
+  --t-scale: 1.05;
+  --lh: 1.62;
+  --nav-r: var(--r-sm);
+  --btn-r: 0;
+}
+
+/* ─────────────── PAPEL · cuaderno ─────────────── */
+.theme-papel {
+  --bg: #f6f1e4;
+  --sunken: #efe8d8;
+  --surface: #fffcf4;
+  --surface-2: #fffdf8;
+  --veil: rgba(60, 80, 100, 0.03);
+
+  --ink: #24303c;
+  --ink-2: #5b6a79;
+  --ink-3: #93a0ad;
+
+  --accent: #2f6188;
+  --accent-soft: #e2edf5;
+  --on-accent: #ffffff;
+  --second: #bb6440;
+  --second-soft: #f8e7dd;
+
+  --ok: #3f7d52;      --ok-soft: #e7f0e8;
+  --warn: #a2690f;    --warn-soft: #fbeed6;
+  --danger: #ad3a33;  --danger-soft: #fae7e5;
+
+  --line: rgba(36, 48, 60, 0.09);
+  --line-strong: rgba(36, 48, 60, 0.2);
+
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --font-label: 'Inter', system-ui, sans-serif;
+  --font-hand: 'Caveat', cursive;
+
+  --shadow-1: 0 1px 3px rgba(36, 48, 60, 0.06);
+  --shadow-2: 0 10px 26px -14px rgba(36, 48, 60, 0.22);
+  --shadow-3: 0 24px 56px -24px rgba(36, 48, 60, 0.3);
+  --focus: 0 0 0 3px var(--accent-soft), 0 0 0 4px var(--accent);
+
+  --r-scale: 0.85;
+  --density: 1;
+  --air: 1;
+  --t-scale: 1;
+  --lh: 1.55;
+  --nav-r: 7px;
+  --btn-r: 7px;
+}
+
+/* ── Laboral sigue combinándose con los seis (ADR-015/UX-012) ──
+   Solo reasigna el acento; nunca radio, densidad ni tipografía, que son la
+   identidad del tema y no deben cambiar al pasar de módulo. */
+.laboral-theme.theme-aurora { --accent: #7ec8ff; --accent-soft: rgba(126, 200, 255, 0.14); }
+.laboral-theme.theme-lumen  { --second: #4a6fa5; --second-soft: #e6edf6; }
+.laboral-theme.theme-neo    { --second: #1f3fd6; --second-soft: #e0e6ff; }
+.laboral-theme.theme-calm   { --accent: #5d7f8f; --accent-soft: #e2ecef; }
+.laboral-theme.theme-studio { --second: #3f5c6b; --second-soft: #e4ecef; }
+.laboral-theme.theme-papel  { --accent: #1e3f5c; --accent-soft: #dce6ec; }
+
+/* ==========================================================================
+   TEMAS UX-014 CONSERVADOS — Premium Minimal · Modern Productivity ·
+   Organic / Human
+
+   CORRECCIÓN (2026-09-02): el Product Owner pidió eliminar **únicamente
+   Editorial**. Estos tres se habían retirado por una lectura de más al
+   implementar ADR-023; vuelven con sus valores originales exactos.
+
+   Conviven con las seis agendas nuevas: el portal ofrece nueve temas y
+   Editorial es el único que desaparece.
+
+   Sus tokens originales solo cubrían los nombres heredados. Aquí se les
+   añade además la familia nueva (`--bg`, `--ink`, `--line`, `--t-*`,
+   `--r-scale`, `--density`, `--air`…) DERIVADA de esos valores, para que
+   funcionen con los componentes que ADR-023 pasó a tokens nuevos. Sin ese
+   puente, un componente que ahora lee `--ink` no pintaría nada en ellos.
+   ========================================================================== */
+
+.theme-minimal,
+.theme-productivity,
+.theme-organic {
+  --s-1: 2px;   --s-2: 4px;   --s-3: 6px;   --s-4: 8px;
+  --s-5: 12px;  --s-6: 16px;  --s-7: 20px;  --s-8: 24px;
+  --s-9: 32px;  --s-10: 44px; --s-11: 64px; --s-12: 88px;
+
+  --r-xs: calc(3px * var(--r-scale));
+  --r-sm: calc(6px * var(--r-scale));
+  --r-md: calc(10px * var(--r-scale));
+  --r-lg: calc(16px * var(--r-scale));
+  --r-xl: calc(24px * var(--r-scale));
+  --r-full: 999px;
+
+  --t-2xs: calc(11px * var(--t-scale));
+  --t-xs: calc(12px * var(--t-scale));
+  --t-sm: calc(13px * var(--t-scale));
+  --t-base: calc(15px * var(--t-scale));
+  --t-md: calc(17px * var(--t-scale));
+  --t-lg: calc(22px * var(--t-scale));
+  --t-xl: calc(28px * var(--t-scale));
+  --t-2xl: calc(38px * var(--t-scale));
+  --t-3xl: calc(54px * var(--t-scale));
+  --t-hero: calc(76px * var(--t-scale));
+
+  --row-y: calc(11px * var(--density));
+  --card-p: calc(20px * var(--density));
+  --gutter: calc(36px * var(--air));
+  --ease: cubic-bezier(0.2, 0.75, 0.28, 1);
+
+  /* Puente INVERSO al de las seis agendas: aquí la fuente de verdad son los
+     nombres heredados (los originales de UX-014) y los nuevos se derivan. */
+  --bg: var(--color-surface);
+  --sunken: color-mix(in srgb, var(--color-border) 22%, var(--color-surface));
+  --surface: var(--color-surface-variant);
+  --surface-2: var(--color-surface-variant);
+  --veil: color-mix(in srgb, var(--color-border) 8%, transparent);
+  --ink: var(--color-text);
+  --ink-2: var(--color-text-secondary);
+  --ink-3: color-mix(in srgb, var(--color-text-secondary) 72%, var(--color-surface));
+  --accent: var(--color-primary);
+  --accent-soft: var(--color-primary-container);
+  --on-accent: var(--color-on-primary);
+  --second: var(--color-terracotta);
+  --second-soft: var(--color-terracotta-container);
+  --ok: var(--color-success);       --ok-soft: var(--color-success-container);
+  --warn: var(--color-warning);     --warn-soft: var(--color-warning-container);
+  --danger: var(--color-error);     --danger-soft: var(--color-error-container);
+  --line: color-mix(in srgb, var(--color-border) 45%, transparent);
+  --line-strong: var(--color-border);
+  --font-display: var(--font-serif);
+  --font-body: var(--font-sans);
+  --font-label: var(--font-mono);
+  --shadow-1: var(--shadow-card);
+  --shadow-2: var(--shadow-card);
+  --shadow-3: 0 20px 50px -24px color-mix(in srgb, var(--color-text) 40%, transparent);
+  --focus: 0 0 0 3px var(--accent-soft), 0 0 0 4px var(--accent);
+  --nav-r: var(--radius-control);
+  --btn-r: var(--radius-control);
+
+  font-family: var(--font-sans);
+  line-height: var(--lh);
+}
+
+/* ─────────── PREMIUM MINIMAL (UX-014, valores originales) ─────────── */
+.theme-minimal {
+  --color-primary: #23425f;
+  --color-primary-container: #eef1f4;
+  --color-on-primary: #ffffff;
+  --color-terracotta: #23425f;
+  --color-terracotta-text: #23425f;
+  --color-terracotta-container: #eef1f4;
+  --color-surface: #faf8f3;
+  --color-surface-variant: #ffffff;
+  --color-border: #e4dfd3;
+  --color-text: #1a232e;
+  --color-text-secondary: #7a8290;
+  --radius-card: 2px;
+  --radius-control: 2px;
+  --shadow-card: none;
+  --font-mono: 'Courier Prime', monospace;
+  --r-scale: 0.2; --density: 1.15; --air: 1.35; --t-scale: 1; --lh: 1.6;
+}
+
+/* ─────────── MODERN PRODUCTIVITY (UX-014, valores originales) ─────────── */
+.theme-productivity {
+  --color-primary: #2c5f8c;
+  --color-primary-container: #e4eef6;
+  --color-on-primary: #ffffff;
+  --color-terracotta: #e08a3e;
+  --color-terracotta-text: #8b5e36;
+  --color-terracotta-container: #f7e6d3;
+  --color-surface: #f2ede1;
+  --color-surface-variant: #fffdf8;
+  --color-border: #6e8192;
+  --color-text: #1b2a3a;
+  --color-text-secondary: #5c6c80;
+  --radius-card: 10px;
+  --radius-control: 8px;
+  --shadow-card: 0 3px 10px rgba(38, 55, 74, 0.1);
+  --font-mono: 'Courier Prime', monospace;
+  --r-scale: 0.9; --density: 0.95; --air: 1; --t-scale: 1; --lh: 1.5;
+}
+
+/* ─────────── ORGANIC / HUMAN (UX-014, valores originales) ─────────── */
+.theme-organic {
+  --color-primary: #5b7a5e;
+  --color-primary-container: #dfe6d7;
+  --color-on-primary: #ffffff;
+  --color-terracotta: #c17a4a;
+  --color-terracotta-text: #8b5e36;
+  --color-terracotta-container: #f2e2d3;
+  --color-surface: #eef0df;
+  --color-surface-variant: #fbfaf1;
+  --color-border: #7d8a72;
+  --color-text: #33402f;
+  --color-text-secondary: #6d7860;
+  --radius-card: 22px;
+  --radius-control: 999px;
+  --shadow-card: 0 12px 26px rgba(51, 64, 47, 0.13);
+  --font-mono: 'Courier Prime', monospace;
+  --r-scale: 1.6; --density: 1.05; --air: 1.05; --t-scale: 1; --lh: 1.55;
+}
+
+/* ==========================================================================
+   CAMPOS DE FECHA Y HORA — personalidad del tema en el calendario nativo
+   (2026-09-02, pedido del usuario)
+
+   El panel que abre `<input type="date">` es CHROME DEL NAVEGADOR: su
+   maquetación no se puede estilizar con CSS. Pero sí responde a dos
+   propiedades estándar, y son justo las que le dan carácter:
+
+     · `color-scheme` — decide si el panel se pinta claro u oscuro. Es lo
+       que hace que en Aurora el calendario salga en modo noche en vez de
+       un rectángulo blanco en mitad de un diálogo oscuro.
+     · `accent-color` — tiñe el día seleccionado y el de hoy con el acento
+       del tema, en lugar del azul por defecto del sistema.
+
+   El campo en sí (borde, radio, tipografía, fondo) sí es nuestro y ya
+   hereda los tokens; aquí se añade el icono del calendario, que en un tema
+   oscuro quedaba negro sobre negro.
+
+   Se aplica a los cuatro tipos que abren un panel nativo, no solo a `date`:
+   `time`, `datetime-local` y `month` tienen el mismo problema.
+   ========================================================================== */
+
+.theme-aurora input[type='date'],
+.theme-aurora input[type='time'],
+.theme-aurora input[type='datetime-local'],
+.theme-aurora input[type='month'],
+.theme-lumen input[type='date'],
+.theme-lumen input[type='time'],
+.theme-lumen input[type='datetime-local'],
+.theme-lumen input[type='month'],
+.theme-neo input[type='date'],
+.theme-neo input[type='time'],
+.theme-neo input[type='datetime-local'],
+.theme-neo input[type='month'],
+.theme-calm input[type='date'],
+.theme-calm input[type='time'],
+.theme-calm input[type='datetime-local'],
+.theme-calm input[type='month'],
+.theme-studio input[type='date'],
+.theme-studio input[type='time'],
+.theme-studio input[type='datetime-local'],
+.theme-studio input[type='month'],
+.theme-papel input[type='date'],
+.theme-papel input[type='time'],
+.theme-papel input[type='datetime-local'],
+.theme-papel input[type='month'],
+.theme-minimal input[type='date'],
+.theme-minimal input[type='time'],
+.theme-minimal input[type='datetime-local'],
+.theme-minimal input[type='month'],
+.theme-productivity input[type='date'],
+.theme-productivity input[type='time'],
+.theme-productivity input[type='datetime-local'],
+.theme-productivity input[type='month'],
+.theme-organic input[type='date'],
+.theme-organic input[type='time'],
+.theme-organic input[type='datetime-local'],
+.theme-organic input[type='month'] {
+  /* El día seleccionado y el de hoy toman el acento del tema. */
+  accent-color: var(--accent);
+  font-family: var(--font-body);
+  border-radius: var(--radius-control);
+}
+
+/* Aurora es el único tema oscuro: su panel nativo debe abrirse en oscuro,
+   no en blanco. `color-scheme` se hereda, pero se declara aquí explícito
+   para que no dependa de que ningún componente lo reinicie por el camino. */
+.theme-aurora input[type='date'],
+.theme-aurora input[type='time'],
+.theme-aurora input[type='datetime-local'],
+.theme-aurora input[type='month'] {
+  color-scheme: dark;
+}
+
+/* El icono del calendario dentro del campo. En Aurora es un glifo negro
+   del sistema sobre un campo oscuro: invisible sin invertirlo. */
+.theme-aurora input[type='date']::-webkit-calendar-picker-indicator,
+.theme-aurora input[type='time']::-webkit-calendar-picker-indicator,
+.theme-aurora input[type='datetime-local']::-webkit-calendar-picker-indicator,
+.theme-aurora input[type='month']::-webkit-calendar-picker-indicator {
+  filter: invert(1) brightness(0.92);
+}
+
+/* En los temas claros el icono se atenúa al tono de tinta secundaria en vez
+   del negro puro del sistema, y se ilumina al acercar el cursor: es la
+   única parte del control nativo que admite un estado propio. */
+.theme-lumen input[type='date']::-webkit-calendar-picker-indicator,
+.theme-neo input[type='date']::-webkit-calendar-picker-indicator,
+.theme-calm input[type='date']::-webkit-calendar-picker-indicator,
+.theme-studio input[type='date']::-webkit-calendar-picker-indicator,
+.theme-papel input[type='date']::-webkit-calendar-picker-indicator,
+.theme-minimal input[type='date']::-webkit-calendar-picker-indicator,
+.theme-productivity input[type='date']::-webkit-calendar-picker-indicator,
+.theme-organic input[type='date']::-webkit-calendar-picker-indicator {
+  opacity: 0.55;
+  cursor: pointer;
+  transition: opacity 0.18s var(--ease);
+}
+
+.theme-lumen input[type='date']:hover::-webkit-calendar-picker-indicator,
+.theme-neo input[type='date']:hover::-webkit-calendar-picker-indicator,
+.theme-calm input[type='date']:hover::-webkit-calendar-picker-indicator,
+.theme-studio input[type='date']:hover::-webkit-calendar-picker-indicator,
+.theme-papel input[type='date']:hover::-webkit-calendar-picker-indicator,
+.theme-minimal input[type='date']:hover::-webkit-calendar-picker-indicator,
+.theme-productivity input[type='date']:hover::-webkit-calendar-picker-indicator,
+.theme-organic input[type='date']:hover::-webkit-calendar-picker-indicator {
+  opacity: 1;
+}
+
+/* Neo escribe sus fechas en monoespaciada, como el resto de sus cifras. */
+.theme-neo input[type='date'],
+.theme-neo input[type='time'],
+.theme-neo input[type='datetime-local'],
+.theme-neo input[type='month'] {
+  font-family: var(--font-label);
+}
+
+/* Studio y Papel: el campo de fecha se lee como parte del texto, no como un
+   control de formulario — coherente con cómo tratan el resto de campos. */
+.theme-studio input[type='date'],
+.theme-papel input[type='date'] {
+  font-family: var(--font-body);
+}

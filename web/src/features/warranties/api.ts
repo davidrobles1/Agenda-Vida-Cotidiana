@@ -25,9 +25,13 @@ export interface Warranty {
   createdAt: string
   updatedAt: string
   documentContentType?: string
+  /** ADR-019: módulo propietario del recurso. */
+  context?: 'PERSONAL' | 'LABORAL'
+  /** ADR-022: artículo del inventario que cubre esta garantía. */
+  inventoryItemId?: string | null
 }
 
-interface WarrantiesPage {
+export interface WarrantiesPage {
   items: Warranty[]
   page: number
   size: number
@@ -69,15 +73,48 @@ export async function createWarranty(
   return response.json()
 }
 
-export async function updateWarranty(id: string, item: string, expiresAt: string, version: number): Promise<Warranty> {
+/**
+ * ADR-022: la edición existía en el backend y en este cliente desde el
+ * principio, y **ninguna pantalla la llamaba**: corregir una fecha obligaba
+ * a borrar la garantía y volver a subir el archivo. Ahora la usa
+ * `WarrantyDetailDialog`.
+ *
+ * `linkInventoryItem` distingue "no tocar el enlace" de "cambiarlo": sin
+ * ese indicador, mandar `null` sería indistinguible de omitirlo y
+ * desenlazar un artículo sería imposible. Es la misma solución que
+ * `clearInterval` en Mantenimiento (ADR-021(i)).
+ */
+export async function updateWarranty(
+  id: string,
+  item: string,
+  expiresAt: string,
+  version: number,
+  inventoryItemId?: string | null,
+  linkInventoryItem = false,
+): Promise<Warranty> {
   const response = await apiFetch(`/warranties/${id}`, {
     method: 'PATCH',
-    body: JSON.stringify({ item, expiresAt, version }),
+    body: JSON.stringify({
+      item,
+      expiresAt,
+      version,
+      ...(linkInventoryItem ? { inventoryItemId: inventoryItemId ?? null, linkInventoryItem: true } : {}),
+    }),
   })
-  if (!response.ok) throw new Error(`PATCH /warranties/${id} failed: ${response.status}`)
+  if (!response.ok) {
+    if (response.status === 409) throw new Error('La garantía cambió mientras la editabas. Vuelve a abrirla.')
+    throw new Error(`PATCH /warranties/${id} failed: ${response.status}`)
+  }
   return response.json()
 }
 
+/**
+ * ADR-022: en la interfaz esto se llama **"Marcar como usada"**. El valor
+ * del contrato sigue siendo `COMPLETADO` y el endpoint sigue siendo
+ * `/complete`: cambiar el contrato obligaría a tocar `dateAlerts`, los
+ * tests y la especificación OpenAPI sin ganar nada. Lo que cambia es la
+ * palabra que ve el usuario — una garantía no se "completa", se usa.
+ */
 export async function completeWarranty(id: string, version: number): Promise<Warranty> {
   const response = await apiFetch(`/warranties/${id}/complete`, {
     method: 'POST',

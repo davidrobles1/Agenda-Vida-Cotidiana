@@ -1,0 +1,264 @@
+/* Compartidos (ADR-025 §3).
+
+   La separación entre "me compartieron" y "yo compartí" es estructural —una
+   pestaña que cambia la lista entera—, no un matiz de color: confundir
+   recibido con enviado cambia quién tiene que actuar. */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+
+  padding: var(--card-p, var(--space-5));
+
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+
+  background: var(--color-surface-variant);
+  box-shadow: var(--shadow-card, none);
+}
+
+.panelTitle {
+  margin: 0;
+
+  color: var(--color-text);
+  font-family: var(--font-serif, inherit);
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+
+  padding: var(--space-3) 0;
+
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 45%, transparent);
+}
+
+.row:last-child {
+  border-bottom: none;
+}
+
+/* Una parte ya hecha deja de reclamar atención sin desaparecer: sigue ahí,
+   pero más apagada. */
+.row[data-done] .rowLabel {
+  color: var(--color-text-secondary);
+}
+
+.type {
+  flex-shrink: 0;
+
+  padding: 3px 9px;
+
+  border: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+  border-radius: 999px;
+
+  color: var(--color-text-secondary);
+
+  font-family: var(--font-mono, inherit);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.rowMain {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  flex: 1;
+  min-width: 0;
+}
+
+.rowLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  color: var(--color-text);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.rowLabel:hover {
+  text-decoration: underline;
+}
+
+.rowMeta {
+  color: var(--color-text-secondary);
+  font-size: 0.8125rem;
+}
+
+.rowMeta strong {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.badgePending,
+.badgeDone {
+  flex-shrink: 0;
+
+  padding: 3px 10px;
+
+  border-radius: 999px;
+
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badgePending {
+  background: var(--color-warning-container);
+  color: var(--color-warning-text, var(--color-warning));
+}
+
+.badgeDone {
+  background: var(--color-success-container);
+  color: var(--color-success-text, var(--color-success));
+}
+
+.rowActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.note {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+}
+
+.error {
+  margin: 0;
+  color: var(--color-error);
+  font-size: 0.875rem;
+}
+
+/* --- Pestañas, dentro de la barra de acciones --- */
+
+.tabs {
+  display: flex;
+  gap: 4px;
+
+  padding: 3px;
+
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+
+  background: var(--color-surface-variant);
+}
+
+.tab {
+  padding: 6px 14px;
+
+  border: none;
+  border-radius: calc(var(--radius-control) - 2px);
+
+  background: transparent;
+  color: var(--color-text-secondary);
+
+  font-size: 0.82rem;
+  font-weight: 600;
+
+  cursor: pointer;
+}
+
+.tab[data-selected] {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+.tab[data-focus-visible] {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+/* --- Botones de fila --- */
+
+.primaryButton,
+.ghostButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
+  padding: 6px 12px;
+  min-height: 32px;
+
+  border-radius: var(--radius-control);
+
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
+
+  cursor: pointer;
+}
+
+.primaryButton {
+  border: 1px solid var(--color-primary);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+.primaryButton[data-hovered] {
+  filter: brightness(1.06);
+}
+
+.ghostButton {
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-secondary);
+}
+
+.ghostButton[data-hovered] {
+  border-color: var(--color-text);
+  color: var(--color-text);
+}
+
+.primaryButton[data-disabled],
+.ghostButton[data-disabled] {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.primaryButton[data-focus-visible],
+.ghostButton[data-focus-visible] {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* En pantallas estrechas la fila se apila para no desbordar. */
+@media (max-width: 720px) {
+  .row {
+    flex-wrap: wrap;
+  }
+
+  .rowMain {
+    flex-basis: 100%;
+    order: 1;
+  }
+
+  .type {
+    order: 0;
+  }
+
+  .rowActions {
+    order: 2;
+    margin-left: auto;
+  }
+}

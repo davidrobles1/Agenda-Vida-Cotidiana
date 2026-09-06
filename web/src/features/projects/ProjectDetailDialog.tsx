@@ -16,6 +16,7 @@ import type { Person } from '../people/api'
 import type { Project } from './api'
 import shellStyles from '../../core/ui/dialogs/DialogShell.module.css'
 import styles from './ProjectsPage.module.css'
+import { DatePicker } from '../../core/ui/pickers/DatePicker'
 
 const MotionDialog = motion.create(Dialog)
 
@@ -489,15 +490,11 @@ export function ProjectDetailDialog({ project, isOpen, onOpenChange, clientPerso
                     />
                   </label>
 
-                  <label className={shellStyles.field}>
-                    <span className={shellStyles.fieldLabel}>Fecha (opcional)</span>
-                    <input
-                      className={shellStyles.textInput}
-                      type="date"
-                      value={dueAtLocal}
-                      onChange={(e) => setDueAtLocal(e.target.value)}
-                    />
-                  </label>
+                  <DatePicker
+                    label="Fecha (opcional)"
+                    value={dueAtLocal}
+                    onChange={(next) => setDueAtLocal(next)}
+                  />
 
                   <div className={shellStyles.formActions}>
                     {saving && <span className={shellStyles.savingHint}>Guardando…</span>}

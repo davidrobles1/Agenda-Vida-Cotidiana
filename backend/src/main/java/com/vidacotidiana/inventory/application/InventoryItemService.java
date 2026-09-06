@@ -1,6 +1,7 @@
 package com.vidacotidiana.inventory.application;
 
 import com.vidacotidiana.inventory.domain.InventoryCategory;
+import com.vidacotidiana.shared.domain.ModuleContext;
 import com.vidacotidiana.inventory.domain.InventoryItem;
 import com.vidacotidiana.inventory.domain.InventoryItemRepository;
 import com.vidacotidiana.shared.domain.ConflictException;
@@ -24,6 +25,22 @@ public class InventoryItemService {
     }
 
     @Transactional
+    public InventoryItem create(UUID ownerUserId, String name, InventoryCategory category, String location,
+                                ModuleContext context) {
+        InventoryItem item = new InventoryItem(ownerUserId, name, category, location, context);
+        return inventoryItemRepository.save(item);
+    }
+
+    /** ADR-022: listado con contexto, categoría y búsqueda resueltos en la
+        consulta. Los tres son opcionales; el filtrado en cliente que había
+        antes mentía en cuanto había más artículos que el tamaño de página. */
+    @Transactional(readOnly = true)
+    public Page<InventoryItem> search(UUID ownerUserId, ModuleContext context, InventoryCategory category,
+                                      String query, Pageable pageable) {
+        String normalized = (query == null || query.isBlank()) ? null : query.trim();
+        return inventoryItemRepository.search(ownerUserId, context, category, normalized, pageable);
+    }
+
     public InventoryItem create(UUID ownerUserId, String name, InventoryCategory category, String location) {
         InventoryItem item = new InventoryItem(ownerUserId, name, category, location);
         return inventoryItemRepository.save(item);

@@ -435,7 +435,7 @@
 
   border: 2px solid transparent;
 
-  border-radius: 20px;
+  border-radius: var(--r-lg, 20px);
 
   background: var(--vb-surface);
 
@@ -1504,7 +1504,7 @@
       transparent
     );
 
-  border-radius: 20px;
+  border-radius: var(--r-lg, 20px);
 
   color: var(--vb-text-secondary);
 
@@ -1523,6 +1523,18 @@
    ========================================================= */
 
 .elementShape {
+  /* DEFECTO DE RAÍZ (2026-09-05): este `<span>` no declaraba `display`, así
+     que era `inline` — y un elemento en línea IGNORA `width` y `height`.
+     La caja medía cero y la forma no pintaba nada.
+     No se notaba porque el contenedor `.element` pintaba un rectángulo
+     redondeado con el color de la superficie del tablero, y ESO era lo que
+     se veía: la "forma cuadrada detrás del engranaje" que se reportó. Al
+     quitar ese rectángulo, las formas de CSS (rectángulo, círculo, cápsula,
+     línea) quedaron invisibles — "la forma se esconde o se pone del color
+     del fondo". Las de SVG nunca lo sufrieron porque el `<svg>` tiene
+     tamaño propio. */
+  display: block;
+
   width: 100%;
   height: 100%;
 
@@ -1537,7 +1549,7 @@
       var(--vb-shape-bg)
     );
 
-  border-radius: 20px;
+  border-radius: var(--r-lg, 20px);
 }
 
 .elementShapeCircle {
@@ -1574,7 +1586,7 @@
     2px solid
     var(--vb-primary, var(--color-primary));
 
-  border-radius: 20px;
+  border-radius: var(--r-lg, 20px);
 
   background:
     color-mix(
@@ -1904,4 +1916,118 @@
   .resizeHandle::after {
     transition: none;
   }
+}
+/* =========================================================
+   FORMAS: SIN CONTENEDOR NI SELECCIÓN RECTANGULAR
+   (2026-09-02 — reporte del usuario: "al seleccionar un engranaje aparece
+   el engranaje dentro de una forma cuadrada")
+
+   CAUSA REAL: `.element` es el botón que envuelve TODOS los elementos y
+   trae `background: var(--vb-surface)`, `border: 2px solid transparent` y
+   `border-radius`. Para una nota o una imagen eso es correcto — son
+   tarjetas. Para una forma no: el engranaje se dibuja ENCIMA de ese
+   rectángulo relleno, y al seleccionarlo el borde y el halo se pintan sobre
+   el rectángulo, no sobre el engranaje.
+
+   Ya existía un ajuste para SHAPE que quitaba la sombra y el brillo
+   (`box-shadow: none` / `::after { display: none }`), pero no el fondo ni
+   el radio, que son justamente los que se veían.
+
+   No se toca forma, tamaño, posición, color ni comportamiento: solo deja
+   de pintarse el contenedor.
+   ========================================================= */
+
+.element[data-type='SHAPE'] {
+  background: transparent;
+  border-radius: 0;
+}
+
+/* La selección de una forma NO es un rectángulo alrededor. El anillo
+   rectangular del estado general se anula aquí y se sustituye por un
+   indicador que sigue la geometría real, más abajo. */
+.element[data-type='SHAPE'][data-selected] {
+  border-color: transparent;
+  box-shadow: none;
+}
+
+/* --- Indicador que sigue los límites REALES de la forma --- */
+
+/* Formas SVG (engranaje, estrella, flecha…): se traza el contorno del
+   propio `path`, así que el indicador tiene la silueta exacta de la forma.
+   `vector-effect` mantiene el grosor constante aunque la forma se estire,
+   que es lo que hace `preserveAspectRatio="none"`. */
+.element[data-type='SHAPE'][data-selected] .elementShapeSvg path {
+  stroke: var(--vb-selection);
+  stroke-width: 2.5;
+  vector-effect: non-scaling-stroke;
+  paint-order: stroke fill;
+}
+
+/* Formas CSS (rectángulo, círculo, cápsula, línea): `outline` respeta el
+   `border-radius` del elemento, así que un círculo recibe un indicador
+   circular y una cápsula uno de cápsula, sin dibujar nada extra. */
+.element[data-type='SHAPE'][data-selected] .elementShape {
+  outline: 2.5px solid var(--vb-selection);
+  outline-offset: 2px;
+}
+
+/* Bloqueada: el mismo indicador, discontinuo — igual que el resto de
+   elementos bloqueados, que ya usaban `border-style: dashed`. */
+.element[data-type='SHAPE'][data-selected][data-locked] .elementShape {
+  outline-style: dashed;
+}
+
+.element[data-type='SHAPE'][data-selected][data-locked] .elementShapeSvg path {
+  stroke-dasharray: 6 4;
+}
+
+/* El foco de teclado sí puede seguir siendo rectangular: es el foco del
+   botón, no el estado de selección de la forma, y debe ser reconocible
+   como tal. Se mantiene el `outline` que ya tenía `.element:focus-visible`. */
+
+/* =========================================================
+   CONTENIDO CON SILUETA PROPIA — el contenedor no pinta nada
+   (2026-09-05 — reporte del usuario: "lo mismo que pasó con las formas que
+   tenían una forma atrás aplica en las fotos… si la foto la quiero recortar
+   en forma hexagonal, no quiero ver una forma atrás")
+
+   `.element` da fondo, borde y sombra en rectángulo redondeado a TODOS los
+   elementos. Para una nota o un texto es correcto —la superficie ES el
+   elemento—, pero para una forma, un sticker o una foto recortada asoma por
+   debajo de la silueta real.
+
+   `data-chromeless` lo marca desde el componente (ver `isChromeless` en
+   VisionBoardElementView.tsx), así que la regla vale también para lo que se
+   añada más adelante sin tener que volver aquí.
+   ========================================================= */
+
+.element[data-chromeless] {
+  background: transparent;
+  border-color: transparent;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.element[data-chromeless]::after {
+  display: none;
+}
+
+/* Al pasar el cursor y al seleccionar tampoco reaparece el rectángulo. */
+.element[data-chromeless]:hover,
+.element[data-chromeless][data-selected] {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+/* La foto recortada recibe el indicador de selección sobre su propio
+   recorte, no sobre la caja: `filter: drop-shadow` sigue el `clip-path`,
+   que es lo que un `outline` no puede hacer. */
+.element[data-type='IMAGE'][data-chromeless][data-selected] .elementImage {
+  filter:
+    drop-shadow(0 0 0 var(--vb-selection))
+    drop-shadow(1.5px 0 0 var(--vb-selection))
+    drop-shadow(-1.5px 0 0 var(--vb-selection))
+    drop-shadow(0 1.5px 0 var(--vb-selection))
+    drop-shadow(0 -1.5px 0 var(--vb-selection));
 }

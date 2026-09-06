@@ -9,6 +9,7 @@ import type { Project } from '../projects/api'
 import { createCommitment, type Commitment, type CommitmentDirection, type CreateCommitmentInput } from './api'
 import shellStyles from '../../core/ui/dialogs/DialogShell.module.css'
 import styles from './CommitmentsPage.module.css'
+import { DatePicker } from '../../core/ui/pickers/DatePicker'
 
 const MotionDialog = motion.create(Dialog)
 
@@ -138,15 +139,11 @@ export function CreateCommitmentDialog({ people, projects, onCreated }: CreateCo
                       </label>
                     </fieldset>
 
-                    <label className={shellStyles.field}>
-                      <span className={shellStyles.fieldLabel}>Fecha</span>
-                      <input
-                        className={shellStyles.textInput}
-                        type="date"
-                        value={dueAtLocal}
-                        onChange={(e) => setDueAtLocal(e.target.value)}
-                      />
-                    </label>
+                    <DatePicker
+                    label="Fecha"
+                    value={dueAtLocal}
+                    onChange={(next) => setDueAtLocal(next)}
+                  />
 
                     <label className={shellStyles.field}>
                       <span className={shellStyles.fieldLabel}>{vocabulary.project} (opcional)</span>

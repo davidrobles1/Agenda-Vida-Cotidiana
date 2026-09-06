@@ -1,0 +1,138 @@
+/* Paleta de color de forma — fondo y texto.
+
+   Compacta a propósito: dos paletas conviven en el mismo formulario que la
+   variante de forma, así que una fila de muestras de 22px y el selector
+   personalizado al final caben sin empujar el resto de controles fuera de
+   la vista. */
+
+.palette {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.swatch {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  flex: none;
+
+  border-radius: var(--r-full, 999px);
+  /* Filete tenue para que el marfil y la arena no desaparezcan sobre un
+     fondo claro. */
+  border: 1px solid color-mix(in srgb, var(--color-text) 22%, transparent);
+
+  background: var(--swatch);
+  cursor: pointer;
+
+  transition:
+    transform 0.15s var(--ease, ease),
+    box-shadow 0.15s ease;
+}
+
+.swatch:hover {
+  transform: scale(1.12);
+}
+
+.swatch:focus-visible {
+  outline: 0;
+  box-shadow: var(--focus, 0 0 0 2px var(--color-primary));
+}
+
+/* El seleccionado se marca con un anillo por fuera, no con un borde: un
+   borde encima cambiaría el color que la muestra está enseñando. */
+.swatch[aria-checked='true'] {
+  box-shadow:
+    0 0 0 2px var(--color-surface-variant),
+    0 0 0 4px var(--color-text);
+}
+
+/* --- Color personalizado --- */
+
+.custom {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+
+  padding: 3px 9px 3px 4px;
+
+  border: 1px dashed color-mix(in srgb, var(--color-text) 30%, transparent);
+  border-radius: var(--r-full, 999px);
+
+  color: var(--color-text-secondary);
+  font-size: 0.72rem;
+  font-weight: 500;
+
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.custom:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.custom:focus-within {
+  outline: 0;
+  border-style: solid;
+  box-shadow: var(--focus, 0 0 0 2px var(--color-primary));
+}
+
+/* Cuando el color activo NO es de la paleta, el propio control muestra
+   cuál es, en lugar de dejar al usuario sin saber qué tiene puesto. */
+.customActive {
+  border-style: solid;
+  border-color: var(--color-text);
+}
+
+.customActive .customPlus {
+  background: var(--swatch);
+  color: transparent;
+}
+
+.customPlus {
+  display: grid;
+  place-items: center;
+
+  width: 20px;
+  height: 20px;
+  flex: none;
+
+  border-radius: var(--r-full, 999px);
+  border: 1px solid color-mix(in srgb, var(--color-text) 22%, transparent);
+
+  font-size: 0.8rem;
+  line-height: 1;
+}
+
+.customText {
+  white-space: nowrap;
+}
+
+/* El `input` nativo abre el selector del sistema. Se mantiene en el flujo y
+   se hace invisible en vez de `display: none`, que en Safari impide que el
+   `label` lo active. */
+.customInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.hint {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.7rem;
+  line-height: 1.4;
+}

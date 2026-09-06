@@ -46,6 +46,18 @@
   src: url('../fonts/inter-latin-600-normal.woff2') format('woff2');
 }
 
+/* El 300 lo pide el logo de marca (ADR-024, identidad «A · Tiempo»): su
+   rótulo va en Fraunces ligero. Sin este fichero el navegador caería al 500
+   —el único que había— y el nombre pesaría más que el arco, que es
+   exactamente lo que sostiene el lock-up aprobado. */
+@font-face {
+  font-family: 'Fraunces';
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url('../fonts/fraunces-latin-300-normal.woff2') format('woff2');
+}
+
 @font-face {
   font-family: 'Fraunces';
   font-style: normal;
@@ -86,6 +98,18 @@
   --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-serif: 'Fraunces', Georgia, 'Times New Roman', serif;
   --font-script: 'Alex Brush', var(--font-serif);
+
+  /* Identidad interna «A · Tiempo» (ADR-024). Esta pantalla es la puerta de
+     entrada: todavía no hay contexto Personal ni Laboral, así que la que
+     corresponde es la del Portal — «Jornada», con el punto en el cenit del
+     arco. Mismos valores que `web/src/index.css`. */
+  --brand-font: 'Fraunces', Georgia, 'Times New Roman', serif;
+  --brand-ink: #16161a;
+  --brand-arc-portal: #8a6d3b;
+
+  /* Alto único de control. Login y "Crear una cuenta" DEBEN compartirlo: que
+     no lo hicieran es parte de por qué se leían como dos botones distintos. */
+  --vc-control-h: 50px;
 }
 
 /* =====================================================
@@ -131,20 +155,80 @@ body.vc-theme-web .pf-v5-c-login {
 
 body.vc-theme-web .vc-split-container {
   display: grid;
-  grid-template-columns: 40% 30% 30%;
+  /* Antes: `40% 30% 30%`. A 1280px de ancho la tercera columna quedaba en
+     384px y, descontado su padding de 70px, la tarjeta de 430px se
+     estrangulaba a 314px. Ahora la columna del formulario tiene un ancho
+     propio con suelo y techo, y las dos decorativas se reparten el resto —
+     `minmax(0, …)` es lo que impide que su contenido las ensanche por encima
+     de la rejilla, que es de donde salían los recortes laterales. */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.78fr) clamp(380px, 32%, 480px);
   /* PatternFly fija un column-gap de 64px en su rejilla interna (que no
      usamos); se pone a cero en vez de solo sobrescribir lo que nos importa,
      porque podría recargarse después que nosotros vía `stylesCommon`. */
   gap: 0;
-  height: 100vh;
+  /* `dvh` y no `vh`: en móvil la barra del navegador hacía que 100vh fuese
+     más alto que la ventana real y el pie de la tarjeta quedaba debajo. */
+  height: 100dvh;
   max-width: none;
   padding: 0;
   margin: 0;
   overflow: hidden;
 }
 
+/* Cada columna se hace cargo de su propio desbordamiento. Sin `min-height: 0`
+   un hijo de rejilla no puede encogerse por debajo de su contenido, así que
+   crecía por debajo del `overflow: hidden` del contenedor y lo que sobraba
+   se CORTABA — ésa era la causa de los componentes cortados, no el tamaño de
+   las piezas. Ahora, si algo no cabe, se desplaza; nunca se recorta. */
+body.vc-theme-web .vc-book,
+body.vc-theme-web .vc-slogans,
+body.vc-theme-web .pf-v5-c-login__main {
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+}
+
 body.vc-theme-web .pf-v5-c-login__container {
   align-items: stretch;
+}
+
+/* El orden de las columnas no se estaba respetando. PatternFly declara
+   `grid-template-areas: "header header" / "main footer"` en este mismo
+   elemento y le da `grid-area: main` a `.pf-v5-c-login__main`, así que la
+   tarjeta se colocaba SIEMPRE en la primera columna y los dos <aside>, que no
+   tienen área asignada, caían detrás por autocolocación. El resultado en
+   pantalla era FORMULARIO · LIBRO · ESLOGANES, justo al revés del esquema que
+   este archivo documenta arriba y del fondo (`fondo.jpeg`, anclado a la
+   izquierda), que está compuesto para tener la zona decorativa a ese lado.
+   Se anulan las áreas heredadas y se coloca cada columna a mano.
+
+   Va dentro de `min-width` porque por debajo de 1000px la rejilla pasa a UNA
+   sola columna: forzar ahí las columnas 1, 2 y 3 creaba tres columnas
+   implícitas en una ventana de 390px, la tarjeta se estrangulaba a 135px y la
+   marca se salía de la pantalla por la izquierda. */
+@media (min-width: 1001px) {
+  body.vc-theme-web .vc-split-container {
+    grid-template-areas: none;
+  }
+
+  body.vc-theme-web .vc-book {
+    grid-area: auto;
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  body.vc-theme-web .vc-slogans {
+    grid-area: auto;
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  body.vc-theme-web .pf-v5-c-login__main {
+    grid-area: auto;
+    grid-column: 3;
+    grid-row: 1;
+  }
 }
 
 /* =====================================================
@@ -157,24 +241,28 @@ body.vc-theme-web .vc-book {
   align-items: center;
   justify-content: center;
   min-width: 0;
-  padding: 40px 30px;
-  overflow: hidden;
+  /* Padding izquierdo mayor que el derecho: consigue el mismo acercamiento al
+     bloque de eslóganes que buscaba el `translateX(90px)` de antes, pero
+     desde dentro de la caja. Un `transform` desplaza el pintado fuera del
+     área visible del contenedor y el `overflow: hidden` lo recortaba: el
+     libro perdía su lado derecho en cuanto la ventana no era muy ancha. */
+  padding: clamp(20px, 3.5vh, 40px) 18px clamp(20px, 3.5vh, 40px) clamp(24px, 5vw, 74px);
 }
 
-/* El contenido del libro se acerca 90px al bloque de eslóganes. */
 body.vc-theme-web .vc-book-content {
   width: 100%;
   max-width: 560px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transform: translateX(90px);
 }
 
 body.vc-theme-web .vc-book-stack {
   position: relative;
   width: 100%;
-  max-width: 300px;
+  max-width: 290px;
+  /* Las dos hojas decorativas giran y se desplazan ±15px; sin este margen
+     asomaban por fuera de la columna y el recorte se las comía. */
   margin: 0 auto;
 }
 
@@ -214,7 +302,10 @@ body.vc-theme-web .vc-book-img {
   display: block;
   width: 100%;
   max-width: 500px;
-  max-height: 540px;
+  /* Antes 540px fijos. Con el logo encima y 720-800px de ventana (un portátil
+     normal) la columna pedía más alto del que tenía y la parte baja del libro
+     se cortaba. Ahora el alto lo pone la ventana. */
+  max-height: min(500px, 46dvh);
   height: auto;
 
   object-fit: contain;
@@ -228,6 +319,50 @@ body.vc-theme-web .vc-book-img {
 }
 
 /* =====================================================
+   LOGO DE MARCA — identidad «A · Tiempo» (ADR-024)
+
+   Reproducción exacta de `web/src/core/ui/brand/BrandMark`: mismo viewBox
+   (0 0 38 16), mismo arco `M4 14 A 15 9 0 0 1 34 14`, mismo trazo de 1.6 al
+   38% y mismo punto en el cenit (19.0, 5.0 · r 2.8) que identifica al Portal.
+   La construcción entera cuelga de `--s`, así que escalarla no la deforma.
+
+   Es un AÑADIDO: no sustituye al bloque "Agenda / vida Cotidiana" de la
+   tarjeta ni a ninguna otra pieza. Va sin fondo, sin placa y sin sombra —
+   el fondo pertenece a la pantalla, nunca al logo.
+   ===================================================== */
+
+body.vc-theme-web .vc-mark {
+  --s: 40px;
+
+  margin: 0 auto clamp(22px, 4vh, 44px);
+
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: calc(var(--s) * 0.6);
+
+  background: transparent;
+  line-height: 1;
+  flex: none;
+}
+
+body.vc-theme-web .vc-mark-arc {
+  display: block;
+  width: calc(var(--s) * 2.5);
+  height: auto;
+}
+
+body.vc-theme-web .vc-mark-name {
+  font-family: var(--brand-font);
+  font-weight: 300;
+  font-size: var(--s);
+  letter-spacing: -0.02em;
+  line-height: 1;
+  color: var(--brand-ink);
+  white-space: nowrap;
+}
+
+/* =====================================================
    COLUMNA 2 — ESLOGANES (`.sloganSection`)
    ===================================================== */
 
@@ -236,8 +371,7 @@ body.vc-theme-web .vc-slogans {
   align-items: center;
   justify-content: flex-start;
   min-width: 0;
-  padding: 40px 30px;
-  overflow: hidden;
+  padding: clamp(20px, 3.5vh, 40px) clamp(16px, 1.8vw, 30px);
 }
 
 body.vc-theme-web .vc-slogans-content {
@@ -246,12 +380,18 @@ body.vc-theme-web .vc-slogans-content {
   text-align: center;
 }
 
+/* La marca encabeza la columna; el bloque de eslóganes queda debajo, con su
+   propio aire, para que no se lean como una sola pieza. */
+body.vc-theme-web .vc-slogans-body {
+  width: 100%;
+}
+
 /* `.valueRow` */
 body.vc-theme-web .vc-value-row {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 17px;
+  gap: clamp(9px, 1.6vh, 16px);
 
   width: 100%;
   margin: 0;
@@ -290,7 +430,7 @@ body.vc-theme-web .vc-value-row span {
 body.vc-theme-web .vc-hero-divider {
   width: 150px;
   height: 1px;
-  margin: 32px auto 26px;
+  margin: clamp(16px, 2.6vh, 30px) auto clamp(13px, 2.2vh, 24px);
   background: color-mix(in srgb, var(--color-primary) 40%, var(--color-surface-variant));
 }
 
@@ -301,18 +441,18 @@ body.vc-theme-web .vc-hero-quote {
 
   font-family: var(--font-serif);
   font-style: italic;
-  font-size: 1.3rem;
+  font-size: clamp(1.02rem, 1.9vh, 1.26rem);
   line-height: 1.45;
 }
 
 /* `.heroText` — "Meraki" */
 body.vc-theme-web .vc-hero-script-word {
-  margin: 18px 0 8px;
+  margin: clamp(9px, 1.6vh, 17px) 0 8px;
   color: var(--color-terracotta);
 
   font-family: var(--font-script);
   font-weight: 400;
-  font-size: 2.8rem;
+  font-size: clamp(2rem, 3.6vh, 2.7rem);
   line-height: 1;
 }
 
@@ -322,8 +462,8 @@ body.vc-theme-web .vc-hero-text {
   color: var(--color-text-secondary);
 
   font-family: var(--font-sans);
-  font-size: 0.88rem;
-  line-height: 1.55;
+  font-size: clamp(0.79rem, 1.4vh, 0.87rem);
+  line-height: 1.5;
 }
 
 /* =====================================================
@@ -332,23 +472,27 @@ body.vc-theme-web .vc-hero-text {
 
 body.vc-theme-web .pf-v5-c-login__main {
   display: flex;
-  align-items: center;
+  /* `flex-start` y no `center`: cuando la tarjeta es más alta que la columna
+     —el registro siempre lo es— un contenedor flex centrado empuja el
+     principio del contenido FUERA del área desplazable y su parte superior
+     se vuelve inalcanzable. Con `safe center` no hay soporte uniforme, así
+     que se centra con `margin: auto` en la propia tarjeta, que sí degrada
+     bien: centra cuando sobra sitio y se apoya arriba cuando falta. */
+  align-items: flex-start;
   justify-content: center;
   min-width: 0;
-  padding: 40px 35px;
+  padding: clamp(20px, 3.5vh, 40px) clamp(18px, 1.8vw, 30px);
   /* Sin esto la columna no se estiraba a la altura de la fila mientras sus
      hermanas sí — encontrado con boundingBox() en UX-005. */
   align-self: stretch;
   height: 100%;
-  /* El portal no tenía formulario, así que nunca desbordaba; el de registro
-     sí puede ser largo. */
-  overflow-y: auto;
 }
 
 body.vc-theme-web .vc-card {
   width: 100%;
-  max-width: 430px;
-  padding: 48px 45px;
+  max-width: 400px;
+  margin: auto;
+  padding: clamp(26px, 3.6vh, 40px) clamp(24px, 2.4vw, 36px);
 
   background: color-mix(in srgb, var(--color-surface-variant) 94%, transparent);
   border: 1px solid color-mix(in srgb, var(--color-text) 15%, transparent);
@@ -365,15 +509,15 @@ body.vc-theme-web .vc-card {
 
 body.vc-theme-web .vc-brand {
   display: block;
-  margin: 0 0 45px;
+  margin: 0 0 18px;
   text-align: center;
 }
 
 body.vc-theme-web .vc-brand-icon {
   display: block;
-  width: 26px;
-  height: 26px;
-  margin: 0 auto 10px;
+  width: 24px;
+  height: 24px;
+  margin: 0 auto 8px;
   color: color-mix(in srgb, var(--color-primary) 70%, white);
 }
 
@@ -383,7 +527,9 @@ body.vc-theme-web .vc-brand-title {
   color: var(--color-text);
 
   font-family: var(--font-serif);
-  font-size: 3.2rem;
+  /* Antes 3.2rem fijos: en un portátil se comía un tercio de la tarjeta y
+     empujaba el pie fuera de la ventana. */
+  font-size: clamp(2rem, 3.3vh, 2.5rem);
   font-weight: 500;
   line-height: 1.1;
 }
@@ -395,8 +541,8 @@ body.vc-theme-web .vc-brand-script {
 
   font-family: var(--font-sans);
   font-weight: 600;
-  font-size: 0.95rem;
-  letter-spacing: 0.2em;
+  font-size: 0.86rem;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
 }
 
@@ -405,7 +551,7 @@ body.vc-theme-web .vc-brand-script {
    ===================================================== */
 
 body.vc-theme-web .vc-welcome {
-  margin-bottom: 32px;
+  margin-bottom: 18px;
   text-align: center;
 }
 
@@ -414,14 +560,14 @@ body.vc-theme-web .vc-welcome-title {
   color: var(--color-text);
 
   font-family: var(--font-serif);
-  font-size: 2rem;
+  font-size: clamp(1.4rem, 2.4vh, 1.75rem);
   font-weight: 500;
 }
 
 body.vc-theme-web .vc-welcome-text {
-  margin: 8px 0 0;
+  margin: 6px 0 0;
   color: var(--color-text-secondary);
-  font-size: 0.95rem;
+  font-size: 0.9rem;
 }
 
 /* En Login el <h1> real de Keycloak se oculta (el texto visible ya lo pone
@@ -443,12 +589,12 @@ body.vc-theme-web .vc-accessible-title {
    tengan la misma jerarquía. */
 body.vc-theme-web .pf-v5-c-title {
   display: block;
-  margin: 0 0 32px;
+  margin: 0 0 22px;
   text-align: center;
   color: var(--color-text);
 
   font-family: var(--font-serif);
-  font-size: 2rem;
+  font-size: clamp(1.4rem, 2.4vh, 1.75rem);
   font-weight: 500;
 
   /* Bug real encontrado verificando Registro en UX-005: PatternFly hereda
@@ -473,7 +619,7 @@ body.vc-theme-web label {
   color: var(--color-text);
   font-family: var(--font-sans);
   font-weight: 500;
-  font-size: 0.9375rem;
+  font-size: 0.9rem;
 }
 
 body.vc-theme-web input[type='text'],
@@ -505,9 +651,11 @@ body.vc-theme-web .vc-input-wrapper input:focus-visible {
   outline-offset: 2px;
 }
 
+/* El registro apila seis campos (usuario, correo, nombre, apellidos y las dos
+   contraseñas): cada punto que se recorta aquí se multiplica por seis. */
 body.vc-theme-web .vc-form-group,
 body.vc-theme-web .pf-v5-c-form__group {
-  margin-bottom: 18px;
+  margin-bottom: 14px;
 }
 
 body.vc-theme-web .checkbox label,
@@ -544,8 +692,8 @@ body.vc-theme-web #kc-form-buttons input[type='submit'] {
   gap: 10px;
 
   width: 100%;
-  min-height: 54px;
-  padding: 0 20px;
+  min-height: var(--vc-control-h);
+  padding: 0 18px;
 
   border: 1px solid var(--color-primary);
   border-radius: 12px;
@@ -583,10 +731,41 @@ body.vc-theme-web #kc-form-buttons input[type='submit']:hover {
 }
 
 /* El enlace real de registro (`url.registrationUrl`) con la piel del botón
-   `.registerButton`: mismo href y mismo comportamiento, sigue siendo un <a>
-   de verdad, no un botón simulado. */
+   contorneado: mismo href y mismo comportamiento, sigue siendo un <a> de
+   verdad, no un botón simulado. */
+/* PatternFly reviste estos tres contenedores con su propio padding (16px por
+   lado en `kcSignUpClass`/`kcInfoAreaWrapperClass`). Eso estrechaba el botón
+   de "Crear una cuenta" 32px respecto al de "Iniciar sesión" —medido: 200.9
+   contra 232.9— y por eso su texto se partía en dos líneas mientras el
+   primario cabía en una. Los dos botones tienen que ocupar exactamente el
+   mismo ancho: son la misma decisión ofrecida dos veces. */
+body.vc-theme-web #kc-info,
+body.vc-theme-web #kc-info-wrapper,
+body.vc-theme-web #kc-registration-container,
+/* Los mismos contenedores en la pantalla de REGISTRO, donde el enlace es
+   "Volver a iniciar sesión". Sin esto reaparecía el mismo desfase de 32px
+   —medido: 175.3 contra 207.3 del botón de enviar— y el texto se partía. */
+body.vc-theme-web #kc-form-options,
+body.vc-theme-web .pf-v5-c-login__main-footer-band,
+body.vc-theme-web .pf-v5-c-login__main-footer-band-item,
+body.vc-theme-web .vc-back-to-login,
+body.vc-theme-web .vc-back-to-login span {
+  display: block;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+}
+
+/* El reset de arriba deja la banda pegada al botón principal; se le devuelve
+   el mismo aire que separa a los dos botones en la pantalla de acceso. */
+body.vc-theme-web .pf-v5-c-login__main-footer-band {
+  margin-top: 12px;
+}
+
 body.vc-theme-web #kc-registration {
-  margin-top: 14px;
+  width: 100%;
+  padding: 0;
+  margin-top: 12px;
   text-align: center;
 }
 
@@ -594,12 +773,38 @@ body.vc-theme-web #kc-registration span {
   display: block;
 }
 
+/* ────────────────────────────────────────────────────────────────────────
+   BOTÓN SECUNDARIO — "Crear una cuenta" / "Volver a iniciar sesión"
+
+   AQUÍ ESTABA EL FALLO que se veía en pantalla. Existían dos tratamientos
+   para el mismo enlace:
+
+     `.vc-register-button`  →  flex, space-between, iconos a los lados
+     `#kc-registration a`   →  display:block, line-height:52px, sin flex
+
+   y el segundo GANABA por especificidad (el selector de id suma 0,1,0 sobre
+   el de clase). Resultado: el enlace perdía el `display:flex`, los dos
+   iconos dejaban de anclarse a los extremos, el texto se alineaba sobre una
+   caja de línea de 52px en vez de centrarse en la caja, y el conjunto se
+   leía como un botón distinto al de "Iniciar sesión" — que es exactamente
+   lo que se reportó.
+
+   Ahora hay UNA sola regla para los tres selectores, con la misma caja que
+   el primario (mismo alto `--vc-control-h`, mismo padding, mismo radio,
+   mismo cuerpo tipográfico): solo cambian relleno y color, que es lo único
+   que debe distinguir una acción secundaria de la principal.
+   ──────────────────────────────────────────────────────────────────────── */
+body.vc-theme-web .vc-register-button,
 body.vc-theme-web #kc-registration a,
 body.vc-theme-web .vc-back-to-login a {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+
   width: 100%;
-  min-height: 54px;
-  line-height: 52px;
+  min-height: var(--vc-control-h);
+  padding: 0 18px;
   margin-top: 6px;
 
   border: 1px solid var(--color-border);
@@ -607,18 +812,29 @@ body.vc-theme-web .vc-back-to-login a {
   background: transparent;
   color: var(--color-primary);
 
-  font-size: 0.98rem;
+  font-family: inherit;
+  font-size: 0.95rem;
   font-weight: 600;
+  line-height: 1.2;
   text-decoration: none;
+  cursor: pointer;
 
   transition:
     transform 160ms ease,
     background-color 160ms ease;
 }
 
+/* "Volver a iniciar sesión" no lleva iconos: con un solo hijo,
+   `space-between` lo dejaría pegado al borde izquierdo. */
+body.vc-theme-web .vc-back-to-login a {
+  justify-content: center;
+}
+
+body.vc-theme-web .vc-register-button:hover,
 body.vc-theme-web #kc-registration a:hover,
 body.vc-theme-web .vc-back-to-login a:hover {
   background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+  border-color: var(--color-primary);
   transform: translateY(-1px);
 }
 
@@ -665,42 +881,12 @@ body.vc-theme-web .vc-button-icon {
   height: 18px;
 }
 
-/* `.registerButton` — un <a> real, con la piel del botón contorneado. */
-body.vc-theme-web .vc-register-button {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-
-  width: 100%;
-  min-height: 54px;
-  padding: 0 20px;
-
-  border: 1px solid var(--color-border);
-  border-radius: 12px;
-  background: transparent;
-  color: var(--color-primary);
-
-  font-family: inherit;
-  font-size: 0.98rem;
-  font-weight: 600;
-  text-decoration: none;
-  cursor: pointer;
-
-  transition:
-    transform 160ms ease,
-    box-shadow 160ms ease,
-    background-color 160ms ease;
-}
-
-body.vc-theme-web .vc-register-button:hover {
-  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
-  transform: translateY(-1px);
-}
+/* `.vc-register-button` se define arriba, junto a `#kc-registration a` y
+   `.vc-back-to-login a`, en una sola regla — ver la nota de especificidad. */
 
 /* Grupos de campo y etiquetas */
 body.vc-theme-web .vc-form-group {
-  margin-bottom: 18px;
+  margin-bottom: 14px;
 }
 
 body.vc-theme-web .vc-form-label {
@@ -767,10 +953,10 @@ body.vc-theme-web .vc-form-options {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 18px;
+  margin-bottom: 14px;
 
   color: var(--color-text-secondary);
-  font-size: 0.875rem;
+  font-size: 0.85rem;
 }
 
 /* =====================================================
@@ -783,8 +969,8 @@ body.vc-theme-web .vc-form-footer {
   justify-content: center;
   gap: 6px;
 
-  margin: 28px 0 0;
-  padding-top: 16px;
+  margin: 18px 0 0;
+  padding-top: 12px;
   border-top: 1px solid color-mix(in srgb, var(--color-text) 12%, transparent);
 
   color: var(--color-text-secondary);
@@ -850,10 +1036,11 @@ body.vc-theme-web input[aria-invalid='true'] {
 
 body.vc-theme-web .pf-v5-c-login__main-footer-links a,
 body.vc-theme-web [id^='social-'] {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 100%;
-  min-height: 54px;
-  line-height: 52px;
+  min-height: var(--vc-control-h);
   border: 1px solid var(--color-border);
   border-radius: 12px;
   color: var(--color-text);
@@ -881,49 +1068,63 @@ body.vc-theme-web .pf-v5-c-login__main-footer {
   body.vc-theme-web .vc-split-container {
     grid-template-columns: 1fr;
     height: auto;
-    min-height: 100vh;
+    min-height: 100dvh;
     overflow: visible;
   }
 
-  body.vc-theme-web .vc-book {
-    min-height: 55vh;
-    padding: 60px 40px;
-  }
-
-  /* En vertical desaparece el desplazamiento. */
-  body.vc-theme-web .vc-book-content {
-    transform: none;
-  }
-
-  body.vc-theme-web .vc-book-stack {
-    max-width: 500px;
-  }
-
-  body.vc-theme-web .vc-slogans {
-    min-height: auto;
-    padding: 60px 40px;
-    justify-content: center;
-  }
-
+  /* En una sola columna el que se desplaza es el documento, no cada bloque:
+     tres áreas con scroll propio apiladas serían tres trampas de gesto. */
+  body.vc-theme-web .vc-book,
+  body.vc-theme-web .vc-slogans,
   body.vc-theme-web .pf-v5-c-login__main {
-    padding: 40px 30px 70px;
+    overflow: visible;
     height: auto;
-    overflow-y: visible;
   }
-}
 
-@media (max-width: 600px) {
   body.vc-theme-web .vc-book {
-    min-height: 48vh;
-    padding: 45px 25px;
+    padding: 48px 32px 40px;
+  }
+
+  /* En vertical el logo se centra con el resto de la composición. */
+  body.vc-theme-web .vc-mark {
+    --s: 34px;
   }
 
   body.vc-theme-web .vc-book-stack {
     max-width: 420px;
   }
 
+  body.vc-theme-web .vc-book-img {
+    max-height: none;
+  }
+
   body.vc-theme-web .vc-slogans {
-    padding: 45px 25px;
+    min-height: auto;
+    padding: 48px 32px;
+    justify-content: center;
+  }
+
+  body.vc-theme-web .pf-v5-c-login__main {
+    padding: 32px 26px 60px;
+    align-items: center;
+  }
+}
+
+@media (max-width: 600px) {
+  body.vc-theme-web .vc-book {
+    padding: 36px 22px 30px;
+  }
+
+  body.vc-theme-web .vc-mark {
+    --s: 28px;
+  }
+
+  body.vc-theme-web .vc-book-stack {
+    max-width: 320px;
+  }
+
+  body.vc-theme-web .vc-slogans {
+    padding: 40px 22px;
   }
 
   body.vc-theme-web .vc-slogans-content {
@@ -952,16 +1153,16 @@ body.vc-theme-web .pf-v5-c-login__main-footer {
   }
 
   body.vc-theme-web .pf-v5-c-login__main {
-    padding: 25px 18px 45px;
+    padding: 22px 16px 44px;
   }
 
   body.vc-theme-web .vc-card {
-    padding: 40px 28px;
+    padding: 28px 22px;
     border-radius: 20px;
   }
 
   body.vc-theme-web .vc-brand-title {
-    font-size: 2.6rem;
+    font-size: 2.2rem;
   }
 }
 

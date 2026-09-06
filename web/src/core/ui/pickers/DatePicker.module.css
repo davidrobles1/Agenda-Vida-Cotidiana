@@ -1,0 +1,332 @@
+/* Selector de fecha propio — sustituye al calendario nativo del navegador.
+
+   NO define un sistema visual paralelo: cada valor sale de los tokens que
+   ya existen (`--color-*`, `--r-*`, `--shadow-*`, `--font-*`, `--space-*`),
+   así que el calendario cambia de piel con el tema activo igual que el
+   resto del portal, sin una sola opción de "tema del calendario". */
+
+.picker {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.label {
+  display: block;
+  margin-bottom: 5px;
+
+  color: var(--color-text-secondary);
+  font-family: var(--font-label, var(--font-sans));
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+/* --- El campo --- */
+
+/* Misma forma que `.textInput` del DialogShell, para que un campo de fecha
+   y uno de texto se lean como hermanos dentro del mismo formulario. */
+.group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+
+  padding: 0 6px 0 12px;
+  min-height: 44px;
+
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+
+  background: var(--color-surface-variant);
+  color: var(--color-text);
+
+  transition: border-color 0.18s var(--ease, ease), box-shadow 0.18s ease;
+}
+
+.group[data-focus-within] {
+  border-color: var(--color-primary);
+  box-shadow: var(--focus, 0 0 0 2px var(--color-primary));
+}
+
+.group[data-invalid] {
+  border-color: var(--color-error);
+}
+
+.group[data-disabled] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.input {
+  display: flex;
+  flex: 1;
+  align-items: center;
+
+  padding: 8px 0;
+
+  font-family: var(--font-sans);
+  font-size: 0.9375rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Cada segmento (día, mes, año, hora) se edita por separado con el teclado.
+   El resaltado del segmento activo es lo que hace legible esa navegación. */
+.segment {
+  padding: 1px 2px;
+  border-radius: var(--r-xs, 3px);
+  outline: none;
+  text-align: center;
+  caret-color: transparent;
+}
+
+.segment[data-type='literal'] {
+  padding: 0 1px;
+  color: var(--color-text-secondary);
+}
+
+.segment[data-placeholder] {
+  color: var(--color-text-secondary);
+}
+
+.segment[data-focused] {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+.trigger {
+  display: grid;
+  place-items: center;
+
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  flex: none;
+
+  border: 0;
+  border-radius: var(--radius-control);
+
+  background: transparent;
+  color: var(--color-text-secondary);
+
+  cursor: pointer;
+  transition: background 0.18s var(--ease, ease), color 0.18s ease;
+}
+
+.trigger[data-hovered] {
+  background: color-mix(in srgb, var(--color-text) 7%, transparent);
+  color: var(--color-text);
+}
+
+.trigger[data-focus-visible] {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+.description {
+  margin-top: 5px;
+  color: var(--color-text-secondary);
+  font-size: 0.72rem;
+}
+
+.error {
+  margin-top: 5px;
+  color: var(--color-error);
+  font-size: 0.72rem;
+}
+
+/* --- El panel --- */
+
+.popover {
+  /*
+   * `!important` es aquí la única vía, y no un atajo: React Aria escribe
+   * `z-index: 100000` EN LÍNEA sobre el popover, y un estilo en línea gana
+   * a cualquier regla de hoja por específica que sea. Sin esto el
+   * calendario se dibuja por debajo del velo del modal —que vale 100001 en
+   * DialogShell—, se ve atenuado y no se puede pulsar, porque este
+   * selector se abre DENTRO de un diálogo.
+   *
+   * Comprobado en el navegador: el elemento traía `z-index: 100000` inline
+   * y el computado ignoraba el 100002 declarado aquí.
+   */
+  z-index: 100002 !important;
+}
+
+.dialog {
+  padding: 14px;
+
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+
+  background: var(--color-surface-variant);
+  box-shadow: var(--shadow-3, 0 16px 40px rgba(0, 0, 0, 0.18));
+
+  outline: none;
+
+  /* En pantallas bajas el panel se acota y se desplaza por dentro, en vez
+     de desbordar el viewport. `dvh` y no `vh`: en móvil `100vh` mide el
+     viewport grande y volvería a desbordar justo donde más molesta. */
+  max-height: min(72dvh, calc(100dvh - 96px));
+  max-width: calc(100vw - 24px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.calendar {
+  width: fit-content;
+}
+
+.calendarHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+
+  margin-bottom: 10px;
+}
+
+.monthLabel {
+  margin: 0;
+  flex: 1;
+  text-align: center;
+
+  color: var(--color-text);
+  font-family: var(--font-serif, var(--font-sans));
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+/* React Aria escribe "septiembre de 2026" en minúscula inicial. Se pone en
+   mayúscula SOLO la primera letra: `text-transform: capitalize` también
+   subía la "de" y dejaba "Septiembre De 2026". */
+.monthLabel::first-letter {
+  text-transform: uppercase;
+}
+
+.navButton {
+  display: grid;
+  place-items: center;
+
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  flex: none;
+
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+
+  background: transparent;
+  color: var(--color-text-secondary);
+
+  cursor: pointer;
+  transition: border-color 0.18s var(--ease, ease), color 0.18s ease, background 0.18s ease;
+}
+
+.navButton[data-hovered] {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.navButton[data-focus-visible] {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+.grid {
+  border-collapse: separate;
+  border-spacing: 2px;
+}
+
+.weekday {
+  padding-bottom: 6px;
+
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono, var(--font-sans));
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.cell {
+  display: grid;
+  place-items: center;
+
+  width: 34px;
+  height: 34px;
+
+  border-radius: var(--radius-control);
+
+  color: var(--color-text);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+
+  cursor: pointer;
+  outline: none;
+  transition: background 0.15s var(--ease, ease), color 0.15s ease;
+}
+
+.cell[data-hovered] {
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+}
+
+/* El día de hoy se marca con un punto bajo la cifra, no con un relleno:
+   así no compite con el día seleccionado y ambos se distinguen a la vez. */
+.cell[data-today]::after {
+  content: '';
+  position: absolute;
+  transform: translateY(11px);
+
+  width: 4px;
+  height: 4px;
+
+  border-radius: 50%;
+  background: var(--color-primary);
+}
+
+.cell[data-today] {
+  position: relative;
+  font-weight: 700;
+}
+
+.cell[data-selected] {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font-weight: 600;
+}
+
+.cell[data-selected][data-today]::after {
+  background: var(--color-on-primary);
+}
+
+.cell[data-focus-visible] {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+/* Días de otro mes: presentes pero claramente en segundo plano. */
+.cell[data-outside-month] {
+  color: var(--color-text-secondary);
+  opacity: 0.4;
+}
+
+.cell[data-disabled] {
+  color: var(--color-text-secondary);
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.cell[data-unavailable] {
+  color: var(--color-error);
+  text-decoration: line-through;
+  cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cell,
+  .navButton,
+  .trigger,
+  .group {
+    transition: none;
+  }
+}

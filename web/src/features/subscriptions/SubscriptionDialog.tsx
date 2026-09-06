@@ -7,13 +7,24 @@ import shellStyles from '../../core/ui/dialogs/DialogShell.module.css'
 import {
   BILLING_CYCLES,
   BILLING_CYCLE_LABELS,
+  CURRENCIES,
+  DEFAULT_CURRENCY,
+  PAYMENT_KINDS,
+  PAYMENT_KIND_LABELS,
   createSubscription,
   updateSubscription,
   type BillingCycle,
+  type PaymentInput,
+  type PaymentKind,
   type Subscription,
 } from './api'
+import { PAYMENT_TEMPLATES, type PaymentTemplate } from './paymentTemplates'
+import { PaymentHistory } from './PaymentHistory'
+import { ShareWithFamily } from '../sharing/ShareWithFamily'
+import { useResourceSharing } from '../sharing/useResourceSharing'
 import styles from './SubscriptionDialog.module.css'
 import { useActiveMode } from '../../core/user/ActiveModeContext'
+import { DatePicker } from '../../core/ui/pickers/DatePicker'
 
 const MotionDialog = motion.create(Dialog)
 
@@ -46,8 +57,23 @@ export function SubscriptionDialog({ subscription, trigger, onSaved }: Subscript
   const [plan, setPlan] = useState(subscription?.plan ?? '')
   const [nextPaymentDate, setNextPaymentDate] = useState(subscription ? toDateInputValue(subscription.nextPaymentDate) : '')
   const [billingCycle, setBillingCycle] = useState<BillingCycle>(subscription?.billingCycle ?? 'MONTHLY')
+  // ADR-020: tipo, importe y divisa por pago.
+  const [kind, setKind] = useState<PaymentKind>(subscription?.kind ?? 'SUBSCRIPTION')
+  const [amount, setAmount] = useState(subscription?.amount != null ? String(subscription.amount) : '')
+  const [currency, setCurrency] = useState(subscription?.currency ?? DEFAULT_CURRENCY)
+  const [paymentMethod, setPaymentMethod] = useState(subscription?.paymentMethod ?? '')
+  const [notes, setNotes] = useState(subscription?.notes ?? '')
+  const [variableAmount, setVariableAmount] = useState(subscription?.variableAmount ?? false)
+  const [statementDay, setStatementDay] = useState(subscription?.statementDay != null ? String(subscription.statementDay) : '')
+  const [dueDay, setDueDay] = useState(subscription?.dueDay != null ? String(subscription.dueDay) : '')
+  const [institution, setInstitution] = useState(subscription?.institution ?? '')
+  const [lastFour, setLastFour] = useState(subscription?.lastFour ?? '')
+  const [totalInstallments, setTotalInstallments] = useState(subscription?.totalInstallments != null ? String(subscription.totalInstallments) : '')
+  const [currentInstallment, setCurrentInstallment] = useState(subscription?.currentInstallment != null ? String(subscription.currentInstallment) : '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // ADR-025 §2/§5: "hacer mi parte" de un pago es pagarlo.
+  const sharing = useResourceSharing('SUBSCRIPTION')
 
   function handleOpenChange(open: boolean) {
     setIsOpen(open)
@@ -57,8 +83,29 @@ export function SubscriptionDialog({ subscription, trigger, onSaved }: Subscript
       setPlan(subscription?.plan ?? '')
       setNextPaymentDate(subscription ? toDateInputValue(subscription.nextPaymentDate) : '')
       setBillingCycle(subscription?.billingCycle ?? 'MONTHLY')
+      setKind(subscription?.kind ?? 'SUBSCRIPTION')
+      setAmount(subscription?.amount != null ? String(subscription.amount) : '')
+      setCurrency(subscription?.currency ?? DEFAULT_CURRENCY)
+      setPaymentMethod(subscription?.paymentMethod ?? '')
+      setNotes(subscription?.notes ?? '')
+      setVariableAmount(subscription?.variableAmount ?? false)
+      setStatementDay(subscription?.statementDay != null ? String(subscription.statementDay) : '')
+      setDueDay(subscription?.dueDay != null ? String(subscription.dueDay) : '')
+      setInstitution(subscription?.institution ?? '')
+      setLastFour(subscription?.lastFour ?? '')
+      setTotalInstallments(subscription?.totalInstallments != null ? String(subscription.totalInstallments) : '')
+      setCurrentInstallment(subscription?.currentInstallment != null ? String(subscription.currentInstallment) : '')
+      sharing.reset()
       setError(null)
     }
+  }
+
+  /** Solo prellena: el usuario puede cambiar cualquier campo después. */
+  function applyTemplate(template: PaymentTemplate) {
+    setKind(template.kind)
+    setBillingCycle(template.billingCycle)
+    if (template.service) setService(template.service)
+    if (template.kind === 'CARD') setVariableAmount(true)
   }
 
   async function handleSubmit(event: FormEvent) {
@@ -68,14 +115,42 @@ export function SubscriptionDialog({ subscription, trigger, onSaved }: Subscript
     setError(null)
     try {
       const isoDate = new Date(nextPaymentDate).toISOString()
+      const numeric = (raw: string) => (raw.trim() === '' ? undefined : Number(raw))
+      const input: PaymentInput = {
+        service: service.trim(),
+        company: company.trim() || undefined,
+        plan: plan.trim() || undefined,
+        nextPaymentDate: isoDate,
+        billingCycle,
+        kind,
+        // Una tarjeta no conoce su importe hasta el corte: se guarda como
+        // variable y sin cifra, nunca como cero.
+        amount: kind === 'CARD' || variableAmount ? undefined : numeric(amount),
+        currency: kind === 'CARD' || variableAmount ? undefined : currency,
+        paymentMethod: paymentMethod.trim() || undefined,
+        notes: notes.trim() || undefined,
+        variableAmount: kind === 'CARD' ? true : variableAmount,
+        statementDay: kind === 'CARD' ? numeric(statementDay) : undefined,
+        dueDay: kind === 'CARD' ? numeric(dueDay) : undefined,
+        institution: kind === 'CARD' ? institution.trim() || undefined : undefined,
+        lastFour: lastFour.trim() || undefined,
+        totalInstallments: kind === 'CREDIT' ? numeric(totalInstallments) : undefined,
+        currentInstallment: kind === 'CREDIT' ? numeric(currentInstallment) : undefined,
+      }
       const saved =
         isEdit && subscription
-          ? await updateSubscription(subscription.id, service.trim(), company.trim(), plan.trim(), isoDate, billingCycle, subscription.version)
-          : await createSubscription(service.trim(), company.trim(), plan.trim(), isoDate, billingCycle, activeMode)
+          ? await updateSubscription(subscription.id, input, subscription.version)
+          : await createSubscription(input, activeMode)
       onSaved(saved)
+
+      const shareError = await sharing.commit(saved.id)
+      if (shareError) {
+        setError(shareError)
+        return
+      }
       setIsOpen(false)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo guardar la suscripción.')
+      setError(e instanceof Error ? e.message : 'No se pudo guardar el pago.')
     } finally {
       setSaving(false)
     }
@@ -96,7 +171,7 @@ export function SubscriptionDialog({ subscription, trigger, onSaved }: Subscript
               <form onSubmit={handleSubmit}>
                 <div className={shellStyles.headerRow}>
                   <Heading slot="title" className={shellStyles.heading}>
-                    {isEdit ? 'Editar suscripción' : 'Nueva suscripción'}
+                    {isEdit ? 'Editar pago' : 'Agregar pago'}
                   </Heading>
                   <button type="button" className={shellStyles.closeButton} onClick={close} aria-label="Cerrar">
                     ×
@@ -105,8 +180,48 @@ export function SubscriptionDialog({ subscription, trigger, onSaved }: Subscript
 
                 {error && <p className={shellStyles.formError} role="alert">{error}</p>}
 
+                {!isEdit && (
+                  <div className={shellStyles.field}>
+                    <span className={shellStyles.fieldLabel}>Empieza por una plantilla (opcional)</span>
+                    <div className={styles.templateRow}>
+                      {PAYMENT_TEMPLATES.map((template) => (
+                        <button
+                          key={template.id}
+                          type="button"
+                          className={styles.templateChip}
+                          onClick={() => applyTemplate(template)}
+                        >
+                          {template.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* ADR-020: el tipo va primero porque decide qué campos
+                    tienen sentido debajo. Un formulario que enseña "día de
+                    corte" a quien registra Spotify es un formulario que se
+                    abandona. */}
+                <div className={shellStyles.field}>
+                  <span className={shellStyles.fieldLabel}>Tipo de pago</span>
+                  <div className={styles.kindGrid} role="radiogroup" aria-label="Tipo de pago">
+                    {PAYMENT_KINDS.map((option) => (
+                      <button
+                        key={option}
+                        type="button"
+                        role="radio"
+                        aria-checked={kind === option}
+                        className={`${styles.cycleButton} ${kind === option ? styles.cycleButtonActive : ''}`}
+                        onClick={() => setKind(option)}
+                      >
+                        {PAYMENT_KIND_LABELS[option]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <label className={shellStyles.field}>
-                  <span className={shellStyles.fieldLabel}>Servicio</span>
+                  <span className={shellStyles.fieldLabel}>Nombre</span>
                   <input
                     className={shellStyles.textInput}
                     value={service}
@@ -161,16 +276,180 @@ export function SubscriptionDialog({ subscription, trigger, onSaved }: Subscript
                   </div>
                 </div>
 
+                {/* Una tarjeta no conoce su importe hasta el corte: el campo
+                    no se muestra en vez de pedir una cifra inventada. */}
+                {kind !== 'CARD' && (
+                  <div className={styles.amountRow}>
+                    <label className={shellStyles.field}>
+                      <span className={shellStyles.fieldLabel}>Importe (opcional)</span>
+                      <input
+                        className={shellStyles.textInput}
+                        type="number"
+                        inputMode="decimal"
+                        step="0.01"
+                        min="0"
+                        value={amount}
+                        onChange={(event) => setAmount(event.target.value)}
+                        disabled={variableAmount}
+                        placeholder={variableAmount ? 'Variable' : '0.00'}
+                      />
+                    </label>
+
+                    <label className={shellStyles.field}>
+                      <span className={shellStyles.fieldLabel}>Divisa</span>
+                      <select
+                        className={shellStyles.textInput}
+                        value={currency}
+                        onChange={(event) => setCurrency(event.target.value)}
+                        disabled={variableAmount}
+                      >
+                        {CURRENCIES.map((code) => (
+                          <option key={code} value={code}>
+                            {code}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                )}
+
+                {kind !== 'CARD' && (
+                  <label className={styles.checkboxRow}>
+                    <input
+                      type="checkbox"
+                      checked={variableAmount}
+                      onChange={(event) => setVariableAmount(event.target.checked)}
+                    />
+                    <span>El importe cambia cada vez (luz, agua…)</span>
+                  </label>
+                )}
+
+                {kind === 'CARD' && (
+                  <>
+                    <div className={styles.amountRow}>
+                      <label className={shellStyles.field}>
+                        <span className={shellStyles.fieldLabel}>Día de corte</span>
+                        <input
+                          className={shellStyles.textInput}
+                          type="number"
+                          min="1"
+                          max="31"
+                          value={statementDay}
+                          onChange={(event) => setStatementDay(event.target.value)}
+                          required
+                        />
+                      </label>
+
+                      <label className={shellStyles.field}>
+                        <span className={shellStyles.fieldLabel}>Día límite de pago</span>
+                        <input
+                          className={shellStyles.textInput}
+                          type="number"
+                          min="1"
+                          max="31"
+                          value={dueDay}
+                          onChange={(event) => setDueDay(event.target.value)}
+                          required
+                        />
+                      </label>
+                    </div>
+
+                    <label className={shellStyles.field}>
+                      <span className={shellStyles.fieldLabel}>Institución (opcional)</span>
+                      <input
+                        className={shellStyles.textInput}
+                        value={institution}
+                        onChange={(event) => setInstitution(event.target.value)}
+                        placeholder="BBVA, Banorte…"
+                      />
+                    </label>
+                  </>
+                )}
+
+                {kind === 'CREDIT' && (
+                  <div className={styles.amountRow}>
+                    <label className={shellStyles.field}>
+                      <span className={shellStyles.fieldLabel}>Plazos totales (opcional)</span>
+                      <input
+                        className={shellStyles.textInput}
+                        type="number"
+                        min="1"
+                        max="600"
+                        value={totalInstallments}
+                        onChange={(event) => setTotalInstallments(event.target.value)}
+                      />
+                    </label>
+
+                    <label className={shellStyles.field}>
+                      <span className={shellStyles.fieldLabel}>Plazo actual (opcional)</span>
+                      <input
+                        className={shellStyles.textInput}
+                        type="number"
+                        min="0"
+                        max="600"
+                        value={currentInstallment}
+                        onChange={(event) => setCurrentInstallment(event.target.value)}
+                      />
+                    </label>
+                  </div>
+                )}
+
+                {/* Etiqueta para reconocer la tarjeta con la que se paga.
+                    NO es un dato bancario: nunca se pide el número
+                    completo, ni CVV, ni titular. */}
+                <div className={styles.amountRow}>
+                  <label className={shellStyles.field}>
+                    <span className={shellStyles.fieldLabel}>Método de pago (opcional)</span>
+                    <input
+                      className={shellStyles.textInput}
+                      value={paymentMethod}
+                      onChange={(event) => setPaymentMethod(event.target.value)}
+                      placeholder="Domiciliado, transferencia…"
+                    />
+                  </label>
+
+                  <label className={shellStyles.field}>
+                    <span className={shellStyles.fieldLabel}>Últimos 4 dígitos (opcional)</span>
+                    <input
+                      className={shellStyles.textInput}
+                      inputMode="numeric"
+                      maxLength={4}
+                      pattern="[0-9]{4}"
+                      value={lastFour}
+                      onChange={(event) => setLastFour(event.target.value.replace(/\D/g, ''))}
+                      placeholder="4521"
+                    />
+                  </label>
+                </div>
+
+                {isEdit && subscription && <PaymentHistory subscriptionId={subscription.id} />}
+
                 <label className={shellStyles.field}>
-                  <span className={shellStyles.fieldLabel}>¿Qué día se tiene que pagar?</span>
-                  <input
-                    type="date"
-                    className={shellStyles.textInput}
-                    value={nextPaymentDate}
-                    onChange={(event) => setNextPaymentDate(event.target.value)}
-                    required
+                  <span className={shellStyles.fieldLabel}>Notas (opcional)</span>
+                  <textarea
+                    className={shellStyles.textArea}
+                    rows={2}
+                    value={notes}
+                    onChange={(event) => setNotes(event.target.value)}
                   />
                 </label>
+
+                <DatePicker
+                    label="¿Qué día se tiene que pagar?"
+                    value={nextPaymentDate}
+                    onChange={(next) => setNextPaymentDate(next)}
+                    isRequired
+                  />
+
+                <div className={shellStyles.field}>
+                  <span className={shellStyles.fieldLabel}>Compartir con tu familia</span>
+                  <ShareWithFamily
+                    type="SUBSCRIPTION"
+                    resourceId={subscription?.id ?? null}
+                    value={sharing.shares}
+                    onChange={sharing.setShares}
+                  />
+                </div>
 
                 <div className={shellStyles.formActions}>
                   {saving && <span className={shellStyles.savingHint}>Guardando…</span>}

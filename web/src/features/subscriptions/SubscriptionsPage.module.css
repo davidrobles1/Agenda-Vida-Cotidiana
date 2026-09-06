@@ -1,7 +1,7 @@
 .error {
   margin: 0 0 var(--space-3);
   padding: var(--space-2) var(--space-3);
-  border-radius: 20px;;
+  border-radius: var(--r-lg, 20px);
   background: var(--color-error-container);
   color: var(--color-error);
   font-size: 0.8125rem;
@@ -21,7 +21,7 @@
   gap: 6px;
   padding: var(--space-2) var(--space-4);
   border: none;
-  border-radius: 20px;;
+  border-radius: var(--r-lg, 20px);
   background: var(--color-primary);
   color: var(--color-on-primary);
   font-size: 0.9375rem;
@@ -66,4 +66,362 @@
 /* El SVG no debe encogerse dentro del botón redondo. */
 .iconButton > svg {
   flex-shrink: 0;
+}
+
+/* =====================================================
+   PAGOS (ADR-020, etapa 3)
+
+   Sustituye la lista plana de suscripciones. Tres bloques en orden de
+   urgencia: resumen, filtros y lista agrupada por cercanía.
+   ===================================================== */
+
+.hint {
+  margin: 0;
+  padding: var(--space-4) 0;
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+}
+
+/* ---------- Resumen ---------- */
+
+.summary {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+@media (max-width: 860px) {
+  .summary {
+    grid-template-columns: 1fr;
+  }
+}
+
+.summaryCard {
+  min-width: 0;
+  padding: 14px 16px;
+
+  border: 1px solid color-mix(in srgb, var(--color-border) 32%, transparent);
+  border-radius: var(--radius-card, 12px);
+
+  background: var(--color-surface-variant);
+}
+
+.summaryLead {
+  border-color: color-mix(in srgb, var(--color-primary) 40%, transparent);
+}
+
+.summaryLabel {
+  display: block;
+  margin-bottom: 6px;
+
+  color: var(--color-text-secondary);
+
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.summaryValue {
+  margin: 0;
+
+  color: var(--color-text);
+
+  font-family: var(--font-serif);
+  font-size: 1.4rem;
+  font-weight: 500;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+}
+
+.summaryMeta {
+  margin: 3px 0 0;
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
+}
+
+/* ---------- Filtros ---------- */
+
+.filters {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: var(--space-4);
+}
+
+.chip {
+  padding: 6px 13px;
+  min-height: 0;
+
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+
+  background: transparent;
+  color: var(--color-text-secondary);
+
+  font-size: 0.8rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.chip[data-on] {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-on-primary);
+  font-weight: 600;
+}
+
+/* ---------- Grupos y filas ---------- */
+
+.group {
+  margin-bottom: var(--space-4);
+}
+
+.groupLabel {
+  margin: 0 0 10px;
+
+  color: var(--color-text-secondary);
+
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* El tipo se codifica en el filete izquierdo Y en tres letras: las letras
+   se leen sin color, el color solo refuerza. */
+.row {
+  display: grid;
+  grid-template-columns: 38px 1fr auto auto;
+  align-items: center;
+  gap: 13px;
+
+  padding: 13px 15px;
+
+  border: 1px solid color-mix(in srgb, var(--color-border) 28%, transparent);
+  border-left: 3px solid var(--kind-color, var(--color-border));
+  border-radius: var(--radius-card, 12px);
+
+  background: var(--color-surface-variant);
+}
+
+.row[data-kind='SUBSCRIPTION'] { --kind-color: var(--color-primary); }
+.row[data-kind='SERVICE']      { --kind-color: var(--color-info); }
+.row[data-kind='MEMBERSHIP']   { --kind-color: var(--color-success, #4d6b46); }
+.row[data-kind='CUSTOM']       { --kind-color: var(--color-border); }
+.row[data-kind='CARD']         { --kind-color: var(--color-terracotta); }
+.row[data-kind='CREDIT']       { --kind-color: var(--second); }
+
+.row[data-state='paid'] {
+  opacity: 0.6;
+}
+
+.row[data-state='paid'] .rowName {
+  text-decoration: line-through;
+}
+
+.row[data-state='overdue'] {
+  border-color: color-mix(in srgb, var(--color-error) 40%, transparent);
+}
+
+.rowMark {
+  display: grid;
+  place-items: center;
+
+  width: 38px;
+  height: 38px;
+
+  border-radius: 10px;
+
+  background: color-mix(in srgb, var(--kind-color) 14%, transparent);
+  color: var(--kind-color);
+
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-weight: 700;
+}
+
+.rowBody {
+  min-width: 0;
+}
+
+.rowName {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+
+  margin: 0;
+
+  color: var(--color-text);
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.rowMeta {
+  margin: 2px 0 0;
+
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
+
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rowRight {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.rowAmount {
+  display: block;
+
+  color: var(--color-text);
+
+  font-family: var(--font-mono);
+  font-size: 0.88rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.rowWhen {
+  display: block;
+  margin-top: 2px;
+
+  color: var(--color-text-secondary);
+  font-size: 0.72rem;
+}
+
+.tag {
+  padding: 2px 7px;
+
+  border-radius: 999px;
+
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.tag[data-t='var'] {
+  background: color-mix(in srgb, var(--color-terracotta) 16%, transparent);
+  color: var(--color-terracotta-text, var(--color-terracotta));
+}
+
+.tag[data-t='due'] {
+  background: var(--color-error-container);
+  color: var(--color-error);
+}
+
+/* ---------- Estado vacío ---------- */
+
+.empty {
+  padding: 32px 24px;
+
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-card, 12px);
+
+  background: var(--color-surface-variant);
+  text-align: center;
+}
+
+.empty h3 {
+  margin: 0 0 6px;
+
+  color: var(--color-text);
+
+  font-family: var(--font-serif);
+  font-size: 1.15rem;
+  font-weight: 500;
+}
+
+.empty p {
+  margin: 0 auto 18px;
+  max-width: 42ch;
+
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+}
+
+/* Píldora en línea, no una barra a todo lo ancho: `Button` de react-aria
+   se estira dentro de un contenedor en bloque si no se le fija el ancho. */
+.primaryButton {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  margin-top: var(--space-4);
+  padding: 11px 20px;
+  min-height: 0;
+
+  border: 1px solid var(--color-primary);
+  border-radius: 999px;
+
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@media (max-width: 640px) {
+  .row {
+    grid-template-columns: 34px 1fr auto;
+    grid-template-areas:
+      'mark body right'
+      'mark actions actions';
+    row-gap: 8px;
+  }
+
+  .rowMark { grid-area: mark; }
+  .rowBody { grid-area: body; }
+  .rowRight { grid-area: right; }
+  .rowActions { grid-area: actions; justify-content: flex-end; }
+}
+
+/* Acción principal de la fila (ADR-020(f)). */
+.payButton {
+  padding: 6px 12px;
+  min-height: 0;
+
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+
+  background: transparent;
+  color: var(--color-text);
+
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.payButton:hover:not(:disabled) {
+  border-color: var(--color-success, var(--ok));
+  color: var(--color-success, var(--ok));
+}
+
+.payButton:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.tag[data-t='paid'] {
+  background: color-mix(in srgb, var(--color-success, var(--ok)) 16%, transparent);
+  color: var(--color-success, var(--ok));
+}
+
+/* Un crédito liquidado sigue visible pero deja de pedir atención. */
+.row[data-state='finished'] {
+  opacity: 0.55;
 }

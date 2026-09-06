@@ -142,5 +142,5 @@
 }
 
 .legendDot[data-kind='per'] {
-  background: var(--color-terracotta, var(--color-accent, #b47b48));
+  background: var(--color-terracotta, var(--color-accent, var(--second)));
 }

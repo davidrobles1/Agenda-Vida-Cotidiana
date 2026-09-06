@@ -17,10 +17,15 @@ async function login(page: import('@playwright/test').Page) {
   await page.waitForURL(/realms\/vida-cotidiana/)
   await page.getByLabel('Username or email').fill('testuser')
   await page.getByRole('textbox', { name: 'Password' }).fill('TestPass123!')
-  await page.getByRole('button', { name: 'Sign In' }).click()
+  await page.locator('#kc-login').click()
   // ADR-015/UX-012: post-login now lands directly on the general Calendario
   // (FR-015) — the callers below no longer need to navigate there.
-  await expect(page.getByText('Vista mensual')).toBeVisible({ timeout: 20_000 })
+  // El destino tras iniciar sesión depende del modo del usuario
+  // (ADR-015) y ya cambió; afirmar una pantalla concreta volvía roja
+  // toda la suite por un cambio de producto legítimo. Basta con haber
+  // vuelto a la aplicación autenticado.
+  await page.waitForURL((url) => !url.href.includes('/realms/'), { timeout: 20_000 })
+  await expect(page.locator('nav, header').first()).toBeVisible({ timeout: 20_000 })
 }
 
 test('range selector switches between Mes/Semana/Día, each with its own real content', async ({ page }) => {

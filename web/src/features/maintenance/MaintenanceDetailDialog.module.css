@@ -1,0 +1,113 @@
+/* ADR-021: detalle de un mantenimiento — ver, editar e historial. */
+
+.subtitle {
+  margin: 3px 0 0;
+  color: var(--color-text-secondary);
+  font-size: 0.8125rem;
+}
+
+.grid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+
+@media (max-width: 520px) {
+  .grid2 { grid-template-columns: 1fr; }
+}
+
+.history {
+  margin-bottom: var(--space-3);
+  padding: 13px 15px;
+
+  border: 1px solid color-mix(in srgb, var(--color-border) 28%, transparent);
+  border-radius: 13px;
+
+  background: color-mix(in srgb, var(--color-surface) 55%, transparent);
+}
+
+.historyTitle {
+  display: block;
+  margin-bottom: 7px;
+
+  color: var(--color-text-secondary);
+
+  font-family: var(--font-mono);
+  font-size: 0.59rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.historyList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.historyRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+
+  padding: 4px 0;
+
+  color: var(--color-text);
+  font-size: 0.82rem;
+}
+
+.historyNote {
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+}
+
+.historyEmpty {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.8rem;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: var(--space-4);
+}
+
+.primary,
+.secondary {
+  padding: 9px 16px;
+  min-height: 0;
+
+  border-radius: 999px;
+
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.primary {
+  border: 1px solid var(--color-primary);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+.primary:hover:not(:disabled) { filter: brightness(1.08); }
+
+.secondary {
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text);
+}
+
+.secondary:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.primary:disabled,
+.secondary:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

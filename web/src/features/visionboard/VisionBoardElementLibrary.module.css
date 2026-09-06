@@ -10,8 +10,14 @@
 .libraryDialog {
   width: 360px;
   max-width: calc(100vw - 32px);
+  /* Mismo motivo y misma medida que `.popoverDialog`: el paso de "Forma"
+     lista ~30 variantes y ahora también las paletas de color, así que sin
+     altura máxima ni scroll el panel se salía del viewport. */
+  max-height: min(70dvh, calc(100dvh - 96px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: var(--space-4);
-  border-radius: 28px;;
+  border-radius: var(--r-xl, 28px);
   background: var(--color-surface-variant);
   border: 1px solid var(--color-border);
   box-shadow: 0 16px 40px rgba(44, 66, 91, 0.2);
@@ -40,7 +46,7 @@
   gap: 6px;
   padding: var(--space-3) var(--space-2);
   border: 1.5px solid var(--color-border);
-  border-radius: 28px;;
+  border-radius: var(--r-xl, 28px);
   background: var(--color-surface);
   color: var(--color-text);
   font-size: 0.78rem;
@@ -100,7 +106,7 @@
   min-height: 120px;
   padding: var(--space-3);
   border: 1.5px dashed var(--color-border);
-  border-radius: 28px;;
+  border-radius: var(--r-xl, 28px);
   background: var(--color-surface);
   color: var(--color-text-secondary);
   font-size: 0.8125rem;
@@ -122,7 +128,7 @@
 .imageDropzonePreview {
   max-width: 100%;
   max-height: 140px;
-  border-radius: 20px;;
+  border-radius: var(--r-lg, 20px);
   object-fit: contain;
 }
 
@@ -158,7 +164,7 @@
   justify-content: center;
   padding: 4px;
   border: none;
-  border-radius: 20px;;
+  border-radius: var(--r-lg, 20px);
   background: transparent;
   cursor: pointer;
   transition: background-color 150ms ease;

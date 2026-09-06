@@ -1,12 +1,14 @@
 package com.vidacotidiana.document.api;
 
 import com.vidacotidiana.document.api.dto.DocumentResponse;
+import com.vidacotidiana.document.api.dto.DownloadDocumentsRequest;
 import com.vidacotidiana.document.api.dto.ShareDocumentRequest;
 import com.vidacotidiana.document.api.dto.UpdateDocumentRequest;
 import com.vidacotidiana.document.api.dto.VersionRequest;
 import com.vidacotidiana.document.application.DocumentService;
 import com.vidacotidiana.document.domain.Document;
 import com.vidacotidiana.document.domain.DocumentCategory;
+import com.vidacotidiana.shared.domain.ModuleContext;
 import com.vidacotidiana.identity.infrastructure.CurrentUser;
 import com.vidacotidiana.shared.api.PageResponse;
 import jakarta.validation.Valid;
@@ -15,6 +17,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -58,18 +61,27 @@ public class DocumentController {
             @RequestParam("name") String name,
             @RequestParam("category") DocumentCategory category,
             @RequestParam(value = "personId", required = false) UUID personId,
-            @RequestParam(value = "projectId", required = false) UUID projectId) {
-        Document document = documentService.upload(currentUser.userId(), name, category, file, personId, projectId);
+            @RequestParam(value = "projectId", required = false) UUID projectId,
+            // ADR-022: módulo desde el que se sube. Ausente ⇒ PERSONAL.
+            @RequestParam(value = "context", required = false) String context) {
+        Document document = documentService.upload(currentUser.userId(), name, category, file, personId, projectId,
+                ModuleContext.fromNullable(context));
         return ResponseEntity.status(HttpStatus.CREATED).body(DocumentResponse.from(document));
     }
 
     @GetMapping
     public PageResponse<DocumentResponse> list(
             @RequestParam(required = false) DocumentCategory category,
+            // ADR-022: aislamiento por módulo, resuelto en la consulta.
+            @RequestParam(value = "context", required = false) String context,
+            // ADR-022: búsqueda por nombre, resuelta en la consulta — antes
+            // no existía y filtrar en cliente solo miraba la página cargada.
+            @RequestParam(value = "q", required = false) String q,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         Pageable pageable = PageRequest.of(page, Math.min(size, 100));
-        Page<Document> documents = documentService.listVisibleTo(currentUser.userId(), category, pageable);
+        Page<Document> documents = documentService.search(
+                currentUser.userId(), ModuleContext.filterFromNullable(context), category, q, pageable);
         return PageResponse.from(documents.map(DocumentResponse::from));
     }
 
@@ -86,6 +98,26 @@ public class DocumentController {
                 .contentType(MediaType.parseMediaType(document.getContentType()))
                 .cacheControl(CacheControl.maxAge(365, TimeUnit.DAYS).cachePrivate())
                 .body(document.getData());
+    }
+
+    /**
+     * ADR-025 §7 — descarga de uno, de varios o de todos, en un ZIP.
+     *
+     * POST y no GET porque la selección múltiple viaja en el cuerpo: una lista
+     * de ids en la query se topa con el límite de longitud de URL en cuanto se
+     * seleccionan unas decenas de documentos. Para UNO solo, el cliente sigue
+     * usando el `GET /{id}/content` que ya existía — no se ha tocado.
+     */
+    @PostMapping("/download")
+    public ResponseEntity<byte[]> download(@RequestBody DownloadDocumentsRequest request) {
+        byte[] archive = documentService.zip(
+                currentUser.userId(),
+                ModuleContext.filterFromNullable(request.context()),
+                request.ids());
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType("application/zip"))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"documentos.zip\"")
+                .body(archive);
     }
 
     @PatchMapping("/{id}")

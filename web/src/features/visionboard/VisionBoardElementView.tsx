@@ -9,6 +9,7 @@ import { buildChart, CHART_TYPE_OPTIONS } from './visionBoardCharts'
 import { frameStyleOf } from './visionBoardFrames'
 import { GRID_CELL_COLORS, gridLayoutOf } from './visionBoardGrids'
 import { shapeDefOf } from './visionBoardShapes'
+import { shapeColorOf } from './visionBoardShapeColors'
 import { fontSizeOf, fontStackOf } from './visionBoardFonts'
 import styles from './VisionBoardCanvas.module.css'
 
@@ -470,6 +471,13 @@ function VisionBoardElementViewImpl({
       data-saving={saving || undefined}
       data-locked={element.locked || undefined}
       data-type={element.type}
+      /* El contenedor no debe pintar NADA detrás de un contenido que ya
+         tiene silueta propia: una forma, un sticker o una foto recortada.
+         Si lo hace, se ve un rectángulo redondeado con sombra por debajo
+         del hexágono o del engranaje — que es justo lo que el usuario
+         reportó. Un solo atributo lo resuelve para todos los tipos, y
+         para los que se añadan después. */
+      data-chromeless={isChromeless(element) || undefined}
       data-element-id={element.id}
       style={style}
       onClick={(event) => {
@@ -599,6 +607,24 @@ function elementLabel(element: VisionBoardElement): string {
  * in `data` carries them yet, and this phase only edits properties the
  * model already supports.
  */
+/**
+ * ¿El contenido de este elemento define su propia silueta?
+ *
+ * Si la define, el contenedor no puede pintar fondo, borde ni sombra: lo
+ * que se vería es un rectángulo por detrás de la forma real.
+ *
+ *  · SHAPE   — la forma ES el visual.
+ *  · STICKER — el glifo tiene su propio contorno.
+ *  · IMAGE   — solo cuando lleva marco/recorte (círculo, hexágono…). Una
+ *    foto sin marco sí es un rectángulo, y su borde y sombra son el marco
+ *    de la propia foto, no una forma añadida detrás.
+ */
+function isChromeless(element: VisionBoardElement): boolean {
+  if (element.type === 'SHAPE' || element.type === 'STICKER') return true
+  if (element.type !== 'IMAGE') return false
+  return !!frameStyleOf(typeof element.data.frameStyle === 'string' ? element.data.frameStyle : undefined)
+}
+
 function ElementContent({ element }: { element: VisionBoardElement }) {
   const text = typeof element.data.text === 'string' ? element.data.text : undefined
 
@@ -669,6 +695,15 @@ function ElementContent({ element }: { element: VisionBoardElement }) {
 
     case 'SHAPE': {
       const variant = shapeVariantOf(element.data)
+      // Color propio de la forma (2026-09-02). Sin él, la forma hereda el
+      // del tema del tablero — que es como se comportaban todas hasta
+      // ahora, así que los tableros existentes no cambian.
+      const ownFill = shapeColorOf(element.data, 'fill')
+      const ownText = shapeColorOf(element.data, 'textColor')
+      const colorVars = {
+        ...(ownFill ? { '--vb-shape-bg': ownFill } : {}),
+        ...(ownText ? { '--vb-text': ownText } : {}),
+      } as CSSProperties
       // BLOQUE C (post-MVP): rectangle/circle/line/capsule stay pure CSS
       // (unchanged since FASE 7) — every other variant renders its
       // catalog path as an SVG, `preserveAspectRatio="none"` so it
@@ -698,7 +733,9 @@ function ElementContent({ element }: { element: VisionBoardElement }) {
       // but SHAPE does (the fill is the shape, the text is additional).
       const shapeText = typeof element.data.text === 'string' ? element.data.text : ''
       return (
-        <span className={styles.elementShapeWrapper}>
+        // Las variables se aplican al envoltorio y no a cada pieza: el
+        // relleno CSS, el `path` del SVG y el texto ya las leen desde aquí.
+        <span className={styles.elementShapeWrapper} style={colorVars}>
           {visual}
           {shapeText && <span className={styles.elementShapeText}>{shapeText}</span>}
         </span>

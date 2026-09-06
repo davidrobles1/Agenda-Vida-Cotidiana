@@ -7,6 +7,7 @@ import { AppShell } from '../../core/ui/layout/AppShell'
 import { IconCheckCircle, IconTasks } from '../../core/ui/icons'
 import { useActiveMode } from '../../core/user/ActiveModeContext'
 import styles from './RemindersPage.module.css'
+import { DatePicker } from '../../core/ui/pickers/DatePicker'
 
 /**
  * RETIRADA DE LA APLICACIÓN (2026-08-28, pedido explícito del usuario: el
@@ -122,14 +123,11 @@ export function RemindersPage() {
       </form>
 
       <div className={styles.dueDateRow}>
-        <label htmlFor="due-at-input" className={styles.dueDateSummary}>
-          Due date (optional)
-        </label>
-        <input
-          id="due-at-input"
-          type="datetime-local"
+        <DatePicker
+          label="Due date (optional)"
           value={dueAtLocal}
-          onChange={(e) => setDueAtLocal(e.target.value)}
+          onChange={setDueAtLocal}
+          withTime
         />
       </div>
 

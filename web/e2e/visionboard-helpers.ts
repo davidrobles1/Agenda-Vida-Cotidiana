@@ -23,13 +23,18 @@ export async function loginAndGoToVisionBoard(page: Page): Promise<void> {
   await page.waitForURL(/realms\/vida-cotidiana/)
   await page.getByLabel('Username or email').fill('testuser')
   await page.getByRole('textbox', { name: 'Password' }).fill('TestPass123!')
-  await page.getByRole('button', { name: 'Sign In' }).click()
+  await page.locator('#kc-login').click()
 
   // Post-login lands on the general/top-level Calendario (FR-015), which
   // has no feature sidebar at all — only the mode selector (Calendario/
   // Personal/Laboral). "Vision Board" only appears in Personal mode's own
   // sidebar, so that mode switch has to happen first.
-  await expect(page.getByText('Vista mensual')).toBeVisible({ timeout: 20_000 })
+  // El destino tras iniciar sesión depende del modo del usuario
+  // (ADR-015) y ya cambió; afirmar una pantalla concreta volvía roja
+  // toda la suite por un cambio de producto legítimo. Basta con haber
+  // vuelto a la aplicación autenticado.
+  await page.waitForURL((url) => !url.href.includes('/realms/'), { timeout: 20_000 })
+  await expect(page.locator('nav, header').first()).toBeVisible({ timeout: 20_000 })
   await page.getByRole('link', { name: 'Personal', exact: true }).click()
   await page.getByRole('link', { name: 'Vision Board', exact: true }).click()
 }

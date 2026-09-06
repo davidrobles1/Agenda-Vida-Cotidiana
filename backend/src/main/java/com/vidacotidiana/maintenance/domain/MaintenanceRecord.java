@@ -140,7 +140,60 @@ public class MaintenanceRecord {
         return this.ownerUserId.equals(userId);
     }
 
-    /** Toggles ACTIVE<->COMPLETED, idempotent by design — mirrors Warranty#toggleCompletion. */
+    /**
+     * ADR-021: completa la ocurrencia actual.
+     *
+     * Sustituye funcionalmente a `toggleCompletion` para los mantenimientos
+     * RECURRENTES, que antes quedaban COMPLETADO para siempre pese a tener
+     * periodicidad guardada. Ahora:
+     *
+     *   - con `intervalMonths`, la fecha AVANZA un intervalo y el registro
+     *     sigue activo: eso es lo que significa "cada 3 meses";
+     *   - sin `intervalMonths`, el mantenimiento es puntual y sí termina.
+     *
+     * REGLA DEL VENCIDO (aprobada por el Product Owner, 2026-08-29): si la
+     * fecha ya pasó, el siguiente intervalo se cuenta **desde hoy**, no
+     * desde la fecha incumplida. Es lo contrario de lo que hace Pagos, y a
+     * propósito: una mensualidad de septiembre sigue siendo la de
+     * septiembre, pero si cambias el aceite con dos meses de retraso el
+     * siguiente cambio toca tres meses después de hoy — el intervalo mide
+     * desgaste, no calendario.
+     *
+     * Devuelve la fecha que estaba programada, que es lo que el historial
+     * necesita guardar para poder deshacer.
+     */
+    public java.time.Instant completeOccurrence(java.time.Instant now) {
+        java.time.Instant scheduled = this.nextDueAt;
+
+        if (this.intervalMonths == null || this.intervalMonths < 1) {
+            this.status = MaintenanceStatus.COMPLETED;
+            this.updatedAt = Instant.now();
+            return scheduled;
+        }
+
+        java.time.ZonedDateTime base = (this.nextDueAt.isBefore(now) ? now : this.nextDueAt)
+                .atZone(java.time.ZoneOffset.UTC);
+        this.nextDueAt = base.plusMonths(this.intervalMonths).toInstant();
+        this.status = MaintenanceStatus.ACTIVE;
+        this.updatedAt = Instant.now();
+        return scheduled;
+    }
+
+    /**
+     * ADR-021: deshace la última ejecución devolviendo el registro a la
+     * fecha que tenía. Existe porque marcar por error es trivial y hasta
+     * ahora la interfaz no ofrecía ninguna salida: ocultaba el botón al
+     * completarse, así que un clic equivocado era definitivo.
+     */
+    public void revertToOccurrence(java.time.LocalDate scheduledDate) {
+        this.nextDueAt = scheduledDate.atStartOfDay(java.time.ZoneOffset.UTC).toInstant();
+        this.status = MaintenanceStatus.ACTIVE;
+        this.updatedAt = Instant.now();
+    }
+
+    /** Toggles ACTIVE<->COMPLETED, idempotent by design — mirrors Warranty#toggleCompletion.
+        Se conserva: `POST /maintenance-records/{id}/complete` sigue existiendo y hay
+        tests que lo cubren. Las pantallas usan `completeOccurrence`. */
     public void toggleCompletion() {
         this.status = (this.status == MaintenanceStatus.ACTIVE) ? MaintenanceStatus.COMPLETED : MaintenanceStatus.ACTIVE;
         this.updatedAt = Instant.now();
@@ -152,6 +205,18 @@ public class MaintenanceRecord {
     }
 
     public void applyEdit(String item, Instant nextDueAt, Integer intervalMonths) {
+        applyEdit(item, nextDueAt, intervalMonths, false);
+    }
+
+    /**
+     * ADR-021: `clearInterval` quita la periodicidad, que es distinto de no
+     * mandarla. Sin esta distinción, un mantenimiento recurrente no podría
+     * volver a ser puntual nunca.
+     */
+    public void applyEdit(String item, Instant nextDueAt, Integer intervalMonths, boolean clearInterval) {
+        if (clearInterval) {
+            this.intervalMonths = null;
+        }
         if (item != null) {
             this.item = item;
         }

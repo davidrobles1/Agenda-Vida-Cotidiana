@@ -18,7 +18,7 @@
   min-height: 0;
   padding: 0;
   border: 1.5px solid transparent;
-  border-radius: 20px;;
+  border-radius: var(--r-lg, 20px);
   background: var(--color-surface);
   color: var(--color-text-secondary);
   cursor: pointer;
@@ -80,7 +80,7 @@
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  color: #fff;
+  color: var(--on-accent, #fff);
 }
 
 /* =====================================================
@@ -100,7 +100,7 @@
   padding: 0;
   flex-shrink: 0;
   border: 1px solid rgba(58, 66, 78, 0.16);
-  border-radius: 20px;;
+  border-radius: var(--r-lg, 20px);
   background: var(--color-surface);
   color: var(--color-text-secondary);
   cursor: pointer;
@@ -109,7 +109,7 @@
 
 .emojiTriggerButton:hover {
   background: var(--color-primary-container);
-  border-color: rgba(74, 114, 150, 0.28);
+  border-color: color-mix(in srgb, var(--accent) 28%, transparent);
   color: var(--color-primary);
 }
 
@@ -131,7 +131,7 @@
 }
 
 .emojiDialog {
-  border-radius: 28px;;
+  border-radius: var(--r-xl, 28px);
   box-shadow: 0 16px 40px rgba(44, 66, 91, 0.24);
   outline: none;
   overflow: hidden;

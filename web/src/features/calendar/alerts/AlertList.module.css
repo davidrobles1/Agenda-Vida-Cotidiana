@@ -167,53 +167,6 @@
   font-size: 0.82rem;
 }
 
-/* =====================================================
-   TEMAS
-   ===================================================== */
-
-/* Editorial: sin relleno, la severidad vive en el filete y la tipografía. */
-:global(.theme-editorial) .item {
-  background: transparent;
-  border-radius: 0;
-  border-top: none;
-  border-right: none;
-  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 45%, transparent);
-}
-
-:global(.theme-editorial) .badge {
-  font-family: var(--font-serif);
-  font-style: italic;
-  letter-spacing: 0.02em;
-  text-transform: none;
-}
-
-/* Minimal: solo el filete y el texto. */
-:global(.theme-minimal) .item {
-  background: transparent;
-  border: none;
-  border-left: 2px solid var(--alert-accent);
-  border-radius: 0;
-  padding-left: 12px;
-}
-
-:global(.theme-minimal) .badge {
-  border-color: transparent;
-  padding-left: 0;
-  padding-right: 0;
-}
-
-/* Productivity: más densidad, la severidad se ve de lejos. */
-:global(.theme-productivity) .item {
-  padding: 6px 10px;
-  border-left-width: 5px;
-}
-
-/* Organic: bordes suaves. */
-:global(.theme-organic) .item {
-  border-radius: 18px;
-  border-left-width: 6px;
-}
-
 
 /* =====================================================
    ESTADO DE ATENCIÓN (petición 2.3)
@@ -261,6 +214,39 @@
 }
 
 .item[data-attended='true'] .attendButton {
-  border-color: color-mix(in srgb, var(--color-success, #4d6b46) 45%, transparent);
-  color: var(--color-success, #4d6b46);
+  border-color: color-mix(in srgb, var(--color-success, var(--ok)) 45%, transparent);
+  color: var(--color-success, var(--ok));
+}
+
+
+/* ==========================================================================
+   TEMAS UX-014 CONSERVADOS — reglas devueltas el 2026-09-02.
+
+   Premium Minimal / Modern Productivity / Organic / Human se retiraron por
+   error al implementar ADR-023: la petición era eliminar **solo Editorial**.
+   Estas son sus reglas originales, tal cual estaban; de los selectores que
+   compartían con Editorial se conserva únicamente su parte.
+   ========================================================================== */
+:global(.theme-minimal) .item {
+  background: transparent;
+  border: none;
+  border-left: 2px solid var(--alert-accent);
+  border-radius: 0;
+  padding-left: 12px;
+}
+
+:global(.theme-minimal) .badge {
+  border-color: transparent;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+:global(.theme-productivity) .item {
+  padding: 6px 10px;
+  border-left-width: 5px;
+}
+
+:global(.theme-organic) .item {
+  border-radius: 18px;
+  border-left-width: 6px;
 }

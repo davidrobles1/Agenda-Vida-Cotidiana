@@ -1,3 +1,20 @@
 <resources>
     <string name="app_name">Vida Cotidiana</string>
+
+    <!--
+      Accesos rápidos del icono. Cada uno tiene dos rótulos porque Android usa
+      el corto cuando el lanzador tiene poco sitio y el largo cuando cabe; dar
+      solo uno deja al sistema recortando la etiqueta por su cuenta.
+    -->
+    <string name="shortcut_task_short">Tarea</string>
+    <string name="shortcut_task_long">Nueva tarea</string>
+
+    <string name="shortcut_calendar_short">Calendario</string>
+    <string name="shortcut_calendar_long">Abrir calendario</string>
+
+    <string name="shortcut_shared_short">Compartidos</string>
+    <string name="shortcut_shared_long">Ver compartidos</string>
+
+    <string name="shortcut_board_short">Vision Board</string>
+    <string name="shortcut_board_long">Abrir Vision Board</string>
 </resources>

@@ -21,6 +21,7 @@ import type { Person } from './api'
 import { computeLastInteraction, formatRelativeDate, initialsOf } from './personSummary'
 import shellStyles from '../../core/ui/dialogs/DialogShell.module.css'
 import styles from './PeoplePage.module.css'
+import { DatePicker } from '../../core/ui/pickers/DatePicker'
 
 const MotionDialog = motion.create(Dialog)
 
@@ -581,15 +582,11 @@ export function PersonDetailDialog({ person, isOpen, onOpenChange, commitments, 
                     </label>
                   </fieldset>
 
-                  <label className={shellStyles.field}>
-                    <span className={shellStyles.fieldLabel}>Fecha</span>
-                    <input
-                      className={shellStyles.textInput}
-                      type="date"
-                      value={dueAtLocal}
-                      onChange={(e) => setDueAtLocal(e.target.value)}
-                    />
-                  </label>
+                  <DatePicker
+                    label="Fecha"
+                    value={dueAtLocal}
+                    onChange={(next) => setDueAtLocal(next)}
+                  />
 
                   <div className={shellStyles.formActions}>
                     {saving && <span className={shellStyles.savingHint}>Guardando…</span>}

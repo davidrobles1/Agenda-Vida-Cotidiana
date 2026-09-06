@@ -64,4 +64,43 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideDeviceApi(retrofit: Retrofit): DeviceApi = retrofit.create(DeviceApi::class.java)
+
+    // Los servicios de recurso: los mismos que consume la Web. Se registran
+    // aquí, junto a los que ya existían, en vez de crear un módulo aparte.
+
+    @Provides
+    @Singleton
+    fun provideWarrantyApi(retrofit: Retrofit): WarrantyApi = retrofit.create(WarrantyApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideMaintenanceApi(retrofit: Retrofit): MaintenanceApi = retrofit.create(MaintenanceApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideSubscriptionApi(retrofit: Retrofit): SubscriptionApi = retrofit.create(SubscriptionApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideInventoryApi(retrofit: Retrofit): InventoryApi = retrofit.create(InventoryApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideDocumentApi(retrofit: Retrofit): DocumentApi = retrofit.create(DocumentApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideFamilyApi(retrofit: Retrofit): FamilyApi = retrofit.create(FamilyApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideLaboralApi(retrofit: Retrofit): LaboralApi = retrofit.create(LaboralApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideDayNoteApi(retrofit: Retrofit): DayNoteApi = retrofit.create(DayNoteApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideVisionBoardApi(retrofit: Retrofit): VisionBoardApi = retrofit.create(VisionBoardApi::class.java)
 }

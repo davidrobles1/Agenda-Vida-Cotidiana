@@ -25,9 +25,23 @@ import {
   IconUsers,
   IconWrench,
 } from '../icons'
+import { BrandMark, type BrandContext } from '../brand/BrandMark'
 import styles from './AppShell.module.css'
 
 type SidebarContext = 'GENERAL' | 'PERSONAL' | 'LABORAL'
+
+/**
+ * Identidad interna «A · Tiempo» (aprobada 2026-09-05): cada contexto muestra
+ * SU logo, no el de la marca madre. `sidebarContext` ya es exactamente la
+ * noción de contexto que hacía falta — se reutiliza tal cual, sin añadir
+ * estado nuevo. GENERAL es el nivel más alto de la navegación (el selector de
+ * modo lo llama "Calendario"), y por tanto el Portal.
+ */
+const BRAND_BY_CONTEXT: Record<SidebarContext, BrandContext> = {
+  GENERAL: 'PORTAL',
+  PERSONAL: 'PERSONAL',
+  LABORAL: 'LABORAL',
+}
 
 /**
  * Corrección de navegación (2026-08-18, pedido explícito del usuario):
@@ -50,7 +64,10 @@ const personalNavItems = [
   { to: '/inventory', label: 'Inventario', icon: IconInventory },
   { to: '/warranties', label: 'Garantías', icon: IconShield },
   { to: '/maintenance', label: 'Mantenimiento', icon: IconWrench },
-  { to: '/subscriptions', label: 'Suscripciones', icon: IconRepeat },
+  // ADR-020: la sección pasó de "Suscripciones" a "Pagos" — ya no se limita
+  // a servicios digitales. La ruta NO cambia: renombrarla rompería enlaces
+  // guardados sin dar nada a cambio (la ruta no se muestra en la interfaz).
+  { to: '/subscriptions', label: 'Pagos', icon: IconRepeat },
   { to: '/family', label: 'Familia', icon: IconUsers },
 ]
 
@@ -96,9 +113,21 @@ interface AppShellProps {
   title: string
   subtitle?: string
   children: ReactNode
+  /**
+   * Acciones principales de la sección (requisito §9, ADR-025).
+   *
+   * Se dibujan FUERA del contenedor con scroll, entre la barra superior y el
+   * contenido. Esa es la diferencia con un `position: sticky` dentro del
+   * contenido: al no estar en el flujo desplazable, el contenido nunca pasa
+   * por detrás y la barra no necesita un fondo opaco que lo tape. Sigue
+   * siempre visible sin ocultar ni una fila.
+   */
+  actions?: ReactNode
+  /** Texto opcional a la izquierda de las acciones: contador de selección. */
+  actionsHint?: ReactNode
 }
 
-export function AppShell({ title, subtitle, children }: AppShellProps) {
+export function AppShell({ title, subtitle, children, actions, actionsHint }: AppShellProps) {
   const [name, setName] = useState<string | null>(null)
   const location = useLocation()
   const { personalEnabled, laboralEnabled } = useModeContext()
@@ -172,11 +201,12 @@ export function AppShell({ title, subtitle, children }: AppShellProps) {
           className={`${styles.sidebar} ${sidebarVisible ? '' : styles.sidebarClosed}`}
           inert={!sidebarVisible}
         >
+            {/* Identidad «A · Tiempo»: aquí vivía «VC · Vida Cotidiana». Ahora
+                el módulo firma con su propio nombre — Cotidiana en Personal,
+                Oficio en Laboral — y la marca madre no aparece en la interfaz.
+                El hueco es el mismo; solo cambia lo que lo ocupa. */}
             <div className={styles.logo}>
-              <span className={styles.logoMark} data-testid="app-logo-mark">
-                VC
-              </span>
-              <span>Vida Cotidiana</span>
+              <BrandMark context={BRAND_BY_CONTEXT[sidebarContext]} />
             </div>
 
           <nav className={styles.nav}>
@@ -198,6 +228,11 @@ export function AppShell({ title, subtitle, children }: AppShellProps) {
       <div className={styles.main}>
         <header className={styles.topBar}>
           <div className={styles.titleGroup}>
+            {/* El Portal oculta el sidebar por completo (ADR-015 b/d/e), así que
+                su identidad —Jornada— se firma en el mismo sitio que ocuparía
+                el logo: arriba a la izquierda, donde en los módulos está el
+                botón de menú. Ningún contexto se queda sin logo. */}
+            {isGeneralContext && <BrandMark context="PORTAL" className={styles.topBarBrand} />}
             {!isGeneralContext && (
               <button
                 type="button"
@@ -282,6 +317,12 @@ export function AppShell({ title, subtitle, children }: AppShellProps) {
             </div>
           </div>
         </header>
+        {actions && (
+          <div className={styles.pageActions}>
+            {actionsHint ? <span className={styles.pageActionsHint}>{actionsHint}</span> : null}
+            <div className={styles.pageActionsGroup}>{actions}</div>
+          </div>
+        )}
         <main className={styles.content}>{children}</main>
       </div>
     </div>

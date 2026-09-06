@@ -6,8 +6,11 @@ import { motionTokens } from '../../core/motion/tokens'
 import { handleRadiogroupKeyDown, radioTabIndex } from '../../core/ui/keyboard/radiogroupKeyboard'
 import shellStyles from '../../core/ui/dialogs/DialogShell.module.css'
 import { createMaintenanceRecord, type MaintenanceRecord } from './api'
+import { ShareWithFamily } from '../sharing/ShareWithFamily'
+import { useResourceSharing } from '../sharing/useResourceSharing'
 import styles from './CreateMaintenanceDialog.module.css'
 import { useActiveMode } from '../../core/user/ActiveModeContext'
+import { DatePicker } from '../../core/ui/pickers/DatePicker'
 
 const MotionDialog = motion.create(Dialog)
 
@@ -15,7 +18,18 @@ interface CreateMaintenanceDialogProps {
   onCreated: (record: MaintenanceRecord) => void
 }
 
-const QUICK_INTERVALS: Array<{ id: string; label: string; months: number }> = [
+/**
+ * ADR-021: la periodicidad dejó de ser un atajo para calcular la fecha y
+ * pasó a decidir el comportamiento del registro — con ella el mantenimiento
+ * VUELVE al completarlo; sin ella, termina.
+ *
+ * Por eso "Sin repetición" es ahora una opción explícita y no la ausencia de
+ * elección: encontrado validando con datos reales, crear un mantenimiento
+ * sin tocar estos botones producía en silencio uno puntual, y el usuario
+ * solo lo descubría meses después, cuando no volvía.
+ */
+const QUICK_INTERVALS: Array<{ id: string; label: string; months: number | null }> = [
+  { id: 'none', label: 'Sin repetición', months: null },
   { id: '1m', label: '1 mes', months: 1 },
   { id: '3m', label: '3 meses', months: 3 },
   { id: '6m', label: '6 meses', months: 6 },
@@ -46,11 +60,15 @@ export function CreateMaintenanceDialog({ onCreated }: CreateMaintenanceDialogPr
   const [selectedInterval, setSelectedInterval] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // ADR-025 §2/§5: "hacer mi parte" de un mantenimiento es realizarlo, así
+  // que este recurso SÍ admite comprometer a alguien.
+  const sharing = useResourceSharing('MAINTENANCE')
 
   function reset() {
     setItem('')
     setNextDueAt('')
     setSelectedInterval(null)
+    sharing.reset()
     setError(null)
   }
 
@@ -59,9 +77,13 @@ export function CreateMaintenanceDialog({ onCreated }: CreateMaintenanceDialogPr
     if (!open) reset()
   }
 
-  function pickInterval(id: string, months: number) {
+  function pickInterval(id: string, months: number | null) {
     setSelectedInterval(id)
-    setNextDueAt(dateFromMonthsFromNow(months))
+    // Solo propone la fecha si el usuario no ha escrito una: elegir la
+    // periodicidad no debe pisar una fecha que ya decidió a mano.
+    if (months !== null && !nextDueAt) {
+      setNextDueAt(dateFromMonthsFromNow(months))
+    }
   }
 
   async function handleSubmit(event: FormEvent) {
@@ -74,13 +96,22 @@ export function CreateMaintenanceDialog({ onCreated }: CreateMaintenanceDialogPr
       // olvidarse — se guarda, y el calendario proyecta con él las
       // siguientes fechas del mantenimiento.
       const interval = QUICK_INTERVALS.find((option) => option.id === selectedInterval)
+      // `months: null` ("Sin repetición") y "no elegido" acaban igual en el
+      // backend —sin intervalo—, pero solo el primero es una decisión.
       const created = await createMaintenanceRecord(
         item.trim(),
         new Date(nextDueAt).toISOString(),
-        interval?.months,
+        interval?.months ?? undefined,
         activeMode,
       )
       onCreated(created)
+
+      // Después de crear: hasta aquí no había id que compartir.
+      const shareError = await sharing.commit(created.id)
+      if (shareError) {
+        setError(shareError)
+        return
+      }
       setIsOpen(false)
       reset()
     } catch (e) {
@@ -152,19 +183,25 @@ export function CreateMaintenanceDialog({ onCreated }: CreateMaintenanceDialogPr
                   </div>
                 </div>
 
-                <label className={shellStyles.field}>
-                  <span className={shellStyles.fieldLabel}>Próxima fecha</span>
-                  <input
-                    type="date"
-                    className={shellStyles.textInput}
+                <DatePicker
+                    label="Próxima fecha"
                     value={nextDueAt}
-                    onChange={(event) => {
-                      setNextDueAt(event.target.value)
+                    onChange={(next) => {
+                      setNextDueAt(next)
                       setSelectedInterval(null)
                     }}
-                    required
+                    isRequired
                   />
-                </label>
+
+                <div className={shellStyles.field}>
+                  <span className={shellStyles.fieldLabel}>Compartir con tu familia</span>
+                  <ShareWithFamily
+                    type="MAINTENANCE"
+                    resourceId={null}
+                    value={sharing.shares}
+                    onChange={sharing.setShares}
+                  />
+                </div>
 
                 <div className={shellStyles.formActions}>
                   {saving && <span className={shellStyles.savingHint}>Guardando…</span>}

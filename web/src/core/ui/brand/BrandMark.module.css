@@ -1,0 +1,59 @@
+/* Identidad interna «A · Tiempo» — ver BrandMark.tsx.
+   Reproduce el lock-up aprobado: arco arriba, rótulo abajo, alineados a la
+   izquierda y separados 9px al cuerpo nominal de 15px. */
+
+.lockup {
+  /* `--brand-size` es la única medida de la que cuelga todo el logo, y la
+     fija **el contenedor**, no el componente: cada superficie (barra ancha,
+     rail angosto, cabecera del Portal, fila móvil) tiene su propia escala, y
+     cada tema su propio aire. Aquí solo se hereda, para que ese ajuste externo
+     no lo pise una declaración local.
+
+     Escalar `--s` escala la construcción entera —arco, trazo, punto, rótulo y
+     separación— manteniendo intactas las proporciones aprobadas. No hay
+     ninguna medida suelta en px por debajo de esta línea. */
+  --s: var(--brand-size, 22px);
+
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+
+  /* 0.6 × cuerpo = los 9px del artefacto a su tamaño nominal de 15px. */
+  gap: calc(var(--s) * 0.6);
+
+  /* Obligatorio: el logo no tiene fondo propio. El fondo pertenece a la
+     superficie que lo aloja. */
+  background: transparent;
+
+  line-height: 1;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.arc {
+  display: block;
+
+  /* El ancho del arco es 2.5 × el cuerpo del rótulo; el viewBox conserva la
+     proporción 0.42 de alto. */
+  width: calc(var(--s) * 2.5);
+  height: auto;
+}
+
+.name {
+  /* Fraunces 300 — el peso ligero es parte de la identidad: a 400+ el rótulo
+     pesa más que el arco y el conjunto deja de leerse como un logo. */
+  font-family: var(--brand-font);
+  font-weight: 300;
+  font-size: var(--s);
+  letter-spacing: -0.02em;
+  line-height: 1;
+
+  color: var(--brand-ink);
+
+  white-space: nowrap;
+}
+
+/* La adaptación por tamaño de pantalla vive en el contenedor (AppShell), junto
+   al resto de las escalas: aquí una media query declararía `--s` sobre el
+   propio elemento y ganaría siempre a lo que el contenedor herede, que es
+   justo lo contrario de lo que se busca. */

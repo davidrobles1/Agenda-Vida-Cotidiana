@@ -214,32 +214,15 @@
   letter-spacing: 0.08em;
 }
 
-/* =====================================================
-   TEMAS — misma estructura, distinto acento de margen
-   ===================================================== */
 
-/* Editorial: papel rayado real y rótulo con carácter. */
-:global(.theme-editorial) .noteList {
-  background-image: repeating-linear-gradient(
-    to bottom,
-    transparent 0,
-    transparent 33px,
-    color-mix(in srgb, var(--color-border) 15%, transparent) 33px,
-    color-mix(in srgb, var(--color-border) 15%, transparent) 34px
-  );
-}
+/* ==========================================================================
+   TEMAS UX-014 CONSERVADOS — reglas devueltas el 2026-09-02.
 
-:global(.theme-editorial) .colLabel {
-  font-family: var(--font-serif);
-  font-style: italic;
-  font-size: 0.8rem;
-  font-weight: 500;
-  letter-spacing: 0.06em;
-  text-transform: none;
-}
-
-/* Minimal: sin filetes ni fondos — la jerarquía la da el espacio, y la
-   separación una línea divisoria. */
+   Premium Minimal / Modern Productivity / Organic / Human se retiraron por
+   error al implementar ADR-023: la petición era eliminar **solo Editorial**.
+   Estas son sus reglas originales, tal cual estaban; de los selectores que
+   compartían con Editorial se conserva únicamente su parte.
+   ========================================================================== */
 :global(.theme-minimal) .note {
   padding-top: 10px;
   padding-bottom: 10px;
@@ -266,7 +249,6 @@
   letter-spacing: 0.26em;
 }
 
-/* Productivity: más densidad y una marca de color más presente. */
 :global(.theme-productivity) .note {
   padding-top: 6px;
   padding-bottom: 6px;
@@ -278,7 +260,6 @@
   opacity: 0.75;
 }
 
-/* Organic: aire, curvas y trazo suave. */
 :global(.theme-organic) .note {
   padding-top: 9px;
   padding-bottom: 9px;
@@ -288,4 +269,234 @@
   width: 6px;
   border-radius: 999px;
   opacity: 0.5;
+}
+
+
+/* ==========================================================================
+   FIRMAS DE TEMA — ADR-023 (artefacto "Seis agendas", bb294d3e)
+
+   Escribir una nota es el gesto más personal de la aplicación, así que es
+   donde el tema tiene que notarse más. Los seis temas comparten la MISMA
+   estructura de arriba —filete al margen, texto completo, renglón siempre
+   listo—; lo que cambia es la mano con la que está escrita.
+
+   INVARIANTE QUE NO SE ROMPE: `.note`, `.noteEditor` y `.composerInput`
+   reciben SIEMPRE la misma tipografía y el mismo tamaño dentro de un tema.
+   Si difirieran, el texto "saltaría" al entrar y salir de edición, que es
+   justo lo que evita el `font: inherit` del bloque base.
+   ========================================================================== */
+
+/* ─────────────── PAPEL · libreta escrita a mano ───────────────
+   El artefacto escribe las notas A MANO sobre papel rayado: es el único
+   tema donde la nota no es un dato tecleado sino una anotación. De ahí
+   Caveat (que va a 1.16rem porque su altura de x es mucho menor que la de
+   Inter y al mismo tamaño se leería diminuta), el renglón bajo cada nota y
+   el filete de margen en el ocre del tema, como la línea roja de una
+   libreta. */
+:global(.theme-papel) .note,
+:global(.theme-papel) .noteEditor,
+:global(.theme-papel) .composerInput {
+  font-family: var(--font-hand);
+  font-size: 1.16rem;
+  line-height: 1.42;
+}
+
+:global(.theme-papel) .note {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+}
+
+:global(.theme-papel) .note:last-child {
+  border-bottom: none;
+}
+
+/* Margen de libreta: un filete continuo y fino en terracota, no un tramo
+   centrado. Va de borde a borde del renglón para que dos notas seguidas
+   dibujen UNA línea de margen, no dos trazos sueltos. */
+:global(.theme-papel) .note::before {
+  top: 0;
+  bottom: 0;
+
+  width: 1px;
+  border-radius: 0;
+
+  background: color-mix(in srgb, var(--second) 55%, transparent);
+}
+
+:global(.theme-papel) .note:hover {
+  background: color-mix(in srgb, var(--warn-soft) 60%, transparent);
+}
+
+/* Rótulo de columna: versalitas, no mayúsculas espaciadas. Papel no tiene
+   tipografía de máquina —su `--font-label` es Inter—, y el rótulo en
+   caja alta con 0.2em de tracking le daba un aire de panel de control que
+   contradice la libreta. */
+:global(.theme-papel) .colLabel {
+  color: var(--second);
+
+  font-family: var(--font-display);
+  font-size: 0.82rem;
+  font-weight: 500;
+  font-variant-caps: small-caps;
+  letter-spacing: 0.06em;
+  text-transform: lowercase;
+}
+
+:global(.theme-papel) .composer {
+  border-top-color: color-mix(in srgb, var(--second) 34%, transparent);
+}
+
+:global(.theme-papel) .composerMark {
+  color: var(--second);
+  font-family: var(--font-hand);
+  font-size: 1.3rem;
+  line-height: 1.3;
+}
+
+:global(.theme-papel) .composerInput::placeholder {
+  color: var(--ink-3);
+  font-family: var(--font-hand);
+}
+
+/* La ayuda del pie es una nota al margen, no una leyenda de teclado. */
+:global(.theme-papel) .composerHint {
+  font-family: var(--font-hand);
+  font-size: 0.92rem;
+  letter-spacing: 0;
+  color: var(--ink-3);
+}
+
+/* ─────────────── LUMEN · aire, sin adornos ───────────────
+   Lumen no tiene sombras ni acentos de color: separa por espacio y por
+   filete de un pelo. El bullet de margen sobra aquí. */
+:global(.theme-lumen) .note {
+  padding-top: 11px;
+  padding-bottom: 11px;
+  padding-left: 0;
+
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+}
+
+:global(.theme-lumen) .note:last-child {
+  border-bottom: none;
+}
+
+:global(.theme-lumen) .note::before {
+  display: none;
+}
+
+:global(.theme-lumen) .note:hover {
+  background: none;
+  color: var(--accent);
+}
+
+:global(.theme-lumen) .colLabel {
+  color: var(--ink-3);
+  font-weight: 500;
+  letter-spacing: 0.24em;
+}
+
+/* ─────────────── NEO · trazo duro ───────────────
+   Nada redondeado y nada difuminado: el margen es una barra maciza y el
+   rótulo pesa. */
+:global(.theme-neo) .note {
+  padding-left: 16px;
+  border-radius: 0;
+}
+
+:global(.theme-neo) .note::before {
+  top: 6px;
+  bottom: 6px;
+
+  width: 4px;
+  border-radius: 0;
+
+  background: var(--accent);
+}
+
+:global(.theme-neo) .note:hover {
+  background: var(--accent-soft);
+}
+
+:global(.theme-neo) .colLabel {
+  color: var(--ink);
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+
+:global(.theme-neo) .composer {
+  border-top: 2px solid var(--ink);
+}
+
+/* ─────────────── CALM · redondeado y suave ─────────────── */
+:global(.theme-calm) .note {
+  padding: 9px 26px 9px 16px;
+  border-radius: var(--r-lg);
+}
+
+:global(.theme-calm) .note::before {
+  left: 4px;
+  top: 12px;
+  bottom: 12px;
+
+  width: 5px;
+  border-radius: 999px;
+
+  background: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+:global(.theme-calm) .note:hover {
+  background: var(--accent-soft);
+}
+
+/* ─────────────── STUDIO · revista ───────────────
+   El rótulo va en la serif del tema, en cursiva y caja baja: en Studio los
+   epígrafes son de redacción, no etiquetas de sistema. */
+:global(.theme-studio) .note {
+  padding-top: 10px;
+  padding-bottom: 10px;
+  padding-left: 0;
+
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+}
+
+:global(.theme-studio) .note:last-child {
+  border-bottom: none;
+}
+
+:global(.theme-studio) .note::before {
+  display: none;
+}
+
+:global(.theme-studio) .colLabel {
+  color: var(--ink-2);
+
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 1rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* ─────────────── AURORA · luz sobre fondo oscuro ───────────────
+   El filete no se tiñe: se enciende. */
+:global(.theme-aurora) .note::before {
+  width: 3px;
+  background: var(--accent);
+  box-shadow: 0 0 10px -1px var(--accent);
+  opacity: 0.75;
+}
+
+:global(.theme-aurora) .note:hover {
+  background: var(--veil);
+}
+
+:global(.theme-aurora) .colLabel {
+  font-weight: 600;
+  letter-spacing: 0.22em;
 }

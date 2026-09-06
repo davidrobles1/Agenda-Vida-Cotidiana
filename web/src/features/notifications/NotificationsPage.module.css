@@ -14,7 +14,7 @@
 
 .deviceRow {
   background: var(--color-surface-variant);
-  border-radius: 28px;;
+  border-radius: var(--r-xl, 28px);
   padding: var(--space-3) var(--space-4);
   text-align: left;
   font-size: 0.9375rem;

@@ -1,5 +1,6 @@
 package com.vidacotidiana.warranty.application;
 
+import com.vidacotidiana.inventory.application.InventoryItemService;
 import com.vidacotidiana.shared.domain.ModuleContext;
 import com.vidacotidiana.shared.domain.ConflictException;
 import com.vidacotidiana.shared.domain.NotFoundException;
@@ -39,9 +40,13 @@ public class WarrantyService {
     private static final long MAX_SIZE_BYTES = 23L * 1024 * 1024;
 
     private final WarrantyRepository warrantyRepository;
+    /** ADR-022: solo para validar que el artículo enlazado es del mismo
+        dueño. Garantías no depende del agregado Inventario para nada más. */
+    private final InventoryItemService inventoryItemService;
 
-    public WarrantyService(WarrantyRepository warrantyRepository) {
+    public WarrantyService(WarrantyRepository warrantyRepository, InventoryItemService inventoryItemService) {
         this.warrantyRepository = warrantyRepository;
+        this.inventoryItemService = inventoryItemService;
     }
 
     /** El archivo es obligatorio al registrar (pedido explícito del
@@ -151,6 +156,23 @@ public class WarrantyService {
     /** Owner-only. version is mandatory — a mismatch always rejects the edit with 409. */
     @Transactional
     public Warranty edit(UUID warrantyId, UUID callerUserId, String item, Instant expiresAt, int expectedVersion) {
+        return edit(warrantyId, callerUserId, item, expiresAt, expectedVersion, null, false);
+    }
+
+    /**
+     * ADR-022: edición con enlace al artículo del inventario.
+     *
+     * `linkInventoryItem` distingue "no tocar el enlace" (false) de
+     * "cambiarlo" (true), igual que `clearInterval` en Mantenimiento
+     * (ADR-021(i)): sin ese indicador, mandar `null` sería indistinguible de
+     * no mandar nada y **desenlazar sería imposible**.
+     *
+     * El artículo se valida contra el mismo dueño: enlazar la garantía a un
+     * artículo ajeno filtraría su existencia.
+     */
+    @Transactional
+    public Warranty edit(UUID warrantyId, UUID callerUserId, String item, Instant expiresAt, int expectedVersion,
+                         UUID inventoryItemId, boolean linkInventoryItem) {
         Warranty warranty = getOwnedOrThrow(warrantyId, callerUserId);
 
         if (expectedVersion != warranty.getVersion()) {
@@ -160,6 +182,12 @@ public class WarrantyService {
         }
 
         warranty.applyEdit(item, expiresAt);
+        if (linkInventoryItem) {
+            if (inventoryItemId != null) {
+                inventoryItemService.getOwnedOrThrow(inventoryItemId, callerUserId);
+            }
+            warranty.linkInventoryItem(inventoryItemId);
+        }
         try {
             return warrantyRepository.save(warranty);
         } catch (ObjectOptimisticLockingFailureException raceLostToConcurrentUpdate) {

@@ -407,42 +407,15 @@
                 </#if>
 
 
-                <!-- =================================================
-                     FOOTER TAGLINE
-                     ================================================= -->
-
-                <div class="vc-form-footer" aria-hidden="true">
-
-                    <svg
-                        class="vc-footer-icon"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        xmlns="http://www.w3.org/2000/svg"
-                    >
-                        <rect
-                            x="5"
-                            y="10"
-                            width="14"
-                            height="10"
-                            rx="2"
-                            stroke="currentColor"
-                            stroke-width="1.6"
-                        />
-
-                        <path
-                            d="M8 10V7C8 4.79 9.79 3 12 3C14.21 3 16 4.79 16 7V10"
-                            stroke="currentColor"
-                            stroke-width="1.6"
-                            stroke-linecap="round"
-                        />
-
-                    </svg>
-
-                    <span>
-                        Tu hogar, tus momentos, tu agenda.
-                    </span>
-
-                </div>
+                <!--
+                    El pie con el eslogan estaba AQUÍ, dentro de la sección
+                    "form". Como el template renderiza "form" antes que "info",
+                    la línea quedaba metida ENTRE el botón de iniciar sesión y
+                    el de crear una cuenta, partiendo en dos el par de acciones.
+                    Se ha movido al final de la sección "socialProviders", que
+                    es la que el template pinta dentro del <footer> real de la
+                    tarjeta — ver el final de este archivo.
+                -->
 
             </div>
         </div>
@@ -605,6 +578,55 @@
             </div>
 
         </#if>
+
+
+        <!-- =================================================
+             FOOTER TAGLINE
+
+             Fuera de la condición de proveedores sociales a propósito: hoy no
+             hay ninguno configurado y el eslogan debe verse igual. Esta
+             sección se pinta dentro del pie real de la tarjeta, así que es lo
+             último de la columna — donde debía estar desde el principio.
+
+             OJO al editar este comentario: FreeMarker analiza sus directivas
+             también dentro de los comentarios HTML. Escribir aquí la etiqueta
+             de una condición en literal rompe la plantilla entera con un 500
+             (pasó al escribir esta nota). Para hablar de directivas, usa
+             comentarios de FreeMarker, no de HTML.
+             ================================================= -->
+
+        <div class="vc-form-footer" aria-hidden="true">
+
+            <svg
+                class="vc-footer-icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+            >
+                <rect
+                    x="5"
+                    y="10"
+                    width="14"
+                    height="10"
+                    rx="2"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                />
+
+                <path
+                    d="M8 10V7C8 4.79 9.79 3 12 3C14.21 3 16 4.79 16 7V10"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                />
+
+            </svg>
+
+            <span>
+                Tu hogar, tus momentos, tu agenda.
+            </span>
+
+        </div>
 
     </#if>
 

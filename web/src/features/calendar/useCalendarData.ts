@@ -80,6 +80,8 @@ export interface CalendarState {
     record: MaintenanceRecord,
   ) => Promise<void>
 
+  /** ADR-025 §2: devuelve la tarea creada para que quien la cree pueda
+      compartirla acto seguido — sin el id no hay nada que compartir. */
   createReminderAction: (
     input: {
       title: string
@@ -88,7 +90,7 @@ export interface CalendarState {
       iconId?: string
       stickerId?: string
     },
-  ) => Promise<void>
+  ) => Promise<Reminder>
 
   updateReminderAction: (
     reminder: Reminder,
@@ -345,7 +347,7 @@ export function useCalendarData(): CalendarState {
     dueAt?: string
     iconId?: string
     stickerId?: string
-  }) {
+  }): Promise<Reminder> {
     const created = await createReminder({
       title: input.title.trim(),
       description: input.description,
@@ -364,6 +366,7 @@ export function useCalendarData(): CalendarState {
     }
 
     await refresh()
+    return created
   }
 
   async function updateReminderAction(

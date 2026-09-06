@@ -1,51 +1,74 @@
 package com.vidacotidiana.app.feature.maintenance
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Build
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.material.icons.outlined.Build
+import androidx.compose.material3.DrawerState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
-import androidx.hilt.navigation.compose.hiltViewModel
-import com.vidacotidiana.app.core.mock.MaintenanceStatus
-import com.vidacotidiana.app.core.ui.VidaSpacing
-import com.vidacotidiana.app.core.ui.VidaTheme
-import com.vidacotidiana.app.core.ui.components.BadgeTone
-import com.vidacotidiana.app.core.ui.components.ListItemRow
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavHostController
+import com.vidacotidiana.app.core.app.AppViewModel
+import com.vidacotidiana.app.core.app.CreatableResource
+import com.vidacotidiana.app.core.data.MaintenanceStatus
+import com.vidacotidiana.app.core.ui.components.PillTone
+import com.vidacotidiana.app.core.ui.components.ResourceEntry
+import com.vidacotidiana.app.core.ui.components.ResourceListScreen
+import com.vidacotidiana.app.core.ui.components.plural
+import kotlinx.coroutines.CoroutineScope
 
-/** UX-006: mock module (scaffolding only, MockData.kt) — no reference screen covers this in the same detail, adapted reasonably from the Garantías/Inventario pattern. */
+/** Mantenimiento. Origen de los avisos de 7/3/0 días del calendario. */
 @Composable
-fun MaintenanceScreen(viewModel: MaintenanceViewModel = hiltViewModel()) {
-    val state by viewModel.uiState.collectAsState()
-
-    Column(modifier = Modifier.fillMaxSize().padding(VidaSpacing.lg), verticalArrangement = Arrangement.spacedBy(VidaSpacing.lg)) {
-        Text("Mantenimiento", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = VidaTheme.colors.text)
-
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(VidaSpacing.md)) {
-            items(state.records, key = { it.id }) { record ->
-                val (pillLabel, pillTone) = when (record.status) {
-                    MaintenanceStatus.AL_DIA -> "Al día" to BadgeTone.Success
-                    MaintenanceStatus.PROXIMO -> "Próximo" to BadgeTone.Warning
-                    MaintenanceStatus.VENCIDO -> "Vencido" to BadgeTone.Error
+fun MaintenanceScreen(
+    viewModel: AppViewModel,
+    drawerState: DrawerState,
+    scope: CoroutineScope,
+    navController: NavHostController,
+) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val records = state.data.maintenance
+    val entries = records.map {
+        ResourceEntry(
+            id = it.id,
+            title = it.task,
+            subtitle = buildString {
+                append("próxima: ${it.nextDueLabel}")
+                it.intervalMonths?.let { months ->
+                    append(" · cada $months ${if (months == 1) "mes" else "meses"}")
                 }
-                ListItemRow(
-                    title = "${record.item} — ${record.task}",
-                    subtitle = "Próximo: ${record.nextDueLabel}",
-                    icon = Icons.Filled.Build,
-                    tone = BadgeTone.Info,
-                    pillLabel = pillLabel,
-                    pillTone = pillTone,
-                )
-            }
-        }
+            },
+            icon = Icons.Outlined.Build,
+            onEdit = { viewModel.requestEdit(CreatableResource.MAINTENANCE, it.id) },
+            // ADR-021: completar AVANZA la ocurrencia; no cierra el registro.
+            onComplete = { viewModel.completeResource(CreatableResource.MAINTENANCE, it.id) },
+            completeLabel = "Hecho",
+            onDelete = { viewModel.deleteResource(CreatableResource.MAINTENANCE, it.id) },
+            pill = when (it.status) {
+                MaintenanceStatus.VENCIDO -> "Toca ya" to PillTone.WARN
+                MaintenanceStatus.PROXIMO -> "Próximo" to PillTone.NEUTRAL
+                MaintenanceStatus.AL_DIA -> "Al día" to PillTone.OK
+            },
+        )
     }
+    ResourceListScreen(
+        title = "Mantenimiento",
+        subtitle = "Lo que toca revisar, y cuándo vuelve.",
+        eyebrow = plural(entries.size, "programado", "programados"),
+        entries = entries,
+        filters = listOf("Todos", "Toca ya", "Próximo", "Al día"),
+        metrics = listOf(
+            Triple("Toca ya", records.count { it.status == MaintenanceStatus.VENCIDO }.toString(), "atrasados"),
+            Triple("Próximos", records.count { it.status == MaintenanceStatus.PROXIMO }.toString(), "en camino"),
+        ),
+        addLabel = "Nuevo mantenimiento",
+        emptyBody = "Programa un mantenimiento y el calendario avisará solo.",
+        loading = state.loading,
+        error = state.error,
+        onRetry = viewModel::refresh,
+        onAdd = { viewModel.requestCreate(CreatableResource.MAINTENANCE) },
+        drawerState = drawerState,
+        scope = scope,
+        showBack = true,
+        onBack = { navController.popBackStack() },
+        onNotifications = {},
+    )
 }

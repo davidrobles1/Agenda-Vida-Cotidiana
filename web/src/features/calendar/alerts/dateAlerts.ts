@@ -112,10 +112,42 @@ const SUBSCRIPTION_OFFSETS: Array<{ days: number; severity: AlertSeverity }> = [
   { days: 0, severity: 'high' },
 ]
 
+/**
+ * ADR-020: el CORTE de una tarjeta de crédito.
+ *
+ * Una tarjeta genera dos avisos por ciclo, no uno. El corte no es una
+ * fecha de pago —no hay que pagar nada ese día— sino el momento en que ya
+ * se sabe cuánto se debe, así que avisa una sola vez, el mismo día, y con
+ * severidad baja. La severidad alta se reserva para el LÍMITE, que es la
+ * fecha en que no actuar tiene consecuencias.
+ */
+const CARD_STATEMENT_OFFSETS: Array<{ days: number; severity: AlertSeverity }> = [
+  { days: 0, severity: 'low' },
+]
+
 /** Cuántas ocurrencias futuras se proyectan de un mantenimiento periódico o
     de una suscripción. Suficiente para cubrir un calendario navegable sin
     generar series infinitas. */
 const MAX_PROJECTED_OCCURRENCES = 12
+
+/**
+ * ADR-020: fecha de corte de una tarjeta, en clave de día.
+ *
+ * Misma regla que `paymentsView.cardStatementDate` —el corte anterior al
+ * límite, no el siguiente— reimplementada aquí sobre claves de texto
+ * porque este módulo es puro y no depende de la sección de Pagos.
+ */
+function cardStatementKey(subscription: Subscription): string | undefined {
+  if (subscription.kind !== 'CARD' || !subscription.statementDay) return undefined
+  const dueKey = eventDateKeyOf(subscription.nextPaymentDate)
+  const [year, month] = dueKey.split('-').map(Number)
+  const day = String(subscription.statementDay).padStart(2, '0')
+  const candidate = `${year}-${String(month).padStart(2, '0')}-${day}`
+  if (candidate > dueKey) {
+    return shiftMonths(candidate, -1)
+  }
+  return candidate
+}
 
 function toDateKey(value: Date): string {
   const year = value.getFullYear()
@@ -152,15 +184,20 @@ function shiftMonths(key: string, deltaMonths: number): string {
   return toDateKey(date)
 }
 
-function messageFor(daysBefore: number, kind: 'expira' | 'mantenimiento' | 'pago'): string {
+function messageFor(
+  daysBefore: number,
+  kind: 'expira' | 'mantenimiento' | 'pago' | 'corte',
+): string {
   if (daysBefore === 0) {
     if (kind === 'expira') return 'Vence hoy'
     if (kind === 'pago') return 'Se cobra hoy'
+    if (kind === 'corte') return 'Corta hoy — ya puedes ver cuánto debes'
     return 'Mantenimiento hoy'
   }
   const unit = daysBefore === 1 ? 'día' : 'días'
   if (kind === 'expira') return `Vence en ${daysBefore} ${unit}`
   if (kind === 'pago') return `Se cobra en ${daysBefore} ${unit}`
+  if (kind === 'corte') return `Corta en ${daysBefore} ${unit}`
   return `Mantenimiento en ${daysBefore} ${unit}`
 }
 
@@ -197,12 +234,13 @@ export function buildDateAlerts({
     href: string,
     eventKey: string,
     offsets: Array<{ days: number; severity: AlertSeverity }>,
-    kind: 'expira' | 'mantenimiento' | 'pago',
+    kind: 'expira' | 'mantenimiento' | 'pago' | 'corte',
+    idSuffix = '',
   ) => {
     for (const offset of offsets) {
       const dateKey = shiftDays(eventKey, -offset.days)
       push({
-        id: `${source}:${sourceId}:${eventKey}:${offset.days}`,
+        id: `${source}:${sourceId}:${eventKey}:${offset.days}${idSuffix}`,
         dateKey,
         severity: offset.severity,
         source,
@@ -231,7 +269,22 @@ export function buildDateAlerts({
   }
 
   for (const record of maintenanceRecords) {
-    if (record.status === 'COMPLETADO') continue
+    /**
+     * ADR-021. Antes bastaba `status === 'COMPLETADO'` para saltarlo, y eso
+     * producía la peor consecuencia del defecto de recurrencia: completar
+     * un mantenimiento periódico una sola vez borraba TODAS sus ocurrencias
+     * del calendario. El usuario perdía la serie justo por hacer lo
+     * correcto.
+     *
+     * Ahora un COMPLETADO solo se salta si de verdad terminó, es decir si
+     * es PUNTUAL (sin `intervalMonths`). Un recurrente completado ya no
+     * llega aquí en ese estado —el dominio avanza su fecha y lo mantiene
+     * activo—, pero la comprobación se deja explícita para que un registro
+     * antiguo, completado antes de esta corrección, siga proyectando su
+     * serie en vez de desaparecer.
+     */
+    const isRecurring = !!record.intervalMonths && record.intervalMonths >= 1
+    if (record.status === 'COMPLETADO' && !isRecurring) continue
 
     const firstKey = eventDateKeyOf(record.nextDueAt)
     emit('maintenance', record.id, record.item, '/maintenance', firstKey, MAINTENANCE_OFFSETS, 'mantenimiento')
@@ -248,6 +301,18 @@ export function buildDateAlerts({
   }
 
   for (const subscription of subscriptions) {
+    // Un crédito liquidado no genera más avisos: pedir el plazo 49 de un
+    // crédito de 48 sería exactamente la mentira que se corrigió en el
+    // dominio (Subscription.advanceToNextCycle).
+    if (
+      subscription.kind === 'CREDIT' &&
+      subscription.totalInstallments !== undefined &&
+      subscription.currentInstallment !== undefined &&
+      subscription.currentInstallment > subscription.totalInstallments
+    ) {
+      continue
+    }
+
     const firstKey = eventDateKeyOf(subscription.nextPaymentDate)
     emit(
       'subscription',
@@ -259,6 +324,23 @@ export function buildDateAlerts({
       'pago',
     )
 
+    // ADR-020: una tarjeta añade su fecha de CORTE. El sufijo del id la
+    // distingue del aviso de límite del mismo día, que si no colapsarían
+    // en el mapa antiduplicados y se perdería uno de los dos.
+    const statementKey = cardStatementKey(subscription)
+    if (statementKey) {
+      emit(
+        'subscription',
+        subscription.id,
+        subscription.service,
+        '/subscriptions',
+        statementKey,
+        CARD_STATEMENT_OFFSETS,
+        'corte',
+        ':corte',
+      )
+    }
+
     // El ciclo de facturación ya es la periodicidad del pago: proyectarla
     // es lo mismo que hace "¿Cada cuánto?" en Mantenimiento.
     for (let occurrence = 1; occurrence <= MAX_PROJECTED_OCCURRENCES; occurrence += 1) {
@@ -267,6 +349,23 @@ export function buildDateAlerts({
           ? shiftDays(firstKey, 7 * occurrence)
           : shiftMonths(firstKey, (subscription.billingCycle === 'YEARLY' ? 12 : 1) * occurrence)
       emit('subscription', subscription.id, subscription.service, '/subscriptions', key, SUBSCRIPTION_OFFSETS, 'pago')
+
+      if (statementKey) {
+        const projectedStatement =
+          subscription.billingCycle === 'WEEKLY'
+            ? shiftDays(statementKey, 7 * occurrence)
+            : shiftMonths(statementKey, (subscription.billingCycle === 'YEARLY' ? 12 : 1) * occurrence)
+        emit(
+          'subscription',
+          subscription.id,
+          subscription.service,
+          '/subscriptions',
+          projectedStatement,
+          CARD_STATEMENT_OFFSETS,
+          'corte',
+          ':corte',
+        )
+      }
     }
   }
 

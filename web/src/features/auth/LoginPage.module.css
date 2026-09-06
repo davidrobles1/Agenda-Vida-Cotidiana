@@ -879,6 +879,6 @@
   .loginCard {
     padding: 40px 28px;
 
-    border-radius: 20px;
+    border-radius: var(--r-lg, 20px);
   }
 }

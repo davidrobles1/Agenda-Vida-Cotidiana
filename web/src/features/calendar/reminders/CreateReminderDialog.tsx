@@ -4,6 +4,8 @@ import { motion } from 'motion/react'
 import { motionTokens } from '../../../core/motion/tokens'
 import { IconPlus } from '../../../core/ui/icons'
 import { ReminderFormFields } from './ReminderFormFields'
+import { ShareWithFamily } from '../../sharing/ShareWithFamily'
+import { useResourceSharing } from '../../sharing/useResourceSharing'
 import notesStyles from '../notes/Notes.module.css'
 import shellStyles from '../../../core/ui/dialogs/DialogShell.module.css'
 
@@ -21,7 +23,9 @@ interface CreateReminderDialogProps {
   /** `YYYY-MM-DD` del día seleccionado en el calendario — precarga la hora
       a mediodía de ese día, mismo default que el quick-add anterior. */
   defaultDateKey: string
-  onCreate: (input: CreateReminderInput) => Promise<void>
+  /** ADR-025 §2: devuelve la tarea creada; sin su id no hay nada que
+      compartir. */
+  onCreate: (input: CreateReminderInput) => Promise<{ id: string }>
 }
 
 /**
@@ -49,8 +53,14 @@ export function CreateReminderDialog({ defaultDateKey, onCreate }: CreateReminde
     setDueAtLocal('')
     setIconId(undefined)
     setStickerId(undefined)
+    sharing.reset()
     setError(null)
   }
+
+  // ADR-025 §2/§5: "hacer mi parte" de una tarea es completarla. El estado
+  // de la tarea sigue siendo único y global (DEC-001): lo que se registra es
+  // que ESTA persona hizo lo suyo, no que la tarea esté cerrada.
+  const sharing = useResourceSharing('REMINDER')
 
   function handleOpenChange(open: boolean) {
     setIsOpen(open)
@@ -69,13 +79,19 @@ export function CreateReminderDialog({ defaultDateKey, onCreate }: CreateReminde
     setError(null)
     try {
       const dueAtDate = dueAtLocal ? new Date(dueAtLocal) : null
-      await onCreate({
+      const created = await onCreate({
         title: title.trim(),
         description,
         dueAt: dueAtDate ? dueAtDate.toISOString() : undefined,
         iconId,
         stickerId,
       })
+
+      const shareError = await sharing.commit(created.id)
+      if (shareError) {
+        setError(shareError)
+        return
+      }
       setIsOpen(false)
       reset()
     } catch (e) {
@@ -123,6 +139,16 @@ export function CreateReminderDialog({ defaultDateKey, onCreate }: CreateReminde
                 stickerId={stickerId}
                 onStickerChange={setStickerId}
               />
+
+              <div className={shellStyles.field}>
+                <span className={shellStyles.fieldLabel}>Compartir con tu familia</span>
+                <ShareWithFamily
+                  type="REMINDER"
+                  resourceId={null}
+                  value={sharing.shares}
+                  onChange={sharing.setShares}
+                />
+              </div>
 
               <div className={shellStyles.formActions}>
                 {saving && <span className={shellStyles.savingHint}>Guardando…</span>}

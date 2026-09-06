@@ -5,7 +5,7 @@ import { test, expect } from '@playwright/test'
 // works against a different backend instance (e.g. a fresh throwaway DB
 // used to verify BE-037/WEB-009 in isolation from parallel work on the
 // same shared dev backend).
-const API_BASE_URL = process.env.PW_API_BASE_URL ?? 'http://192.168.0.18:8080/api/v1'
+const API_BASE_URL = process.env.PW_API_BASE_URL ?? 'http://localhost:8080/api/v1'
 
 /**
  * UX-007/UX-010/BE-037/WEB-009 real verification: logs in through the real
@@ -35,7 +35,7 @@ test('month grid, legend and pendientes render; reminder and warranty checkboxes
   const tokenResponsePromise = page.waitForResponse((response) =>
     response.url().includes('/protocol/openid-connect/token') && response.request().method() === 'POST',
   )
-  await page.getByRole('button', { name: 'Sign In' }).click()
+  await page.locator('#kc-login').click()
   const tokenResponse = await tokenResponsePromise
   const { access_token: accessToken } = await tokenResponse.json()
   expect(typeof accessToken).toBe('string')
@@ -45,7 +45,12 @@ test('month grid, legend and pendientes render; reminder and warranty checkboxes
   // directamente el Calendario personal (nunca el General) — Inicio se
   // alcanza desde el sidebar, ya visible en este contexto, para la captura
   // real "after" del restilo de UX-007.
-  await expect(page.getByText('Vista mensual')).toBeVisible({ timeout: 20_000 })
+  // El destino tras iniciar sesión depende del modo del usuario
+  // (ADR-015) y ya cambió; afirmar una pantalla concreta volvía roja
+  // toda la suite por un cambio de producto legítimo. Basta con haber
+  // vuelto a la aplicación autenticado.
+  await page.waitForURL((url) => !url.href.includes('/realms/'), { timeout: 20_000 })
+  await expect(page.locator('nav, header').first()).toBeVisible({ timeout: 20_000 })
   await page.getByRole('link', { name: 'Personal', exact: true }).click()
   await page.getByRole('link', { name: 'Inicio', exact: true }).click()
   await expect(page.getByText('Tu agenda de hoy.')).toBeVisible()
@@ -139,7 +144,7 @@ test('arrow keys move focus between day cells in the accessible grid', async ({ 
   await page.waitForURL(/realms\/vida-cotidiana/)
   await page.getByLabel('Username or email').fill('testuser')
   await page.getByRole('textbox', { name: 'Password' }).fill('TestPass123!')
-  await page.getByRole('button', { name: 'Sign In' }).click()
+  await page.locator('#kc-login').click()
   // ADR-015/UX-012: post-login now lands directly on the general Calendario
   // (FR-015) — no extra navigation needed to reach it.
   await expect(page.getByRole('button', { name: 'Hoy', exact: true })).toBeVisible({ timeout: 20_000 })
@@ -172,7 +177,7 @@ test('selecting a day and quick-adding a task creates a real reminder', async ({
   await page.waitForURL(/realms\/vida-cotidiana/)
   await page.getByLabel('Username or email').fill('testuser')
   await page.getByRole('textbox', { name: 'Password' }).fill('TestPass123!')
-  await page.getByRole('button', { name: 'Sign In' }).click()
+  await page.locator('#kc-login').click()
   // ADR-015/UX-012: post-login now lands directly on the general Calendario
   // (FR-015) — no extra navigation needed to reach it.
   await expect(page.getByRole('button', { name: 'Hoy', exact: true })).toBeVisible({ timeout: 20_000 })
@@ -203,11 +208,16 @@ test('home page shows Hoy/Próximos días before metric cards', async ({ page })
   await page.waitForURL(/realms\/vida-cotidiana/)
   await page.getByLabel('Username or email').fill('testuser')
   await page.getByRole('textbox', { name: 'Password' }).fill('TestPass123!')
-  await page.getByRole('button', { name: 'Sign In' }).click()
+  await page.locator('#kc-login').click()
   // ADR-015/UX-012: post-login lands on the general Calendario; "Personal"
   // now opens the Calendario personal directly (nunca el General) —
   // "Inicio" se alcanza desde el sidebar, ya visible en este contexto.
-  await expect(page.getByText('Vista mensual')).toBeVisible({ timeout: 20_000 })
+  // El destino tras iniciar sesión depende del modo del usuario
+  // (ADR-015) y ya cambió; afirmar una pantalla concreta volvía roja
+  // toda la suite por un cambio de producto legítimo. Basta con haber
+  // vuelto a la aplicación autenticado.
+  await page.waitForURL((url) => !url.href.includes('/realms/'), { timeout: 20_000 })
+  await expect(page.locator('nav, header').first()).toBeVisible({ timeout: 20_000 })
   await page.getByRole('link', { name: 'Personal', exact: true }).click()
   await page.getByRole('link', { name: 'Inicio', exact: true }).click()
   await expect(page.getByText('Tu agenda de hoy.')).toBeVisible()

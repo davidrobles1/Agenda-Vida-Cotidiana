@@ -272,3 +272,149 @@ Notas por entidad:
 - **DECISION (DEC-015):** al solicitar la eliminación de una cuenta, `USER.deletion_status` pasa a `PENDING_DELETION` y `purge_at` se fija a 30 días después; un job periódico purga (`deletion_status = DELETED`, anonimiza/borra datos personales) las cuentas cuyo `purge_at` ya venció. Mientras esté en `PENDING_DELETION`, el usuario puede cancelar la solicitud (revertir a `ACTIVE`) — comportamiento exacto de reversión: `TBD` de UX, no bloqueante.
 - **DECISION (DEC-015, A'):** las filas de `INVITATION` en estado `REJECTED`, `EXPIRED` o `CANCELLED` deben purgar `invited_email` (o la fila completa) pasado un plazo corto de retención (ASSUMPTION: 90 días) cuando `invited_user_id` es nulo (invitado sin cuenta) — minimización de datos de terceros sin cuenta (NFR-002).
 - **RECOMMENDATION (técnica, BE-029):** `AUDIT_EVENT` se escribe en la misma transacción que la operación de negocio que audita (a diferencia de push, que es best-effort) — un evento de auditoría perdido pese a que la operación tuvo éxito sería peor que no tener el log. Índices sobre `(target_type, target_id)` y sobre `occurred_at`. Sin endpoint de lectura en V1 (no está en `openapi.yaml`); es solo almacenamiento, la consulta queda fuera de alcance hasta que se decida explícitamente.
+
+## ADR-020 — Sección "Pagos" (antes "Suscripciones")
+
+Migración `V26__payments_kind_amount_and_records.sql`. **Aditiva y sin
+pérdida**: lo existente queda como `kind = SUBSCRIPTION`, sin importe, y se
+comporta igual que antes.
+
+### `SUBSCRIPTION` (tabla `subscriptions`, nombre conservado — ADR-020(e))
+
+Campos que ya existían: `service`, `company`, `plan`, `next_payment_date`,
+`billing_cycle`, `context`, `version`, timestamps.
+
+| Campo nuevo | Tipo | Aplica a | Notas |
+|---|---|---|---|
+| `kind` | VARCHAR(24) NOT NULL | todos | `SUBSCRIPTION` / `SERVICE` / `MEMBERSHIP` / `CUSTOM` / `CARD` / `CREDIT`. Sin CHECK: la validación vive en el DTO, igual que `type` en `vision_board_elements` |
+| `amount` | NUMERIC(12,2) | todos | Opcional. **Alcance acotado a esta sección** (ADR-020(b)) |
+| `currency` | VARCHAR(3) | todos | ISO 4217, **por pago** (ADR-020(c)) |
+| `payment_method` | VARCHAR(120) | todos | Texto libre |
+| `notes` | VARCHAR(2000) | todos | |
+| `variable_amount` | BOOLEAN NOT NULL | todos | El importe cambia cada ciclo |
+| `statement_day` | INTEGER | CARD | Día del mes del corte (1-31) |
+| `due_day` | INTEGER | CARD | Día del mes del límite (1-31) |
+| `min_payment` | NUMERIC(12,2) | CARD | |
+| `no_interest_payment` | NUMERIC(12,2) | CARD | |
+| `institution` | VARCHAR(120) | CARD | |
+| `last_four` | VARCHAR(4) | CARD | **Etiqueta, no dato bancario.** Nunca se guarda número completo, CVV ni titular |
+| `total_installments` | INTEGER | CREDIT | |
+| `current_installment` | INTEGER | CREDIT | |
+
+`next_payment_date` en una tarjeta guarda la próxima fecha **límite**; el
+corte se deriva de `statement_day` (el anterior al límite, no el siguiente).
+
+### `PAYMENT_RECORD` (tabla `payment_records`) — nueva
+
+| Campo | Tipo | Notas |
+|---|---|---|
+| `id` | UUID PK | |
+| `subscription_id` | UUID NOT NULL FK → `subscriptions` | `ON DELETE CASCADE` |
+| `owner_user_id` | UUID NOT NULL FK → `users` | |
+| `period_date` | DATE NOT NULL | **El ciclo que se pagó**, no el día en que se marcó |
+| `paid_on` | DATE NOT NULL | Cuándo lo marcó el usuario |
+| `amount` | NUMERIC(12,2) | Importe **real**; puede diferir del estimado (tarjetas) |
+| `currency` | VARCHAR(3) | |
+
+Índice único `(subscription_id, period_date)`: hace idempotente "marcar como
+pagado". Sin él, un doble clic o un reintento de red saltarían dos ciclos.
+
+## ADR-021 — Mantenimiento recurrente
+
+Migración `V27__maintenance_recurrence_log.sql`. **Aditiva**: no cambia
+ninguna columna de `maintenance_records`; lo que cambia es el
+comportamiento del dominio.
+
+### `MAINTENANCE_LOG` (tabla `maintenance_log`) — nueva
+
+| Campo | Tipo | Notas |
+|---|---|---|
+| `id` | UUID PK | |
+| `maintenance_record_id` | UUID NOT NULL FK → `maintenance_records` | `ON DELETE CASCADE` |
+| `owner_user_id` | UUID NOT NULL FK → `users` | |
+| `scheduled_date` | DATE NOT NULL | La fecha que **estaba programada** al completar. Sostiene el deshacer |
+| `completed_date` | DATE NOT NULL | Cuándo se hizo de verdad. Comparada con la anterior da el retraso |
+| `note` | VARCHAR(500) | Opcional |
+
+Índice único `(maintenance_record_id, scheduled_date)`: hace idempotente el
+botón "Hecho".
+
+### Reglas de recurrencia (ADR-021)
+
+- **Con `interval_months`:** completar avanza `next_due_at` un intervalo y el
+  registro sigue `ACTIVE`.
+- **Vencido:** el intervalo se cuenta **desde hoy**, no desde la fecha
+  incumplida — el intervalo mide desgaste, no calendario. **Diverge a
+  propósito de Pagos (ADR-020)**, donde pagar tarde no corre los
+  vencimientos.
+- **Sin `interval_months`:** el mantenimiento es puntual; completarlo lo deja
+  `COMPLETED` y no vuelve.
+- **"Próximo" = 7 días**, un único umbral en backend, lista y calendario.
+
+---
+
+## ADR-022 — Garantías, Inventario y Documentos
+
+### Aislamiento por módulo completado (migración V28)
+
+La migración V25 añadió `context` a Garantías, Mantenimiento, Suscripciones y
+Notas del día, y **dejó fuera Inventario y Documentos**, que se habían
+construido seis días antes de que existiera la regla. V28 cierra el hueco:
+
+| Tabla | Columna | Tipo | Regla |
+|---|---|---|---|
+| `inventory_items` | `context` | `VARCHAR(16) NOT NULL DEFAULT 'PERSONAL'` | ADR-019 regla 4: todo lo existente es PERSONAL |
+| `documents` | `context` | `VARCHAR(16) NOT NULL DEFAULT 'PERSONAL'` | ídem |
+
+Índices `(owner_user_id, context)` en ambas, igual que en V25.
+
+`context` **se fija al crear y no cambia**: ni `applyEdit` ni `edit` lo tocan,
+mismo criterio que en `Warranty`. En un documento compartido, `context` es el
+módulo **del dueño** — el recurso pertenece al módulo desde el que se creó, no
+al de quien lo recibe.
+
+### `WARRANTY.inventory_item_id` — vínculo con Inventario
+
+| Columna | Tipo | Regla |
+|---|---|---|
+| `warranties.inventory_item_id` | `UUID NULL REFERENCES inventory_items(id) ON DELETE SET NULL` | NULL = sin enlazar |
+
+- **El vínculo vive en `warranties` y no al revés** porque la garantía es la
+  que se refiere a un artículo, y así un artículo puede acumular varias a lo
+  largo del tiempo (garantía de fábrica y extensión contratada aparte).
+- **`ON DELETE SET NULL`, no CASCADE:** borrar el artículo del inventario no
+  puede llevarse por delante el comprobante de su garantía, que puede seguir
+  haciendo falta para una reclamación.
+- Cuando un artículo tiene varias, la lista de Inventario muestra **la que
+  vence más tarde** — es la que sigue cubriendo.
+- El artículo enlazado se valida contra el **mismo dueño** (`WarrantyService`):
+  enlazar con un artículo ajeno filtraría su existencia.
+
+### Estados de Garantía (derivados, nunca almacenados)
+
+`warranties.status` sigue siendo de 2 valores (`ACTIVE` / `COMPLETED`). Los
+cuatro estados que ve el usuario los calcula `WarrantyResponse` a partir de
+ese campo y de `expires_at`:
+
+| Estado API | Condición | Etiqueta en la interfaz |
+|---|---|---|
+| `VIGENTE` | `ACTIVE` y vence a más de 30 días | Vigente |
+| `POR_VENCER` | `ACTIVE` y vence dentro de 30 días | Por vencer |
+| `VENCIDA` | `ACTIVE` y ya venció | Vencida |
+| `COMPLETADO` | `COMPLETED` | **Usada** |
+
+**El valor del contrato sigue siendo `COMPLETADO`** (ADR-022(e)): solo cambia
+la palabra que lee el usuario, porque una garantía no se "completa", se usa.
+`POST /warranties/{id}/complete` **alterna**, así que también sirve para
+devolverla a vigente.
+
+### Reglas de consulta (ADR-022)
+
+- **Contexto, categoría y búsqueda se resuelven en la CONSULTA**
+  (`InventoryItemRepository#search`, `DocumentRepository#search`), nunca en el
+  cliente: filtrar sobre la página ya cargada oculta resultados sin avisar en
+  cuanto hay más registros que el tamaño de página.
+- La consulta de Documentos **conserva la regla de visibilidad** de
+  `findVisibleTo`: propios + compartidos conmigo + públicos de la familia.
+- La búsqueda es `LIKE` insensible a mayúsculas sobre `name` (y `location` en
+  Inventario). No hay índice de texto completo: **TBD** si el volumen lo pide.

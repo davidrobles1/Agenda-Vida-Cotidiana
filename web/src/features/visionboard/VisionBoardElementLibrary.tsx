@@ -15,6 +15,7 @@ import { handleRadiogroupKeyDown, radioTabIndex } from '../../core/ui/keyboard/r
 import { VisionBoardEmojiPicker } from './VisionBoardEmojiPicker'
 import { fitImageElementSize, loadImageNaturalSize } from './visionBoardImages'
 import { VisionBoardShapePicker } from './VisionBoardShapePicker'
+import { VisionBoardShapeColorFields } from './VisionBoardShapeColorFields'
 import toolbarStyles from './VisionBoardToolbar.module.css'
 import styles from './VisionBoardElementLibrary.module.css'
 
@@ -644,14 +645,21 @@ function ShapeFields({
   onBack: () => void
   onDone: () => void
 }) {
+  // El color se elige ANTES de la forma porque elegir la forma crea el
+  // elemento y cierra el paso ("pick and go", el comportamiento que ya
+  // tenía). Así se puede dar de alta con color propio sin perder ese flujo
+  // ni obligar a abrir Editar justo después.
+  const [colors, setColors] = useState<Record<string, unknown>>({})
+
   function handlePick(variant: string) {
-    onCreate(buildInput('SHAPE', { shape: variant }))
+    onCreate(buildInput('SHAPE', { shape: variant, ...colors }))
     onDone()
   }
 
   return (
     <div>
       <StepBackHeader title="Elegir forma" onBack={onBack} />
+      <VisionBoardShapeColorFields data={colors} onChange={setColors} />
       <VisionBoardShapePicker value="" onChange={handlePick} label="Elegir forma" commitOnArrowKey={false} />
     </div>
   )

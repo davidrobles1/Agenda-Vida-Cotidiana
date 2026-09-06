@@ -6,6 +6,7 @@ import com.vidacotidiana.inventory.api.dto.InventoryItemResponse;
 import com.vidacotidiana.inventory.api.dto.UpdateInventoryItemRequest;
 import com.vidacotidiana.inventory.application.InventoryItemService;
 import com.vidacotidiana.inventory.domain.InventoryCategory;
+import com.vidacotidiana.shared.domain.ModuleContext;
 import com.vidacotidiana.inventory.domain.InventoryItem;
 import com.vidacotidiana.shared.api.PageResponse;
 import jakarta.validation.Valid;
@@ -41,18 +42,31 @@ public class InventoryItemController {
     }
 
     @PostMapping
-    public ResponseEntity<InventoryItemResponse> create(@Valid @RequestBody CreateInventoryItemRequest request) {
-        InventoryItem created = inventoryItemService.create(currentUser.userId(), request.name(), request.category(), request.location());
+    public ResponseEntity<InventoryItemResponse> create(
+            @Valid @RequestBody CreateInventoryItemRequest request,
+            // ADR-022: módulo desde el que se crea. Ausente ⇒ PERSONAL,
+            // mismo contrato que Garantías/Mantenimiento/Suscripciones.
+            @RequestParam(value = "context", required = false) String context) {
+        InventoryItem created = inventoryItemService.create(currentUser.userId(), request.name(), request.category(),
+                request.location(), ModuleContext.fromNullable(context));
         return ResponseEntity.status(HttpStatus.CREATED).body(InventoryItemResponse.from(created));
     }
 
     @GetMapping
     public PageResponse<InventoryItemResponse> list(
             @RequestParam(required = false) InventoryCategory category,
+            // ADR-022: sin `context` se devuelve todo (pantallas fuera de un
+            // módulo); con contexto, el filtro baja hasta la consulta SQL.
+            @RequestParam(value = "context", required = false) String context,
+            // ADR-022: búsqueda por nombre o ubicación, resuelta en la
+            // consulta. Antes se filtraba en cliente sobre la página ya
+            // cargada, así que buscaba solo entre 20 artículos.
+            @RequestParam(value = "q", required = false) String q,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         Pageable pageable = PageRequest.of(page, Math.min(size, 100));
-        Page<InventoryItem> items = inventoryItemService.listOwnedBy(currentUser.userId(), category, pageable);
+        Page<InventoryItem> items = inventoryItemService.search(
+                currentUser.userId(), ModuleContext.filterFromNullable(context), category, q, pageable);
         return PageResponse.from(items.map(InventoryItemResponse::from));
     }
 

@@ -362,3 +362,512 @@ Es decir: el requisito **no existía**, salvo un filtro de cliente en recordator
 **Límite declarado, no implementado:** el aislamiento cubre lectura y alta. Una **mutación dirigida por id** (completar/borrar un recurso del otro módulo conociendo su UUID) sigue siendo posible para el propio dueño, porque no hay frontera de seguridad entre los módulos de un mismo usuario — son la misma cuenta. En la práctica es inalcanzable: ninguna pantalla del módulo contrario muestra ese recurso. Si se quisiera cerrar también, habría que exigir el contexto en cada mutación y rechazar los desajustes; **TBD**, no se asume.
 
 **TBD:** si el usuario debe poder mover un recurso de un módulo a otro (hoy el contexto es inmutable por decisión (f)); si Documentos/Inventario/Familia —que no alimentan el Calendario— deben adoptar la misma regla.
+
+## ADR-020 "Pagos": la sección de Suscripciones pasa a compromisos de pago (con importes acotados)
+**Estado:** Accepted (2026-08-29)
+
+**Contexto:** el Product Owner solicitó (2026-08-29) que la sección "Suscripciones" deje de estar limitada a servicios digitales y pase a organizar **cualquier pago recurrente o compromiso de pago**: streaming, internet y telefonía, membresías, seguros, colegiaturas, renta, créditos y tarjetas de crédito. El objetivo declarado es responder *"¿qué pagos tengo, cuánto representan y cuándo debo estar preparado?"* — organización y anticipación, **no** finanzas personales, contabilidad, presupuesto ni banca.
+
+El análisis previo, la matriz de nombres, el artefacto de pantalla y el plan por etapas están en el artefacto aprobado (`Pagos · Vida Cotidiana`, 2026-08-29). Aquí se registran solo las decisiones.
+
+**Decisión:**
+
+(a) **La sección se llama "Pagos".** "Suscripciones" ya es falso: describe una quinta parte de lo que contendrá. Se descartó "Compromisos" por una colisión real de dominio — `COMMITMENT` ya existe en el módulo Laboral (ADR-016, etiquetado "Seguimientos" en la interfaz); dos cosas distintas con el mismo nombre en la misma aplicación.
+
+(b) **Se habilitan importes, ESTRICTAMENTE dentro de esta sección.** Autorización explícita del Product Owner. Esto **actualiza el límite** de `CLAUDE.md` ("Finanzas fuera de V1–V4") en un punto concreto y acotado, y no lo deroga: se registra aquí en vez de dejarlo implícito (regla `DOCUMENTATION_CONFLICT` de `AI-CONTEXT.md`).
+
+  Queda **dentro** del alcance: importe por pago, divisa por pago, suma de los compromisos del periodo, marcar un pago como realizado.
+
+  Queda **fuera**, y sigue prohibido: saldos, movimientos, estados de cuenta, conexión o importación bancaria, presupuestos, categorías de gasto, reportes financieros, y **extender importes a cualquier otra sección** (Garantías, Inventario, Mantenimiento, Documentos u otras). El manejo de importes no es una capacidad transversal de la aplicación: es una propiedad de esta sección.
+
+(c) **Divisa por pago** (Opción B, elegida por el Product Owner), no una divisa global de la cuenta. `currency` es ISO 4217 y viaja junto a `amount` en cada registro. Se decide antes de la primera migración, no después, para no rehacer el modelo.
+
+(d) **Un tipo con tres formas, sin categorías.** `kind` discrimina SUBSCRIPTION / SERVICE / MEMBERSHIP / CUSTOM / CARD / CREDIT, pero solo hay **tres formas estructurales**: recurrente de importe fijo (los cuatro primeros, mismos campos y distinta etiqueta), tarjeta de crédito (dos fechas por ciclo, importe variable) y crédito a plazos (recurrente con final).
+
+  **No se añade una taxonomía de categorías.** Una categoría es una etiqueta y no puede cambiar qué campos existen, que es justo lo que distingue a una tarjeta de una suscripción; y una segunda taxonomía cuesta un selector más al crear, un filtro más que mantener y ambigüedad inmediata (¿el gimnasio es "Salud" o "Membresía"?). Se reevalúa si aparece un usuario real con suficientes pagos para que filtrar por tipo deje de bastar.
+
+(e) **La tabla sigue llamándose `subscriptions`.** Renombrarla obligaría a tocar entidad, repositorio, servicio, controlador, DTOs, migración y cliente para cero valor visible: el nombre de la sección es una etiqueta de interfaz. Se documenta la discrepancia aquí para que nadie la lea como un descuido.
+
+(f) **"Marcar como pagado" necesita persistencia propia**: tabla `payment_record` (pago, fecha real, importe real, divisa). Es lo único genuinamente nuevo del modelo. Sin ella la lista miente al día siguiente, y el importe real de una tarjeta (variable) no tendría dónde vivir.
+
+(g) **El calendario se amplía, no se duplica.** `dateAlerts.ts` (ADR-018) ya proyecta ciclos y genera avisos a 5/2/0 días de cada suscripción. Las tarjetas aportan **dos** fechas por ciclo (corte y límite); la severidad alta va al límite, que es la accionable. No se crea una vista de calendario propia de la sección.
+
+**Alternativas consideradas:**
+(a) mantener el nombre "Suscripciones" y meter tarjetas dentro — descartada: obliga a llamar "suscripción" a una tarjeta de crédito, que es exactamente la ambigüedad que el pedido busca evitar;
+(b) modelar la tarjeta de crédito como una entidad aparte — descartada: comparte el 70 % de los campos y toda la mecánica de fechas y avisos con el resto; separarla duplicaría el listado, el filtrado y la integración con el calendario;
+(c) categorías además de tipos — descartada, ver (d);
+(d) divisa única en el perfil del usuario — descartada por decisión explícita del Product Owner, y además obligaría a migrar el modelo al aparecer el primer pago en otra divisa.
+
+**Consecuencias:** migración aditiva sobre `subscriptions` (todo lo existente queda como `kind = SUBSCRIPTION`, sin importe, y se comporta igual que hoy) más la tabla `payment_record`. Se rehacen `SubscriptionsPage`/`SubscriptionDialog` y se amplía su `api.ts`; cambia la etiqueta del menú y el título de la pantalla. No se toca ningún otro módulo. `AI-CONTEXT.md` y `CLAUDE.md` se actualizan con el límite nuevo, porque son la constitución que leen los agentes que trabajen después.
+
+**TBD:** si "Pagos" debe existir también en el contexto Laboral (hoy la ruta es plana, `/subscriptions`, y ADR-019 hace que todo lo creado ahí nazca PERSONAL); si el importe debe poder registrarse por ocurrencia además de por pago (hoy `payment_record` ya lo permite, pero la interfaz solo lo pedirá para tarjetas).
+
+### Refinamiento cerrado el 2026-08-29 — coherencia de estados y acciones
+
+Auditoría de la administración de pagos pedida por el Product Owner tras la implementación inicial de ADR-020. **Seis incoherencias reales, cinco de ellas introducidas por la propia implementación de ADR-020**, corregidas sin cambiar ninguna de las decisiones de la ADR:
+
+1. **El estado "pagado" era inalcanzable.** `markAsPaid` avanza `nextPaymentDate`, y la comprobación buscaba un registro para esa fecha **ya avanzada**, que por definición no existe. El grupo "Pagado", el botón "Deshacer" y el estado entero eran código muerto: el usuario marcaba un pago y no veía ninguna señal. Regla corregida (`isPaidThisPeriod`): un compromiso está pagado cuando existe un registro de un ciclo **del periodo en curso** — que además es lo que el usuario quiere saber al mirar la pantalla.
+2. **"Anotar importe" cobraba la tarjeta.** Llamaba a `markPaymentPaid`, así que anotar cuánto debes registraba el ciclo como pagado y avanzaba la fecha. Ahora guarda el importe en el compromiso (`PATCH`); marcar como pagado sigue siendo un gesto aparte.
+3. **Tres filtros idénticos** (Próximos / Todos / Pendientes), consecuencia de (1). Reducidos a Todos / Pendientes / Pagados, que ahora devuelven cosas distintas.
+4. **Un crédito no terminaba nunca.** `advanceToNextCycle` incrementaba `currentInstallment` sin tope: pedía el plazo 49 de un crédito de 48, generaba alertas en el calendario y sumaba al total del mes. Se detiene en el último plazo — **estado nuevo `finished`**, justificado porque el dato ya existía y sin él la aplicación mentía.
+5. **Un pago atrasado varios ciclos** exigía marcar N veces sin decirlo. `overdueCycles` lo declara en la fila ("3 ciclos sin pagar"); cada marca sigue cubriendo un solo ciclo, que es lo correcto.
+6. **Importe fantasma:** marcar un pago como de importe variable no borraba `amount` (el backend trata `null` como "no tocar"), así que el valor reaparecía al desmarcar. `applyPaymentDetails` ahora lo limpia.
+
+**Carencia cubierta:** los `payment_records` se guardaban desde el principio y ninguna pantalla los mostraba. El historial se añadió **dentro del diálogo de edición**, que ya es la superficie de detalle del registro, en vez de crear una ruta nueva (`GET /subscriptions/{id}/payments`).
+
+**Acciones descartadas explícitamente, por no resolver un problema real de estos registros:** posponer (necesita un sistema de avisos que no existe), duplicar, y cambiar el estado a mano — el estado se deriva de la fecha y del historial, y hacerlo editable crearía dos verdades sobre el mismo hecho.
+
+**Matriz de estados vigente:** `scheduled` · `due-soon` (≤7 días) · `overdue` · `paid` (periodo en curso) · `finished` (solo créditos). Los hechos ortogonales `variableAmount`, `CARD` (dos fechas) y `CREDIT` (plazos) modulan qué se muestra y qué acciones aparecen, pero no son estados.
+
+**Adiciones de la validación de cierre (2026-09-01).** Tres reglas descubiertas al probar los flujos:
+
+7. **"Pagado" se decide por CUÁNDO se pagó, no por qué periodo cubre.** La regla comparaba `periodDate` con el mes en curso, así que **adelantar un pago no se reflejaba nunca**: quien pagaba en agosto la mensualidad de septiembre seguía viendo el pago como pendiente. `isPaidThisPeriod` mira ahora `paidOn`.
+8. **Una fecha absoluta de otro año lleva el año.** `whenLabel` devolvía "25 oct" para cualquier fecha lejana, idéntica para este año y el siguiente — con pagos anuales o a plazos la fila decía algo distinto de lo almacenado. El año aparece solo cuando no es el corriente, para no repetirlo en el caso normal. Mantenimiento ya lo ponía siempre.
+9. **Las reglas (j) y (k) del ADR-021 —lectura de fechas a mediodía local y el estado vacío que no puede aparecer cuando la carga falla— rigen igual aquí.** Se documentan allí para no duplicarlas; son transversales, no propias de un módulo.
+
+## ADR-021 Mantenimiento recurrente: completar avanza la ocurrencia
+**Estado:** Accepted (2026-08-29)
+
+**Contexto:** auditoría del módulo de Mantenimiento pedida por el Product Owner, con el mismo alcance que la de Pagos. Se encontraron **siete incoherencias**, todas verificadas en el código:
+
+1. **El mantenimiento recurrente no se repetía.** `toggleCompletion()` solo invertía un booleano: "Cambio de aceite · cada 3 meses" se completaba una vez y quedaba `COMPLETADO` para siempre. `intervalMonths` —añadido en la migración V24— se guardaba y **nunca programaba la siguiente ocurrencia**; solo lo usaba el calendario para dibujar.
+2. **Completarlo lo borraba del calendario.** `dateAlerts` saltaba todo `COMPLETADO`, así que una sola marca eliminaba *todas* las ocurrencias proyectadas. El usuario perdía la recurrencia justo por hacer lo correcto.
+3. **No se podía editar.** El backend tenía `PATCH /maintenance-records/{id}` y el cliente tenía `updateMaintenanceRecord`, pero **ninguna pantalla los llamaba**: equivocarse de fecha obligaba a borrar y recrear.
+4. **La periodicidad era invisible**: la fila mostraba "Próximo: fecha" y nada más, ocultando el dato que explica por qué un mantenimiento vuelve.
+5. **"Completar" no se podía deshacer** desde la interfaz: `toggleCompletion` alterna, pero la UI ocultaba el botón al completarse, así que un clic por error era definitivo.
+6. **Sin historial**: no quedaba registro de cuándo se hizo.
+7. **Dos definiciones de "próximo"**: 30 días en el backend, 7/3/0 en el calendario. El mismo registro estaba "PROXIMO" en una pantalla y no en la otra.
+
+**Decisión:**
+
+(a) **Completar avanza la ocurrencia.** `completeOccurrence(now)` sustituye funcionalmente a `toggleCompletion` en las pantallas: con `intervalMonths`, la fecha avanza un intervalo y el registro sigue activo; sin él, el mantenimiento es puntual y sí termina. `toggleCompletion` y su endpoint `POST /{id}/complete` **se conservan** — hay tests que los cubren y romperlos no aportaba nada.
+
+(b) **Un vencido avanza desde HOY**, no desde la fecha incumplida (aprobado explícitamente por el Product Owner). Es lo **contrario** de lo decidido en Pagos (ADR-020), y a propósito: una mensualidad de septiembre sigue siendo la de septiembre, pero si cambias el aceite con dos meses de retraso el siguiente cambio toca tres meses después de hoy. **El intervalo mide desgaste, no calendario.** La divergencia entre los dos módulos es deliberada y queda registrada aquí para que nadie la "unifique" por error.
+
+(c) **Sin periodicidad, el mantenimiento termina** (aprobado). El mismo campo `intervalMonths` decide dos comportamientos, y por eso la periodicidad pasa a ser **visible en la fila**.
+
+(d) **Un único umbral de "próximo": 7 días** (aprobado), aplicado en `MaintenanceRecordResponse.PROXIMO_THRESHOLD_DAYS` y en `maintenanceView.DUE_SOON_DAYS`. Coincide con `DUE_SOON_DAYS` de Pagos y con los avisos del calendario.
+
+(e) **Historial propio**: tabla `maintenance_log` (**migración V27**), equivalente a `payment_records`. Índice único `(maintenance_record_id, scheduled_date)` que hace **idempotente** el botón "Hecho": sin él, un doble clic o un reintento de red saltarían dos ciclos y la próxima revisión aparecería un intervalo entero más tarde de lo real.
+
+(f) **Deshacer**: `revertToOccurrence` devuelve el registro a la fecha que tenía, borrando la última entrada del historial.
+
+(g) **El calendario conserva la serie**: `dateAlerts` solo salta los `COMPLETADO` **puntuales**. La comprobación se deja explícita para que los registros antiguos, completados antes de esta corrección, vuelvan a proyectar su serie en vez de desaparecer.
+
+**Alternativas consideradas:**
+(a) reutilizar `toggleCompletion` añadiéndole el avance — descartada: ese método es un interruptor y su endpoint tiene tests que dependen de que lo siga siendo;
+(b) avanzar desde la fecha programada también en Mantenimiento, por coherencia con Pagos — descartada por el Product Owner: acumularía ocurrencias vencidas de algo que ya se hizo;
+(c) guardar el historial en el propio registro (última fecha) — descartada: perdería todo lo anterior a la última ejecución, que es justo lo que hace útil un historial de mantenimiento.
+
+**Consecuencias:** una tabla nueva y cuatro endpoints (`POST /{id}/occurrences`, `DELETE /{id}/occurrences/last`, `GET /{id}/occurrences`, `GET /occurrences`); ninguna columna existente cambia. La pantalla se rehace siguiendo el prototipo aprobado (artifact 9b1318d8) y **gana la edición, que no existía**. No se toca ningún otro módulo.
+
+**TBD:** si un mantenimiento puntual cerrado debería poder reabrirse desde la interfaz (hoy "Deshacer" lo hace, pero no hay una acción llamada así); si la nota de ejecución merece un campo propio en la interfaz (el endpoint ya la acepta).
+
+**Adiciones de la validación de cierre (2026-09-01).** Cuatro reglas que la implementación necesitaba y no estaban escritas; se descubrieron probando los flujos y quedan fijadas aquí porque cualquiera de las cuatro se puede volver a romper sin darse cuenta:
+
+(h) **Un solo "hoy" por operación.** Completar usaba dos nociones distintas del día actual: el avance leía `Instant.now()` en UTC y el historial guardaba `LocalDate.now()` en la zona del servidor. Completando por la tarde en UTC−6 eso daba **dos días distintos** —el historial decía 31 de agosto y el avance partía del 1 de septiembre—, y la siguiente ocurrencia caía un día más tarde de lo debido. Ahora `MaintenanceService.completeOccurrence` calcula `today` una vez y lo usa para las dos cosas, fijado a medianoche UTC para quedar en la misma rejilla en que se almacenan las fechas de calendario. Pagos **no** tenía este defecto: avanza desde `nextPaymentDate`, que ya está almacenada a medianoche UTC, sin `now` de por medio.
+
+(i) **Quitar la periodicidad es distinto de no mandarla.** `applyEdit` trata `null` como "no tocar", así que "Sin repetición" no podía retirar una periodicidad ya asignada: la interfaz ofrecía una acción que el backend no sabía ejecutar. Se añade el indicador explícito `clearInterval` en `UpdateMaintenanceRecordRequest` y en el dominio.
+
+(j) **Las fechas de calendario se leen a mediodía local.** El backend las almacena a medianoche UTC; `new Date('YYYY-MM-DD')` las interpreta como UTC y en UTC−6 pintaba **el día anterior**. La regla del proyecto es `new Date(\`${clave}T12:00:00\`)` —ya la aplicaban `CalendarPage`, `AlertList` y `DayAgenda`, y por eso el calendario acertaba mientras las listas nuevas fallaban—. Ahora vive en `toLocalDate()` en `maintenanceView.ts` y `paymentsView.ts`.
+
+(k) **El estado vacío afirma un hecho sobre los datos del usuario, así que no puede mostrarse cuando la carga falla.** Si la petición devuelve error, la lista queda vacía y ambas pantallas decían "Aún no tienes pagos registrados" / "Aún no registras ningún mantenimiento" a usuarios que sí tenían registros. El vacío exige ahora `!error`; cuando hay error manda el aviso de error, que es lo único cierto. Regla aplicable a cualquier pantalla con estado vacío, no solo a estas dos.
+
+---
+
+## ADR-022 Garantías, Inventario y Documentos: aislamiento por módulo, filtrado real y el vínculo Inventario ↔ Garantías
+**Estado:** Accepted (2026-09-01)
+
+**Contexto:** auditoría de las tres secciones pedida por el Product Owner, con el mismo alcance que las de Pagos (ADR-020) y Mantenimiento (ADR-021). Todos los hallazgos están verificados en el código, no supuestos.
+
+El patrón dominante se repite por triplicado: **hay capacidades construidas en el backend que ninguna pantalla alcanza**, exactamente el hallazgo (3) del ADR-021.
+
+1. **Una garantía no se podía editar.** `PATCH /warranties/{id}` existía y `updateWarranty()` estaba escrito en `warranties/api.ts` — **ninguna pantalla los llamaba**. Corregir una fecha obligaba a borrar el registro y volver a subir el comprobante.
+2. **Un documento no se podía renombrar ni recategorizar.** `PATCH /documents/{id}` existía en el backend y `documents/api.ts` **ni siquiera tenía la función**. Un documento mal clasificado solo se podía borrar y volver a subir, perdiendo con quién estaba compartido.
+3. **"Completar" una garantía no se podía deshacer.** `Warranty#toggleCompletion` alterna desde siempre, pero la interfaz escondía el botón al completarse: un clic por error era definitivo.
+4. **ADR-019 incumplido en las tres, de tres formas distintas.** Garantías tenía columna `context`, endpoint y cliente, pero su `useEffect(…, [])` no dependía de `activeMode`: cambiar de Personal a Laboral dejaba en pantalla las del módulo anterior. `inventory_items` y `documents` **no tenían columna `context`**: Personal y Laboral compartían inventario y documentos. No fue una decisión — los dos módulos se construyeron el 2026-08-22, seis días antes de que existiera la regla, y nadie volvió sobre ellos.
+5. **Los filtros mentían.** Inventario y Documentos filtraban por categoría **en el cliente sobre la página cargada**, aunque ambos endpoints ya aceptaban `category`. Con más registros que el tamaño de página, filtrar ocultaba resultados sin avisar.
+6. **Las tarjetas de categoría de Documentos no hacían nada.** Mostraban un recuento y no eran pulsables, con una fila de chips justo debajo que sí filtraba: dos navegaciones para lo mismo, una muerta. Además el recuento decía "1 documentos".
+7. **El estado vacío aparecía cuando fallaba la carga**, en las tres — el mismo defecto corregido en Pagos y Mantenimiento (ADR-021(k)).
+8. **Garantías mostraba la fecha en crudo** (`iso.slice(0, 10)` → `2027-03-12`), sin formato ni la regla del mediodía local.
+9. **El vacío de Inventario y Documentos no distinguía** "no hay nada" de "no hay nada con este filtro": el mismo texto en ambos casos hacía parecer que no había nada registrado.
+10. **Documentos ofrecía acciones de dueño sobre documentos ajenos.** Un documento compartido conmigo mostraba renombrar/compartir/eliminar, que el backend rechaza con 404.
+11. **El mismo objeto vivía en dos listas que se ignoraban.** "Refrigerador Mabe" era un artículo del inventario Y una garantía, sin relación entre ambos: no se podía responder "¿este artículo todavía tiene garantía?", que es justo lo que hace útil tener las dos secciones.
+
+**Decisión:**
+
+(a) **`context` en Inventario y Documentos** (migración **V28**), con la regla 4 del ADR-019 aplicada igual que en V25 y **reaprobada por el Product Owner el 2026-09-01**: todo lo existente es `PERSONAL`, `NOT NULL DEFAULT 'PERSONAL'`, sin reinterpretar nada como Laboral. Índices `(owner_user_id, context)`. En Garantías la columna ya existía: lo que se corrige es que la pantalla **reaccione** al cambio de módulo (`useEffect` dependiente de `activeMode`).
+
+(b) **Filtrado y búsqueda en la CONSULTA, no en el cliente.** `InventoryItemRepository#search` y `DocumentRepository#search` resuelven contexto + categoría + texto en una sola consulta; los controladores aceptan `context` y `q`. La búsqueda es nueva: no existía en ninguna de las dos secciones y se deriva directamente de columnas ya presentes (`name`, `location`). En Documentos la consulta conserva la regla de visibilidad de `findVisibleTo` (propios + compartidos conmigo + públicos de la familia), y filtra por `d.context`, que es el módulo **del dueño**: un documento compartido conmigo sigue perteneciendo al módulo desde el que se creó.
+
+(c) **Vínculo Inventario ↔ Garantías** (aprobado). El campo vive en `warranties.inventory_item_id` y no al revés porque la garantía es la que se refiere a un artículo, y así un artículo puede acumular varias a lo largo del tiempo (garantía de fábrica y extensión contratada) sin que el modelo lo impida. `ON DELETE SET NULL`: borrar el artículo no debe llevarse por delante el comprobante, que puede seguir haciendo falta para una reclamación. En la fila de Inventario gana la garantía que vence más tarde — es la que sigue cubriendo. El selector solo ofrece artículos del módulo activo: enlazar una garantía Personal con un artículo Laboral rompería el aislamiento por la puerta de atrás.
+
+(d) **`linkInventoryItem` distingue "no tocar" de "cambiar"**, igual que `clearInterval` en ADR-021(i): sin ese indicador, mandar `null` sería indistinguible de omitirlo y **desenlazar sería imposible**.
+
+(e) **"Completar" pasa a "Usada"** (aprobado). Una garantía no se completa: se usa (se hizo válida la reclamación) o vence sola. **El contrato NO cambia** — el valor sigue siendo `COMPLETADO` y el endpoint sigue siendo `POST /{id}/complete`. Cambiarlo obligaría a tocar `dateAlerts`, los tests y `openapi.yaml` sin ganar nada. Lo que cambia es la palabra que lee el usuario. Y el botón deja de esconderse: como el endpoint alterna, "Volver a vigente" es una capacidad que ya existía y no tenía acceso.
+
+(f) **Estados visuales de Garantía: Vigente · Por vencer · Vencida · Usada.** Los cuatro los deriva el servidor en `WarrantyResponse` (umbral de "por vencer" = 30 días, su único dueño); `warrantiesView.ts` solo los traduce a casillas visuales. No se recalculan en el cliente para no crear una segunda verdad.
+
+(g) **El patrón de lista vive en `core/ui/patterns/SectionList.module.css`**, compartido por las tres secciones y con las mismas medidas que Mantenimiento (ADR-021). Tenerlo tres veces garantizaba que se desincronizaran a la primera corrección. **No contiene un solo color, radio ni sombra literal**: todo sale de los tokens, que es lo que permite que los cuatro temas visuales (`editorial`, `minimal`, `productivity`, `organic`) y el re-tematizado de Laboral funcionen sin tocar el archivo.
+
+(h) **Las acciones de dueño solo para el dueño.** La pantalla de Documentos resuelve la identidad con `GET /me` y oculta renombrar/compartir/eliminar en lo ajeno, en vez de ofrecer acciones que el backend responde con 404.
+
+(i) **Cuando hay más registros que el tamaño de página, se dice** ("Mostrando 100 de 143") en vez de recortar en silencio.
+
+**Alternativas consideradas:**
+(a) poner el vínculo en `inventory_items.warranty_id` — descartada: impediría que un artículo tuviera garantía de fábrica y extensión a la vez, un caso real;
+(b) cambiar el valor del contrato `COMPLETADO` por `USADA` — descartada: rompe `dateAlerts`, los tests y la especificación para cambiar una palabra que solo importa en la interfaz;
+(c) mantener el filtrado en cliente subiendo el tamaño de página — descartada: mueve el límite, no lo quita, y el filtro seguiría mintiendo al pasarlo;
+(d) resolver los archivos en Object Storage dentro de esta fase — descartada, ver TBD.
+
+**Consecuencias:** una migración aditiva (V28), tres columnas nuevas, dos consultas nuevas, dos parámetros nuevos por endpoint de listado (`context`, `q`) y un campo nuevo en `WarrantyResponse`/`UpdateWarrantyRequest`. Ningún contrato existente cambia de forma incompatible: todos los parámetros nuevos son opcionales y los campos nuevos son aditivos. Las tres pantallas pasan a compartir un único patrón visual con Pagos y Mantenimiento. No se toca ningún otro módulo.
+
+**TBD / DEUDA CONOCIDA:** **los archivos viven en la base de datos.** `documents.data` y `warranties.document_data` son `BYTEA`, cuando la arquitectura del proyecto especifica Object Storage para ficheros. Se detectó en esta auditoría y **no se resuelve aquí**: migrarlo es un trabajo con su propio ADR (almacenamiento, URLs firmadas, migración de los datos existentes, borrado). Queda registrado para que la decisión sea consciente y no un olvido.
+
+**TBD:** si un documento debería poder reemplazar su archivo sin borrarlo y volverlo a subir (hoy no hay endpoint que lo permita, así que la interfaz no lo ofrece); si el vínculo Inventario ↔ Garantías debería poder crearse también desde el alta de la garantía y no solo desde su edición.
+
+---
+
+## ADR-023 Sistema de temas "Seis Agendas": Editorial se elimina y el portal pasa a seis identidades
+**Estado:** Accepted (2026-09-01)
+
+**Contexto:** el Product Owner rechazó los temas vigentes (UX-014: editorial / minimal / productivity / organic) por sentirse "demasiado robotizados, rígidos, corporativos y parecidos entre sí — variaciones de un dashboard SaaS, no una agenda personal". La auditoría del código confirmó por qué, con hallazgos verificables:
+
+1. **No había escala tipográfica.** Más de cuarenta tamaños de fuente escritos a mano (`0.82rem`, `0.78rem`, `0.72rem`, `0.68rem`, `0.62rem`…). La jerarquía se leía borrosa porque los saltos eran arbitrarios.
+2. **El espaciado era una sugerencia:** 322 usos de `var(--space-*)` contra **329 valores px sueltos**.
+3. **Un solo color de borde y opaco** (`--color-border: #6e8192`). Con un único token de línea el sistema no podía distinguir "separar" de "delimitar", así que todo llevaba borde — la señal más fuerte de interfaz de 2010.
+4. **Radios constantes de 20px y 28px** en 62 sitios, aplicados con un reemplazo global que dejó `border-radius: 20px;;` con doble punto y coma en 8 archivos. Un chip y una tarjeta compartían radio.
+5. **Solo dos superficies.** Sin escalera de elevación, destacar algo obligaba a ponerle borde o sombra.
+6. **Los cuatro temas se diferenciaban casi solo en color**: compartían densidad, tipografía de cuerpo y tratamiento de componente.
+
+**Decisión:**
+
+(a) **Editorial se elimina definitivamente — y solo Editorial.** Premium Minimal, Modern Productivity y Organic / Human **se conservan** y conviven con las nuevas: el portal ofrece **nueve** temas. El portal suma seis identidades aprobadas —**Aurora · Lumen · Neo · Calm · Studio · Papel**— definidas en el artefacto navegable `bb294d3e`, que es la **fuente de verdad visual**: sus valores se copiaron literalmente, sin reinterpretar.
+
+(b) **Cada tema cambia sustancia, no piel.** Además del color, cada uno define tipografía de display, escala (`--t-scale`), densidad (`--density`), aire (`--air`), radio (`--r-scale`), elevación y una **capa decorativa propia**: el velo de luz de Aurora, los renglones de Papel, la retícula de Neo, las manchas cálidas de Calm, el grano de Studio y la ausencia deliberada en Lumen.
+
+(c) **Los tokens viven en `web/src/themes.css`**, con dos familias en el mismo bloque: los nombres nuevos del artefacto (`--bg`, `--ink`, `--line`, `--t-*`, `--r-scale`, `--density`, `--air`) y los heredados (`--color-surface`, `--color-text`…) **derivados de los primeros con `var()`**. No es duplicación: es un puente con una sola fuente de verdad, y es lo que propaga la identidad a los ~40 `.module.css` existentes sin reescribir componente por componente.
+
+(d) **`:root` queda intacto.** Lo usan LoginPage y Keycloak, deliberadamente fuera del sistema de temas.
+
+(e) **Laboral (ADR-015/UX-012) sigue combinándose** con los seis: `.laboral-theme.theme-x` reasigna solo el acento, nunca radio, densidad ni tipografía, que son identidad del tema y no deben cambiar al pasar de módulo.
+
+(f) **Una preferencia guardada de Editorial se migra a Papel**, no se descarta (`VisualThemeContext.RETIRED`): es el candidato más cercano en intención, la misma agenda de papel cálido. Sin eso, el navegador de un usuario existente pediría una clase inexistente y el portal quedaría sin tema. Los otros tres no necesitan migración porque siguen existiendo.
+
+**Consecuencias — lo que se retiró por contradecir los temas nuevos:**
+
+- **43 reglas CSS de Editorial**, en 11 archivos. Entre ellas, la que colapsaba la barra lateral a 66px sin etiquetas: las seis agendas nuevas la tienen ancha y con etiquetas.
+
+  **CORRECCIÓN (2026-09-02).** En la primera implementación se retiraron también las 148 reglas de Minimal, Productivity y Organic, por una lectura de más de la petición. El Product Owner pidió eliminar **únicamente Editorial**, así que esas 148 se devolvieron íntegras desde el respaldo, incluidas sus firmas propias — la barra de 66px de Minimal, el degradado de chrome de Productivity y la forma de "blob" de Organic. De los selectores que compartían con Editorial se conservó solo su parte.
+- **La imagen decorativa de hojas** (`hojas.png`, 450×630) anclada tras la barra lateral. Ningún tema aprobado la contempla y competía con sus propias capas de fondo.
+- **66 colores literales** de la era Editorial, sustituidos por tokens. En Aurora (oscuro) un `#304b68` sobre `#0a0d14` era texto ilegible y una tarjeta `rgba(251,248,240,.96)` una mancha crema en medio de la noche.
+- **71 radios constantes** de 20px/28px, ahora `--r-lg`/`--r-xl`.
+- **Dos declaraciones `font-family: Georgia, 'Times New Roman', serif`** fijas en los titulares de Inicio, que daban serif en Neo (donde el artefacto pide Archivo 900) y en Lumen (donde pide Manrope).
+
+**Dependencias nuevas, justificadas:** `@fontsource/sora`, `@fontsource/archivo`, `@fontsource/plus-jakarta-sans`, `@fontsource/instrument-serif`. Cada tema tiene su pareja tipográfica y sin estos ficheros la familia caería al genérico del sistema, perdiendo la identidad. Self-hosted como el resto (UX-001), sin peticiones a un CDN.
+
+**Alternativas consideradas:**
+(a) renombrar los tokens en los 40 `.module.css` a los nombres nuevos — descartada: mucho riesgo, ninguna ganancia frente al puente con `var()`;
+(b) conservar Editorial junto a los demás — descartada explícitamente por el Product Owner;
+(c) remapear mecánicamente las 191 reglas antiguas a los temas sucesores — descartada: arrastraba tratamientos que contradicen el artefacto (la barra de 66px, los degradados).
+
+**Diferencia declarada respecto al artefacto:** el prototipo compone además un **héroe distinto por tema** en la vista Inicio (banda negra en Neo, ilustración en Calm, portada de revista en Studio, cuaderno en Papel…). El portal conserva su propia estructura de Inicio, que ya existía y tiene datos reales; los seis temas se aplican sobre ella. Reproducir seis composiciones de héroe distintas es un cambio estructural de la pantalla, no de tema, y queda **pendiente** — ver la sección de limitaciones del informe de esta fase.
+
+
+**Puente para los temas conservados.** Los tokens originales de Minimal, Productivity y Organic solo cubrían los nombres heredados (`--color-*`, `--radius-*`, `--shadow-card`). Como ADR-023 pasó varios componentes a los nombres nuevos, se les añadió el puente **inverso** al de las seis agendas: ahí la fuente de verdad son los nuevos y los heredados se derivan; aquí es al revés — `--ink: var(--color-text)`, `--line-strong: var(--color-border)`, etc. Sin ese puente, un componente que ahora lee `--ink` no pintaría nada en ellos. Cada uno recibe además su `--r-scale`, `--density` y `--air` derivados de su `--radius-card` original.
+
+---
+
+
+**ADENDA (2026-09-05) — el tema tiene que llegar a los rótulos, no solo a las
+cajas.**
+
+El Product Owner reportó que Papel "no sigue la fidelidad al 100% del
+artefacto" en tipografía, widgets y experiencia al **agregar una nota**, y que
+**Configuración no tiene personalidad** según el tema. La revisión confirmó
+las dos cosas y dio con la causa común, que no era Papel:
+
+(h) **ADR-023 vistió los contenedores y dejó fuera los rótulos.** Tarjetas,
+filas y bordes sí cambiaban por tema; los antetítulos ("TU DÍA", "RESUMEN",
+"ESTA SEMANA"), los rótulos de columna de la hoja del día ("Agenda",
+"Alertas", "Notas") y los títulos de tarjeta ("Vista diaria") seguían con la
+misma caja alta espaciada de Inter en los seis temas. El síntoma se veía
+especialmente en Papel, donde una libreta escrita a mano convivía con
+etiquetas de panel de control, y en la hoja del día, donde dos rótulos
+hermanos —"agenda" y "notas"— llevaban tratamientos distintos porque solo uno
+había recibido reglas de tema. **Un rótulo es un widget**: si el tema no llega
+a él, la pantalla se lee a dos voces. Cada uno de los tres recibe ahora la
+misma firma por tema, definida una vez por rol y repetida en los tres sitios.
+
+(i) **Papel escribe las notas a mano.** `--font-hand` (Caveat) ya existía en
+los tokens del tema y no lo usaba nadie. La nota del día, su editor en línea y
+el renglón de escritura pasan a Caveat a 1.16rem —su altura de x es muy
+inferior a la de Inter y al mismo cuerpo se leería diminuta—, con renglón
+inferior entre notas y filete de margen en el terracota del tema, como la
+línea de una libreta. **Invariante:** los tres comparten SIEMPRE tipografía y
+tamaño; si difirieran, el texto saltaría al entrar y salir de edición.
+
+(j) **CSS muerto detectado y retirado.** El tratamiento de "tarjeta de nota"
+en Papel se había escrito sobre `features/calendar/notes/Notes.module.css`,
+cuyas clases `.noteCard*` **no las usa ningún componente** desde que las notas
+del día pasaron a "Notas en el margen" (solo sobrevive `.newNoteButton`, en
+`CreateReminderDialog`). Las reglas nunca se aplicaron a nada. Se eliminaron y
+el tratamiento real vive donde se renderiza: `DayNotesCanvas.module.css`.
+Lección: una firma de tema no está verificada hasta que se mide sobre el
+elemento renderizado — la primera comprobación encontró **0 tarjetas** y eso
+era la señal, no un fallo de la prueba.
+
+(k) **Los tres temas conservados no reciben firmas nuevas.** Minimal,
+Productivity y Organic ya traían sus propias reglas de antetítulo y de rótulo
+desde UX-014, y la instrucción al restaurarlos fue dejarlos "como si nunca se
+hubieran quitado". Comparten título en Configuración porque así era antes de
+ADR-023; no es un olvido.
+
+**Consecuencias**
+- Papel gana fidelidad real al artefacto sin tocar estructura ni datos.
+- Los nueve temas siguen compartiendo la misma composición; lo que cambia es
+  la mano con la que está escrita.
+- Se retira CSS que no pintaba nada, con la trazabilidad de por qué existía.
+
+## ADR-024 Arquitectura de marca "A · Tiempo": cada contexto tiene logo y nombre propios
+
+**Estado:** Accepted (2026-09-05)
+
+**Contexto:** el portal firmaba con un único logo — la placa `VC` más el rótulo
+"Vida Cotidiana" — idéntico en el Calendario general, en Personal y en Laboral.
+El Product Owner rechazó dos propuestas sucesivas antes de aprobar esta. El
+motivo del rechazo quedó explícito y es la premisa de la decisión: *"el error
+era tratar «Vida Cotidiana» como el nombre que necesariamente debe acompañar a
+cada módulo y simplemente agregar iconos, colores o textos"*. Añadir una casa
+para Personal y un maletín para Laboral no crea tres identidades; crea un logo
+con tres adornos.
+
+La prueba que fijó el Product Owner para aceptar una dirección: **si se elimina
+el texto "Vida Cotidiana", ¿la identidad de cada módulo sigue funcionando?**
+
+**Decisión:**
+
+(a) **Cada contexto recibe nombre propio.** Portal → **Jornada**; Personal →
+**Cotidiana**; Laboral → **Oficio**. Ninguno lleva "Vida Cotidiana" como bajada
+ni como acompañamiento. El nombre es el elemento que hace que las tres
+identidades sean distintas; el color por sí solo nunca lo consiguió.
+
+(b) **"Vida Cotidiana" pasa a marca madre.** Sigue siendo la marca corporativa
+del producto —firma legal, ficha de tienda, comunicaciones—, pero **desaparece
+de la interfaz de los módulos**. La relación entre marca madre e identidades
+internas existe a nivel de arquitectura de marca, no como texto permanente en
+pantalla.
+
+(c) **Un solo símbolo para el sistema: el arco del día.** Lo que distingue las
+tres identidades es exclusivamente **la posición del punto sobre el arco** —
+Jornada en el cenit (0.50), Cotidiana en la tarde (0.82), Oficio en la mañana
+(0.22). No hay iconos por módulo. Esta es la lógica del sistema y no debe
+alterarse: es lo que hace que se lean como "identidades distintas de un mismo
+ecosistema" y no como logos sin relación.
+
+(d) **El logo no tiene fondo.** Ni placa, ni tarjeta, ni círculo, ni sombra: el
+fondo pertenece a la superficie que lo aloja, nunca al logo. Es un requisito de
+la decisión, no un detalle de implementación — condiciona que la marca pueda
+colocarse en cualquier soporte.
+
+(e) **Los temas visuales no visten la marca.** Las reglas de ADR-023 que daban a
+la placa `VC` un radio, un fondo o una rotación por tema se eliminan. Un logo que
+cambia de forma o de tipografía según el tema deja de ser un logo. Por eso el
+rótulo usa un token propio (`--brand-font`) y **no** `--font-serif`, que
+`themes.css` reasigna a la tipografía de display de cada tema. La única
+adaptación admitida es la de fondo oscuro (tema Modern Productivity), que aplica
+la paleta oscura ya definida en la dirección aprobada conservando la relación
+entre arco, punto y rótulo.
+
+**Fuente de verdad visual:** artefacto "Tres casas de marca" (dirección A ·
+Tiempo). La construcción se reprodujo literalmente —geometría, proporciones,
+posición del punto, Fraunces 300, separación de 9px al cuerpo nominal de 15px—,
+no se reinterpretó.
+
+**Alternativas consideradas:**
+(a) *"Dos Jornadas"* — mantener "Vida Cotidiana" y diferenciar los módulos con
+color e icono. **Rechazada explícitamente** por el Product Owner: no supera la
+prueba de eliminar el texto de la marca madre.
+(b) *B · Documento* (Índice / Diario / Bitácora) — descartada: convierte la vida
+personal en un expediente.
+(c) *C · Lugar* (Plaza / Nido / Taller) — era la recomendación técnica por su
+máxima diferenciación entre módulos; el Product Owner eligió A.
+
+**Consecuencias:**
+- El usuario ya no ve "Vida Cotidiana" dentro de la aplicación. Cualquier
+  necesidad de firma corporativa en producto es una decisión nueva, no un
+  regreso al estado anterior.
+- "Jornada", "Cotidiana" y "Oficio" son palabras comunes en español: **baja
+  distintividad para registro de marca**. Riesgo asumido y consciente en la
+  elección; es el "en contra" que el propio artefacto declaraba.
+- Nueva dependencia de peso tipográfico: `@fontsource/fraunces/300`. Sin él el
+  rótulo caería al 500 y el nombre pesaría más que el arco, que es justo lo que
+  sostiene el lock-up. Self-hosted como el resto (UX-001).
+- El Portal (contexto GENERAL) oculta la barra lateral por ADR-015(b/d/e), así
+  que su identidad se firma en la barra superior, en el mismo lugar que ocuparía
+  el logo. Ningún contexto se queda sin marca.
+
+**ADENDA (2026-09-05) — escala por superficie y por tema, y contraste.**
+
+El Product Owner señaló que la marca "se ve muy pequeña" y pidió adecuarla a
+cada tema y a las dos formas de la barra lateral, angosta y ancha. Dos
+decisiones derivadas, ninguna de las cuales toca la construcción del logo:
+
+(f) **La escala la fija el contenedor, no el componente.** `BrandMark` solo
+hereda `--brand-size`; cada superficie declara la suya. El 15px del artefacto
+era el tamaño de una maqueta pequeña y en una barra de 232px desaparecía.
+Barra ancha **34px** (rótulo más largo, "Cotidiana", 169px sobre 200px útiles:
+no desborda en ningún tema), cabecera del Portal **26px**, fila móvil **22px**,
+rail angosto de Premium Minimal **20px** con el rótulo oculto y el arco tomando
+los 66px completos — a 34px se leía como un icono más de la navegación y no
+como la marca. Por tema, la escala sigue al `--air` que cada agenda ya declara:
+Studio 40 y Lumen 38 (las editoriales, `--air` 1.75 y 1.6), Calm 36, Neo 30
+(`--air` 0.85, brutalista y densa), el resto 34.
+
+(g) **Contraste: intervenir solo donde el fondo compromete la marca.** Se midió
+el contraste WCAG del rótulo contra el píxel real de la superficie que lo aloja,
+en los nueve temas por los tres contextos. Ocho salen entre 5.1 y 18.0 y **no se
+tocaron**. Aurora daba **1.01** — tinta `#16161a` sobre fondo `#13151e`: el
+rótulo era literalmente invisible, y el punto de Laboral quedaba en 1.44. Es el
+único caso corregido, y la corrección no añade borde, sombra, caja ni color
+nuevo: aplica la **paleta de fondo oscuro que esta misma dirección ya define**
+(la que ya usaba Modern Productivity), que conserva intacta la relación entre
+arco, punto y rótulo. Resultado medido: rótulo 15.70, punto 8.29. La cabecera
+superior de Modern Productivity es clara y por eso mantiene la paleta clara
+mientras su barra lateral usa la oscura.
+
+---
+
+## ADR-025 Familia y Compartidos: grupo familiar real y compartición sobre los recursos existentes
+
+**Fecha:** 2026-09-05
+**Estado:** Aprobado (petición del Product Owner, 2026-09-05)
+
+### Contexto — lo que había, inspeccionado antes de tocar nada
+
+- **Familia era andamiaje.** `web/src/features/family/FamilyPage.tsx` pintaba
+  `core/mock/mockData.ts`: cero endpoints, cero lógica.
+- **Compartir existía, pero solo para UN recordatorio y por correo.**
+  `invitations` + `reminder_shares` (migración V2). No hay grupo familiar.
+- **`documents.visibility = FAMILY_PUBLIC`** declara en su propio comentario que
+  es una ASSUMPTION "porque no existe un modelo de grupo familiar real hoy".
+- **Las alertas se DERIVAN, no se almacenan** (ADR-018): no tienen fila, ni id,
+  ni dueño.
+- **No existe una entidad Evento**: lo que el calendario pinta como evento es un
+  `Reminder` con fecha.
+- **DEC-001**: un recordatorio tiene un único estado global, compartido por
+  dueño y colaboradores. Prohíbe expresamente añadirle estados.
+
+### Decisión
+
+**(a) La familia es una relación simétrica entre dos personas, no un grupo con
+identidad propia.** ASSUMPTION explícita, no una decisión de negocio. Un grupo
+obliga a responder cosas que nadie ha decidido —si A está en un grupo y B en
+otro, ¿aceptar los fusiona?, ¿quién puede expulsar?, ¿hay dueño?— y responderlas
+por cuenta propia sería inventar requisitos. El modelo por parejas
+(`family_links`, dos filas por vínculo) cubre todo lo pedido sin decidir nada de
+eso. **TBD**: si más adelante hace falta un grupo con identidad, esta tabla se
+deriva a él sin pérdida.
+
+**(b) Invitación familiar por USUARIO, no por correo, y sin caducidad.** Se
+invita a quien ya se encontró buscándolo, así que no existe el caso "invitado
+sin cuenta" y no aplica el SEC-001 de no revelar si un correo existe. Sin
+`expires_at`: los 7 días de `invitations` (V2) son una ASSUMPTION para algo que
+cuelga de un recordatorio concreto; una invitación familiar no cuelga de nada y
+no hay decisión que le fije caducidad.
+
+**(c) Búsqueda por prefijo de nombre de usuario, mínimo 5 caracteres,
+validado en el SERVIDOR.** Coincidencia `term%` y no `%term%`: el índice único
+`uq_users_username` resuelve la primera con un recorrido de índice y la segunda
+obliga a leer la tabla entera, que es justo el coste que el mínimo evita. La
+regla vive también en el backend porque una regla que solo está en el cliente no
+protege la base de datos de nadie que llame al endpoint directamente. El cliente
+además aplica antirrebote de 350 ms (`core/hooks/useDebouncedValue.ts`).
+
+**(d) UNA tabla de compartición para los seis tipos de recurso**
+(`resource_shares`), no una por módulo. Guarda la RELACIÓN —quién, con quién,
+sobre qué, con qué responsabilidad, en qué estado—; el recurso original no se
+duplica ni gana columnas. Si se borrara esta tabla entera, cada módulo seguiría
+funcionando igual que antes de ADR-025.
+
+**(e) NO hay tipo ALERTA ni tipo EVENTO, y ninguna ausencia es un olvido.**
+Las alertas se derivan (ADR-018): compartir la garantía, el mantenimiento o el
+pago de origen comparte su alerta automáticamente, que es justo la propiedad por
+la que se eligió derivarlas. Crear una tabla de alertas para poder compartirlas
+desharía esa decisión. Y no existe entidad Evento: tarea y evento son la misma
+fila.
+
+**(f) La responsabilidad solo donde significa algo.** Analizado recurso por
+recurso, no copiado de Alertas:
+
+| Recurso | "Hacer mi parte" | Etiqueta |
+|---|---|---|
+| Tarea (Reminder) | completarla | "Ya hice mi parte" |
+| Mantenimiento | realizarlo | "Ya lo hice" |
+| Pago | pagarlo | "Ya lo pagué" |
+| Garantía | encargarse del trámite | "Ya lo gestioné" |
+| **Artículo de inventario** | **nada: se POSEE, no se hace** | — |
+| **Documento** | **nada: solo consulta (§6)** | — |
+
+La regla vive en tres sitios a propósito: interfaz, servicio
+(`SharedResourceType#supportsResponsibility`) y una CHECK de base de datos
+(`ck_resource_shares_responsibility`), para que no dependa de que la pantalla se
+acuerde.
+
+**(g) "Ya hice mi parte" NO toca el recurso original.** Se registra en
+`resource_shares.part_done_at`, que es la parte de ESE colaborador.
+`ReminderStatus` sigue siendo un único estado global (DEC-001, intacto). Que
+alguien marque su parte informa al dueño; no cierra la tarea de nadie más.
+
+**(h) Compartir un documento es solo verlo.** Se suma a `Document#isVisibleTo`
+sin sustituir nada: PRIVATE, SHARED por correo y FAMILY_PUBLIC se comportan
+exactamente igual. Y se queda en la LECTURA: `getOwnedOrThrow` —que es lo que
+usan editar, renombrar, cambiar visibilidad y borrar— no cambia.
+
+**(i) Descarga de documentos reutilizando el almacenamiento existente.** Los
+bytes salen de la misma columna que ya sirve `GET /documents/{id}/content`. Uno
+solo se descarga tal cual; varios o todos van en un ZIP armado en memoria
+(`POST /documents/download`), porque el navegador bloquea descargas múltiples
+automáticas. No se crea una segunda infraestructura de archivos.
+
+**(j) Las acciones de sección salen del contenedor con scroll.** El requisito §9
+pedía subirlas a la parte superior derecha y que no desaparecieran al
+desplazarse. La primera implementación las fijó con `position: sticky` DENTRO de
+`.content`, lo que obligaba a darles fondo opaco para tapar lo que pasaba por
+debajo — y ese fondo tapaba filas y botones (reportado por el Product Owner con
+captura). Ahora viven en `AppShell`, entre la barra superior y el contenido: al
+no estar en el flujo desplazable, nada pasa por detrás, no necesitan fondo y
+siguen siempre visibles. Afecta a Inventario, Garantías, Mantenimiento, Pagos,
+Documentos, Familia y Compartidos.
+
+### Consecuencias
+
+- Familia deja de ser andamiaje y pasa a datos reales.
+- Compartidos deja de ser "invitaciones a recordatorios" y pasa a ser el punto
+  central de la colaboración, con las dos direcciones separadas por pestaña.
+- El flujo de V2 (invitar a un recordatorio por correo) **sigue intacto** y
+  convive: son dos vías distintas, no una sustitución.
+- Deshacer un vínculo familiar **no revoca** lo ya compartido: borrar en cascada
+  accesos que el dueño concedió a propósito sería un efecto colateral que nadie
+  pidió. Se revoca desde Compartidos.
+
+### Incidencias encontradas durante la implementación
+
+- **`audit_events` tiene una CHECK que enumera los tipos de evento** (V4).
+  Añadir valores al enum de Java sin tocarla hacía que CADA acción de familia o
+  compartición estallara con un 500. Lo detectó la prueba de integración de este
+  ADR. El `ALTER` se escribió primero DENTRO de V29 —que ya estaba aplicada en
+  el entorno local, así que nunca corrió y además habría roto el arranque por
+  checksum— y se corrigió creando **V30**, que es la única forma correcta de
+  arreglar una migración ya aplicada.
+- **La fila de Documentos es una rejilla de cuatro columnas.** Añadir la casilla
+  de selección como quinto hijo la empujaba a una segunda fila implícita y
+  descuadraba la tarjeta. Se declara la columna solo en las filas que llevan
+  casilla (`.row[data-select]`).
+
+### TBD
+
+- Grupo familiar con identidad propia, si alguna vez se necesita (ver (a)).
+- Qué ocurre con lo compartido cuando una cuenta se purga: `AccountDeletionService`
+  no toca `resource_shares` ni `family_links`, igual que hoy no toca
+  `reminder_shares` (BE-027, sin decisión aprobada).

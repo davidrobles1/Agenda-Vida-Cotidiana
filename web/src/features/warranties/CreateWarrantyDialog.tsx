@@ -5,8 +5,11 @@ import { Plus, UploadCloud } from 'lucide-react'
 import { motionTokens } from '../../core/motion/tokens'
 import shellStyles from '../../core/ui/dialogs/DialogShell.module.css'
 import { createWarranty, type Warranty } from './api'
+import { ShareWithFamily } from '../sharing/ShareWithFamily'
+import { useResourceSharing } from '../sharing/useResourceSharing'
 import styles from './CreateWarrantyDialog.module.css'
 import { useActiveMode } from '../../core/user/ActiveModeContext'
+import { DatePicker } from '../../core/ui/pickers/DatePicker'
 
 const MotionDialog = motion.create(Dialog)
 
@@ -31,10 +34,16 @@ export function CreateWarrantyDialog({ onCreated }: CreateWarrantyDialogProps) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // ADR-025 §2/§5: "hacer mi parte" de una garantía es encargarse del
+  // trámite; por eso admite comprometer a alguien, a diferencia de un
+  // artículo de inventario.
+  const sharing = useResourceSharing('WARRANTY')
+
   function reset() {
     setItem('')
     setExpiresAt('')
     setFile(null)
+    sharing.reset()
     setError(null)
   }
 
@@ -58,6 +67,12 @@ export function CreateWarrantyDialog({ onCreated }: CreateWarrantyDialogProps) {
     try {
       const created = await createWarranty(item.trim(), new Date(expiresAt).toISOString(), file, activeMode)
       onCreated(created)
+
+      const shareError = await sharing.commit(created.id)
+      if (shareError) {
+        setError(shareError)
+        return
+      }
       setIsOpen(false)
       reset()
     } catch (e) {
@@ -104,16 +119,12 @@ export function CreateWarrantyDialog({ onCreated }: CreateWarrantyDialogProps) {
                   />
                 </label>
 
-                <label className={shellStyles.field}>
-                  <span className={shellStyles.fieldLabel}>Vence el</span>
-                  <input
-                    type="date"
-                    className={shellStyles.textInput}
+                <DatePicker
+                    label="Vence el"
                     value={expiresAt}
-                    onChange={(event) => setExpiresAt(event.target.value)}
-                    required
+                    onChange={(next) => setExpiresAt(next)}
+                    isRequired
                   />
-                </label>
 
                 <label
                   className={`${styles.dropzone} ${dragOver ? styles.dropzoneActive : ''}`}
@@ -139,6 +150,16 @@ export function CreateWarrantyDialog({ onCreated }: CreateWarrantyDialogProps) {
                     onChange={(event) => setFile(event.target.files?.[0] ?? null)}
                   />
                 </label>
+
+                <div className={shellStyles.field}>
+                  <span className={shellStyles.fieldLabel}>Compartir con tu familia</span>
+                  <ShareWithFamily
+                    type="WARRANTY"
+                    resourceId={null}
+                    value={sharing.shares}
+                    onChange={sharing.setShares}
+                  />
+                </div>
 
                 <div className={shellStyles.formActions}>
                   {saving && <span className={shellStyles.savingHint}>Guardando…</span>}

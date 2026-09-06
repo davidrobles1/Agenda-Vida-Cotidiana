@@ -3,7 +3,7 @@
   flex-direction: column;
   background: var(--color-surface-variant);
   /* Bordes súper redondeados y orgánicos */
-  border-radius: 28px;
+  border-radius: var(--r-xl, 28px);
   padding: calc(var(--space-4) + 4px);
   max-width: 500px;
   margin: 0 auto;
@@ -34,7 +34,7 @@
   padding: 10px 4px;
   min-height: 68px;
   /* Forma de cápsula/píldora */
-  border-radius: 20px;
+  border-radius: var(--r-lg, 20px);
   background: transparent;
   border: 1px solid transparent;
   color: var(--color-text-secondary);
@@ -55,7 +55,9 @@
 
 /* Estado Seleccionado: Efecto flotante curvo */
 .dayCellSelected {
-  background: #ffffff !important;
+  /* ADR-023: era un blanco fijo — un bloque luminoso en medio del lienzo
+     nocturno de Aurora. La superficie la decide el tema. */
+  background: var(--surface-2) !important;
   border-color: rgba(0, 0, 0, 0.05);
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
   transform: translateY(-3px);
@@ -179,7 +181,7 @@
 }
 
 .listItem:hover {
-  background: #ffffff;
+  background: var(--surface-2);
   transform: translateX(2px);
 }
 
@@ -225,7 +227,7 @@
 
 @media (max-width: 600px) {
   .widget {
-    border-radius: 20px;
+    border-radius: var(--r-lg, 20px);
     padding: var(--space-3);
   }
 

@@ -552,7 +552,7 @@
 }
 
 .timelineBar[data-kind='per'] {
-  background: var(--color-terracotta, var(--color-accent, #b47b48));
+  background: var(--color-terracotta, var(--color-accent, var(--second)));
 }
 
 .timelineBody {
@@ -667,7 +667,7 @@
 
   border-radius: var(--radius-card, 12px);
 
-  background: color-mix(in srgb, var(--color-warning, #b8860b) 14%, transparent);
+  background: color-mix(in srgb, var(--color-warning, var(--warn)) 14%, transparent);
   color: var(--color-text);
 
   font-size: 0.845rem;
@@ -677,7 +677,7 @@
 .banner svg {
   flex: none;
   margin-top: 1px;
-  color: var(--color-warning, #b8860b);
+  color: var(--color-warning, var(--warn));
 }
 
 .banner b {
@@ -737,76 +737,6 @@
   .grid2 {
     grid-template-columns: 1fr;
   }
-}
-
-/* =====================================================
-   12. TEMAS VISUALES
-
-   La estructura y la UX no cambian entre temas: solo se ajusta lo que cada
-   tema ya define para el resto de la aplicación, para que Laboral no se
-   salga del conjunto.
-
-   Estas reglas vivían únicamente en la hoja de "Hoy", así que esa pantalla
-   respondía a los cuatro temas y las demás secciones del módulo no. Al
-   estar aquí aplican a cualquier pantalla que componga el sistema, que es
-   lo que hace que el módulo se vea como uno solo en todos los temas.
-   ===================================================== */
-
-/* Editorial: papel real y títulos con serif. */
-:global(.theme-editorial) .pageTitle,
-:global(.theme-editorial) .detailName,
-:global(.theme-editorial) .cardHeader h2,
-:global(.theme-editorial) .cardHeader h3,
-:global(.theme-editorial) .statNum {
-  font-family: var(--font-serif);
-  font-weight: 500;
-}
-
-:global(.theme-editorial) .kicker {
-  font-family: var(--font-serif);
-  font-style: italic;
-  letter-spacing: 0.04em;
-  text-transform: none;
-}
-
-/* Minimal: sin pauta ni relleno de tarjeta; manda el espacio. */
-:global(.theme-minimal) .notebookBg {
-  background-image: none;
-}
-
-:global(.theme-minimal) .card,
-:global(.theme-minimal) .stat {
-  background: transparent;
-}
-
-/* Productivity: más densidad, como el resto del tema. */
-:global(.theme-productivity) .timelineItem {
-  padding: 5px 0;
-}
-
-:global(.theme-productivity) .listItem,
-:global(.theme-productivity) .listItemInteractive {
-  padding: var(--space-2);
-}
-
-:global(.theme-productivity) .card {
-  padding: var(--space-3);
-}
-
-/* Organic: curvas. */
-:global(.theme-organic) .card,
-:global(.theme-organic) .stat {
-  border-radius: 22px;
-}
-
-:global(.theme-organic) .timelineBar {
-  width: 6px;
-  border-radius: 999px;
-}
-
-:global(.theme-organic) .btnBase,
-:global(.theme-organic) .iconButton {
-  border-radius: 999px;
 }
 
 /* =====================================================
@@ -893,4 +823,50 @@
   .breadcrumbLink {
     transition: none;
   }
+}
+
+
+/* ==========================================================================
+   TEMAS UX-014 CONSERVADOS — reglas devueltas el 2026-09-02.
+
+   Premium Minimal / Modern Productivity / Organic / Human se retiraron por
+   error al implementar ADR-023: la petición era eliminar **solo Editorial**.
+   Estas son sus reglas originales, tal cual estaban; de los selectores que
+   compartían con Editorial se conserva únicamente su parte.
+   ========================================================================== */
+:global(.theme-minimal) .notebookBg {
+  background-image: none;
+}
+
+:global(.theme-minimal) .card,
+:global(.theme-minimal) .stat {
+  background: transparent;
+}
+
+:global(.theme-productivity) .timelineItem {
+  padding: 5px 0;
+}
+
+:global(.theme-productivity) .listItem,
+:global(.theme-productivity) .listItemInteractive {
+  padding: var(--space-2);
+}
+
+:global(.theme-productivity) .card {
+  padding: var(--space-3);
+}
+
+:global(.theme-organic) .card,
+:global(.theme-organic) .stat {
+  border-radius: 22px;
+}
+
+:global(.theme-organic) .timelineBar {
+  width: 6px;
+  border-radius: 999px;
+}
+
+:global(.theme-organic) .btnBase,
+:global(.theme-organic) .iconButton {
+  border-radius: 999px;
 }

@@ -1,42 +1,199 @@
+/* Familia (ADR-025 §1).
+
+   Deliberadamente sobria: la pantalla es una lista de personas y un buscador.
+   Toma los tokens del tema activo, así que cambia de piel con el resto del
+   portal sin declarar colores propios. */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+
+  padding: var(--card-p, var(--space-5));
+
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+
+  background: var(--color-surface-variant);
+  box-shadow: var(--shadow-card, none);
+}
+
+.panelTitle {
+  margin: 0;
+
+  color: var(--color-text);
+  font-family: var(--font-serif, inherit);
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
 .list {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-2);
+
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
-.card {
+.row {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  background: var(--color-surface-variant);
-  border-radius: 28px;;
-  padding: var(--space-4);
+
+  padding: var(--space-2) 0;
+
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 45%, transparent);
+}
+
+.row:last-child {
+  border-bottom: none;
 }
 
 .avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: var(--color-success-container);
-  color: var(--color-success-text);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-weight: 700;
   flex-shrink: 0;
-}
 
-.text {
-  display: flex;
-  flex-direction: column;
+  width: 36px;
+  height: 36px;
+
+  border-radius: 50%;
+
+  background: var(--color-primary-container);
+  color: var(--color-primary);
+
+  font-weight: 700;
 }
 
 .name {
-  font-weight: 600;
+  flex: 1;
+  min-width: 0;
+
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
   color: var(--color-text);
+  font-weight: 600;
 }
 
-.relationship {
-  font-size: 0.8125rem;
+/* Estado de la relación: informa, no invita a pulsar. Por eso es texto y no
+   un botón deshabilitado, que se leería como una acción rota. */
+.state {
+  flex-shrink: 0;
+
   color: var(--color-text-secondary);
+  font-size: 0.8125rem;
+}
+
+.note {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+}
+
+.error {
+  margin: 0;
+  color: var(--color-error);
+  font-size: 0.875rem;
+}
+
+/* --- Buscador, dentro de la barra de acciones --- */
+
+.searchField {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+
+  min-width: 0;
+  width: min(320px, 100%);
+  padding: 0 12px;
+  min-height: 38px;
+
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+}
+
+.searchField:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: var(--focus, 0 0 0 2px var(--color-primary));
+}
+
+.searchInput {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+
+  border: none;
+  background: transparent;
+  color: var(--color-text);
+
+  font: inherit;
+  font-size: 0.9rem;
+  outline: none;
+}
+
+/* Quita la "x" nativa de `type=search` en WebKit: convive mal con el borde
+   del campo y duplica la que ya ofrece el teclado. */
+.searchInput::-webkit-search-cancel-button {
+  appearance: none;
+}
+
+/* --- Botones --- */
+
+.inviteButton,
+.ghostButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+
+  padding: 6px 12px;
+  min-height: 32px;
+
+  border-radius: var(--radius-control);
+
+  font-size: 0.82rem;
+  font-weight: 600;
+
+  cursor: pointer;
+}
+
+.inviteButton {
+  border: 1px solid var(--color-primary);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+.inviteButton[data-hovered] {
+  filter: brightness(1.06);
+}
+
+.inviteButton[data-disabled] {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.ghostButton {
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-secondary);
+}
+
+.ghostButton[data-hovered] {
+  border-color: var(--color-error);
+  color: var(--color-error);
+}
+
+.inviteButton[data-focus-visible],
+.ghostButton[data-focus-visible] {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }

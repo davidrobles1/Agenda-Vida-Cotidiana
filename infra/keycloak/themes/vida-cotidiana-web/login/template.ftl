@@ -113,9 +113,17 @@
          ella. Son puramente decorativas (aria-hidden) — el formulario real,
          sus mensajes y su accesibilidad siguen siendo los de Keycloak, sin
          tocar. -->
-    <aside class="vc-book" aria-hidden="true">
+    <#-- ADR-024 (2026-09-05): el logo de marca «Jornada» corona la columna del
+         libro. Es un AÑADIDO — el libro, los eslóganes y el bloque
+         "Agenda / vida Cotidiana" de la tarjeta siguen exactamente donde
+         estaban. Esta pantalla es la puerta de entrada, todavía sin contexto
+         Personal ni Laboral, así que la identidad que corresponde es la del
+         Portal: el punto en el cenit del arco. A diferencia del resto de la
+         columna, el logo NO es decorativo, así que lleva nombre accesible
+         propio y el `aria-hidden` baja al libro, que sí lo es. -->
+    <aside class="vc-book">
       <div class="vc-book-content">
-        <div class="vc-book-stack">
+        <div class="vc-book-stack" aria-hidden="true">
           <img
             class="vc-book-img"
             src="${url.resourcesPath}/img/libro_hojas.jpeg"
@@ -125,8 +133,44 @@
       </div>
     </aside>
 
-    <aside class="vc-slogans" aria-hidden="true">
+    <#-- ADR-024 (2026-09-05): el logo de marca «Jornada» encabeza la columna
+         central. Es un AÑADIDO — el libro, los eslóganes y el bloque
+         "Agenda / vida Cotidiana" de la tarjeta siguen exactamente donde
+         estaban; no sustituye a ninguno.
+
+         Va aquí y no sobre el libro porque ahí el fondo son las hojas de
+         `fondo.jpeg` y el arco se perdía entre ellas: esta franja central es
+         crema plana y la marca se lee limpia. Esta pantalla es la puerta de
+         entrada, todavía sin contexto Personal ni Laboral, así que la
+         identidad que corresponde es la del Portal: el punto en el cenit del
+         arco. A diferencia del resto de la columna el logo NO es decorativo,
+         así que lleva nombre accesible propio y el `aria-hidden` baja al
+         bloque de eslóganes, que sí lo es. -->
+    <aside class="vc-slogans">
       <div class="vc-slogans-content">
+
+        <span class="vc-mark" role="img" aria-label="Jornada">
+          <svg
+            class="vc-mark-arc"
+            viewBox="0 0 38 16"
+            aria-hidden="true"
+            focusable="false"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M4 14 A 15 9 0 0 1 34 14"
+              fill="none"
+              stroke="var(--brand-arc-portal)"
+              stroke-width="1.6"
+              stroke-linecap="round"
+              opacity="0.38"
+            />
+            <circle cx="19.0" cy="5.0" r="2.8" fill="var(--brand-arc-portal)" />
+          </svg>
+          <span class="vc-mark-name" aria-hidden="true">Jornada</span>
+        </span>
+
+        <div class="vc-slogans-body" aria-hidden="true">
 
         <ul class="vc-value-row">
           <li>
@@ -168,6 +212,8 @@
           el amor y la pasi&oacute;n en todo lo que haces.<br>
           Es dejar una huella de tu esencia en tu trabajo.
         </p>
+
+        </div>
 
       </div>
     </aside>

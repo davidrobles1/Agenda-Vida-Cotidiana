@@ -76,3 +76,111 @@ If a specific visual reference exists for this login page, it needs to be shared
 ## 9. iOS
 
 **FUTURE (not blocked, no code needed):** `ios-app`'s `attributes.login_theme` is already set to `vida-cotidiana-mobile` in the realm config — the same theme Android uses, since both are narrow-viewport Custom-Tab/`ASWebAuthenticationSession`-style contexts. This is realm/server-side configuration; when iOS login (`IOS-002`) resumes, it will pick up the themed page automatically, with no iOS-side app changes required. Not verified on an iOS device in this task (no device driven here) — verify visually once `IOS-002` actually reaches its login screen.
+
+---
+
+## 10. Recomposición de la pantalla web (2026-09-05)
+
+El Product Owner reportó que en `vida-cotidiana-web` "se cortan los componentes,
+imágenes, etc." y que "el botón de crear cuenta no tiene el mismo diseño que el
+de iniciar sesión". Ambas cosas tenían una causa concreta y verificable.
+
+### 10.1 Por qué se cortaba
+
+`.vc-split-container` era `height: 100vh` + `overflow: hidden`, y sus tres
+columnas no declaraban `min-height: 0`. Un hijo de rejilla no puede encogerse
+por debajo del tamaño de su contenido, así que las columnas crecían por debajo
+del recorte del contenedor y **lo que sobraba se cortaba**, en vez de
+desplazarse. No era un problema de tamaños: era de desbordamiento.
+
+Contribuían otras tres cosas:
+
+- `.vc-book-content` llevaba `transform: translateX(90px)` dentro de un
+  `overflow: hidden`. Un `transform` desplaza el pintado fuera del área visible
+  del contenedor, así que el libro perdía su lado derecho. Sustituido por
+  padding asimétrico, que consigue el mismo acercamiento sin salirse de la caja.
+- `.vc-book-img` tenía `max-height: 540px` fijos. Con 720–800px de ventana no
+  cabía. Ahora `min(500px, 46dvh)`.
+- Las columnas eran `40% 30% 30%`. A 1280px la tercera quedaba en 384px y,
+  descontado su padding, la tarjeta de 430px se estrangulaba a 314px. Ahora la
+  columna del formulario tiene ancho propio con suelo y techo.
+
+Verificado a 1440×900, 1280×720 y 390×844, en acceso y en registro: ninguna
+columna recorta contenido y la página no desplaza en horizontal. Cuando el
+formulario de registro no cabe, **se desplaza su columna** — que es lo correcto.
+
+### 10.2 Por qué los dos botones no coincidían
+
+Existían dos tratamientos para el mismo enlace y ganaba el equivocado:
+
+| selector | especificidad | efecto |
+|---|---|---|
+| `.vc-register-button` | 0,2,0 | flex, iconos a los extremos |
+| `#kc-registration a` | 0,2,1 | `display:block`, `line-height:52px` |
+
+El selector de id ganaba, el enlace perdía el `display:flex` y dejaba de
+parecerse al botón primario. Además PatternFly reviste `#kc-info`,
+`#kc-registration-container`, `#kc-form-options` y la banda de pie con 16px de
+padding por lado, lo que estrechaba el botón secundario 32px respecto al
+primario — medido: 200.9 contra 232.9 — y por eso su texto se partía en dos
+líneas. Ahora hay una sola regla para los tres selectores, con el mismo
+`--vc-control-h`, el mismo padding y el mismo radio; solo cambian relleno y
+color. Medido tras el arreglo: idénticos en ancho, alto y posición en las tres
+anchuras, tanto en acceso como en registro.
+
+### 10.3 Orden de las columnas
+
+PatternFly declara `grid-template-areas` en `.pf-v5-c-login__container` y da
+`grid-area: main` a la columna del formulario, así que la tarjeta se colocaba
+siempre en la primera columna y los dos `<aside>` caían detrás por
+autocolocación: el resultado real era FORMULARIO · LIBRO · ESLOGANES, al revés
+del esquema que documenta `login.css` y del fondo (`fondo.jpeg`, anclado a la
+izquierda). Se anulan las áreas heredadas y se coloca cada columna a mano,
+dentro de `min-width: 1001px` para no romper el apilado móvil.
+
+### 10.4 El eslogan del pie
+
+Estaba dentro de la sección `form`, que el template pinta antes que `info`, así
+que la línea quedaba **entre** los dos botones, partiendo el par de acciones.
+Se movió al final de la sección `socialProviders`, que se pinta dentro del pie
+real de la tarjeta y siempre se renderiza.
+
+### 10.5 Logo de marca (ADR-024)
+
+Se añade el logo «Jornada» encabezando la columna central. Es un **añadido**: el
+libro, los eslóganes y el bloque "Agenda / vida Cotidiana" de la tarjeta siguen
+donde estaban. La pantalla de acceso es la puerta de entrada, todavía sin
+contexto Personal ni Laboral, así que la identidad que corresponde es la del
+Portal — el punto en el cenit del arco. La construcción es la de
+`web/src/core/ui/brand/BrandMark`, copiada: mismo viewBox, mismo arco, mismo
+trazo y misma posición del punto.
+
+Va en la columna central y no sobre el libro porque ahí el fondo son las hojas
+de `fondo.jpeg` y el arco se perdía entre ellas. Contraste medido contra el
+píxel real de su fondo en la posición definitiva: **rótulo 15.49, punto 4.16**.
+
+Requiere `fraunces-latin-300-normal.woff2`, añadido a `resources/fonts/`: el
+rótulo va en Fraunces ligero y el theme solo servía el 500.
+
+### 10.6 Cómo se carga en el contenedor — ATENCIÓN
+
+El contenedor que sirve el entorno local (`vc-dev-keycloak`) **no monta
+`infra/keycloak/themes`**: el tema se le copió con `docker cp`. El servicio
+`keycloak` de `docker-compose.yml` sí declara el bind mount, pero no es el que
+está en uso.
+
+Consecuencia: **si `vc-dev-keycloak` se recrea, el tema se pierde** y hay que
+volver a copiarlo. Lo correcto sería que ese contenedor montara el directorio
+del repositorio, como hace el compose. Queda anotado como deuda.
+
+    docker cp infra/keycloak/themes/vida-cotidiana-web/login/. \
+      vc-dev-keycloak:/opt/keycloak/themes/vida-cotidiana-web/login/
+    docker restart vc-dev-keycloak
+
+### 10.7 Trampa de FreeMarker encontrada
+
+FreeMarker analiza sus directivas **también dentro de comentarios HTML**.
+Escribir la etiqueta de una condición en literal dentro de un `<!-- -->` rompe
+la plantilla entera con un 500 (`ParseException: #if is an existing directive,
+but the tag is malformed`). Pasó al documentar este cambio. Para hablar de
+directivas en un `.ftl`, usar comentarios de FreeMarker, no de HTML.

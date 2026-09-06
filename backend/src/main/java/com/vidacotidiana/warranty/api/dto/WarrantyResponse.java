@@ -35,7 +35,9 @@ public record WarrantyResponse(
             que DocumentResponse). */
         String documentContentType,
         /** ADR-019: módulo propietario del recurso. */
-        String context
+        String context,
+        /** ADR-022: artículo del inventario cubierto. NULL = sin enlazar. */
+        UUID inventoryItemId
 ) {
     private static final long POR_VENCER_THRESHOLD_DAYS = 30;
 
@@ -54,7 +56,8 @@ public record WarrantyResponse(
                 warranty.getCreatedAt(),
                 warranty.getUpdatedAt(),
                 warranty.getDocumentContentType(),
-                warranty.getContext().name()
+                warranty.getContext().name(),
+                warranty.getInventoryItemId()
         );
     }
 

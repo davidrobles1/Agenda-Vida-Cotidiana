@@ -7,6 +7,7 @@ import { createCommitment } from '../commitments/api'
 import { listPeople, type Person } from '../people/api'
 import { addInboxItem, loadInboxItems, removeInboxItem, type InboxItem } from './inboxStorage'
 import styles from './InboxPage.module.css'
+import { DatePicker } from '../../core/ui/pickers/DatePicker'
 
 /**
  * ADR-016/FR-028. Captura sin fricción, clasifica después. El backend NOTE
@@ -130,7 +131,11 @@ export function InboxPage() {
                     </option>
                   ))}
                 </select>
-                <input type="date" value={commitmentDueAt} onChange={(e) => setCommitmentDueAt(e.target.value)} />
+                <DatePicker
+                  label="Fecha del compromiso"
+                  value={commitmentDueAt}
+                  onChange={setCommitmentDueAt}
+                />
                 <button type="submit" disabled={!commitmentPersonId || !commitmentDueAt}>
                   Guardar
                 </button>

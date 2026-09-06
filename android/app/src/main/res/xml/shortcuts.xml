@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Accesos rapidos del icono.
+
+  Los cuatro apuntan a acciones y destinos QUE YA EXISTEN: no se creo nada para
+  llenar el menu. "Nueva tarea" es la accion de alta que ya abre el boton «+»;
+  las otras tres son destinos de la barra inferior de Personal.
+
+  Se dejan en el contexto Personal a proposito: mezclar aqui secciones de
+  Laboral haria que un acceso rapido cambiara de modulo sin que el usuario lo
+  pidiera.
+-->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <shortcut
+        android:shortcutId="crear_tarea"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_task"
+        android:shortcutShortLabel="@string/shortcut_task_short"
+        android:shortcutLongLabel="@string/shortcut_task_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="vidacotidiana://crear/tarea"
+            android:targetPackage="com.vidacotidiana.app"
+            android:targetClass="com.vidacotidiana.app.MainActivity" />
+    </shortcut>
+
+    <shortcut
+        android:shortcutId="calendario"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_calendar"
+        android:shortcutShortLabel="@string/shortcut_calendar_short"
+        android:shortcutLongLabel="@string/shortcut_calendar_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="vidacotidiana://seccion/calendar"
+            android:targetPackage="com.vidacotidiana.app"
+            android:targetClass="com.vidacotidiana.app.MainActivity" />
+    </shortcut>
+
+    <shortcut
+        android:shortcutId="compartidos"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_shared"
+        android:shortcutShortLabel="@string/shortcut_shared_short"
+        android:shortcutLongLabel="@string/shortcut_shared_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="vidacotidiana://seccion/shared"
+            android:targetPackage="com.vidacotidiana.app"
+            android:targetClass="com.vidacotidiana.app.MainActivity" />
+    </shortcut>
+
+    <shortcut
+        android:shortcutId="vision_board"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_board"
+        android:shortcutShortLabel="@string/shortcut_board_short"
+        android:shortcutLongLabel="@string/shortcut_board_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="vidacotidiana://seccion/board"
+            android:targetPackage="com.vidacotidiana.app"
+            android:targetClass="com.vidacotidiana.app.MainActivity" />
+    </shortcut>
+
+</shortcuts>

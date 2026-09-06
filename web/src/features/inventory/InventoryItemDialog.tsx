@@ -12,6 +12,9 @@ import {
   type InventoryCategory,
   type InventoryItem,
 } from './api'
+import { useActiveMode } from '../../core/user/ActiveModeContext'
+import { ShareWithFamily } from '../sharing/ShareWithFamily'
+import { useResourceSharing } from '../sharing/useResourceSharing'
 import styles from './InventoryItemDialog.module.css'
 
 const MotionDialog = motion.create(Dialog)
@@ -28,6 +31,9 @@ interface InventoryItemDialogProps {
 /** Pedido explícito del usuario (2026-08-22): "Inventario registrar,
     actualizar borrar artículos según la categoría." */
 export function InventoryItemDialog({ item, trigger, onSaved }: InventoryItemDialogProps) {
+  // ADR-022: el módulo activo decide dónde nace el artículo. En edición no
+  // se usa: el contexto se fija al crear y no cambia después.
+  const activeMode = useActiveMode()
   const isEdit = item !== undefined
   const [isOpen, setIsOpen] = useState(false)
   const [name, setName] = useState(item?.name ?? '')
@@ -35,6 +41,10 @@ export function InventoryItemDialog({ item, trigger, onSaved }: InventoryItemDia
   const [location, setLocation] = useState(item?.location ?? '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // ADR-025 §2: con quién se comparte. Un artículo se POSEE, así que se
+  // comparte para consultarlo — sin parte que hacer (ver
+  // supportsResponsibility en resourceShares.ts).
+  const sharing = useResourceSharing('INVENTORY_ITEM')
 
   function handleOpenChange(open: boolean) {
     setIsOpen(open)
@@ -42,6 +52,7 @@ export function InventoryItemDialog({ item, trigger, onSaved }: InventoryItemDia
       setName(item?.name ?? '')
       setCategory(item?.category ?? 'ELECTRONICOS')
       setLocation(item?.location ?? '')
+      sharing.reset()
       setError(null)
     }
   }
@@ -55,8 +66,18 @@ export function InventoryItemDialog({ item, trigger, onSaved }: InventoryItemDia
       const saved =
         isEdit && item
           ? await updateInventoryItem(item.id, name.trim(), category, location.trim(), item.version)
-          : await createInventoryItem(name.trim(), category, location.trim())
+          // ADR-022: el artículo nace en el módulo desde el que se crea.
+          : await createInventoryItem(name.trim(), category, location.trim(), activeMode)
       onSaved(saved)
+
+      // Después de guardar, nunca antes: sin id no hay nada que compartir. Si
+      // esto falla, el artículo ya está a salvo y el diálogo se queda abierto
+      // para poder decirlo.
+      const shareError = await sharing.commit(saved.id)
+      if (shareError) {
+        setError(shareError)
+        return
+      }
       setIsOpen(false)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo guardar el artículo.')
@@ -122,6 +143,16 @@ export function InventoryItemDialog({ item, trigger, onSaved }: InventoryItemDia
                       </button>
                     ))}
                   </div>
+                </div>
+
+                <div className={shellStyles.field}>
+                  <span className={shellStyles.fieldLabel}>Compartir con tu familia</span>
+                  <ShareWithFamily
+                    type="INVENTORY_ITEM"
+                    resourceId={item?.id ?? null}
+                    value={sharing.shares}
+                    onChange={sharing.setShares}
+                  />
                 </div>
 
                 <label className={shellStyles.field}>

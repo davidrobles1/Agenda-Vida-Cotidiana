@@ -7,7 +7,7 @@
 .mockNotice {
   margin: 0;
   padding: var(--space-3);
-  border-radius: 20px;;
+  border-radius: var(--r-lg, 20px);
   background: var(--color-warning-container);
   color: var(--color-warning-text);
   font-size: 0.875rem;
@@ -27,7 +27,7 @@
   padding: var(--space-4);
   background: var(--color-surface-variant);
   border: 1px solid var(--color-border);
-  border-radius: 28px;;
+  border-radius: var(--r-xl, 28px);
 }
 
 .modeRow strong {
@@ -81,4 +81,281 @@
   margin: var(--space-3) 0 0;
   color: var(--color-text-secondary);
   font-size: 0.875rem;
+}
+
+/* =====================================================
+   FIRMAS DE TEMA — Configuración (ADR-023)
+
+   Esta pantalla usaba solo tokens de color, así que cambiaba de paleta pero
+   no de carácter: la misma tarjeta redondeada en los nueve temas. Aquí
+   recibe el mismo tratamiento que las listas del portal
+   (`core/ui/patterns/SectionList.module.css`), para que Configuración se
+   sienta parte del tema y no una pantalla aparte.
+   ===================================================== */
+
+/* Los títulos toman la tipografía de display del tema. */
+.sectionTitle {
+  font-family: var(--font-serif, inherit);
+  letter-spacing: -0.01em;
+}
+
+:global(.theme-studio) .sectionTitle {
+  font-weight: 400;
+  font-size: 1.25rem;
+}
+
+:global(.theme-lumen) .sectionTitle {
+  font-weight: 300;
+  letter-spacing: -0.03em;
+}
+
+:global(.theme-neo) .sectionTitle {
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: -0.02em;
+}
+
+:global(.theme-papel) .sectionTitle {
+  font-weight: 500;
+}
+
+/* La pista bajo el título, como antetítulo del tema. */
+:global(.theme-papel) .sectionHint,
+:global(.theme-papel) .profileLabel {
+  font-variant-caps: all-small-caps;
+  letter-spacing: 0.07em;
+}
+
+:global(.theme-studio) .profileLabel,
+:global(.theme-neo) .profileLabel {
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.68rem;
+}
+
+:global(.theme-neo) .profileLabel {
+  font-family: var(--font-label);
+}
+
+/* --- La fila de módulo, tratada como una fila de lista del tema --- */
+
+:global(.theme-lumen) .modeRow,
+:global(.theme-studio) .modeRow {
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+:global(.theme-neo) .modeRow {
+  border: 2px solid var(--ink);
+  border-radius: 0;
+  box-shadow: 3px 3px 0 var(--ink);
+}
+
+:global(.theme-calm) .modeRow {
+  border-color: transparent;
+  border-radius: var(--r-xl);
+  box-shadow: var(--shadow-1);
+}
+
+:global(.theme-aurora) .modeRow {
+  border-color: var(--line);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+:global(.theme-papel) .modeRow {
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  padding-left: var(--space-2);
+  padding-right: var(--space-2);
+}
+
+/* El separador de la sección de perfil sigue el filete del tema. */
+.profileSection {
+  border-top-color: var(--line, var(--color-border));
+}
+
+:global(.theme-neo) .profileSection {
+  border-top: 2px solid var(--ink);
+}
+
+/* El aviso de datos simulados, con la forma del tema. */
+:global(.theme-neo) .mockNotice {
+  border: 2px solid var(--ink);
+  border-left-width: 8px;
+  border-radius: 0;
+}
+
+:global(.theme-studio) .mockNotice {
+  background: transparent;
+  border: 0;
+  border-left: 2px solid var(--second);
+  border-radius: 0;
+  padding-left: var(--space-4);
+}
+
+:global(.theme-lumen) .mockNotice {
+  background: transparent;
+  border: 0;
+  border-left: 1px solid var(--ink);
+  border-radius: 0;
+  padding-left: var(--space-4);
+}
+
+:global(.theme-papel) .mockNotice {
+  border-radius: 10px 12px 9px 11px;
+  border-left: 4px solid var(--warn);
+}
+
+
+/* ==========================================================================
+   ADR-025 §1 — invitaciones familiares recibidas
+
+   Reutiliza `.profileSection`, `.sectionTitle` y `.sectionHint`, que ya tienen
+   tratamiento por tema: el apartado nuevo hereda la personalidad de la
+   pantalla en lugar de estrenar una propia.
+   ========================================================================== */
+
+.invitationList {
+  display: flex;
+  flex-direction: column;
+
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.invitationRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+
+  padding: var(--space-3) 0;
+
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 45%, transparent);
+}
+
+.invitationRow:last-child {
+  border-bottom: none;
+}
+
+.invitationAvatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  width: 34px;
+  height: 34px;
+
+  border-radius: 50%;
+
+  background: var(--color-primary-container);
+  color: var(--color-primary);
+
+  font-weight: 700;
+}
+
+.invitationText {
+  flex: 1;
+  min-width: 0;
+
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+}
+
+.invitationText strong {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.invitationState {
+  flex-shrink: 0;
+
+  padding: 3px 10px;
+
+  border-radius: 999px;
+
+  background: var(--color-warning-container);
+  color: var(--color-warning-text, var(--color-warning));
+
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.invitationActions {
+  display: flex;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.invitationAccept,
+.invitationReject {
+  padding: 6px 14px;
+  min-height: 32px;
+
+  border-radius: var(--radius-control);
+
+  font-size: 0.82rem;
+  font-weight: 600;
+
+  cursor: pointer;
+}
+
+.invitationAccept {
+  border: 1px solid var(--color-primary);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+.invitationAccept[data-hovered] {
+  filter: brightness(1.06);
+}
+
+.invitationReject {
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-secondary);
+}
+
+.invitationReject[data-hovered] {
+  border-color: var(--color-error);
+  color: var(--color-error);
+}
+
+.invitationAccept[data-disabled],
+.invitationReject[data-disabled] {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.invitationAccept[data-focus-visible],
+.invitationReject[data-focus-visible] {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.invitationError {
+  margin: 0;
+  color: var(--color-error);
+  font-size: 0.875rem;
+}
+
+@media (max-width: 640px) {
+  .invitationRow {
+    flex-wrap: wrap;
+  }
+
+  .invitationText {
+    flex-basis: calc(100% - 34px - var(--space-3));
+  }
+
+  .invitationActions {
+    margin-left: auto;
+  }
 }

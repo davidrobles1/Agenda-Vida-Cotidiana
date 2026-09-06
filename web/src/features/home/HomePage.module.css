@@ -28,7 +28,7 @@
 
   margin-bottom: 7px;
 
-  color: var(--color-primary, #2c5f8c);
+  color: var(--color-primary, var(--accent));
 
   font-size: 0.72rem;
   font-weight: 700;
@@ -50,12 +50,13 @@
 .sectionHeading h2 {
   margin: 0;
 
-  color: #304b68;
+  color: var(--ink);
 
-  font-family:
-    Georgia,
-    'Times New Roman',
-    serif;
+  /* ADR-023: era `Georgia, 'Times New Roman', serif` literal — un serif fijo
+     de la era Editorial que ignoraba el tema. Con Neo daba titulares en
+     serif donde el artefacto pide Archivo 900; con Lumen, serif donde pide
+     Manrope. La familia de display la decide el tema. */
+  font-family: var(--font-display);
 
   font-size: 1.65rem;
   font-weight: 500;
@@ -68,7 +69,7 @@
 
   background: transparent;
 
-  color: #2c5f8c;
+  color: var(--accent);
 
   font-size: 0.9rem;
   font-weight: 600;
@@ -85,7 +86,7 @@
 }
 
 .textButton:hover {
-  background: rgba(44, 95, 140, 0.07);
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
 
   transform: translateY(-1px);
 }
@@ -101,19 +102,18 @@
 
   padding: 26px 30px;
 
-  border-radius: 22px;
+  /* ADR-023: el radio y la elevación los fija el tema — 0 en Neo, amplio en
+     Calm. El 22px constante era del sistema anterior. */
+  border-radius: var(--r-xl, 22px);
 
-  background:
-    linear-gradient(
-      135deg,
-      rgba(255, 255, 255, 0.82),
-      rgba(251, 248, 240, 0.92)
-    );
+  /* El degradado blanco-crema era literal: en Aurora dejaba una mancha
+     clara con texto oscuro encima, en medio de un lienzo nocturno. Ahora
+     es la superficie del tema. */
+  background: var(--surface);
 
-  border: 1px solid rgba(44, 95, 140, 0.08);
+  border: 1px solid var(--line);
 
-  box-shadow:
-    0 8px 28px rgba(44, 66, 91, 0.055);
+  box-shadow: var(--shadow-1);
 }
 
 .daySummary::after {
@@ -129,7 +129,7 @@
 
   border-radius: 50%;
 
-  background: rgba(180, 123, 72, 0.06);
+  background: color-mix(in srgb, var(--second) 6%, transparent);
 
   pointer-events: none;
 }
@@ -150,12 +150,13 @@
 .daySummary h2 {
   margin: 0;
 
-  color: #304b68;
+  color: var(--ink);
 
-  font-family:
-    Georgia,
-    'Times New Roman',
-    serif;
+  /* ADR-023: era `Georgia, 'Times New Roman', serif` literal — un serif fijo
+     de la era Editorial que ignoraba el tema. Con Neo daba titulares en
+     serif donde el artefacto pide Archivo 900; con Lumen, serif donde pide
+     Manrope. La familia de display la decide el tema. */
+  font-family: var(--font-display);
 
   font-size: clamp(1.7rem, 2.4vw, 2.25rem);
 
@@ -169,7 +170,7 @@
 
   margin: 9px 0 0;
 
-  color: #5b6c7f;
+  color: var(--ink-2);
 
   font-size: 0.95rem;
 
@@ -188,9 +189,9 @@
 
   border-radius: 18px;
 
-  background: #e4ecd9;
+  background: var(--ok-soft);
 
-  color: #58794e;
+  color: var(--ok);
 
   box-shadow:
     0 6px 18px rgba(82, 112, 72, 0.08);
@@ -217,9 +218,9 @@
 
   border-radius: 14px;
 
-  background: #fff0ef;
+  background: var(--danger-soft);
 
-  color: #b43b37;
+  color: var(--danger);
 
   border: 1px solid rgba(180, 59, 55, 0.08);
 
@@ -278,7 +279,7 @@
 
   border-radius: 18px;
 
-  background: rgba(251, 248, 240, 0.88);
+  background: var(--surface);
 
   border: 1px solid rgba(44, 66, 91, 0.06);
 
@@ -298,9 +299,9 @@
 
   border-radius: 14px;
 
-  background: #e4ecd9;
+  background: var(--ok-soft);
 
-  color: #58794e;
+  color: var(--ok);
 }
 
 .emptyState strong {
@@ -308,7 +309,7 @@
 
   margin-bottom: 3px;
 
-  color: #344e69;
+  color: var(--ink);
 
   font-size: 0.98rem;
 }
@@ -316,7 +317,7 @@
 .emptyState p {
   margin: 0;
 
-  color: #515c6d;
+  color: var(--ink-2);
 
   font-size: 0.87rem;
 }
@@ -349,9 +350,9 @@
 
   padding: 22px;
 
-  border-radius: 20px;
+  border-radius: var(--r-lg, 20px);
 
-  background: rgba(251, 248, 240, 0.96);
+  background: var(--surface);
 
   border: 1px solid rgba(44, 66, 91, 0.06);
 
@@ -375,7 +376,7 @@
 
   margin-bottom: 5px;
 
-  color: #5b6c7f;
+  color: var(--ink-2);
 
   font-size: 0.86rem;
 }
@@ -383,7 +384,7 @@
 .progressHeader strong {
   display: block;
 
-  color: #304b68;
+  color: var(--ink);
 
   font-size: 1.8rem;
 
@@ -393,7 +394,7 @@
 .progressHeader small {
   margin-left: 5px;
 
-  color: #5b6570;
+  color: var(--ink-2);
 
   font-size: 0.75rem;
 
@@ -401,7 +402,7 @@
 }
 
 .progressCaption {
-  color: #58794e;
+  color: var(--ok);
 
   font-size: 0.88rem;
   font-weight: 700;
@@ -430,7 +431,7 @@
 
   gap: 9px;
 
-  color: #5b697a;
+  color: var(--ink-2);
 
   font-size: 0.82rem;
 }
@@ -442,7 +443,7 @@
 }
 
 .legendRow strong {
-  color: #354f6a;
+  color: var(--ink);
 }
 
 .legendDot {
@@ -463,7 +464,7 @@
 
   min-height: 55px;
 
-  color: #505963;
+  color: var(--ink-2);
 
   font-size: 0.84rem;
 }
@@ -574,7 +575,7 @@
 }
 
 .metricsRow > *:nth-child(2)::after {
-  border-color: rgba(44, 95, 140, 0.35);
+  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
 }
 
 /* Patrón de pequeños puntos */
@@ -611,7 +612,7 @@
   width: 88px;
   height: 88px;
 
-  border-color: rgba(76, 125, 143, 0.28);
+  border-color: color-mix(in srgb, var(--accent) 28%, transparent);
 
   opacity: 0.45;
 }
@@ -647,7 +648,7 @@
   width: 86px;
   height: 86px;
 
-  border-color: rgba(180, 123, 72, 0.30);
+  border-color: color-mix(in srgb, var(--second) 30%, transparent);
 
   opacity: 0.45;
 }
@@ -748,9 +749,9 @@
 
   padding: 22px;
 
-  border-radius: 20px;
+  border-radius: var(--r-lg, 20px);
 
-  background: rgba(251, 248, 240, 0.96);
+  background: var(--surface);
 
   border: 1px solid rgba(44, 66, 91, 0.06);
 
@@ -855,7 +856,7 @@
 }
 
 .quickLink:hover {
-  background: rgba(44, 95, 140, 0.06);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
 
   transform: translateX(2px);
 }
@@ -1006,62 +1007,17 @@
 }
 
 /* =========================================================
-   UX-014 — VISUAL THEME SYSTEM
-
-   EDITORIAL
+   MODERN PRODUCTIVITY — RESPONSIVE
    ========================================================= */
 
-:global(.theme-editorial) .page {
-  background-image:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.35'/%3E%3C/svg%3E");
+/* ==========================================================================
+   TEMAS UX-014 CONSERVADOS — reglas devueltas el 2026-09-02.
 
-  background-blend-mode: multiply;
-}
-
-:global(.theme-editorial) .eyebrow {
-  color: var(--color-terracotta-text);
-}
-
-:global(.theme-editorial) .sectionHeading h2,
-:global(.theme-editorial) .daySummary h2 {
-  font-family: var(--font-serif);
-
-  font-style: italic;
-
-  font-weight: 500;
-
-  color: var(--color-text);
-}
-
-:global(.theme-editorial) .daySummary,
-:global(.theme-editorial) .progressCard,
-:global(.theme-editorial) .quickPanel,
-:global(.theme-editorial) .emptyState {
-  background: var(--color-surface-variant);
-
-  border: none;
-
-  border-radius: 16px;
-
-  box-shadow: var(--shadow-card);
-}
-
-:global(.theme-editorial) .daySummary::after {
-  background: rgba(163, 74, 58, 0.08);
-}
-
-:global(.theme-editorial) .textButton {
-  color: var(--color-primary);
-}
-
-:global(.theme-editorial) .activityIcon,
-:global(.theme-editorial) .quickLinkIcon,
-:global(.theme-editorial) .emptyIcon {
-  border-radius: 16px;
-}
-
-/* ---------- PREMIUM MINIMAL ---------- */
-
+   Premium Minimal / Modern Productivity / Organic / Human se retiraron por
+   error al implementar ADR-023: la petición era eliminar **solo Editorial**.
+   Estas son sus reglas originales, tal cual estaban; de los selectores que
+   compartían con Editorial se conserva únicamente su parte.
+   ========================================================================== */
 :global(.theme-minimal) .page {
   background-image:
     repeating-linear-gradient(
@@ -1147,8 +1103,6 @@
   color: var(--color-primary);
 }
 
-/* ---------- MODERN PRODUCTIVITY ---------- */
-
 :global(.theme-productivity) .eyebrow {
   color: var(--color-terracotta-text);
 }
@@ -1185,7 +1139,6 @@
   border-top: 3px solid var(--color-terracotta);
 }
 
-/* Bento metrics */
 :global(.theme-productivity) .metricsRow {
   display: grid;
 
@@ -1218,9 +1171,6 @@
   grid-row: 2;
 }
 
-/*
- * Se mantiene el layout 2x2 de quickRow.
- */
 :global(.theme-productivity) .quickRow {
   grid-template-columns:
     minmax(0, 1fr)
@@ -1236,8 +1186,6 @@
 :global(.theme-productivity) .emptyIcon {
   border-radius: 16px;
 }
-
-/* ---------- ORGANIC / HUMAN ---------- */
 
 :global(.theme-organic) .eyebrow {
   color: var(--color-terracotta-text);
@@ -1304,10 +1252,6 @@
   transform: scale(1.01);
 }
 
-/* =========================================================
-   MODERN PRODUCTIVITY — RESPONSIVE
-   ========================================================= */
-
 @media (max-width: 1100px) {
   :global(.theme-productivity) .metricsRow {
     grid-template-columns:
@@ -1315,28 +1259,104 @@
 
     grid-template-rows: auto;
   }
+}
+
+@media (max-width: 1100px) {
 
   :global(.theme-productivity) .metricsRow > *:nth-child(1) {
     grid-column: 1 / 3;
 
     grid-row: auto;
   }
+}
+
+@media (max-width: 1100px) {
 
   :global(.theme-productivity) .metricsRow > *:nth-child(2) {
     grid-column: 1;
 
     grid-row: auto;
   }
+}
+
+@media (max-width: 1100px) {
 
   :global(.theme-productivity) .metricsRow > *:nth-child(3) {
     grid-column: 2;
 
     grid-row: auto;
   }
+}
+
+@media (max-width: 1100px) {
 
   :global(.theme-productivity) .metricsRow > *:nth-child(4) {
     grid-column: 1 / 3;
 
     grid-row: auto;
   }
+}
+
+
+/* ==========================================================================
+   FIRMAS DE TEMA — antetítulo de sección (ADR-023)
+
+   "TU DÍA", "RESUMEN", "ESTA SEMANA" son el mismo widget que el rótulo de
+   columna de la hoja del día, así que llevan el mismo tratamiento. Los tres
+   temas conservados ya tenían el suyo (arriba); estos son los seis nuevos,
+   que hasta ahora heredaban una caja alta espaciada idéntica en todos.
+   ========================================================================== */
+
+/* PAPEL — versalitas de la serif, en el ocre de la libreta. */
+:global(.theme-papel) .eyebrow {
+  color: var(--second);
+
+  font-family: var(--font-display);
+  font-size: 0.86rem;
+  font-weight: 500;
+  font-variant-caps: small-caps;
+  letter-spacing: 0.06em;
+  text-transform: lowercase;
+}
+
+/* LUMEN — sin acento de color: solo aire y tracking. */
+:global(.theme-lumen) .eyebrow {
+  color: var(--ink-3);
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.24em;
+}
+
+/* NEO — el antetítulo pesa tanto como lo que encabeza. */
+:global(.theme-neo) .eyebrow {
+  color: var(--ink);
+  font-family: var(--font-label);
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+
+/* STUDIO — epígrafe de redacción, no etiqueta de sistema. */
+:global(.theme-studio) .eyebrow {
+  color: var(--ink-2);
+
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 1.02rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* AURORA — el antetítulo es luz tenue sobre el fondo oscuro. */
+:global(.theme-aurora) .eyebrow {
+  color: var(--ink-3);
+  font-weight: 600;
+  letter-spacing: 0.22em;
+}
+
+/* CALM — más suave que el original: menos peso, menos tracking. */
+:global(.theme-calm) .eyebrow {
+  color: var(--ink-2);
+  font-weight: 600;
+  letter-spacing: 0.1em;
 }

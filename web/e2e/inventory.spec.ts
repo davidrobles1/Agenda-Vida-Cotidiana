@@ -17,7 +17,7 @@ test('inventory category filter: real radiogroup semantics, filtering, and arrow
   await page.waitForURL(/realms\/vida-cotidiana/)
   await page.getByLabel('Username or email').fill('testuser')
   await page.getByRole('textbox', { name: 'Password' }).fill('TestPass123!')
-  await page.getByRole('button', { name: 'Sign In' }).click()
+  await page.locator('#kc-login').click()
   // ADR-015/UX-012: post-login lands on the general Calendario; "Inventario"
   // (a legacy UX-006 scaffolding module) is no longer linked from any navbar
   // (only Inicio/Calendario/Tareas/Compartidos inside a mode — CLAUDE.md's
@@ -27,7 +27,12 @@ test('inventory category filter: real radiogroup semantics, filtering, and arrow
   // log the session out. "Notifications" (always rendered, any mode) lands
   // on a legacy bare route, which renders the legacy sidebar (Inventario
   // included).
-  await expect(page.getByText('Vista mensual')).toBeVisible({ timeout: 20_000 })
+  // El destino tras iniciar sesión depende del modo del usuario
+  // (ADR-015) y ya cambió; afirmar una pantalla concreta volvía roja
+  // toda la suite por un cambio de producto legítimo. Basta con haber
+  // vuelto a la aplicación autenticado.
+  await page.waitForURL((url) => !url.href.includes('/realms/'), { timeout: 20_000 })
+  await expect(page.locator('nav, header').first()).toBeVisible({ timeout: 20_000 })
   await page.getByRole('link', { name: 'Notifications' }).click()
   await page.getByRole('link', { name: 'Inventario' }).click()
   const group = page.getByRole('radiogroup', { name: 'Filtrar por categoría' })

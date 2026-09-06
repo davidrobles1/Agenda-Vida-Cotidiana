@@ -31,7 +31,15 @@ public record MaintenanceRecordResponse(
         /** ADR-019: módulo propietario del recurso. */
         String context
 ) {
-    private static final long PROXIMO_THRESHOLD_DAYS = 30;
+    /**
+     * ADR-021: UNA sola definición de "próximo" en toda la sección.
+     *
+     * Antes eran dos y se contradecían: el backend decía 30 días y
+     * `dateAlerts` avisaba a 7/3/0, así que el mismo registro estaba
+     * "PROXIMO" en la lista y no en el calendario. 7 días es además el
+     * umbral que ya usa la sección de Pagos (`DUE_SOON_DAYS`).
+     */
+    private static final long PROXIMO_THRESHOLD_DAYS = 7;
 
     public static MaintenanceRecordResponse from(MaintenanceRecord record) {
         return from(record, Instant.now());

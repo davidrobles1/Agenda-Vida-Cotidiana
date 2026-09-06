@@ -105,6 +105,27 @@
      avoid. Never use for body text or form controls. */
   --font-script: 'Alex Brush', var(--font-serif);
 
+  /* --------------------------------------------------------------------
+     Identidad interna «A · Tiempo» — Jornada / Cotidiana / Oficio
+     (dirección aprobada por el Product Owner el 2026-09-05).
+
+     Mundo cromático propio de la marca: NO son los tokens de producto
+     (--color-primary y compañía) ni se derivan de ellos. El arco es el
+     mismo símbolo en los tres contextos y el color acompaña a la posición
+     del punto; el rótulo va siempre en tinta, nunca en el color de
+     contexto. Solo lo consume `core/ui/brand/BrandMark`.
+     -------------------------------------------------------------------- */
+  /* Deliberadamente NO es `--font-serif`: los temas visuales reasignan ese
+     token a su propia tipografía de display (`themes.css`), y un logo que
+     cambia de letra según el tema deja de ser un logo. El rótulo va en
+     Fraunces 300 en los nueve temas. */
+  --brand-font: 'Fraunces', Georgia, 'Times New Roman', serif;
+
+  --brand-ink: #16161a;
+  --brand-arc-portal: #8a6d3b; /*   Jornada   · ocre de mediodía   */
+  --brand-arc-personal: #a8523c; /* Cotidiana · terracota de tarde */
+  --brand-arc-laboral: #243447; /*  Oficio    · azul de mañana     */
+
   font-family: var(--font-sans);
   font-size: 16px;
   line-height: 1.5;
@@ -137,97 +158,20 @@
 }
 
 /* ==========================================================================
-   UX-014 — VISUAL THEME SYSTEM (post-login portal only)
+   ADR-023: los temas visuales viven ahora en `src/themes.css`.
 
-   Applied as a class on AppShell's `.shell` root (see AppShell.tsx +
-   VisualThemeContext.tsx) — exactly the same mechanism `.laboral-theme`
-   above already uses. Never touches `:root`, so LoginPage/Keycloak stay
-   completely unaffected; `.laboral-theme` can still combine with any of
-   these (both classes coexist on `.shell`) since Laboral only overrides
-   color, never radius/shadow/font.
+   Aquí quedaban los cuatro bloques de UX-014. **Solo Editorial se elimina**
+   (decisión del Product Owner, 2026-09-01); Premium Minimal, Modern
+   Productivity y Organic / Human se conservan y conviven con las seis
+   agendas nuevas de ADR-023 — nueve temas en total.
 
-   Every component already reads these roles via var(--color-*) etc., so
-   redefining them here is enough for the base palette/shape shift — the
-   signature per-theme effects (paper grain, ribbon, deckle notes, dark
-   sidebar, blueprint grid, breathing "today", blob button…) live beside the
-   component they decorate, each guarded by `:global(.theme-x)` in that
-   component's own .module.css, not duplicated here. --shadow-card and
-   --font-mono are new tokens introduced by this system (no theme currently
-   maps to shadow:none across the board — Minimal is the one exception, by
-   design, matching its "hairlines only" language).
+   Se movieron a `themes.css` porque el sistema nuevo necesita más tokens de
+   los que este archivo definía: escalera de superficies, tres tintas, dos
+   filetes, escala tipográfica, densidad y aire.
+
+   `:root` de arriba se conserva intacto: lo usan LoginPage y Keycloak,
+   que quedan deliberadamente fuera del sistema de temas.
    ========================================================================== */
-
-.theme-editorial {
-  --color-primary: #2c5f8c;
-  --color-primary-container: #e4eef6;
-  --color-on-primary: #ffffff;
-  --color-terracotta: #a34a3a;
-  --color-terracotta-text: #7a3226;
-  --color-terracotta-container: #f3ded8;
-  --color-surface: #f3ead8;
-  --color-surface-variant: #fdf8ee;
-  --color-border: #6e8192;
-  --color-text: #2c425b;
-  --color-text-secondary: #6b7c8f;
-  --radius-card: 4px;
-  --radius-control: 6px;
-  --shadow-card: 0 10px 22px rgba(44, 66, 91, 0.14), 0 2px 6px rgba(44, 66, 91, 0.09);
-  --font-mono: 'Courier Prime', monospace;
-}
-
-.theme-minimal {
-  --color-primary: #23425f;
-  --color-primary-container: #eef1f4;
-  --color-on-primary: #ffffff;
-  --color-terracotta: #23425f;
-  --color-terracotta-text: #23425f;
-  --color-terracotta-container: #eef1f4;
-  --color-surface: #faf8f3;
-  --color-surface-variant: #ffffff;
-  --color-border: #e4dfd3;
-  --color-text: #1a232e;
-  --color-text-secondary: #7a8290;
-  --radius-card: 2px;
-  --radius-control: 2px;
-  --shadow-card: none;
-  --font-mono: 'Courier Prime', monospace;
-}
-
-.theme-productivity {
-  --color-primary: #2c5f8c;
-  --color-primary-container: #e4eef6;
-  --color-on-primary: #ffffff;
-  --color-terracotta: #e08a3e;
-  --color-terracotta-text: #8b5e36;
-  --color-terracotta-container: #f7e6d3;
-  --color-surface: #f2ede1;
-  --color-surface-variant: #fffdf8;
-  --color-border: #6e8192;
-  --color-text: #1b2a3a;
-  --color-text-secondary: #5c6c80;
-  --radius-card: 10px;
-  --radius-control: 8px;
-  --shadow-card: 0 3px 10px rgba(38, 55, 74, 0.1);
-  --font-mono: 'Courier Prime', monospace;
-}
-
-.theme-organic {
-  --color-primary: #5b7a5e;
-  --color-primary-container: #dfe6d7;
-  --color-on-primary: #ffffff;
-  --color-terracotta: #c17a4a;
-  --color-terracotta-text: #8b5e36;
-  --color-terracotta-container: #f2e2d3;
-  --color-surface: #eef0df;
-  --color-surface-variant: #fbfaf1;
-  --color-border: #7d8a72;
-  --color-text: #33402f;
-  --color-text-secondary: #6d7860;
-  --radius-card: 22px;
-  --radius-control: 999px;
-  --shadow-card: 0 12px 26px rgba(51, 64, 47, 0.13);
-  --font-mono: 'Courier Prime', monospace;
-}
 
 * {
   box-sizing: border-box;
@@ -266,7 +210,9 @@ button {
   font-family: inherit;
   font-size: 0.9375rem;
   font-weight: 500;
-  border-radius: 20px;;
+  /* ADR-023: el radio del botón lo fija el tema (`--btn-r`), de 0 en Neo a
+     píldora en Calm. El 20px constante era del sistema anterior. */
+  border-radius: var(--btn-r, 20px);
   border: 1px solid transparent;
   padding: var(--space-2) var(--space-4);
   min-height: 44px;
@@ -311,16 +257,69 @@ button:disabled {
    treatment where they're defined (`.newNoteButton` in Notes.module.css,
    `.newButton` in AppShell.module.css) since those render as React Aria
    `Button`/`NavLink`, not `<button type="submit">`. */
-.theme-editorial button[type='submit']:not([data-variant]),
-.theme-productivity button[type='submit']:not([data-variant]) {
-  background: linear-gradient(135deg, var(--color-primary), color-mix(in srgb, var(--color-primary) 65%, white));
+/* ADR-023 — FIRMAS DE BOTÓN, copiadas del artefacto aprobado.
+   Los gradientes de Editorial/Productivity y la "forma de blob" de Organic
+   se eliminan: contradicen los seis temas nuevos. */
+.theme-aurora button[type='submit']:not([data-variant]),
+.theme-lumen button[type='submit']:not([data-variant]),
+.theme-neo button[type='submit']:not([data-variant]),
+.theme-calm button[type='submit']:not([data-variant]),
+.theme-studio button[type='submit']:not([data-variant]),
+.theme-papel button[type='submit']:not([data-variant]) {
+  border-radius: var(--btn-r);
+  transition: background 0.2s var(--ease), border-color 0.2s, transform 0.15s var(--ease), box-shadow 0.2s, color 0.2s;
 }
 
+/* Aurora: halo del propio acento al pasar el cursor. */
+.theme-aurora button[type='submit']:not([data-variant]):hover {
+  box-shadow: 0 0 0 1px var(--accent), 0 8px 26px -8px var(--accent);
+}
+
+/* Lumen: el botón se invierte a tinta plena. */
+.theme-lumen button[type='submit']:not([data-variant]) {
+  font-weight: 500;
+}
+
+/* Neo: sombra dura y desplazamiento; se hunde al pulsar. */
+.theme-neo button[type='submit']:not([data-variant]) {
+  border: 2px solid var(--ink);
+  font-weight: 700;
+  box-shadow: 3px 3px 0 var(--ink);
+}
+.theme-neo button[type='submit']:not([data-variant]):hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0 var(--ink);
+}
+.theme-neo button[type='submit']:not([data-variant]):active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 var(--ink);
+}
+
+/* Studio: versalitas con tracking amplio, rectas. */
+.theme-studio button[type='submit']:not([data-variant]) {
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: var(--t-2xs);
+  font-weight: 600;
+  padding: 12px 20px;
+}
+
+/* Calm: píldora con más aire lateral. */
+.theme-calm button[type='submit']:not([data-variant]) {
+  padding: calc(10px * var(--density)) 20px;
+}
+
+/* ── Tratamientos UX-014 conservados ──
+   Se retiraron por error junto con Editorial; el Product Owner solo pidió
+   eliminar ese. El degradado de Editorial sí desaparece: era suyo. */
+
+/* Modern Productivity: degradado del primario y elevación propia. */
 .theme-productivity button[type='submit']:not([data-variant]) {
+  background: linear-gradient(135deg, var(--color-primary), color-mix(in srgb, var(--color-primary) 65%, white));
   box-shadow: 0 4px 14px rgba(44, 95, 140, 0.28);
 }
 
-/* Organic's single "uneven blob" CTA shape. */
+/* Organic: su forma de "blob" irregular, la firma del tema. */
 .theme-organic button[type='submit']:not([data-variant]) {
   border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
 }
@@ -329,7 +328,9 @@ input {
   font-family: inherit;
   font-size: 0.9375rem;
   border: 1px solid var(--color-border);
-  border-radius: 20px;;
+  /* ADR-023: el radio deja de ser una constante de 20px y pasa a ser el del
+     tema — 0 en Neo, 12px en Calm. Era el mayor delator de plantilla vieja. */
+  border-radius: var(--radius-control, 20px);
   padding: var(--space-2) var(--space-3);
   min-height: 44px;
   /* UX-008: surface-variant (cream), not surface (page beige) — an input
@@ -347,7 +348,7 @@ a {
 [role='alert'] {
   color: var(--color-error);
   background: var(--color-error-container);
-  border-radius: 20px;;
+  border-radius: var(--radius-card, 20px);
   padding: var(--space-2) var(--space-3);
   font-size: 0.875rem;
 }
@@ -406,4 +407,54 @@ a {
     color-mix(in srgb, var(--color-border) 20%, transparent) 27px,
     color-mix(in srgb, var(--color-border) 20%, transparent) 28px
   );
+}
+
+/* =====================================================
+   ADR-023 — FIRMAS DE TEMA EN LOS CONTROLES GLOBALES
+
+   `input`, `select` y `textarea` sueltos (fuera de un diálogo) también
+   deben leerse como parte del tema: en Papel un campo es un renglón de
+   libreta, en Neo una caja de 2px, en Lumen y Studio un subrayado.
+   ===================================================== */
+
+.theme-papel input:not([type='checkbox']):not([type='radio']),
+.theme-papel select {
+  background: transparent;
+  border: 0;
+  border-bottom: 1.5px dashed var(--line-strong);
+  border-radius: 0;
+  padding-left: 2px;
+}
+
+.theme-papel input:not([type='checkbox']):not([type='radio']):focus,
+.theme-papel select:focus {
+  border-bottom-style: solid;
+  border-bottom-color: var(--accent);
+  outline: none;
+}
+
+.theme-lumen input:not([type='checkbox']):not([type='radio']),
+.theme-lumen select,
+.theme-studio input:not([type='checkbox']):not([type='radio']),
+.theme-studio select {
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--line-strong);
+  border-radius: 0;
+  padding-left: 0;
+}
+
+.theme-neo input:not([type='checkbox']):not([type='radio']),
+.theme-neo select {
+  border: 2px solid var(--ink);
+  border-radius: 0;
+  background: var(--surface);
+}
+
+/* Un `textarea` largo en Papel se escribe a mano, igual que dentro de un
+   diálogo. */
+.theme-papel textarea {
+  font-family: var(--font-hand);
+  font-size: 1.22rem;
+  line-height: 1.4;
 }

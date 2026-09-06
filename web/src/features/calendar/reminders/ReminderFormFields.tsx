@@ -4,6 +4,7 @@ import { IconPicker } from '../../../core/ui/pickers/IconPicker'
 import { STICKER_FIELD_ICON } from '../../../core/ui/pickers/pickerCatalog'
 import { StickerPicker } from '../../../core/ui/pickers/StickerPicker'
 import styles from '../../../core/ui/dialogs/DialogShell.module.css'
+import { DatePicker } from '../../../core/ui/pickers/DatePicker'
 
 interface ReminderFormFieldsProps {
   title: string
@@ -102,15 +103,14 @@ export function ReminderFormFields({
 
       {/* FECHA Y HORA */}
       <div className={styles.field}>
-        <label htmlFor="reminder-dueat" className={styles.fieldLabel}>
-          Fecha y hora <span className={styles.optionalTag}>(Opcional)</span>
-        </label>
-        <input
-          id="reminder-dueat"
-          type="datetime-local"
-          className={styles.textInput}
+        {/* `withTime` mantiene el mismo formato `YYYY-MM-DDTHH:mm` que
+            emitía el `datetime-local` nativo, así que la conversión a UTC
+            que hace el formulario sigue igual. */}
+        <DatePicker
+          label="Fecha y hora (opcional)"
           value={dueAtLocal}
-          onChange={(event) => onDueAtLocalChange(event.target.value)}
+          onChange={onDueAtLocalChange}
+          withTime
         />
       </div>
 

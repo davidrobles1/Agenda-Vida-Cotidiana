@@ -29,4 +29,16 @@ public interface VisionBoardElementRepository extends JpaRepository<VisionBoardE
      */
     @Query("SELECT e FROM VisionBoardElement e WHERE e.boardId = :boardId ORDER BY e.zIndex ASC, e.createdAt ASC, e.id ASC")
     List<VisionBoardElement> findByBoardIdOrderByZIndexAsc(@Param("boardId") UUID boardId);
+
+    /**
+     * Capa más alta ocupada en el tablero, o null si está vacío.
+     *
+     * La necesita el alta: un elemento nuevo nacía con `zIndex = 0` y, en un
+     * tablero donde algo ya se había subido de capa, aparecía POR DEBAJO de
+     * lo existente — el usuario lo describió como "se esconde". Nacer en la
+     * capa siguiente a la más alta es lo que hace que se vea al crearlo,
+     * que es lo que espera cualquiera al añadir algo.
+     */
+    @Query("SELECT MAX(e.zIndex) FROM VisionBoardElement e WHERE e.boardId = :boardId")
+    Integer findMaxZIndex(@Param("boardId") UUID boardId);
 }

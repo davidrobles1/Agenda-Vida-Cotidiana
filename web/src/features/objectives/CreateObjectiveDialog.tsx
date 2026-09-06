@@ -5,6 +5,7 @@ import { motionTokens } from '../../core/motion/tokens'
 import { IconPlus } from '../../core/ui/icons'
 import { createObjective, type CreateObjectiveInput, type Objective } from './api'
 import shellStyles from '../../core/ui/dialogs/DialogShell.module.css'
+import { DatePicker } from '../../core/ui/pickers/DatePicker'
 
 const MotionDialog = motion.create(Dialog)
 
@@ -104,15 +105,11 @@ export function CreateObjectiveDialog({ onCreated }: CreateObjectiveDialogProps)
                   />
                 </label>
 
-                <label className={shellStyles.field}>
-                  <span className={shellStyles.fieldLabel}>Fecha límite (opcional)</span>
-                  <input
-                    className={shellStyles.textInput}
-                    type="date"
+                <DatePicker
+                    label="Fecha límite (opcional)"
                     value={deadlineLocal}
-                    onChange={(e) => setDeadlineLocal(e.target.value)}
+                    onChange={(next) => setDeadlineLocal(next)}
                   />
-                </label>
 
                 <div className={shellStyles.formActions}>
                   {saving && <span className={shellStyles.savingHint}>Guardando…</span>}

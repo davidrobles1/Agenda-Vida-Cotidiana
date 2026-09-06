@@ -1,6 +1,6 @@
 .card {
   background: var(--color-surface-variant);
-  border-radius: 28px;;
+  border-radius: var(--r-xl, 28px);
   padding: var(--space-4);
   display: flex;
   flex-direction: column;
@@ -41,24 +41,57 @@
   gap: var(--space-3);
 }
 
-/* =====================================================
-   UX-014 — VISUAL THEME SYSTEM
-   Used by Warranties/Maintenance/Home's overdue-upcoming sections and any
-   other list-of-ListItemRow screen — themed once here instead of per page.
-   ===================================================== */
-
-:global(.theme-editorial) .title {
-  font-family: var(--font-serif);
-  font-style: italic;
-  font-weight: 500;
+/* ADR-023 — la "tarjeta" solo es una caja donde el tema quiere que lo sea.
+   Lumen y Studio la reducen a un filete superior; Neo le pone 2px y sombra
+   dura; Calm quita el borde y deja la sombra suave. */
+.card { border-radius: var(--r-lg, 12px); box-shadow: var(--shadow-1); }
+:global(.theme-lumen) .card,
+:global(.theme-studio) .card {
+  background: transparent;
+  border: 0;
+  border-top: 1px solid var(--line-strong);
+  border-radius: 0;
+  box-shadow: none;
 }
+:global(.theme-neo) .card { border: 2px solid var(--ink); border-radius: 0; box-shadow: var(--shadow-1); }
+:global(.theme-calm) .card { border-color: transparent; box-shadow: var(--shadow-1); }
+:global(.theme-aurora) .card { box-shadow: var(--shadow-1), inset 0 1px 0 rgba(255, 255, 255, 0.06); }
 
+/* El TÍTULO de la tarjeta llevaba la misma Inter en los seis temas: la caja
+   cambiaba de piel y el rótulo que la encabeza no, así que "Vista diaria" se
+   leía igual en la libreta que en la revista. Toma la tipografía de display
+   del tema, con los mismos pesos que ya usan los títulos de Ajustes para que
+   una pantalla no contradiga a la otra. */
+:global(.theme-lumen) .title,
+:global(.theme-studio) .title,
+:global(.theme-neo) .title,
+:global(.theme-papel) .title,
+:global(.theme-aurora) .title,
+:global(.theme-calm) .title {
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
+}
+:global(.theme-studio) .title { font-weight: 400; font-size: 1.25rem; }
+:global(.theme-lumen) .title { font-weight: 300; letter-spacing: -0.03em; }
+:global(.theme-neo) .title { font-weight: 800; text-transform: uppercase; letter-spacing: -0.02em; }
+:global(.theme-papel) .title { font-weight: 500; font-size: 1.12rem; }
+
+
+/* ==========================================================================
+   TEMAS UX-014 CONSERVADOS — reglas devueltas el 2026-09-02.
+
+   Premium Minimal / Modern Productivity / Organic / Human se retiraron por
+   error al implementar ADR-023: la petición era eliminar **solo Editorial**.
+   Estas son sus reglas originales, tal cual estaban; de los selectores que
+   compartían con Editorial se conserva únicamente su parte.
+   ========================================================================== */
 :global(.theme-minimal) .card {
   position: relative;
   box-shadow: none;
   border: 1px solid var(--color-border);
   border-radius: 2px;
 }
+
 :global(.theme-minimal) .card::before {
   content: '';
   position: absolute;
@@ -69,6 +102,7 @@
   border-top: 1.5px solid var(--color-primary);
   border-left: 1.5px solid var(--color-primary);
 }
+
 :global(.theme-minimal) .card::after {
   content: '';
   position: absolute;
@@ -79,6 +113,7 @@
   border-bottom: 1.5px solid var(--color-primary);
   border-right: 1.5px solid var(--color-primary);
 }
+
 :global(.theme-minimal) .title {
   font-size: 0.68rem;
   font-weight: 700;
@@ -90,6 +125,7 @@
   border-top: 3px solid var(--color-primary);
   border-radius: 4px 4px 10px 10px;
 }
+
 :global(.theme-productivity) .title {
   font-weight: 800;
   letter-spacing: -0.01em;

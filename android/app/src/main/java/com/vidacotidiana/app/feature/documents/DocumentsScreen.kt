@@ -1,115 +1,84 @@
 package com.vidacotidiana.app.feature.documents
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material3.DrawerState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
-import com.vidacotidiana.app.core.ui.VidaShape
-import com.vidacotidiana.app.core.ui.VidaSpacing
-import com.vidacotidiana.app.core.ui.VidaTheme
-import com.vidacotidiana.app.core.ui.components.BadgeTone
-import com.vidacotidiana.app.core.ui.components.resolve
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavHostController
+import com.vidacotidiana.app.core.app.AppViewModel
+import com.vidacotidiana.app.core.app.CreatableResource
+import com.vidacotidiana.app.core.ui.components.PillTone
+import com.vidacotidiana.app.core.ui.components.ResourceEntry
+import com.vidacotidiana.app.core.ui.components.ResourceListScreen
+import com.vidacotidiana.app.core.ui.components.plural
+import kotlinx.coroutines.CoroutineScope
 
-/**
- * UX-006: mock module (scaffolding only, MockData.kt) — matches the
- * reference's Documentos screen (category folders + flat recent-files list).
- */
+/** Documentos. Sección secundaria: se llega desde el menú, con vuelta atrás. */
 @Composable
-fun DocumentsScreen(viewModel: DocumentsViewModel = hiltViewModel()) {
-    val state by viewModel.uiState.collectAsState()
+fun DocumentsScreen(
+    viewModel: AppViewModel,
+    drawerState: DrawerState,
+    scope: CoroutineScope,
+    navController: NavHostController,
+) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val documents = state.data.documents
 
-    Column(modifier = Modifier.fillMaxSize().padding(VidaSpacing.lg), verticalArrangement = Arrangement.spacedBy(VidaSpacing.lg)) {
-        Text("Documentos", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = VidaTheme.colors.text)
-
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(VidaSpacing.md)) {
-            items(state.categories) { category ->
-                CategoryFolderCard(category.name, category.count)
-            }
-        }
-
-        Text("Recientes", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = VidaTheme.colors.text)
-
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(VidaSpacing.sm)) {
-            items(state.documents, key = { it.id }) { doc ->
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(VidaShape.card),
-                    colors = CardDefaults.cardColors(containerColor = VidaTheme.colors.surfaceVariant),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(VidaSpacing.md),
-                        horizontalArrangement = Arrangement.spacedBy(VidaSpacing.sm),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        val tone = BadgeTone.Info.resolve()
-                        Box(
-                            modifier = Modifier.size(36.dp).background(tone.container, CircleShape),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(Icons.Filled.Description, contentDescription = null, tint = tone.on, modifier = Modifier.size(18.dp))
-                        }
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(doc.name, style = MaterialTheme.typography.bodyLarge, color = VidaTheme.colors.text)
-                            Text(
-                                "${doc.date} · ${doc.sizeLabel}",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = VidaTheme.colors.textSecondary,
-                            )
-                        }
-                    }
-                }
-            }
-        }
+    val entries = documents.map {
+        val familyVisible = it.visibility != "PRIVATE"
+        ResourceEntry(
+            id = it.id,
+            title = it.name,
+            subtitle = "${it.category} · ${it.sizeLabel} · ${it.dateLabel}",
+            icon = Icons.Outlined.Description,
+            // ADR-025: los documentos se comparten SOLO para verlos, así que la
+            // píldora dice quién los ve, no quién puede tocarlos.
+            pill = when (it.visibility) {
+                "PRIVATE" -> "Solo yo" to PillTone.QUIET
+                "FAMILY_PUBLIC" -> "Toda la familia" to PillTone.NEUTRAL
+                else -> "Compartido" to PillTone.NEUTRAL
+            },
+            // PARIDAD CON WEB: la Web permite editar, descargar, compartir,
+            // hacer visible u ocultar a la familia y eliminar. Android solo
+            // listaba y subía. Todos usan endpoints que ya existían.
+            onEdit = { viewModel.requestEdit(CreatableResource.DOCUMENT, it.id) },
+            // Un documento no se «completa»: no existe ese estado en su backend.
+            // Abrirlo se delega al visor del sistema en vez de construir uno
+            // propio dentro de Cotidiana.
+            onOpen = { viewModel.openDocument(context, it.id, it.name) },
+            openLabel = "Abrir",
+            onDelete = { viewModel.deleteResource(CreatableResource.DOCUMENT, it.id) },
+            extraActions = listOf(
+                "Compartir archivo" to { viewModel.shareDocumentFile(context, it.id, it.name) },
+                (if (familyVisible) "Ocultar a la familia" else "Ver toda la familia") to {
+                    viewModel.setDocumentFamilyVisible(it.id, !familyVisible)
+                },
+            ),
+        )
     }
-}
+    val categories = listOf("Todas") + documents.map { it.category }.distinct().sorted()
 
-@Composable
-private fun CategoryFolderCard(name: String, count: Int) {
-    Card(
-        shape = RoundedCornerShape(VidaShape.card),
-        colors = CardDefaults.cardColors(containerColor = VidaTheme.colors.surfaceVariant),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-    ) {
-        Row(
-            modifier = Modifier.padding(VidaSpacing.md),
-            horizontalArrangement = Arrangement.spacedBy(VidaSpacing.sm),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            val tone = BadgeTone.Info.resolve()
-            Box(modifier = Modifier.size(36.dp).background(tone.container, RoundedCornerShape(VidaShape.control)), contentAlignment = Alignment.Center) {
-                Icon(Icons.Filled.Folder, contentDescription = null, tint = tone.on, modifier = Modifier.size(18.dp))
-            }
-            Column {
-                Text(name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium, color = VidaTheme.colors.text)
-                Text("$count documentos", style = MaterialTheme.typography.labelMedium, color = VidaTheme.colors.textSecondary)
-            }
-        }
-    }
+    ResourceListScreen(
+        title = "Documentos",
+        subtitle = "Lo importante, a mano y en su sitio.",
+        eyebrow = plural(entries.size, "archivo", "archivos"),
+        entries = entries,
+        filters = categories,
+        addLabel = "Subir documento",
+        emptyBody = "Sube un documento para tenerlo siempre a mano.",
+        loading = state.loading,
+        error = state.error,
+        onRetry = viewModel::refresh,
+        onAdd = { viewModel.requestCreate(CreatableResource.DOCUMENT) },
+        matchesFilter = { entry, f -> f == "Todas" || entry.subtitle.startsWith(f) },
+        drawerState = drawerState,
+        scope = scope,
+        showBack = true,
+        onBack = { navController.popBackStack() },
+        onNotifications = {},
+    )
 }

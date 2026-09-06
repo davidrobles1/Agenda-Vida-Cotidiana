@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Capa monocroma (iconos temáticos de Android 13+): el sistema la tiñe con el
+  color del fondo de pantalla, así que aquí no se decide color, solo forma.
+  Misma geometría que la capa a color.
+
+  El arco va OPACO, sin el alfa del icono a color: teñido con un único color,
+  un trazo semitransparente se lee como suciedad, no como jerarquía.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- El arco del día. Ocre de mediodía, el acento del Portal. -->
+    <path
+        android:pathData="M25,66 A29,17.4 0 0 1 83,66"
+        android:strokeColor="#000000"
+        android:strokeWidth="4.2"
+        android:strokeLineCap="round" />
+
+    <!-- El punto en el cenit: lo único que distingue a Jornada. -->
+    <path
+        android:pathData="M47.8,48.6 a6.2,6.2 0 1,1 12.4,0 a6.2,6.2 0 1,1 -12.4,0 z"
+        android:fillColor="#000000" />
+</vector>

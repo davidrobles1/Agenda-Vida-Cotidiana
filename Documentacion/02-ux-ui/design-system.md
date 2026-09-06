@@ -338,3 +338,196 @@ Este mapeo vive en el cliente (una tabla de strings por perfil, sin lógica cond
 **Prototipo de referencia (no autoritativo, solo para validar navegación):** un artefacto navegable construido con estos mismos tokens (paleta Laboral, Inter/Fraunces, `notebook-bg`) demostró la arquitectura de información de 7 secciones núcleo (Hoy, Agenda, Tareas, Personas, Proyectos, Seguimientos, Inbox) y los 5 flujos principales — ver `34-laboral-module-proposal.md` para el enlace y el detalle. El prototipo no es código de producto ni fija ningún componente; solo valida navegación y relaciones entre entidades.
 
 **Verificado real:** `e2e/mode-navigation.spec.ts` confirma con `getComputedStyle` real (no solo la presencia de la clase `laboral-theme`) que `--color-laboral-primary` resuelve a `#1e3f5c` y que el `background-color` computado del logo-mark (que usa `--color-primary`) es literalmente `rgb(30, 63, 92)` en una pantalla Laboral — la cascada de custom properties funciona de extremo a extremo, no solo en el token declarado. `e2e/accessibility.spec.ts` (axe-core, WCAG 2.1 A/AA) en verde sobre las pantallas de modo Laboral tras la corrección de `.modePillActive:hover`.
+
+---
+
+## 13. ADR-022 — Patrón "lista de sección": Garantías, Inventario y Documentos
+
+Las tres secciones comparten un único patrón visual, implementado una sola
+vez en **`web/src/core/ui/patterns/SectionList.module.css`** y consumido por
+`WarrantiesPage`, `InventoryPage` y `DocumentsPage`.
+
+Vive en `core/ui/patterns` y no en cada feature por una razón concreta:
+tenerlo tres veces garantizaba que se desincronizaran a la primera
+corrección. Sus medidas son las que ya usaba Mantenimiento (ADR-021), de
+donde sale el patrón.
+
+### Anatomía
+
+| Pieza | Clase | Medida |
+|---|---|---|
+| Resumen de tres datos | `.summary` | grid `1.3fr 1fr 1fr`, gap 11px; una sola columna bajo 640px |
+| Tarjeta de resumen | `.summaryCard` / `.summaryLead` | padding 13/15px, radio 13px; la principal lleva borde teñido de `--color-primary` |
+| Filtros | `.filters` + `.chip` | píldoras de 5/12px, gap 7px |
+| Tarjetas de categoría | `.categoryGrid` + `.categoryCard` | grid `auto-fit minmax(140px, 1fr)`, radio 13px |
+| Buscador | `.search` + `.searchInput` | crece hasta llenar la fila, mínimo 180px |
+| Encabezado de grupo | `.groupLabel` | monoespaciada 0.59rem, versalitas, tracking 0.14em |
+| Fila | `.row` | grid `34px 1fr auto auto`, gap 12px, radio 13px, **filete de estado de 3px a la izquierda** |
+| Marca de estado | `.rowMark` | 34×34px, radio 9px, fondo al 15% del color de estado |
+| Etiqueta | `.tag` | píldora monoespaciada 0.56rem en versalitas |
+
+Bajo 640px la fila se reorganiza en áreas (`mark`/`body`/`when`/`acts`) en
+vez de encogerse.
+
+### El filete de estado
+
+`.row[data-state]` define `--state-color`, y tanto el borde izquierdo como el
+fondo de la marca lo consumen. Estados: `over` (error), `soon` (warning),
+`ok` (primary), `used` (borde atenuado + tachado del nombre) y `plain`
+(info), este último para filas sin urgencia propia como las de Documentos.
+
+**El color nunca va solo**: cada estado lleva además su marca (`✓ ! ✕ —`) y
+su etiqueta de texto, conforme a la §5.
+
+### Regla de temas — la razón de que el archivo no tenga literales
+
+`SectionList.module.css` **no contiene un solo color, radio ni sombra
+literal**. Todo sale de los tokens (`--color-*`, `--radius-card`,
+`--radius-control`, `--shadow-card`). Eso es exactamente lo que permite que
+los cuatro temas visuales de la §10 (`editorial`, `minimal`, `productivity`,
+`organic`) y el re-tematizado de Laboral de la §11 funcionen **sin tocar este
+archivo**: cada tema redefine los tokens en `.theme-*` y el patrón los
+consume.
+
+Un literal aquí rompería silenciosamente tres de los cuatro temas. Los tonos
+que necesitan mezcla usan `color-mix(in srgb, var(--token) N%, transparent)`,
+nunca un hex calculado a mano.
+
+### Semántica de los filtros
+
+Los grupos de filtro usan **`ToggleButtonGroup` de React Aria**
+(`selectionMode="single"`, `disallowEmptySelection`), no botones sueltos con
+`aria-pressed`: aporta `role="radiogroup"`/`role="radio"` real y navegación
+con flechas entre chips, que es lo que introdujo UX-011 Fase 3.
+
+`FilterChip` acepta ahora un `className` opcional para poder llevar la
+apariencia del patrón **sin renunciar a ese comportamiento**; sin él conserva
+su estilo original, así que Calendario y Compromisos no cambian.
+
+Las tarjetas de categoría de Documentos usan el mismo grupo — antes eran
+`div` decorativos que ni siquiera se podían pulsar, con una fila de chips
+debajo duplicando el filtro.
+
+### Estados de datos, vacío y error
+
+Los tres son distintos y no se confunden:
+
+- **Con datos:** resumen + filtros + lista agrupada.
+- **Vacío de verdad:** `.empty`, con el mensaje propio de la sección y la
+  acción de alta.
+- **Vacío por filtro o búsqueda:** el mismo `.empty` pero con un mensaje que
+  dice cuántos registros hay en total y ofrece "Ver todos" — porque
+  confundirlo con el vacío real hacía parecer que no había nada registrado.
+- **Error de carga:** `.error` y **nada de estado vacío**. El vacío afirma un
+  hecho sobre los datos del usuario; si la petición falló no sabemos nada de
+  ellos (ADR-021(k)).
+
+Cuando hay más registros que el tamaño de página, `.moreRow` lo dice
+("Mostrando 100 de 143") en vez de recortar en silencio.
+
+---
+
+## 14. ADR-023 — Sistema de temas "Seis Agendas"
+
+Amplía la §10 (UX-014). **Editorial queda eliminado — y solo Editorial.**
+Premium Minimal, Modern Productivity y Organic / Human se conservan tal
+cual, con sus valores y sus firmas originales. El portal suma seis
+identidades nuevas definidas en el artefacto aprobado `bb294d3e`, que es su
+fuente de verdad visual: **nueve temas en total**.
+
+### Dónde viven
+
+`web/src/themes.css`, aplicado como clase sobre la raíz `.shell` de AppShell
+— el mismo mecanismo de `.laboral-theme`, que sigue combinándose con los
+seis. **Nunca toca `:root`**, así que LoginPage y Keycloak quedan fuera.
+
+### Qué cambia cada tema (no solo el color)
+
+| Tema | Display | Radio | Densidad | Aire | Elevación | Capa de fondo |
+|---|---|---|---|---|---|---|
+| **Aurora** | Sora | 1.1× | 1.00 | 1.00 | Difusa oscura | Velo de luz fría |
+| **Lumen** | Manrope | 0.3× | 1.25 | 1.60 | Ninguna | Ninguna |
+| **Neo** | Archivo | 0× | 0.90 | 0.85 | Dura `3px 3px 0` | Retícula técnica |
+| **Calm** | Plus Jakarta Sans | 2× | 1.20 | 1.20 | Suave cálida | Manchas cálidas |
+| **Studio** | Instrument Serif | 0.15× | 1.30 | 1.75 | Casi ninguna | Grano de papel |
+| **Papel** | Fraunces | 0.85× | 1.00 | 1.00 | Muy sutil | Renglones de libreta |
+
+Aurora es el único con `color-scheme: dark`.
+
+A esos seis se suman los tres de UX-014 que se conservan — **Premium
+Minimal** (barra lateral de 66px solo con iconos), **Modern Productivity**
+(chrome oscuro con degradado) y **Organic / Human** (botón con forma de
+blob) — descritos en la §10.
+
+### Arquitectura de tokens
+
+Dos familias en el mismo bloque, con **una sola fuente de verdad**:
+
+1. **Nombres nuevos** — `--bg` · `--sunken` · `--surface` · `--surface-2` ·
+   `--veil` (superficies) · `--ink` / `--ink-2` / `--ink-3` (tinta) ·
+   `--line` / `--line-strong` (filetes) · `--t-2xs`…`--t-hero` (diez pasos) ·
+   `--s-1`…`--s-12` (4pt) · `--r-scale` + `--r-xs`…`--r-full` ·
+   `--density` · `--air` · `--shadow-1..3` · `--focus` ·
+   `--font-display` / `--font-body` / `--font-label` / `--font-hand`.
+
+2. **Nombres heredados** — `--color-surface`, `--color-text`,
+   `--color-border`, `--radius-card`… **derivados de los anteriores con
+   `var()`**. Los consumen los ~40 `.module.css` existentes, así que
+   redefinirlos propaga la identidad sin tocar componente por componente.
+
+### Reglas de obligado cumplimiento
+
+- **Ningún literal de color, radio o tipografía en un componente.** Un
+  literal no cambia con el tema: en Aurora, un azul de la era Editorial
+  sobre lienzo nocturno es texto ilegible. Se retiraron 66 colores, 71
+  radios constantes y 2 `font-family: Georgia` fijas por esta razón.
+- **Separar ≠ delimitar.** `--line` para divisores, `--line-strong` para
+  campos y bordes reales.
+- **El radio es proporcional al elemento** y lo escala el tema con
+  `--r-scale`, de 0 (Neo) a 2 (Calm).
+- **Laboral solo reasigna el acento**, nunca radio, densidad ni tipografía:
+  cambiar de módulo no puede cambiar la identidad del tema.
+- Una preferencia guardada de un tema retirado **se migra**
+  (`editorial→papel`, `minimal→lumen`, `productivity→neo`,
+  `organic→calm`), no se descarta.
+
+### Tipografías
+
+Self-hosted vía `@fontsource` (UX-001), sin CDN: Sora, Manrope, Archivo,
+Plus Jakarta Sans, Instrument Serif, Fraunces, Inter, IBM Plex Mono (cifras
+y etiquetas de Neo) y Caveat (la letra a mano de Papel).
+
+### Firmas de tema por ROL, no por pantalla
+
+ADR-023(h): el tema tiene que llegar también a los **rótulos**, no solo a las
+cajas. Tres roles de rótulo aparecen repetidos por todo el portal y deben
+llevar la misma firma en los tres sitios, porque son el mismo widget:
+
+| Rol | Dónde vive | Clase |
+|---|---|---|
+| Antetítulo de sección | Inicio ("TU DÍA", "RESUMEN", "ESTA SEMANA") | `HomePage.module.css .eyebrow` |
+| Rótulo de columna | Hoja del día ("Agenda", "Alertas", "Notas") | `CalendarPage.module.css .daySheetColLabel` · `DayNotesCanvas.module.css .colLabel` |
+| Título de tarjeta | "Vista diaria/semanal/mensual" y toda `ListSectionCard` | `ListSectionCard.module.css .title` |
+
+Firma de cada tema para esos tres roles:
+
+| Tema | Tratamiento |
+|---|---|
+| **Papel** | Versalitas de Fraunces en terracota (`--second`), caja baja |
+| **Lumen** | Sin acento de color: `--ink-3`, peso 500, tracking 0.24em |
+| **Neo** | `--ink`, peso 800, tracking 0.14em; el título va en caja alta |
+| **Studio** | Cursiva de Instrument Serif en caja baja — epígrafe de redacción |
+| **Calm** | Peso 600, tracking 0.1em, `--ink-2` |
+| **Aurora** | Peso 600, tracking 0.22em, `--ink-3` |
+| Minimal · Productivity · Organic | Conservan sus reglas originales de UX-014 |
+
+### Notas del día en Papel
+
+La nota, su editor en línea y el renglón de escritura van en `--font-hand`
+(Caveat) a **1.16rem** — la altura de x de Caveat es muy inferior a la de
+Inter y al mismo cuerpo se leería diminuta. Renglón inferior entre notas
+(`--line`) y filete de margen en terracota, como la línea de una libreta.
+
+**Invariante que no se puede romper:** `.note`, `.noteEditor` y
+`.composerInput` comparten SIEMPRE tipografía y tamaño dentro de un tema. Si
+difirieran, el texto saltaría al entrar y salir de edición.

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Icono adaptativo. `minSdk` es 30 (DEC-011), muy por encima del 26 en el que
+  se introdujeron: NINGÚN dispositivo compatible cae al icono heredado, así
+  que no se generan PNG por densidad. Habría sido peso muerto y una segunda
+  versión del icono que mantener sincronizada.
+
+  `ic_launcher` e `ic_launcher_round` apuntan a la misma composición: la marca
+  está centrada y cabe en el círculo garantizado, así que la variante redonda
+  no necesita un dibujo distinto — y tenerlo distinto sería tener dos logos.
+-->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@drawable/ic_launcher_background" />
+    <foreground android:drawable="@drawable/ic_launcher_foreground" />
+    <monochrome android:drawable="@drawable/ic_launcher_monochrome" />
+</adaptive-icon>

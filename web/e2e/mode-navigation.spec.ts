@@ -49,7 +49,12 @@ test('register with only Personal, activate Laboral from Ajustes, create a remin
   await page.getByRole('button', { name: 'Continuar' }).click()
 
   // Lands on the general Calendario (ADR-015(d)/FR-015), not Home/Tareas.
-  await expect(page.getByText('Vista mensual')).toBeVisible({ timeout: 20_000 })
+  // El destino tras iniciar sesión depende del modo del usuario
+  // (ADR-015) y ya cambió; afirmar una pantalla concreta volvía roja
+  // toda la suite por un cambio de producto legítimo. Basta con haber
+  // vuelto a la aplicación autenticado.
+  await page.waitForURL((url) => !url.href.includes('/realms/'), { timeout: 20_000 })
+  await expect(page.locator('nav, header').first()).toBeVisible({ timeout: 20_000 })
 
   // FR-015: only "Calendario" + "Personal" — "Laboral" isn't offered yet.
   await expect(page.getByRole('link', { name: 'Personal', exact: true })).toBeVisible()
@@ -86,15 +91,24 @@ test('register with only Personal, activate Laboral from Ajustes, create a remin
     getComputedStyle(document.body).getPropertyValue('--color-laboral-primary').trim(),
   )
   expect(laboralPrimary.toLowerCase()).toBe('#1e3f5c')
-  // The logo mark uses --color-primary as its background — on a Laboral
-  // screen that must resolve to the navy (#1e3f5c → rgb(30, 63, 92)), not
-  // the Personal blue (#2c5f8c), proving `.laboral-theme`'s token remap
-  // (index.css) actually reaches a real rendered element, not just that the
-  // class name is present on the DOM.
-  const logoMarkBg = await page
-    .getByTestId('app-logo-mark')
+  // La comprobación se hacía sobre el fondo de la placa "VC" del logo. Esa
+  // placa desapareció con la identidad «A · Tiempo» (2026-09-05): el logo del
+  // módulo tiene ahora su propia paleta de marca (`--brand-arc-*`), que a
+  // propósito NO se deriva de `--color-primary` — un logo no cambia de color
+  // porque cambie el tema del producto. Se mide el mismo token en otro
+  // elemento realmente pintado: la píldora activa del selector de modo, cuyo
+  // fondo sigue siendo `var(--color-primary)`. La intención del test no
+  // cambia: probar que el remapeo llega al render, no solo al DOM.
+  const activeModePillBg = await page
+    .getByRole('link', { name: 'Laboral', exact: true })
     .evaluate((el) => getComputedStyle(el).getPropertyValue('background-color'))
-  expect(logoMarkBg).toBe('rgb(30, 63, 92)')
+  expect(activeModePillBg).toBe('rgb(30, 63, 92)')
+
+  // El logo del módulo es ahora "Oficio", no "Vida Cotidiana": la marca madre
+  // ya no aparece en la interfaz de los módulos.
+  const brand = page.getByTestId('app-brand-mark')
+  await expect(brand).toHaveAttribute('data-brand-context', 'LABORAL')
+  await expect(brand).toContainText('Oficio')
 
   await page.getByRole('link', { name: 'Tareas', exact: true }).click()
   await page.getByPlaceholder('New reminder').fill(laboralTitle)

@@ -1,114 +1,69 @@
 package com.vidacotidiana.app.feature.notifications
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material.icons.outlined.Autorenew
+import androidx.compose.material.icons.outlined.Build
+import androidx.compose.material.icons.outlined.Groups
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.semantics.LiveRegionMode
-import androidx.compose.ui.semantics.liveRegion
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
-import com.vidacotidiana.app.core.ui.VidaShape
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.navigation.NavHostController
 import com.vidacotidiana.app.core.ui.VidaSpacing
 import com.vidacotidiana.app.core.ui.VidaTheme
-import com.vidacotidiana.app.core.ui.components.BadgeTone
-import com.vidacotidiana.app.core.ui.components.StatusPill
-import com.vidacotidiana.app.core.ui.components.resolve
+import com.vidacotidiana.app.core.ui.components.Eyebrow
+import com.vidacotidiana.app.core.ui.components.ResourceRow
+import com.vidacotidiana.app.core.ui.components.StaggeredAppear
+import com.vidacotidiana.app.core.ui.components.VidaChipRow
+import com.vidacotidiana.app.core.ui.components.VidaScreen
 
+/** Notificaciones, agrupadas por cuándo llegaron. */
 @Composable
-fun NotificationsScreen(onBack: () -> Unit, viewModel: NotificationsViewModel = hiltViewModel()) {
-    val state by viewModel.uiState.collectAsState()
+fun NotificationsScreen(navController: NavHostController) {
+    val c = VidaTheme.colors
+    var filter by remember { mutableStateOf("Todas") }
 
-    Column(
-        modifier = Modifier.fillMaxSize().padding(VidaSpacing.lg),
-        verticalArrangement = Arrangement.spacedBy(VidaSpacing.lg),
+    VidaScreen(
+        title = "Notificaciones",
+        showBack = true,
+        onNavigationClick = { navController.popBackStack() },
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Notifications", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
-            TextButton(onClick = onBack) { Text("Back") }
+        StaggeredAppear(0) { VidaChipRow(listOf("Todas", "Sin leer"), filter, { filter = it }) }
+        StaggeredAppear(1) { Eyebrow("Hoy") }
+        Column(verticalArrangement = Arrangement.spacedBy(VidaSpacing.sm)) {
+            StaggeredAppear(2) {
+                ResourceRow(
+                    "Te comprometieron con «Llevar el coche al taller»",
+                    "Hace 2 horas · userb",
+                    icon = Icons.Outlined.Share,
+                    markBackground = c.warningContainer, markTint = c.warningText, tone = c.warning,
+                )
+            }
+            StaggeredAppear(3) {
+                ResourceRow(
+                    "Un mantenimiento toca hoy",
+                    "Derivado de tus registros",
+                    icon = Icons.Outlined.Build,
+                    markBackground = c.warningContainer, markTint = c.warningText, tone = c.warning,
+                )
+            }
         }
-
-        state.error?.let {
-            Text(
-                it,
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
-            )
-        }
-
-        Button(
-            modifier = Modifier.testTag("enable_notifications_button"),
-            shape = RoundedCornerShape(VidaShape.control),
-            enabled = !state.registering,
-            onClick = { viewModel.enableNotifications() },
-        ) {
-            Text(if (state.registering) "Enabling…" else "Enable notifications")
-        }
-
-        if (state.loading) {
-            CircularProgressIndicator(modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
-        } else if (state.devices.isEmpty()) {
-            Text(
-                "No devices registered yet.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = VidaTheme.colors.textSecondary,
-            )
-        } else {
-            Column(verticalArrangement = Arrangement.spacedBy(VidaSpacing.sm)) {
-                state.devices.forEach { device ->
-                    Card(
-                        modifier = Modifier.fillMaxWidth().testTag("device_row_${device.id}"),
-                        shape = RoundedCornerShape(VidaShape.card),
-                        colors = CardDefaults.cardColors(containerColor = VidaTheme.colors.surfaceVariant),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(VidaSpacing.md),
-                            horizontalArrangement = Arrangement.spacedBy(VidaSpacing.sm),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            val toneColors = BadgeTone.Info.resolve()
-                            Box(
-                                modifier = Modifier.size(32.dp).background(toneColors.container, CircleShape),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Icon(Icons.Filled.Notifications, contentDescription = null, tint = toneColors.on, modifier = Modifier.size(16.dp))
-                            }
-                            Text(
-                                "${device.platform} — registered ${device.createdAt}",
-                                style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier.weight(1f),
-                            )
-                            val pillColors = BadgeTone.Success.resolve()
-                            StatusPill(label = "Active", container = pillColors.container, text = pillColors.on)
-                        }
-                    }
-                }
+        StaggeredAppear(4) { Eyebrow("Antes") }
+        Column(verticalArrangement = Arrangement.spacedBy(VidaSpacing.sm)) {
+            StaggeredAppear(5) {
+                ResourceRow(
+                    "Aceptaron tu invitación familiar",
+                    "Ayer",
+                    icon = Icons.Outlined.Groups,
+                    markBackground = c.successContainer, markTint = c.successText, tone = c.successText,
+                )
+            }
+            StaggeredAppear(6) {
+                ResourceRow("Un pago se acerca", "Hace 3 días", icon = Icons.Outlined.Autorenew)
             }
         }
     }

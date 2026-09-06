@@ -1,19 +1,48 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
 
-export type VisualTheme = 'editorial' | 'minimal' | 'productivity' | 'organic'
+export type VisualTheme =
+  // ADR-023 — las seis agendas aprobadas.
+  | 'aurora' | 'lumen' | 'neo' | 'calm' | 'studio' | 'papel'
+  // UX-014 — los tres que se conservan. Solo Editorial se eliminó.
+  | 'minimal' | 'productivity' | 'organic'
 
 export const VISUAL_THEMES: Array<{ id: VisualTheme; label: string; tagline: string; swatch: string }> = [
-  { id: 'editorial', label: 'Editorial', tagline: 'Agenda de papel premium', swatch: '#2c5f8c' },
+  { id: 'aurora', label: 'Aurora', tagline: 'Noche premium', swatch: '#84b0ff' },
+  { id: 'lumen', label: 'Lumen', tagline: 'Aire y tipografía', swatch: '#0f1012' },
+  { id: 'neo', label: 'Neo', tagline: 'Cartel de alto contraste', swatch: '#ff3b18' },
+  { id: 'calm', label: 'Calm', tagline: 'Cálido y orgánico', swatch: '#7d8f68' },
+  { id: 'studio', label: 'Studio', tagline: 'Revista', swatch: '#96412f' },
+  { id: 'papel', label: 'Papel', tagline: 'Cuaderno', swatch: '#bb6440' },
+  // UX-014: se conservan junto a las seis nuevas — el Product Owner pidió
+  // eliminar únicamente Editorial.
   { id: 'minimal', label: 'Premium Minimal', tagline: 'Escala dramática', swatch: '#23425f' },
   { id: 'productivity', label: 'Modern Productivity', tagline: 'Centro de control', swatch: '#2c5f8c' },
   { id: 'organic', label: 'Organic / Human', tagline: 'Formas vivas', swatch: '#5b7a5e' },
 ]
 
+/**
+ * ADR-023: **Editorial** es el único tema eliminado. Una preferencia ya
+ * guardada apuntaría a un tema inexistente y dejaría el portal sin clase de
+ * tema, así que se traduce a Papel —el candidato más cercano en intención,
+ * la misma agenda de papel cálido— en vez de descartarse en silencio.
+ */
+const RETIRED: Record<string, VisualTheme> = {
+  editorial: 'papel',
+}
+
 const STORAGE_KEY = 'vidacotidiana.visualTheme'
-const DEFAULT_THEME: VisualTheme = 'editorial'
+const DEFAULT_THEME: VisualTheme = 'papel'
 
 function isVisualTheme(value: string | null): value is VisualTheme {
-  return value === 'editorial' || value === 'minimal' || value === 'productivity' || value === 'organic'
+  return VISUAL_THEMES.some((theme) => theme.id === value)
+}
+
+/** Resuelve lo que hay guardado: tema válido, tema retirado que se migra, o
+    el valor por defecto. */
+function resolveStored(stored: string | null): VisualTheme {
+  if (isVisualTheme(stored)) return stored
+  if (stored && stored in RETIRED) return RETIRED[stored]
+  return DEFAULT_THEME
 }
 
 interface VisualThemeContextValue {
@@ -48,7 +77,7 @@ export function VisualThemeProvider({ children }: { children: ReactNode }) {
     // here must fall back to the default, not crash the app.
     try {
       const stored = typeof window !== 'undefined' ? window.localStorage.getItem(STORAGE_KEY) : null
-      return isVisualTheme(stored) ? stored : DEFAULT_THEME
+      return resolveStored(stored)
     } catch {
       return DEFAULT_THEME
     }

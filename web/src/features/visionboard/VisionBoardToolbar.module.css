@@ -567,6 +567,24 @@
 
   max-width: calc(100vw - 32px);
 
+  /* 2026-09-02 — el panel se desbordaba fuera de la pantalla y obligaba a
+     hacer zoom para llegar a las opciones de abajo. Tenía el ancho acotado
+     pero NI altura máxima NI scroll, así que crecía tanto como su
+     contenido: el paso de Editar forma, con su selector de ~30 variantes
+     más las paletas de color, se salía del viewport en cuanto la ventana
+     no era alta.
+
+     `dvh` y no `vh` a propósito: en móvil `100vh` es el viewport GRANDE
+     (con la barra del navegador ya retraída), así que un panel medido en
+     `vh` sigue desbordando justo en las pantallas donde más molesta.
+
+     El 70% deja el panel claramente por debajo de la altura total, como
+     pide el requisito: no debe ocupar la pantalla entera. */
+  max-height: min(70dvh, calc(100dvh - 96px));
+  overflow-y: auto;
+  /* El scroll del panel no arrastra el del lienzo que hay detrás. */
+  overscroll-behavior: contain;
+
   padding: 16px;
 
   border:

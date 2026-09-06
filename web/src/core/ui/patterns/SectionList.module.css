@@ -1,0 +1,748 @@
+/* =====================================================================
+   PATRÓN DE LISTA DE SECCIÓN (ADR-022)
+
+   Implementa el prototipo aprobado de Garantías, Inventario y Documentos
+   (artifact ebd2e1a2) con las mismas medidas que ya usa Mantenimiento
+   (ADR-021): resumen 1.3fr/1fr/1fr, filas con marca de 34px y separación de
+   7px, radios de 13px, filete de estado de 3px.
+
+   VIVE EN `core/ui/patterns` Y NO EN CADA FEATURE porque las tres secciones
+   comparten exactamente la misma estructura visual: tenerlo tres veces
+   garantizaba que se desincronizaran a la primera corrección.
+
+   REGLA DE TEMAS: aquí no hay un solo color, radio ni sombra literal. Todo
+   sale de los tokens (`--color-*`, `--radius-*`, `--shadow-card`), que es lo
+   que permite que los cuatro temas visuales (editorial, minimal,
+   productivity, organic) y el re-tematizado de Laboral funcionen sin tocar
+   este archivo. Un literal aquí rompería silenciosamente tres temas.
+   ===================================================================== */
+
+.error {
+  margin: 0 0 var(--space-3);
+  padding: var(--space-2) var(--space-3);
+
+  border: 1px solid color-mix(in srgb, var(--color-error) 30%, transparent);
+  border-left: 3px solid var(--color-error);
+  border-radius: 12px;
+
+  background: var(--color-error-container);
+  color: var(--color-error);
+
+  font-size: 0.8125rem;
+}
+
+.error strong {
+  display: block;
+  margin-bottom: 2px;
+}
+
+.hint {
+  margin: 0;
+  padding: var(--space-4) 0;
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+}
+
+/* ---------------- Resumen ---------------- */
+
+.summary {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr 1fr;
+  gap: 11px;
+  margin-bottom: 18px;
+}
+
+@media (max-width: 640px) {
+  .summary { grid-template-columns: 1fr; }
+}
+
+.summaryCard {
+  min-width: 0;
+  padding: 13px 15px;
+
+  border: 1px solid color-mix(in srgb, var(--color-border) 30%, transparent);
+  border-radius: 13px;
+
+  background: var(--color-surface-variant);
+}
+
+.summaryLead {
+  border-color: color-mix(in srgb, var(--color-primary) 40%, transparent);
+}
+
+.summaryLabel {
+  display: block;
+  margin-bottom: 5px;
+
+  color: var(--color-text-secondary);
+
+  font-family: var(--font-mono);
+  font-size: 0.59rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.summaryValue {
+  margin: 0;
+
+  color: var(--color-text);
+
+  font-family: var(--font-serif);
+  font-size: 1.3rem;
+  font-weight: 500;
+  line-height: 1.1;
+
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.summaryMeta {
+  margin: 2px 0 0;
+  color: var(--color-text-secondary);
+  font-size: 0.72rem;
+}
+
+/* ---------------- Controles ---------------- */
+
+.controls {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.filters {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+.chip {
+  padding: 5px 12px;
+  min-height: 0;
+
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+
+  background: transparent;
+  color: var(--color-text-secondary);
+
+  font-size: 0.75rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.chip[data-hovered]:not([data-selected]) {
+  border-color: var(--color-primary);
+}
+
+.chip[data-focus-visible] {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* `data-on` lo pone un botón propio; `data-selected` lo pone el
+   ToggleButton de React Aria. Se cubren los dos para que el mismo estilo
+   sirva con o sin la semántica de grupo. */
+.chip[data-on],
+.chip[data-selected] {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-on-primary);
+  font-weight: 600;
+}
+
+.search {
+  position: relative;
+  flex: 1 1 220px;
+  min-width: 180px;
+}
+
+.searchInput {
+  width: 100%;
+  padding: 7px 12px 7px 30px;
+
+  border: 1px solid color-mix(in srgb, var(--color-border) 45%, transparent);
+  border-radius: var(--radius-control);
+
+  background: var(--color-surface-variant);
+  color: var(--color-text);
+
+  font-family: inherit;
+  font-size: 0.8125rem;
+}
+
+.searchInput:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -1px;
+  border-color: var(--color-primary);
+}
+
+.searchIcon {
+  position: absolute;
+  left: 9px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-text-secondary);
+  pointer-events: none;
+}
+
+/* ---------------- Tarjetas de categoría ---------------- */
+
+/* ADR-022: estas tarjetas mostraban un recuento y NO eran pulsables, con
+   una fila de chips justo debajo que sí filtraba — dos navegaciones para lo
+   mismo y una muerta. Ahora la tarjeta ES el filtro y los chips desaparecen. */
+.categoryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 7px;
+  margin-bottom: 16px;
+}
+
+.categoryCard {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  padding: 11px 13px;
+
+  border: 1px solid color-mix(in srgb, var(--color-border) 30%, transparent);
+  border-radius: 13px;
+
+  background: var(--color-surface-variant);
+  color: var(--color-text);
+
+  text-align: left;
+  cursor: pointer;
+}
+
+.categoryCard:hover,
+.categoryCard[data-hovered]:not([data-selected]) {
+  border-color: var(--color-primary);
+}
+
+.categoryCard[data-focus-visible] {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.categoryCard[data-on],
+.categoryCard[data-selected] {
+  background: var(--color-primary-container);
+  border-color: var(--color-primary);
+}
+
+.categoryName {
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.categoryCount {
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------- Grupos y filas ---------------- */
+
+.group { margin-bottom: var(--space-4); }
+
+.groupLabel {
+  margin: 18px 0 8px;
+
+  color: var(--color-text-secondary);
+
+  font-family: var(--font-mono);
+  font-size: 0.59rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 34px 1fr auto auto;
+  align-items: center;
+  gap: 12px;
+
+  padding: 11px 14px;
+
+  border: 1px solid color-mix(in srgb, var(--color-border) 28%, transparent);
+  border-left: 3px solid var(--state-color, var(--color-border));
+  border-radius: 13px;
+
+  background: var(--color-surface-variant);
+}
+
+.row[data-state='over']  { --state-color: var(--color-error); }
+.row[data-state='soon']  { --state-color: var(--color-warning, #8a5a12); }
+.row[data-state='ok']    { --state-color: var(--color-primary); }
+.row[data-state='used']  { --state-color: var(--color-border); opacity: 0.62; }
+.row[data-state='plain'] { --state-color: var(--color-info, #2f5f66); }
+
+.row[data-state='used'] .rowName {
+  text-decoration: line-through;
+}
+
+.rowMark {
+  display: grid;
+  place-items: center;
+
+  width: 34px;
+  height: 34px;
+
+  border-radius: 9px;
+
+  background: color-mix(in srgb, var(--state-color) 15%, transparent);
+  color: var(--state-color);
+
+  font-size: 0.94rem;
+}
+
+.rowBody { min-width: 0; }
+
+.rowName {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+
+  margin: 0;
+
+  color: var(--color-text);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.rowMeta {
+  margin: 1px 0 0;
+
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rowWhen {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.rowActions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.tag {
+  padding: 2px 7px;
+
+  border-radius: 999px;
+
+  font-family: var(--font-mono);
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+
+  background: color-mix(in srgb, var(--color-text) 10%, transparent);
+  color: var(--color-text-secondary);
+}
+
+.tag[data-t='over'] { background: var(--color-error-container); color: var(--color-error); }
+.tag[data-t='soon'] { background: color-mix(in srgb, var(--color-warning, var(--warn)) 18%, transparent); color: var(--color-warning, var(--warn)); }
+.tag[data-t='ok']   { background: color-mix(in srgb, var(--color-success, var(--ok)) 16%, transparent); color: var(--color-success, var(--ok)); }
+.tag[data-t='used'] { background: color-mix(in srgb, var(--color-text) 10%, transparent); color: var(--color-text-secondary); }
+.tag[data-t='link'] { background: color-mix(in srgb, var(--color-terracotta) 16%, transparent); color: var(--color-terracotta-text, var(--color-terracotta)); }
+
+.actionButton {
+  padding: 5px 11px;
+  min-height: 0;
+
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+
+  background: transparent;
+  color: var(--color-text);
+
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.actionButton:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.actionButton:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.actionPrimary {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+.actionPrimary:hover:not(:disabled) {
+  filter: brightness(1.08);
+  color: var(--color-on-primary);
+}
+
+.iconButton {
+  display: grid;
+  place-items: center;
+
+  width: 28px;
+  height: 28px;
+  padding: 0;
+
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.iconButton:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+/* ---------------- Vacío, aviso y paginación ---------------- */
+
+.empty {
+  padding: 34px 20px;
+
+  border: 1px dashed var(--color-border);
+  border-radius: 13px;
+
+  background: var(--color-surface-variant);
+  text-align: center;
+}
+
+.empty h3 {
+  margin: 0 0 5px;
+
+  color: var(--color-text);
+
+  font-family: var(--font-serif);
+  font-size: 1.1rem;
+  font-weight: 500;
+}
+
+.empty p {
+  margin: 0 auto;
+  max-width: 40ch;
+
+  color: var(--color-text-secondary);
+  font-size: 0.82rem;
+}
+
+.emptyAction {
+  margin-top: 16px;
+  display: flex;
+  justify-content: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+.pageAction { margin-top: var(--space-4); }
+
+.toast {
+  margin-top: 14px;
+  padding: 11px 14px;
+
+  border: 1px solid color-mix(in srgb, var(--color-success, #4d6b46) 30%, transparent);
+  border-radius: 12px;
+
+  background: color-mix(in srgb, var(--color-success, var(--ok)) 12%, transparent);
+  color: var(--color-success, var(--ok));
+
+  font-size: 0.82rem;
+}
+
+.toast[data-kind='undo'] {
+  border-color: color-mix(in srgb, var(--color-primary) 30%, transparent);
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  color: var(--color-primary);
+}
+
+/* Con más registros que el tamaño de página, decirlo en vez de recortar en
+   silencio — que es lo que hacía el filtrado en cliente. */
+.moreRow {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+
+  margin-top: 12px;
+
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+}
+
+.primaryButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+
+  padding: 8px 16px;
+
+  border: 1px solid var(--color-primary);
+  border-radius: 999px;
+
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.primaryButton:hover {
+  filter: brightness(1.08);
+}
+
+@media (max-width: 640px) {
+  .row {
+    grid-template-columns: 34px 1fr auto;
+    grid-template-areas:
+      'mark body when'
+      'mark acts acts';
+    row-gap: 8px;
+  }
+  .rowMark { grid-area: mark; }
+  .rowBody { grid-area: body; }
+  .rowWhen { grid-area: when; }
+  .rowActions { grid-area: acts; justify-content: flex-end; flex-wrap: wrap; }
+}
+
+/* ==========================================================================
+   ADR-023 — FIRMAS DE TEMA (artifact bb294d3e)
+
+   El patrón de lista es el que más cambia entre agendas: en el artefacto no
+   se listan igual. Aurora usa cápsulas flotantes, Lumen solo un filete y
+   aire, Neo bloques encadenados con sombra dura, Calm filas mullidas,
+   Studio reglas y serif, Papel los renglones del cuaderno.
+   ========================================================================== */
+
+/* Aurora — cápsulas flotantes separadas, con filo de luz interior. */
+:global(.theme-aurora) .rows { gap: 7px; }
+:global(.theme-aurora) .row {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+:global(.theme-aurora) .row:hover {
+  background: var(--surface-2);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-2), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+:global(.theme-aurora) .rows.flush .row { background: transparent; box-shadow: none; }
+
+/* Lumen — sin caja: filete y el doble de aire; la fila se desplaza al pasar. */
+:global(.theme-lumen) .rows.flush,
+:global(.theme-studio) .rows.flush {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+:global(.theme-lumen) .row {
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  padding: calc(var(--row-y) * 1.5) 0;
+}
+:global(.theme-lumen) .row:hover { padding-left: 10px; background: transparent; }
+
+/* Neo — bloques encadenados; al pasar el cursor salta y proyecta sombra. */
+:global(.theme-neo) .row {
+  border: 2px solid var(--ink);
+  background: var(--surface);
+  border-radius: 0;
+  margin-bottom: -2px;
+}
+:global(.theme-neo) .row:hover {
+  background: var(--second-soft);
+  transform: translate(-2px, -2px);
+  box-shadow: 4px 4px 0 var(--ink);
+  position: relative;
+  z-index: 2;
+}
+:global(.theme-neo) .rows.flush { border: 2px solid var(--ink); border-radius: 0; }
+:global(.theme-neo) .rows.flush .row { border: 0; border-bottom: 2px solid var(--ink); margin-bottom: 0; }
+:global(.theme-neo) .rows.flush .row:last-child { border-bottom: 0; }
+
+/* Calm — filas mullidas y redondas que se elevan. */
+:global(.theme-calm) .rows { gap: 6px; }
+:global(.theme-calm) .row {
+  background: var(--surface);
+  border-color: transparent;
+  border-radius: var(--r-xl);
+  padding: var(--row-y) var(--s-7);
+  box-shadow: var(--shadow-1);
+}
+:global(.theme-calm) .row:hover { box-shadow: var(--shadow-2); transform: translateY(-1px); }
+
+/* Studio — reglas finas y títulos en serif que pasan a cursiva. */
+:global(.theme-studio) .row {
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  padding: calc(var(--row-y) * 1.4) 0;
+}
+:global(.theme-studio) .rowName { font-family: var(--font-display); font-weight: 400; font-size: var(--t-md); letter-spacing: 0; }
+:global(.theme-studio) .row:hover .rowName { font-style: italic; }
+
+/* Papel — los renglones del cuaderno. */
+:global(.theme-papel) .row {
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  padding: calc(var(--row-y) * 1.15) var(--s-3);
+}
+:global(.theme-papel) .row:hover { background: var(--veil); }
+:global(.theme-papel) .rows.flush { background: transparent; }
+
+/* --- Marca de estado y tarjetas --- */
+:global(.theme-calm) .rowMark { border-radius: 50%; }
+:global(.theme-neo) .rowMark { border-radius: 0; border: 2px solid currentColor; }
+:global(.theme-studio) .rowMark { background: transparent; border: 1px solid var(--line-strong); color: var(--ink-2); border-radius: 0; }
+
+:global(.theme-lumen) .summaryCard,
+:global(.theme-studio) .summaryCard {
+  background: transparent;
+  border: 0;
+  border-top: 1px solid var(--line-strong);
+  border-radius: 0;
+  padding: var(--s-7) 0 0;
+}
+:global(.theme-neo) .summaryCard { border: 2px solid var(--ink); border-radius: 0; }
+:global(.theme-calm) .summaryCard { border-color: transparent; box-shadow: var(--shadow-1); }
+:global(.theme-aurora) .summaryCard { box-shadow: var(--shadow-1), inset 0 1px 0 rgba(255, 255, 255, 0.06); }
+
+/* --- Chips --- */
+:global(.theme-neo) .chip {
+  border-radius: 0;
+  border: 2px solid var(--ink);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: var(--t-2xs);
+  text-transform: uppercase;
+  background: var(--surface);
+}
+:global(.theme-studio) .chip {
+  border-radius: 0;
+  background: transparent;
+  border-color: var(--line-strong);
+  text-transform: uppercase;
+  letter-spacing: 0.13em;
+  font-size: var(--t-2xs);
+}
+:global(.theme-papel) .chip { border-radius: 20px 18px 22px 19px; }
+/* El estado seleccionado se reafirma DESPUÉS del tratamiento del tema: si no,
+   el fondo del tema pisa al del estado y el texto queda ilegible. */
+:global(.theme-neo) .chip[data-on],
+:global(.theme-neo) .chip[data-selected],
+:global(.theme-studio) .chip[data-on],
+:global(.theme-studio) .chip[data-selected] {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--surface);
+}
+
+/* --- Etiquetas --- */
+:global(.theme-neo) .tag { border-radius: 0; border: 1.5px solid currentColor; background: transparent; }
+:global(.theme-lumen) .tag { background: transparent; border: 1px solid currentColor; }
+:global(.theme-studio) .tag { background: transparent; border-radius: 0; letter-spacing: 0.14em; padding: 2px 0; border-bottom: 1px solid currentColor; }
+:global(.theme-papel) .tag { border-radius: 12px 10px 13px 11px; }
+
+/* --- Vacío y aviso --- */
+:global(.theme-neo) .empty { border: 2px dashed var(--ink); border-radius: 0; background: transparent; }
+:global(.theme-lumen) .empty,
+:global(.theme-studio) .empty { background: transparent; border-style: dashed; }
+:global(.theme-neo) .error { border: 2px solid var(--ink); border-left-width: 8px; border-radius: 0; }
+:global(.theme-studio) .error { background: transparent; border: 0; border-left: 2px solid var(--second); border-radius: 0; }
+:global(.theme-lumen) .error { background: transparent; border: 0; border-left: 1px solid var(--ink); border-radius: 0; }
+:global(.theme-papel) .error { border-radius: 10px 12px 9px 11px; border-left-width: 4px; }
+
+/* --- Botones de acción y barra de progreso --- */
+.actionButton { border-radius: var(--btn-r, 999px); }
+:global(.theme-neo) .actionButton {
+  border: 2px solid var(--ink);
+  font-weight: 700;
+  box-shadow: 3px 3px 0 var(--ink);
+}
+:global(.theme-neo) .actionButton:hover:not(:disabled) { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--ink); }
+:global(.theme-neo) .actionButton:active:not(:disabled) { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--ink); }
+:global(.theme-studio) .actionButton { text-transform: uppercase; letter-spacing: 0.14em; font-size: var(--t-2xs); font-weight: 600; }
+:global(.theme-aurora) .actionPrimary:hover:not(:disabled) { box-shadow: 0 0 0 1px var(--accent), 0 8px 26px -8px var(--accent); }
+
+
+/* ADR-025 §7 — casilla de selección de fila (Documentos).
+
+   `.row` es una REJILLA de cuatro columnas (marca, cuerpo, fecha, acciones).
+   Añadir la casilla como quinto hijo sin declarar su columna la empujaba a una
+   segunda fila implícita y descuadraba la tarjeta entera. Por eso la columna se
+   declara aquí, y solo en las filas que de verdad llevan casilla: el resto de
+   las secciones que comparten esta hoja no cambian ni un píxel. */
+.row[data-select] {
+  grid-template-columns: 26px 34px 1fr auto auto;
+}
+.rowSelect {
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  min-height: 0;
+
+  border: none;
+  border-radius: var(--radius-control);
+
+  background: transparent;
+  color: var(--color-text-secondary);
+
+  cursor: pointer;
+}
+
+.rowSelect:hover {
+  background: color-mix(in srgb, var(--color-text) 7%, transparent);
+  color: var(--color-text);
+}
+
+.rowSelect[aria-pressed='true'] {
+  color: var(--color-primary);
+}
+
+.rowSelect:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}

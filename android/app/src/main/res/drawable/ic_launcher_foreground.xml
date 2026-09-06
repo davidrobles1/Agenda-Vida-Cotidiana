@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ADR-024 - el arco del día con el punto en el cenit: la identidad del Portal.
+
+  GEOMETRÍA, no reinterpretación. Es el trazado de `BrandMark.tsx`
+  (`viewBox 0 0 38 16`, arco `M4 14 A 15 9 0 0 1 34 14`, punto en `pos 0.5`)
+  escalado x1.933 al lienzo de 108 del icono adaptativo. El punto cae en
+  (54, 48.6), que es exactamente el vértice del arco: se APOYA en él, como en
+  el logo, no flota encima.
+
+  TRES AJUSTES, y solo tres, todos por el tamaño:
+
+   1. La tinta ocupa 58 de 108 de ancho. Un icono adaptativo se recorta a la
+      zona central, así que dibujar la marca a su proporción de pantalla la
+      dejaba diminuta dentro de la máscara.
+
+   2. La marca se centra ÓPTICAMENTE, no por caja. Un arco es hueco: la masa
+      de su trazo está arriba, y centrar su rectángulo envolvente lo hacía
+      parecer alto con un hueco abajo. La tinta va de y 42.4 a 66, cuyo centro
+      (54.2) compensa ese desequilibrio.
+
+   3. El trazo sube de 1.6 a 4.2 y el arco pasa del 38 % al 75 % de opacidad:
+      a 48 dp el grosor escalado literalmente se rompe y ese 38 % desaparece
+      contra la crema, dejando solo el punto flotando. La relación entre las
+      dos piezas -arco tenue, punto rotundo- se conserva, solo que en el
+      registro que el tamaño pequeño admite.
+
+  Extremos del arco en x 25 y 83: dentro del círculo de 66 dp que TODAS las
+  máscaras garantizan, así que ni la circular ni la cuadrada ni la squircle
+  recortan nada.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- El arco del día. Ocre de mediodía, el acento del Portal. -->
+    <path
+        android:pathData="M25,66 A29,17.4 0 0 1 83,66"
+        android:strokeColor="#8A6D3B"
+        android:strokeWidth="4.2"
+        android:strokeAlpha="0.75"
+        android:strokeLineCap="round" />
+
+    <!-- El punto en el cenit: lo único que distingue a Jornada. -->
+    <path
+        android:pathData="M47.8,48.6 a6.2,6.2 0 1,1 12.4,0 a6.2,6.2 0 1,1 -12.4,0 z"
+        android:fillColor="#8A6D3B" />
+</vector>

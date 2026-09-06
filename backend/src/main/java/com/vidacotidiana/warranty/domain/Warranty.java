@@ -52,6 +52,16 @@ public class Warranty {
     @Column(nullable = false)
     private ModuleContext context = ModuleContext.PERSONAL;
 
+    /**
+     * ADR-022: artículo del inventario que cubre esta garantía. Nulo =
+     * sin enlazar, que es como quedan todas las garantías anteriores a
+     * esta relación. Se guarda el id y no la entidad para no arrastrar el
+     * agregado Inventario dentro de Garantías: son dos módulos
+     * independientes y el vínculo es una referencia, no una composición.
+     */
+    @Column(name = "inventory_item_id")
+    private UUID inventoryItemId;
+
     @Version
     @Column(nullable = false)
     private int version;
@@ -102,6 +112,19 @@ public class Warranty {
 
     public UUID getOwnerUserId() {
         return ownerUserId;
+    }
+
+    public UUID getInventoryItemId() {
+        return inventoryItemId;
+    }
+
+    /** ADR-022: enlazar o desenlazar el artículo cubierto. `null` desenlaza
+        de forma explícita, a diferencia de los campos de `applyEdit`, donde
+        `null` significa "no tocar" — aquí desenlazar es una acción real que
+        el usuario puede pedir desde el diálogo. */
+    public void linkInventoryItem(UUID inventoryItemId) {
+        this.inventoryItemId = inventoryItemId;
+        this.updatedAt = Instant.now();
     }
 
     public ModuleContext getContext() {

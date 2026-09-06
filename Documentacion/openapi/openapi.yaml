@@ -2305,6 +2305,462 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+  # ---------------------------------------------------------------------------
+  # ADR-025 — Familia y Compartidos
+  # ---------------------------------------------------------------------------
+  /users/search:
+    get:
+      summary: >
+        Search people by username, to invite them to a family (ADR-025 §1).
+        Never returns an email address: the caller only learns the username
+        they already typed, so this is not an email-enumeration surface
+        (SEC-001).
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: query
+          name: q
+          required: true
+          description: >
+            At least 5 characters. Enforced server-side, not only in the UI:
+            the minimum exists to keep this query off the full user table,
+            and a client-only rule protects nobody.
+          schema:
+            type: string
+            minLength: 5
+      responses:
+        '200':
+          description: At most 10 matches, prefix-matched on username.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserSearchResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /family/members:
+    get:
+      summary: The accepted members of the caller's family.
+      security:
+        - keycloakBearer: []
+      responses:
+        '200':
+          description: Family members.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FamilyMember'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /family/members/{userId}:
+    delete:
+      summary: >
+        Undo a family link. Symmetric — both rows are removed. Resources
+        already shared with that person are NOT revoked: cascading away
+        access the owner granted on purpose is not a decision this endpoint
+        gets to make (revoke them from Compartidos).
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Link removed.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /family/invitations:
+    post:
+      summary: Invite someone (by user id) to the caller's family.
+      security:
+        - keycloakBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId]
+              properties:
+                userId:
+                  type: string
+                  format: uuid
+      responses:
+        '201':
+          description: Invitation created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FamilyInvitation'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /family/invitations/sent:
+    get:
+      summary: Pending invitations the caller sent (shown in Familia).
+      security:
+        - keycloakBearer: []
+      responses:
+        '200':
+          description: Pending invitations.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FamilyInvitation'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /family/invitations/received:
+    get:
+      summary: >
+        Pending invitations the caller received (shown in Configuración,
+        ADR-025 §1).
+      security:
+        - keycloakBearer: []
+      responses:
+        '200':
+          description: Pending invitations.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FamilyInvitation'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /family/invitations/{id}/accept:
+    post:
+      summary: >
+        Accept an invitation (recipient only). Creates the symmetric link.
+        The PENDING transition is a single conditional UPDATE, so a second
+        concurrent resolution gets 410, never a duplicate link.
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Accepted.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '410':
+          description: The invitation is no longer pending.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /family/invitations/{id}/reject:
+    post:
+      summary: Reject an invitation (recipient only). Never creates a link.
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Rejected.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '410':
+          description: The invitation is no longer pending.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /family/invitations/{id}:
+    delete:
+      summary: Cancel an invitation the caller sent.
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Cancelled.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '410':
+          description: The invitation is no longer pending.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /shared-resources/received:
+    get:
+      summary: >
+        Resources a family member shared with the caller (ADR-025 §3). The
+        resource itself is NOT duplicated — each row is the sharing relation
+        plus the resource's own label and date.
+      security:
+        - keycloakBearer: []
+      responses:
+        '200':
+          description: Active shares where the caller is the collaborator.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ResourceShare'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /shared-resources/sent:
+    get:
+      summary: Resources the caller shared with family members.
+      security:
+        - keycloakBearer: []
+      responses:
+        '200':
+          description: Active shares where the caller is the owner.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ResourceShare'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /shared-resources/{type}/{resourceId}:
+    get:
+      summary: Who a given resource is shared with (owner only).
+      security:
+        - keycloakBearer: []
+      parameters:
+        - $ref: '#/components/parameters/SharedResourceTypeParam'
+        - $ref: '#/components/parameters/SharedResourceIdParam'
+      responses:
+        '200':
+          description: Active shares on that resource.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ResourceShare'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      summary: >
+        Share a resource the caller owns with a family member. `responsibility`
+        commits that person to doing their part; it is rejected for
+        INVENTORY_ITEM and DOCUMENT, where there is nothing to do (ADR-025
+        §5/§6) — enforced in the service AND by a database check constraint.
+      security:
+        - keycloakBearer: []
+      parameters:
+        - $ref: '#/components/parameters/SharedResourceTypeParam'
+        - $ref: '#/components/parameters/SharedResourceIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [collaboratorUserId]
+              properties:
+                collaboratorUserId:
+                  type: string
+                  format: uuid
+                responsibility:
+                  type: boolean
+                  default: false
+      responses:
+        '201':
+          description: Shared.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceShare'
+        '400':
+          description: >
+            Not a family member, or responsibility asked for a resource type
+            that does not support it.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /shared-resources/shares/{shareId}:
+    patch:
+      summary: Change whether the collaborator is committed (owner only).
+      security:
+        - keycloakBearer: []
+      parameters:
+        - $ref: '#/components/parameters/ShareIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                responsibility:
+                  type: boolean
+      responses:
+        '200':
+          description: Updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceShare'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      summary: >
+        Stop sharing (owner only). Effective immediately, no grace window,
+        and idempotent — revoking an already-revoked share still succeeds.
+      security:
+        - keycloakBearer: []
+      parameters:
+        - $ref: '#/components/parameters/ShareIdParam'
+      responses:
+        '204':
+          description: Revoked.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /shared-resources/shares/{shareId}/part-done:
+    post:
+      summary: >
+        "I did my part" — collaborator only (ADR-025 §4). Records that THIS
+        person did their share; it never changes the resource's own state.
+        A reminder keeps a single global status (DEC-001).
+      security:
+        - keycloakBearer: []
+      parameters:
+        - $ref: '#/components/parameters/ShareIdParam'
+      responses:
+        '200':
+          description: Marked.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceShare'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      summary: Undo "I did my part" — the way out of a mistaken tap.
+      security:
+        - keycloakBearer: []
+      parameters:
+        - $ref: '#/components/parameters/ShareIdParam'
+      responses:
+        '200':
+          description: Reopened.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceShare'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /documents/download:
+    post:
+      summary: >
+        Download one, several or all documents as a single ZIP (ADR-025 §7).
+        Reuses the existing storage — the bytes come from the same column
+        `GET /documents/{id}/content` already serves; no second file
+        infrastructure. An empty/absent `ids` means "every document in that
+        context", which the client cannot resolve because the list is paged.
+        POST rather than GET because a long id list does not fit in a URL.
+      security:
+        - keycloakBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ids:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                context:
+                  type: string
+                  enum: [PERSONAL, LABORAL]
+      responses:
+        '200':
+          description: A ZIP archive.
+          content:
+            application/zip: {}
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
 components:
   securitySchemes:
     keycloakBearer:
@@ -2341,7 +2797,126 @@ components:
         maximum: 100
         default: 20
       description: Page size (max 100).
+    # ADR-025 — Compartidos
+    SharedResourceTypeParam:
+      in: path
+      name: type
+      required: true
+      description: >
+        No ALERT and no EVENT, and neither omission is an oversight. Alerts
+        are DERIVED from warranties, maintenance and payments (ADR-018) —
+        they have no row of their own; sharing the source record shares its
+        alert. And there is no Event entity: what the calendar draws as an
+        event is a reminder with a date.
+      schema:
+        type: string
+        enum: [REMINDER, MAINTENANCE, SUBSCRIPTION, WARRANTY, INVENTORY_ITEM, DOCUMENT]
+    SharedResourceIdParam:
+      in: path
+      name: resourceId
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ShareIdParam:
+      in: path
+      name: shareId
+      required: true
+      schema:
+        type: string
+        format: uuid
   schemas:
+    # ADR-025 — Familia y Compartidos
+    UserSearchResult:
+      type: object
+      description: >
+        Deliberately minimal: id, username and the caller's relation to that
+        person. Never an email (SEC-001).
+      properties:
+        userId:
+          type: string
+          format: uuid
+        username:
+          type: string
+        relation:
+          type: string
+          enum: [NONE, INVITATION_SENT, INVITATION_RECEIVED, FAMILY]
+    FamilyMember:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+        username:
+          type: string
+        since:
+          type: string
+          format: date-time
+    FamilyInvitation:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        counterpartUserId:
+          type: string
+          format: uuid
+          nullable: true
+        counterpartUsername:
+          type: string
+          nullable: true
+          description: >
+            "Who invited me" on received invitations and "who I invited" on
+            sent ones — the same field, because the counterpart is always the
+            other person.
+        status:
+          type: string
+          enum: [PENDING, ACCEPTED, REJECTED, CANCELLED]
+        createdAt:
+          type: string
+          format: date-time
+    ResourceShare:
+      type: object
+      description: >
+        The sharing RELATION over an existing resource — never a copy of it.
+        `resourceLabel` and `resourceDate` are read from the resource's own
+        module so the row can be rendered without duplicating the record.
+      properties:
+        id:
+          type: string
+          format: uuid
+        resourceType:
+          type: string
+          enum: [REMINDER, MAINTENANCE, SUBSCRIPTION, WARRANTY, INVENTORY_ITEM, DOCUMENT]
+        resourceId:
+          type: string
+          format: uuid
+        resourceLabel:
+          type: string
+        resourceDate:
+          type: string
+          format: date-time
+          nullable: true
+          description: Absent where the resource has no date (inventory, documents).
+        counterpartUserId:
+          type: string
+          format: uuid
+          nullable: true
+        counterpartUsername:
+          type: string
+          nullable: true
+        responsibility:
+          type: boolean
+          description: >
+            Whether this person is committed to doing their part. Always false
+            for INVENTORY_ITEM and DOCUMENT.
+        partDoneAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Present once that person marked their part done.
+        version:
+          type: integer
     Error:
       type: object
       description: Uniform error envelope. Never includes stack traces, SQL, internal names or secrets.
@@ -2493,7 +3068,13 @@ components:
           description: Expected current version of the reminder; a mismatch returns 409.
     CompleteReminderRequest:
       type: object
-      description: Optional. If version is provided, the server validates it for optimistic locking; if omitted, the toggle is applied without a concurrency check.
+      description: >
+        Optional. If version is provided, the server validates it for
+        optimistic locking; if omitted, the toggle is applied without a
+        concurrency check. ADR-022: la operación ALTERNA — el mismo endpoint
+        marca la garantía como usada y la devuelve a vigente. En la interfaz
+        se llama "Marcar como usada" / "Volver a vigente"; el valor del
+        contrato sigue siendo COMPLETADO.
       properties:
         version:
           type: integer
@@ -2565,6 +3146,15 @@ components:
           type: string
           format: date-time
           description: ISO-8601 timestamp in UTC.
+        inventoryItemId:
+          type: string
+          format: uuid
+          nullable: true
+          description: >
+            ADR-022 — artículo del inventario que cubre esta garantía, o null
+            si no está enlazada. El vínculo vive en warranties y no en
+            inventory_items para que un artículo pueda acumular varias
+            garantías a lo largo del tiempo.
         context:
           type: string
           enum: [PERSONAL, LABORAL]
@@ -2585,6 +3175,20 @@ components:
           type: string
           format: date-time
           description: ISO-8601 timestamp in UTC.
+        inventoryItemId:
+          type: string
+          format: uuid
+          nullable: true
+          description: >
+            ADR-022 — artículo del inventario que cubre la garantía. Solo se
+            aplica si linkInventoryItem es true; null desenlaza.
+        linkInventoryItem:
+          type: boolean
+          description: >
+            ADR-022 — indica que inventoryItemId debe aplicarse. Sin este
+            indicador, null sería indistinguible de "no enviado" y desenlazar
+            un artículo sería imposible de expresar (mismo patrón que
+            clearInterval en UpdateMaintenanceRecordRequest, ADR-021).
         version:
           type: integer
           description: Expected current version of the warranty; a mismatch returns 409.
@@ -2624,6 +3228,9 @@ components:
             explicitly marked completed, in which case it is always
             COMPLETADO regardless of expiresAt. Never a stored temporal
             value — see Documentacion/09-data-model.md.
+            ADR-022: COMPLETADO se presenta al usuario como "Usada" — una
+            garantía no se completa, se usa o vence. El valor del contrato NO
+            cambia; solo la etiqueta de la interfaz.
         version:
           type: integer
           description: Optimistic locking version, incremented on every update.
@@ -2699,6 +3306,167 @@ components:
       properties:
         version:
           type: integer
+    MaintenanceLogEntry:
+      type: object
+      description: >
+        ADR-021 — una ejecución de un mantenimiento. scheduledDate es la
+        fecha que estaba programada al completarlo (no la real) y es lo que
+        permite deshacer devolviendo el registro a donde estaba.
+      required: [id, maintenanceRecordId, scheduledDate, completedDate]
+      properties:
+        id:
+          type: string
+          format: uuid
+        maintenanceRecordId:
+          type: string
+          format: uuid
+        scheduledDate:
+          type: string
+          format: date
+        completedDate:
+          type: string
+          format: date
+        note:
+          type: string
+          maxLength: 500
+    MaintenanceState:
+      type: string
+      enum: [AL_DIA, PROXIMO, VENCIDO, COMPLETADO]
+      description: >
+        ADR-021. Estado DERIVADO de nextDueAt vs "now", nunca almacenado.
+        PROXIMO usa un umbral de 7 días — el mismo en backend, lista y
+        calendario; antes eran 30 aquí y 7 en el calendario, así que un
+        registro estaba PROXIMO en una pantalla y no en la otra.
+        COMPLETADO solo es terminal en mantenimientos SIN intervalMonths:
+        un recurrente completado avanza a su siguiente ocurrencia y sigue
+        activo.
+    PaymentState:
+      type: string
+      enum: [scheduled, due-soon, overdue, paid, finished]
+      description: >
+        ADR-020 (refinamiento 2026-08-29). Estado DERIVADO, no almacenado:
+        se calcula de la fecha y del historial de pagos, y por eso no es
+        editable — hacerlo lo sería crear dos verdades sobre el mismo hecho.
+        `paid` = existe un registro de un ciclo del periodo en curso.
+        `finished` = crédito cuyo plazo actual superó el total.
+    PaymentKind:
+      type: string
+      enum: [SUBSCRIPTION, SERVICE, MEMBERSHIP, CUSTOM, CARD, CREDIT]
+      description: >
+        ADR-020(d). Seis valores, tres formas estructurales: los cuatro
+        primeros comparten campos (recurrente de importe fijo); CARD añade
+        corte/límite e importe variable; CREDIT añade plazos.
+    Payment:
+      type: object
+      description: >
+        ADR-020 — compromiso de pago. El esquema sigue sirviéndose bajo
+        /subscriptions: la ruta y la tabla conservan su nombre; lo que
+        cambió es el alcance y la etiqueta de la sección ("Pagos").
+        IMPORTES: acotados a esta sección por ADR-020(b). No habilitan
+        saldos, movimientos, conexión bancaria ni presupuestos, y no se
+        extienden a ningún otro recurso.
+      required: [id, service, nextPaymentDate, billingCycle, kind, version]
+      properties:
+        id:
+          type: string
+          format: uuid
+        ownerUserId:
+          type: string
+          format: uuid
+        service:
+          type: string
+          description: Nombre del pago tal como lo escribe el usuario.
+        company:
+          type: string
+        plan:
+          type: string
+        nextPaymentDate:
+          type: string
+          format: date-time
+          description: >
+            Próxima fecha de cobro. En una tarjeta de crédito es la próxima
+            fecha LÍMITE de pago; el corte se deriva de statementDay.
+        billingCycle:
+          type: string
+          enum: [WEEKLY, MONTHLY, YEARLY]
+        kind:
+          $ref: '#/components/schemas/PaymentKind'
+        amount:
+          type: number
+          format: double
+          description: Importe del pago. Ausente = desconocido o variable.
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+          description: ISO 4217, POR PAGO y no por cuenta (ADR-020(c)).
+        paymentMethod:
+          type: string
+        notes:
+          type: string
+        variableAmount:
+          type: boolean
+          description: El importe cambia cada ciclo (tarjeta, luz, agua).
+        statementDay:
+          type: integer
+          minimum: 1
+          maximum: 31
+          description: Solo CARD — día del mes en que corta la tarjeta.
+        dueDay:
+          type: integer
+          minimum: 1
+          maximum: 31
+          description: Solo CARD — día del mes límite de pago.
+        minPayment:
+          type: number
+          format: double
+        noInterestPayment:
+          type: number
+          format: double
+        institution:
+          type: string
+        lastFour:
+          type: string
+          pattern: '^[0-9]{4}$'
+          description: >
+            Etiqueta para reconocer la tarjeta. NO es un dato bancario:
+            nunca se solicita ni almacena el número completo, CVV o titular.
+        totalInstallments:
+          type: integer
+          description: Solo CREDIT.
+        currentInstallment:
+          type: integer
+          description: Solo CREDIT.
+        context:
+          type: string
+          enum: [PERSONAL, LABORAL]
+        version:
+          type: integer
+    PaymentRecord:
+      type: object
+      description: >
+        ADR-020(f) — un ciclo pagado. periodDate es el ciclo que se pagó, no
+        el día en que se marcó, para distinguir "pagué el de septiembre" de
+        "pagué el de octubre".
+      required: [id, subscriptionId, periodDate, paidOn]
+      properties:
+        id:
+          type: string
+          format: uuid
+        subscriptionId:
+          type: string
+          format: uuid
+        periodDate:
+          type: string
+          format: date
+        paidOn:
+          type: string
+          format: date
+        amount:
+          type: number
+          format: double
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}$'
     MaintenanceRecord:
       type: object
       required: [id, item, nextDueAt, status, version]
@@ -3806,6 +4574,12 @@ components:
             $ref: '#/components/schemas/Error'
     Unauthorized:
       description: Not authenticated (missing or invalid bearer token).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Conflict:
+      description: The request collides with existing state (duplicate, already resolved).
       content:
         application/json:
           schema:

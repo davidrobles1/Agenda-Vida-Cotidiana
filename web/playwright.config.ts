@@ -33,13 +33,24 @@ export default defineConfig({
     url: 'http://localhost:5173',
     reuseExistingServer: true,
     env: {
-      // Matches whatever host the currently-running backend's OIDC_ISSUER is
-      // pinned to (see CIERRE notes) — the app itself is still served from
-      // localhost:5173 (matches Keycloak's web-spa redirectUri/webOrigins
-      // and the backend's CORS allowed-origins), only the API/issuer targets
-      // move.
-      VITE_OIDC_ISSUER: 'http://192.168.0.18:8081/realms/vida-cotidiana',
-      VITE_API_BASE_URL: 'http://192.168.0.18:8080/api/v1',
+      // `localhost`, igual que los defaults de `core/auth/config.ts`.
+      //
+      // Antes esto fijaba la IP LAN (`192.168.0.18`), y como
+      // `reuseExistingServer` es true, la suite reutilizaba cualquier Vite ya
+      // levantado — de modo que el issuer efectivo dependía de con qué
+      // variables se hubiera arrancado ese servidor. La consecuencia real
+      // (2026-08-29): tras dejar el backend apuntando a la IP LAN para una
+      // corrida de la suite, la sesión del navegador quedó devolviendo 401 en
+      // TODAS las llamadas autenticadas, porque Keycloak emitía el token con
+      // `iss=localhost` y el backend esperaba la IP.
+      //
+      // Playwright corre en esta misma máquina, así que `localhost` le vale y
+      // coincide con lo que usa el navegador a diario. La IP LAN sigue siendo
+      // necesaria, pero solo para dispositivos físicos Android/iOS, que la
+      // fijan en sus propias configuraciones (`build.gradle.kts`,
+      // `AppConfig.swift`) y no dependen de este archivo.
+      VITE_OIDC_ISSUER: 'http://localhost:8081/realms/vida-cotidiana',
+      VITE_API_BASE_URL: 'http://localhost:8080/api/v1',
     },
   },
 })

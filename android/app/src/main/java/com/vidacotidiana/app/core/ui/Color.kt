@@ -120,6 +120,24 @@ data class VidaColors(
     val border: Color,
     val text: Color,
     val textSecondary: Color,
+
+    /* ---------------------------------------------------------------------
+       ADR-023 — tokens que los nueve temas necesitan y que no existían.
+       Llevan valor por defecto derivado de los anteriores para que ningún
+       call site previo a esta fase deje de compilar: quien no los pase sigue
+       obteniendo un tema coherente, y `VidaThemes` los define de verdad.
+       --------------------------------------------------------------------- */
+    /** Fondo hundido: rejillas, segmentos, campos. `--sunken`. */
+    val sunken: Color = surfaceVariant,
+    /** Superficie por encima de una tarjeta (hojas, campos dentro de tarjeta). `--surface-2`. */
+    val surfaceElevated: Color = surfaceVariant,
+    /** Tercer nivel de tinta: rótulos apagados, días de otro mes. `--ink-3`. */
+    val textTertiary: Color = textSecondary,
+    /** Color secundario de la identidad (el terracota de Papel). `--second`. */
+    val second: Color = primary,
+    val secondContainer: Color = primaryContainer,
+    /** Filete fino, más suave que `border`. `--line` frente a `--line-strong`. */
+    val line: Color = border,
 )
 
 val LightVidaColors = VidaColors(

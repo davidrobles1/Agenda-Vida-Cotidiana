@@ -10,6 +10,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 
+import com.vidacotidiana.shared.domain.ModuleContext;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -40,6 +41,14 @@ public class InventoryItem {
     @Column
     private String location;
 
+    /**
+     * ADR-022: módulo propietario. Se fija al crear y NO cambia durante el
+     * ciclo de vida — `applyEdit` no lo toca, igual que en Warranty.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private ModuleContext context = ModuleContext.PERSONAL;
+
     @Version
     @Column(nullable = false)
     private int version;
@@ -55,6 +64,12 @@ public class InventoryItem {
     }
 
     public InventoryItem(UUID ownerUserId, String name, InventoryCategory category, String location) {
+        this(ownerUserId, name, category, location, ModuleContext.PERSONAL);
+    }
+
+    public InventoryItem(UUID ownerUserId, String name, InventoryCategory category, String location,
+                         ModuleContext context) {
+        this.context = (context != null) ? context : ModuleContext.PERSONAL;
         this.ownerUserId = ownerUserId;
         this.name = name;
         this.category = category;
@@ -94,6 +109,10 @@ public class InventoryItem {
 
     public Instant getUpdatedAt() {
         return updatedAt;
+    }
+
+    public ModuleContext getContext() {
+        return context;
     }
 
     public boolean isOwnedBy(UUID userId) {

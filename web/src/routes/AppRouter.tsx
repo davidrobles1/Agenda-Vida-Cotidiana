@@ -12,6 +12,11 @@ import { HomePage } from '../features/home/HomePage'
 import { CalendarPage } from '../features/calendar/CalendarPage'
 import { VisionBoardPage } from '../features/visionboard/VisionBoardPage'
 import { InvitationsPage } from '../features/sharing/InvitationsPage'
+// ADR-025 §3: "Compartidos" pasa a ser el punto central de la colaboración
+// familiar. `InvitationsPage` NO se retira — sigue sirviendo `/invitations`,
+// la pantalla dedicada a las invitaciones por correo de un recordatorio
+// (flujo de V2, intacto).
+import { SharedResourcesPage } from '../features/sharing/SharedResourcesPage'
 import { NotificationsPage } from '../features/notifications/NotificationsPage'
 import { DocumentsPage } from '../features/documents/DocumentsPage'
 import { InventoryPage } from '../features/inventory/InventoryPage'
@@ -136,7 +141,7 @@ export function AppRouter() {
         <Route path="home" element={<HomePage />} />
         <Route path="calendar" element={<CalendarPage />} />
         <Route path="vision-board" element={<VisionBoardPage />} />
-        <Route path="shared" element={<InvitationsPage />} />
+        <Route path="shared" element={<SharedResourcesPage />} />
       </Route>
       <Route
         path="/laboral"
@@ -157,7 +162,7 @@ export function AppRouter() {
             compartido habría cambiado las tres a la vez. */}
         <Route path="calendar" element={<AgendaPage />} />
         <Route path="vision-board" element={<VisionBoardPage />} />
-        <Route path="shared" element={<InvitationsPage />} />
+        <Route path="shared" element={<SharedResourcesPage />} />
         {/* ADR-016 (Módulo Laboral, 2026-08-22): 6 pantallas nuevas del
             navbar de Laboral (§AppShell.tsx laboralNavItems) — "Agenda"
             reutiliza la ruta "calendar" de arriba, sin ruta propia. Las 5

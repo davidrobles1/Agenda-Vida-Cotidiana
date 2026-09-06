@@ -15,9 +15,19 @@
          needs this to re-arm them. -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
+    <!-- ADR-024: el icono es la marca del Portal, el arco del día con el punto
+         en el cenit. Hasta ahora no se declaraba ninguno y el lanzador
+         mostraba el robot por defecto de Android.
+
+         `label` sí conserva «Vida Cotidiana»: ADR-024(b) la retira de la
+         interfaz de los módulos pero la mantiene como marca madre para firma
+         corporativa y ficha de tienda, y el nombre bajo el icono es
+         exactamente eso. -->
     <application
         android:name=".VidaCotidianaApplication"
         android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:label="@string/app_name"
         android:theme="@style/Theme.VidaCotidiana">
         <activity
@@ -38,7 +48,59 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <!-- Enlace interno con el que una notificacion o un acceso directo
+                 abren una seccion concreta. Esquema propio, distinto del que
+                 usa AppAuth para el redirect de Keycloak: mezclarlos habria
+                 hecho que un enlace de navegacion entrara por el receptor del
+                 login. Solo transporta el nombre de una seccion que ya existe;
+                 no lleva datos ni concede acceso: sin sesion no navega. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="vidacotidiana" />
+            </intent-filter>
+
+            <!-- Accesos rapidos del icono. Solo destinos y acciones que ya
+                 existen en la aplicacion. -->
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
         </activity>
+
+        <!-- Recibe los push que el backend ya envia. Sin este servicio los
+             mensajes llegaban al telefono y nadie los recogia. -->
+        <service
+            android:name=".core.notifications.PushMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+        <!-- Con la aplicacion en segundo plano la notificacion la dibuja FCM,
+             no nosotros: estas dos claves le dicen con que icono y en que canal
+             hacerlo, para que no use el icono generico ni un canal sin nombre. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_notification_reminder" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="family_and_sharing" />
+
+        <!-- Entrega archivos a otras aplicaciones sin exponer rutas propias:
+             compartir un `file://` lanza SecurityException desde Android 7, y
+             este es el mecanismo que el sistema espera en su lugar. Solo abre
+             la carpeta de documentos de la cache (ver res/xml/file_paths.xml). -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.files"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
 
         <!-- AND-007: fired by AlarmManager at a reminder's exact dueAt. -->
         <receiver

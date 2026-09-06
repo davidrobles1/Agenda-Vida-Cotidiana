@@ -69,6 +69,25 @@ IA será una fase posterior a V4.
 
 Finanzas será una fase posterior a V4.
 
+EXCEPCIÓN ACOTADA (ADR-020, aprobada por el Product Owner el 2026-08-29):
+
+La sección "Pagos" (antes "Suscripciones") SÍ maneja importes y divisa por
+pago, porque su propósito es responder "qué pagos tengo, cuánto representan
+y cuándo" — organización y anticipación.
+
+Esto NO habilita un módulo financiero. Sigue prohibido, aquí y en el resto
+de la aplicación:
+
+- saldos
+- movimientos y estados de cuenta
+- conexión o importación bancaria
+- presupuestos y categorías de gasto
+- reportes financieros
+- extender el manejo de importes a CUALQUIER otra sección
+
+El manejo de importes es una propiedad de la sección "Pagos", no una
+capacidad transversal del producto.
+
 No deben aparecer como funcionalidades implementables en V1.
 
 Pueden documentarse únicamente como:

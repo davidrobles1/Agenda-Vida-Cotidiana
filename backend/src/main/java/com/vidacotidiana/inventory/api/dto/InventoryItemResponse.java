@@ -13,6 +13,8 @@ public record InventoryItemResponse(
         String name,
         String category,
         String location,
+        /** ADR-022: módulo propietario del recurso. */
+        String context,
         int version,
         Instant createdAt,
         Instant updatedAt
@@ -24,6 +26,7 @@ public record InventoryItemResponse(
                 item.getName(),
                 item.getCategory().name(),
                 item.getLocation(),
+                item.getContext().name(),
                 item.getVersion(),
                 item.getCreatedAt(),
                 item.getUpdatedAt()

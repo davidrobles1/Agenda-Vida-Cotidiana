@@ -1,57 +1,72 @@
 package com.vidacotidiana.app.feature.inventory
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Inventory2
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.material.icons.outlined.Inventory2
+import androidx.compose.material3.DrawerState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
-import androidx.hilt.navigation.compose.hiltViewModel
-import com.vidacotidiana.app.core.ui.VidaSpacing
-import com.vidacotidiana.app.core.ui.VidaTheme
-import com.vidacotidiana.app.core.ui.components.BadgeTone
-import com.vidacotidiana.app.core.ui.components.ListItemRow
-import com.vidacotidiana.app.core.ui.components.VidaFilterChip
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavHostController
+import com.vidacotidiana.app.core.app.AppViewModel
+import com.vidacotidiana.app.core.app.CreatableResource
+import com.vidacotidiana.app.core.ui.components.PillTone
+import com.vidacotidiana.app.core.ui.components.ResourceEntry
+import com.vidacotidiana.app.core.ui.components.ResourceListScreen
+import com.vidacotidiana.app.core.ui.components.plural
+import kotlinx.coroutines.CoroutineScope
 
-/** UX-006: mock module (scaffolding only, MockData.kt) — matches the reference's Inventario widget. */
+/**
+ * Inventario. ADR-022: un artículo puede llevar garantía, y ese vínculo se
+ * muestra en la píldora — no es un dato nuevo, es la relación que ya existe
+ * en el modelo (`Warranty.inventoryItemId`).
+ */
 @Composable
-fun InventoryScreen(viewModel: InventoryViewModel = hiltViewModel()) {
-    val state by viewModel.uiState.collectAsState()
+fun InventoryScreen(
+    viewModel: AppViewModel,
+    drawerState: DrawerState,
+    scope: CoroutineScope,
+    navController: NavHostController,
+) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val items = state.data.inventory
+    // El vínculo real: qué artículos tienen una garantía apuntándoles.
+    val warrantied = state.data.warranties.mapNotNull { it.inventoryItemId }.toSet()
 
-    Column(modifier = Modifier.fillMaxSize().padding(VidaSpacing.lg), verticalArrangement = Arrangement.spacedBy(VidaSpacing.lg)) {
-        Text("Inventario", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = VidaTheme.colors.text)
-
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(VidaSpacing.sm)) {
-            items(state.categories) { category ->
-                VidaFilterChip(
-                    label = category,
-                    selected = category == state.selectedCategory,
-                    onClick = { viewModel.selectCategory(category) },
-                )
-            }
-        }
-
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(VidaSpacing.md)) {
-            items(state.visibleItems, key = { it.id }) { item ->
-                ListItemRow(
-                    title = item.name,
-                    subtitle = item.category,
-                    icon = Icons.Filled.Inventory2,
-                    tone = BadgeTone.Primary,
-                    pillLabel = item.status,
-                    pillTone = BadgeTone.Success,
-                )
-            }
-        }
+    val entries = items.map {
+        ResourceEntry(
+            id = it.id,
+            title = it.name,
+            subtitle = listOfNotNull(it.category, it.location).joinToString(" · "),
+            icon = Icons.Outlined.Inventory2,
+            // Un artículo no se «completa»: no existe ese estado en su backend.
+            onEdit = { viewModel.requestEdit(CreatableResource.INVENTORY, it.id) },
+            onDelete = { viewModel.deleteResource(CreatableResource.INVENTORY, it.id) },
+            pill = if (it.id in warrantied) "Con garantía" to PillTone.OK else "Sin garantía" to PillTone.QUIET,
+        )
     }
+    // Las categorías salen de lo que el usuario realmente tiene, no de una
+    // lista fija que podría no coincidir con sus artículos.
+    val categories = listOf("Todos") + items.map { it.category }.distinct().sorted()
+
+    ResourceListScreen(
+        title = "Inventario",
+        subtitle = "Qué tienes, dónde está y si sigue con garantía.",
+        eyebrow = plural(entries.size, "artículo", "artículos"),
+        entries = entries,
+        filters = categories,
+        addLabel = "Nuevo artículo",
+        emptyBody = "Registra lo que tienes para no perderle la pista.",
+        loading = state.loading,
+        error = state.error,
+        onRetry = viewModel::refresh,
+        onAdd = { viewModel.requestCreate(CreatableResource.INVENTORY) },
+        // Aquí los chips son categorías, no estados: filtran por el texto que
+        // la fila lleva en su subtítulo.
+        matchesFilter = { entry, f -> f == "Todos" || entry.subtitle.startsWith(f) },
+        drawerState = drawerState,
+        scope = scope,
+        showBack = true,
+        onBack = { navController.popBackStack() },
+        onNotifications = {},
+    )
 }

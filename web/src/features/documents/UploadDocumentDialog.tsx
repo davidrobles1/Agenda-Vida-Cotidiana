@@ -6,6 +6,9 @@ import { motionTokens } from '../../core/motion/tokens'
 import { handleRadiogroupKeyDown, radioTabIndex } from '../../core/ui/keyboard/radiogroupKeyboard'
 import shellStyles from '../../core/ui/dialogs/DialogShell.module.css'
 import { DOCUMENT_CATEGORIES, DOCUMENT_CATEGORY_LABELS, uploadDocument, type DocumentCategory, type VidaDocument } from './api'
+import { useActiveMode } from '../../core/user/ActiveModeContext'
+import { ShareWithFamily } from '../sharing/ShareWithFamily'
+import { useResourceSharing } from '../sharing/useResourceSharing'
 import styles from './UploadDocumentDialog.module.css'
 
 const MotionDialog = motion.create(Dialog)
@@ -23,6 +26,8 @@ interface UploadDocumentDialogProps {
  * aquí vía core/ui/keyboard/radiogroupKeyboard.ts en vez de reimplementarlo).
  */
 export function UploadDocumentDialog({ onUploaded }: UploadDocumentDialogProps) {
+  // ADR-022: el módulo activo decide dónde nace el documento.
+  const activeMode = useActiveMode()
   const [isOpen, setIsOpen] = useState(false)
   const [name, setName] = useState('')
   const [category, setCategory] = useState<DocumentCategory>('OTROS')
@@ -32,10 +37,16 @@ export function UploadDocumentDialog({ onUploaded }: UploadDocumentDialogProps) 
   const [error, setError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // ADR-025 §6: compartir un documento es SOLO para verlo. El control no
+  // ofrece responsabilidad para este tipo, y el backend y la base de datos
+  // la rechazan aunque alguien la mande a mano.
+  const sharing = useResourceSharing('DOCUMENT')
+
   function reset() {
     setName('')
     setCategory('OTROS')
     setFile(null)
+    sharing.reset()
     setError(null)
   }
 
@@ -67,8 +78,15 @@ export function UploadDocumentDialog({ onUploaded }: UploadDocumentDialogProps) 
     setUploading(true)
     setError(null)
     try {
-      const uploaded = await uploadDocument(file, name.trim(), category)
+      // ADR-022: el documento nace en el módulo desde el que se sube.
+      const uploaded = await uploadDocument(file, name.trim(), category, activeMode)
       onUploaded(uploaded)
+
+      const shareError = await sharing.commit(uploaded.id)
+      if (shareError) {
+        setError(shareError)
+        return
+      }
       setIsOpen(false)
       reset()
     } catch (e) {
@@ -162,6 +180,16 @@ export function UploadDocumentDialog({ onUploaded }: UploadDocumentDialogProps) 
                       </button>
                     ))}
                   </div>
+                </div>
+
+                <div className={shellStyles.field}>
+                  <span className={shellStyles.fieldLabel}>Compartir con tu familia (solo lectura)</span>
+                  <ShareWithFamily
+                    type="DOCUMENT"
+                    resourceId={null}
+                    value={sharing.shares}
+                    onChange={sharing.setShares}
+                  />
                 </div>
 
                 <div className={shellStyles.formActions}>

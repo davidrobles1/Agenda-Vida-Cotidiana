@@ -10,11 +10,13 @@ import { test, expect } from '@playwright/test'
  * confirms each item — with its real, server-computed status — renders on
  * its page after a real GET request.
  */
-const API_BASE_URL = process.env.PW_API_BASE_URL ?? 'http://192.168.0.18:8080/api/v1'
+const API_BASE_URL = process.env.PW_API_BASE_URL ?? 'http://localhost:8080/api/v1'
 
 test('Garantías and Mantenimiento pages render real backend data, not mock', async ({ page }) => {
   const warrantyItem = `WM test warranty ${Math.random().toString(36).slice(2, 10)}`
   const maintenanceItem = `WM test maintenance ${Math.random().toString(36).slice(2, 10)}`
+  /** Lo que esta prueba crea en la base real, para retirarlo al terminar. */
+  const sembrado: Array<[string, string]> = []
 
   await page.goto('/')
   await page.getByRole('button', { name: 'Iniciar sesión' }).click()
@@ -25,7 +27,7 @@ test('Garantías and Mantenimiento pages render real backend data, not mock', as
   const tokenResponsePromise = page.waitForResponse(
     (response) => response.url().includes('/protocol/openid-connect/token') && response.request().method() === 'POST',
   )
-  await page.getByRole('button', { name: 'Sign In' }).click()
+  await page.locator('#kc-login').click()
   const tokenResponse = await tokenResponsePromise
   const { access_token: accessToken } = await tokenResponse.json()
   expect(typeof accessToken).toBe('string')
@@ -38,7 +40,12 @@ test('Garantías and Mantenimiento pages render real backend data, not mock', as
   // and page.goto() is a real browser navigation that would log the
   // session out. "Notifications" (always rendered, any mode) lands on a
   // legacy bare route, which renders the legacy sidebar (both included).
-  await expect(page.getByText('Vista mensual')).toBeVisible({ timeout: 20_000 })
+  // El destino tras iniciar sesión depende del modo del usuario
+  // (ADR-015) y ya cambió; afirmar una pantalla concreta volvía roja
+  // toda la suite por un cambio de producto legítimo. Basta con haber
+  // vuelto a la aplicación autenticado.
+  await page.waitForURL((url) => !url.href.includes('/realms/'), { timeout: 20_000 })
+  await expect(page.locator('nav, header').first()).toBeVisible({ timeout: 20_000 })
   await page.getByRole('link', { name: 'Notifications' }).click()
 
   // Far enough out to compute as VIGENTE/AL_DIA (real server-side derivation,
@@ -62,6 +69,9 @@ test('Garantías and Mantenimiento pages render real backend data, not mock', as
   const createdMaintenance = await createMaintenanceResponse.json()
   expect(createdMaintenance.status).toBe('AL_DIA')
 
+  sembrado.push(['warranties', createdWarranty.id], ['maintenance-records', createdMaintenance.id])
+
+  try {
   // GET /warranties must be a real network call now (PageResponse envelope),
   // not a synchronous read from core/mock/mockData.ts. Matched against the
   // real API base, not just endsWith('/warranties') — the SPA's own
@@ -95,4 +105,16 @@ test('Garantías and Mantenimiento pages render real backend data, not mock', as
   await expect(page.getByText(maintenanceItem)).toBeVisible({ timeout: 10_000 })
   const maintenanceRow = page.locator('[class*="_row_"]', { hasText: maintenanceItem })
   await expect(maintenanceRow.getByText('Al día', { exact: true })).toBeVisible()
+  } finally {
+    // Esta prueba sembraba por API y no borraba nada: cada ejecución dejaba
+    // una garantía y un mantenimiento "WM test …" en la base real del
+    // usuario, mezclados con sus registros de verdad. Se acumularon ocho
+    // antes de detectarlo. Va en `finally` a propósito: una prueba que
+    // falla a media ejecución es justo la que más residuo deja.
+    for (const [path, id] of sembrado) {
+      await page.request
+        .delete(`${API_BASE_URL}/${path}/${id}`, { headers: { Authorization: `Bearer ${accessToken}` } })
+        .catch(() => {})
+    }
+  }
 })

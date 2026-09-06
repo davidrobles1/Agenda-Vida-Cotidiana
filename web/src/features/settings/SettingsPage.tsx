@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { AppShell } from '../../core/ui/layout/AppShell'
+import { FamilyInvitationsSection } from './FamilyInvitationsSection'
 import { useModeContext } from '../../core/user/ModeContext'
 import type { Mode } from '../../core/user/modes'
 import { useProfile } from '../../core/user/useVocabulary'
@@ -62,6 +63,12 @@ export function SettingsPage() {
             />
           </div>
         )}
+
+        {/* ADR-025 §1: invitaciones familiares recibidas. Se coloca antes del
+            perfil profesional porque es una acción PENDIENTE de alguien —
+            requiere respuesta— mientras que el perfil es una preferencia que
+            no caduca. El componente se oculta solo cuando no hay ninguna. */}
+        <FamilyInvitationsSection />
 
         {/* UX-014/UX-015 (design-system.md §12, ADR-016(d)): perfil
             profesional. Solo cambia cómo se nombran Proyecto y Persona en el

@@ -17,6 +17,10 @@ import '@fontsource/inter/700.css'
 // gap, not a hypothetical one. Fraunces' real italic (500-italic/600-italic)
 // stands in for the script accent instead — same warm/editorial character,
 // renders identically everywhere.
+// El 300 lo pide la identidad «A · Tiempo» (BrandMark): el rótulo del logo va
+// en Fraunces ligero, y sin este fichero caería al 500 y el arco dejaría de
+// pesar más que el nombre — que es justo lo que sostiene el lock-up.
+import '@fontsource/fraunces/300.css'
 import '@fontsource/fraunces/500.css'
 import '@fontsource/fraunces/500-italic.css'
 import '@fontsource/fraunces/600.css'
@@ -57,9 +61,45 @@ import '@fontsource/bodoni-moda/400.css'
 import '@fontsource/bodoni-moda/700.css'
 
 import '@fontsource/ibm-plex-mono/400.css'
+import '@fontsource/ibm-plex-mono/500.css'
 import '@fontsource/ibm-plex-mono/700.css'
 
+// ADR-023 — tipografías de display de los seis temas aprobados. Cada agenda
+// tiene su propia pareja; sin estos ficheros el navegador caería al genérico
+// del sistema y la identidad del tema se perdería. Self-hosted igual que el
+// resto del bloque, sin peticiones a un CDN.
+import '@fontsource/sora/300.css' //          Aurora · display ligero del héroe
+import '@fontsource/sora/400.css'
+import '@fontsource/sora/600.css'
+// Neo · Archivo. Hacen falta también los pesos normales: `--font-display` lo
+// heredan elementos que no son titulares (rótulo de marca, subtítulos), y sin
+// el 400/500/600 esos caerían al `system-ui` de reserva.
+import '@fontsource/archivo/400.css'
+import '@fontsource/archivo/500.css'
+import '@fontsource/archivo/600.css'
+import '@fontsource/archivo/700.css'
+import '@fontsource/archivo/800.css'
+import '@fontsource/archivo/900.css'
+import '@fontsource/plus-jakarta-sans/400.css' // Calm · cuerpo y display
+import '@fontsource/plus-jakarta-sans/500.css'
+import '@fontsource/plus-jakarta-sans/600.css'
+import '@fontsource/plus-jakarta-sans/700.css'
+import '@fontsource/instrument-serif/400.css' //  Studio · titular de revista
+import '@fontsource/instrument-serif/400-italic.css'
+// Manrope (Lumen) necesita más pesos de los dos que ya había: el titular va a
+// 200 y el cuerpo a 500.
+import '@fontsource/manrope/200.css'
+import '@fontsource/manrope/300.css'
+import '@fontsource/manrope/500.css'
+import '@fontsource/manrope/600.css'
+// Caveat 500/600 — la letra a mano de Papel (nota al margen y notas del día).
+import '@fontsource/caveat/500.css'
+import '@fontsource/caveat/600.css'
+
 import './index.css'
+// ADR-023: después de index.css a propósito — los temas redefinen tokens que
+// `:root` declara antes, y el orden de importación fija la cascada.
+import './themes.css'
 import App from './App.tsx'
 import { initErrorTracking } from './core/errors/glitchtip'
 import { restoreSession } from './core/auth/authClient'

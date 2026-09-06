@@ -3,6 +3,8 @@ package com.vidacotidiana.maintenance.api;
 import com.vidacotidiana.identity.infrastructure.CurrentUser;
 import com.vidacotidiana.maintenance.api.dto.CompleteMaintenanceRecordRequest;
 import com.vidacotidiana.maintenance.api.dto.CreateMaintenanceRecordRequest;
+import com.vidacotidiana.maintenance.api.dto.CompleteOccurrenceRequest;
+import com.vidacotidiana.maintenance.api.dto.MaintenanceLogResponse;
 import com.vidacotidiana.maintenance.api.dto.MaintenanceRecordResponse;
 import com.vidacotidiana.maintenance.api.dto.UpdateMaintenanceRecordRequest;
 import com.vidacotidiana.maintenance.application.MaintenanceService;
@@ -80,7 +82,8 @@ public class MaintenanceController {
     @PatchMapping("/{id}")
     public MaintenanceRecordResponse update(@PathVariable UUID id, @Valid @RequestBody UpdateMaintenanceRecordRequest request) {
         MaintenanceRecord record = maintenanceService.edit(id, currentUser.userId(), request.item(), request.nextDueAt(),
-                request.intervalMonths(), request.version());
+                request.intervalMonths(), request.version(),
+                Boolean.TRUE.equals(request.clearInterval()));
         return MaintenanceRecordResponse.from(record);
     }
 
@@ -88,5 +91,49 @@ public class MaintenanceController {
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
         maintenanceService.delete(id, currentUser.userId());
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * ADR-021: completa la ocurrencia actual y programa la siguiente.
+     * Idempotente — ver `MaintenanceService.completeOccurrence`.
+     *
+     * Convive con `POST /{id}/complete`, que sigue existiendo y solo
+     * invierte el booleano: ese es el contrato antiguo y hay tests que lo
+     * cubren. Las pantallas usan este.
+     */
+    @PostMapping("/{id}/occurrences")
+    public MaintenanceRecordResponse completeOccurrence(
+            @PathVariable UUID id,
+            @Valid @RequestBody(required = false) CompleteOccurrenceRequest request) {
+        MaintenanceRecord record = maintenanceService.completeOccurrence(
+                id, currentUser.userId(), request != null ? request.note() : null);
+        return MaintenanceRecordResponse.from(record);
+    }
+
+    /** Deshace la última ejecución y devuelve la fecha anterior. */
+    @DeleteMapping("/{id}/occurrences/last")
+    public MaintenanceRecordResponse undoLastOccurrence(@PathVariable UUID id) {
+        return MaintenanceRecordResponse.from(
+                maintenanceService.undoLastCompletion(id, currentUser.userId()));
+    }
+
+    /** Historial de un mantenimiento concreto. */
+    @GetMapping("/{id}/occurrences")
+    public java.util.List<MaintenanceLogResponse> listOccurrences(@PathVariable UUID id) {
+        return maintenanceService.listLogFor(id, currentUser.userId()).stream()
+                .map(MaintenanceLogResponse::from)
+                .toList();
+    }
+
+    /**
+     * Todo el historial del usuario. En bloque: la lista muestra "última
+     * vez" en cada fila y pedirlo registro a registro sería una consulta
+     * por fila.
+     */
+    @GetMapping("/occurrences")
+    public java.util.List<MaintenanceLogResponse> listAllOccurrences() {
+        return maintenanceService.listLog(currentUser.userId()).stream()
+                .map(MaintenanceLogResponse::from)
+                .toList();
     }
 }

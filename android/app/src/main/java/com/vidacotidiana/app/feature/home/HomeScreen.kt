@@ -1,210 +1,179 @@
 package com.vidacotidiana.app.feature.home
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.Groups
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.outlined.Autorenew
+import androidx.compose.material.icons.outlined.Build
+import androidx.compose.material.icons.outlined.Inventory2
+import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material.icons.outlined.VerifiedUser
+import androidx.compose.material3.DrawerState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.semantics.LiveRegionMode
-import androidx.compose.ui.semantics.liveRegion
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
-import com.vidacotidiana.app.core.network.Reminder
-import com.vidacotidiana.app.core.ui.VidaShape
+import androidx.compose.ui.text.font.FontWeight
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.vidacotidiana.app.core.app.AppViewModel
+import com.vidacotidiana.app.core.calendar.AlertSeverity
+import com.vidacotidiana.app.core.calendar.weekOf
+import com.vidacotidiana.app.core.data.WarrantyStatus
 import com.vidacotidiana.app.core.ui.VidaSpacing
 import com.vidacotidiana.app.core.ui.VidaTheme
-import com.vidacotidiana.app.core.ui.components.AppTopBar
-import com.vidacotidiana.app.core.ui.components.BadgeTone
-import com.vidacotidiana.app.core.ui.components.DonutChart
-import com.vidacotidiana.app.core.ui.components.DonutSlice
-import com.vidacotidiana.app.core.ui.components.ListItemRow
-import com.vidacotidiana.app.core.ui.components.ListSectionCard
-import com.vidacotidiana.app.core.ui.components.MetricCard
-import com.vidacotidiana.app.core.ui.components.notebookBackground
-import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
+import com.vidacotidiana.app.core.ui.components.DayRibbonItem
+import com.vidacotidiana.app.core.ui.components.Eyebrow
+import com.vidacotidiana.app.core.ui.components.HeroCard
+import com.vidacotidiana.app.core.ui.components.ResourceRow
+import com.vidacotidiana.app.core.ui.components.StaggeredAppear
+import com.vidacotidiana.app.core.ui.components.StripCard
+import com.vidacotidiana.app.core.ui.components.VidaCard
+import com.vidacotidiana.app.core.ui.components.VidaIconButton
+import com.vidacotidiana.app.core.ui.components.VidaProgress
+import com.vidacotidiana.app.core.ui.components.VidaScreen
+import com.vidacotidiana.app.core.ui.components.VidaSmallButton
+import com.vidacotidiana.app.core.ui.components.openDrawerAction
+import com.vidacotidiana.app.navigation.Routes
+import kotlinx.coroutines.CoroutineScope
+import java.time.LocalDate
+import java.time.format.TextStyle
+import java.util.Locale
 
 /**
- * UX-007: Home restyled from a generic metrics dashboard into "Agenda" —
- * "qué necesito ver/hacer hoy" leads (Hoy/Próximos días), metric cards
- * (Tareas/Compartidos) come after, deprioritized, matching the reference's
- * data but not its metrics-first layout order. Still only real data
- * (HomeViewModel unchanged — this is a presentation-only reorder/restyle, no
- * new fields, no touched logic) — no Documentos/Garantías/Gastos here, same
- * scope decision as UX-006 (see design-system.md).
+ * Inicio como CENTRO DE CONTROL, no como lista de registros.
+ *
+ * La jerarquía del artefacto, en este orden y por este motivo: primero LO QUE
+ * URGE —una sola cosa, con su salida—, después los próximos días en el mismo
+ * lenguaje visual del calendario (continuidad, no repetición), después el
+ * progreso real del día, después las áreas y por último la actividad.
  */
 @Composable
 fun HomeScreen(
-    onNavigateToTasks: () -> Unit,
-    onNavigateToShared: () -> Unit,
-    viewModel: HomeViewModel = hiltViewModel(),
+    viewModel: AppViewModel,
+    onNavigate: (String) -> Unit,
+    drawerState: DrawerState,
+    scope: CoroutineScope,
 ) {
-    val state by viewModel.uiState.collectAsState()
-    val hasFocusItems = state.overdue.isNotEmpty() || state.upcoming.isNotEmpty()
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val c = VidaTheme.colors
+    val today = LocalDate.now()
+    val todayContent = viewModel.contentFor(today)
+    val urgent = todayContent.alerts.firstOrNull { it.severity == AlertSeverity.HIGH }
+        ?: todayContent.alerts.firstOrNull()
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .notebookBackground(VidaTheme.colors.border.copy(alpha = 0.2f))
-            .padding(VidaSpacing.lg),
-        verticalArrangement = Arrangement.spacedBy(VidaSpacing.lg),
+    val todayTasks = todayContent.tasks
+    val doneCount = todayTasks.count { it.done }
+
+    VidaScreen(
+        title = "¡Hola!",
+        subtitle = today.dayOfWeek.getDisplayName(TextStyle.FULL, Locale("es", "MX"))
+            .replaceFirstChar { it.uppercase() } + " ${today.dayOfMonth} de " +
+            today.month.getDisplayName(TextStyle.FULL, Locale("es", "MX")),
+        onNavigationClick = openDrawerAction(drawerState, scope),
+        context = state.context,
+        laboralEnabled = state.laboralEnabled,
+        onContextSelect = viewModel::setContext,
+        actions = {
+            VidaIconButton(Icons.Outlined.Notifications, "Notificaciones", badge = true) { onNavigate(Routes.NOTIFICATIONS) }
+            VidaIconButton(Icons.Outlined.Settings, "Ajustes") { onNavigate(Routes.SETTINGS) }
+        },
     ) {
-        item {
-            AppTopBar(greetingName = state.greetingName.ifBlank { "…" }, subtitle = "Tu agenda de hoy")
+        StaggeredAppear(0) {
+            HeroCard(
+                eyebrow = "Lo que urge",
+                title = urgent?.label ?: "Nada urgente hoy",
+                body = urgent?.let { "${it.source.label} · ${it.message}" } ?: "Tu día está en calma.",
+                primaryAction = (urgent?.let { "Ver en ${it.source.label}" } ?: "Ver el día") to {
+                    onNavigate(urgent?.source?.route ?: Routes.CALENDAR)
+                },
+                secondaryAction = "Abrir calendario" to { onNavigate(Routes.CALENDAR) },
+            )
         }
 
-        if (state.loading) {
-            item {
-                CircularProgressIndicator(modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
-            }
-        }
-
-        state.error?.let {
-            item {
-                Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
-            }
-        }
-
-        if (state.overdue.isNotEmpty()) {
-            item {
-                ListSectionCard(title = "Hoy", onSeeAll = onNavigateToTasks) {
-                    Column(verticalArrangement = Arrangement.spacedBy(VidaSpacing.md)) {
-                        state.overdue.forEach { reminder ->
-                            ListItemRow(
-                                title = reminder.title,
-                                subtitle = reminder.dueAt?.let(::formatDueAt) ?: "",
-                                icon = Icons.Filled.Warning,
-                                tone = BadgeTone.Error,
-                                pillLabel = "Vencida",
-                                pillTone = BadgeTone.Error,
-                            )
-                        }
-                    }
+        StaggeredAppear(1) { Eyebrow("Los próximos 7 días") }
+        StaggeredAppear(2) {
+            Row(
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(VidaSpacing.sm),
+            ) {
+                (0..6).map { today.plusDays(it.toLong()) }.forEach { date ->
+                    DayRibbonItem(
+                        date = date,
+                        content = viewModel.contentFor(date),
+                        isToday = date == today,
+                        isSelected = false,
+                        onClick = { viewModel.selectDate(date); onNavigate(Routes.CALENDAR) },
+                    )
                 }
             }
         }
 
-        if (state.upcoming.isNotEmpty()) {
-            item {
-                ListSectionCard(title = "Próximos días", onSeeAll = onNavigateToTasks) {
-                    Column(verticalArrangement = Arrangement.spacedBy(VidaSpacing.md)) {
-                        state.upcoming.forEach { reminder ->
-                            ListItemRow(
-                                title = reminder.title,
-                                subtitle = reminder.dueAt?.let(::formatDueAt) ?: "",
-                                icon = Icons.Filled.Description,
-                                tone = BadgeTone.Info,
-                                pillLabel = "Pendiente",
-                                pillTone = BadgeTone.Warning,
-                            )
-                        }
-                    }
+        StaggeredAppear(3) { Eyebrow("Tu día") }
+        StaggeredAppear(4) {
+            VidaCard {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(
+                        if (todayTasks.size - doneCount > 0) {
+                            "${todayTasks.size - doneCount} " +
+                                if (todayTasks.size - doneCount == 1) "tarea pendiente" else "tareas pendientes"
+                        } else {
+                            "Todo hecho hoy"
+                        },
+                        style = MaterialTheme.typography.titleMedium,
+                        color = c.text,
+                    )
+                    Text("$doneCount de ${todayTasks.size}", style = MaterialTheme.typography.bodySmall, color = c.textSecondary)
+                }
+                VidaProgress(if (todayTasks.isEmpty()) 0f else doneCount.toFloat() / todayTasks.size)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(VidaSpacing.sm)) {
+                    VidaSmallButton("Ver tareas", { onNavigate(Routes.TASKS) }, ghost = true)
+                    VidaSmallButton("Compartidos", { onNavigate(Routes.SHARED) }, ghost = true)
                 }
             }
         }
 
-        if (!state.loading && !hasFocusItems) {
-            item {
-                EmptyTodayCard()
-            }
-        }
-
-        item {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(VidaSpacing.md)) {
-                MetricCard(
-                    modifier = Modifier.weight(1f).testTag("metric_tasks"),
-                    label = "Tareas",
-                    value = state.pendingCount.toString(),
-                    subtitle = if (state.overdueCount > 0) "${state.overdueCount} vencidas" else "al día",
-                    subtitleTone = if (state.overdueCount > 0) BadgeTone.Error else null,
-                    icon = Icons.Filled.Description,
-                    tone = BadgeTone.Primary,
-                    onClick = onNavigateToTasks,
+        StaggeredAppear(5) { Eyebrow("Lo que se viene") }
+        StaggeredAppear(6) {
+            Row(
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(VidaSpacing.sm),
+            ) {
+                StripCard("Pagos", state.data.payments.size.toString(), "compromisos", { onNavigate(Routes.PAYMENTS) })
+                StripCard("Mantenimiento", state.data.maintenance.size.toString(), "programados", { onNavigate(Routes.MAINTENANCE) })
+                StripCard(
+                    "Garantías",
+                    state.data.warranties.count { it.status != WarrantyStatus.VENCIDA }.toString(),
+                    "vigentes",
+                    { onNavigate(Routes.WARRANTIES) },
                 )
-                MetricCard(
-                    modifier = Modifier.weight(1f).testTag("metric_shared"),
-                    label = "Compartidos",
-                    value = state.sharedCount.toString(),
-                    subtitle = "invitaciones pendientes",
-                    icon = Icons.Filled.Groups,
-                    tone = BadgeTone.Info,
-                    onClick = onNavigateToShared,
+                StripCard("Inventario", state.data.inventory.size.toString(), "artículos", { onNavigate(Routes.INVENTORY) })
+            }
+        }
+
+        StaggeredAppear(7) { Eyebrow("Actividad reciente") }
+        StaggeredAppear(8) {
+            Column(verticalArrangement = Arrangement.spacedBy(VidaSpacing.sm)) {
+                ResourceRow(
+                    title = "Tienes ${todayContent.alerts.size} avisos hoy",
+                    subtitle = "Derivados de tus garantías, pagos y mantenimientos",
+                    icon = Icons.Outlined.Autorenew,
+                    onClick = { onNavigate(Routes.CALENDAR) },
+                )
+                ResourceRow(
+                    title = "Compartidos contigo",
+                    subtitle = "Lo que tu familia comparte",
+                    icon = Icons.Outlined.Share,
+                    onClick = { onNavigate(Routes.SHARED) },
                 )
             }
         }
-
-        if (state.pendingCount + state.completedCount > 0) {
-            item {
-                ListSectionCard(title = "Progreso de tareas") {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(VidaSpacing.lg)) {
-                        DonutChart(
-                            slices = listOf(
-                                DonutSlice(state.completedCount.toFloat(), VidaTheme.colors.success),
-                                DonutSlice(state.pendingCount.toFloat(), VidaTheme.colors.warning),
-                            ),
-                        )
-                        Column(verticalArrangement = Arrangement.spacedBy(VidaSpacing.xs)) {
-                            LegendRow("Completadas", state.completedCount, VidaTheme.colors.success)
-                            LegendRow("Pendientes", state.pendingCount, VidaTheme.colors.warning)
-                        }
-                    }
-                }
-            }
-        }
     }
 }
-
-/** UX-007: shown when there's nothing overdue/upcoming — an agenda should say "you're clear", not just render nothing. */
-@Composable
-private fun EmptyTodayCard() {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(VidaTheme.colors.successContainer, RoundedCornerShape(VidaShape.card))
-            .padding(VidaSpacing.lg),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(VidaSpacing.sm),
-    ) {
-        Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = VidaTheme.colors.successText)
-        Text(
-            "Estás al día. No tienes tareas pendientes por ahora.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = VidaTheme.colors.successText,
-        )
-    }
-}
-
-@Composable
-private fun LegendRow(label: String, count: Int, color: androidx.compose.ui.graphics.Color) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(VidaSpacing.xs)) {
-        androidx.compose.foundation.layout.Box(modifier = Modifier.size(10.dp).background(color, CircleShape))
-        Text("$label: $count", style = MaterialTheme.typography.bodyMedium, color = VidaTheme.colors.textSecondary)
-    }
-}
-
-private fun formatDueAt(iso: String): String =
-    DateTimeFormatter.ofPattern("MMM d, HH:mm").withZone(ZoneId.systemDefault()).format(Instant.parse(iso))

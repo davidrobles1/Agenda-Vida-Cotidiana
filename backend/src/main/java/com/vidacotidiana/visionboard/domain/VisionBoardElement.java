@@ -103,6 +103,17 @@ public class VisionBoardElement {
 
     public VisionBoardElement(UUID boardId, VisionBoardElementType type, double x, double y, double width,
                                double height, Map<String, Object> data) {
+        this(boardId, type, x, y, width, height, data, 0);
+    }
+
+    /**
+     * Alta indicando la capa. El constructor de arriba fijaba `zIndex = 0`
+     * siempre, así que un elemento nuevo caía por debajo de todo lo que ya
+     * tuviera una capa mayor. Ahora `VisionBoardService#addElement` calcula
+     * la siguiente capa libre y la pasa aquí.
+     */
+    public VisionBoardElement(UUID boardId, VisionBoardElementType type, double x, double y, double width,
+                               double height, Map<String, Object> data, int zIndex) {
         this.boardId = boardId;
         this.type = type;
         this.x = x;
@@ -110,7 +121,7 @@ public class VisionBoardElement {
         this.width = width;
         this.height = height;
         this.rotation = 0;
-        this.zIndex = 0;
+        this.zIndex = zIndex;
         this.locked = false;
         this.visible = true;
         this.data = (data != null) ? data : Map.of();

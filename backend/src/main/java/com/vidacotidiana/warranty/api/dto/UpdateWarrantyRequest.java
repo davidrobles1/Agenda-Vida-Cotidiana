@@ -4,6 +4,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 import java.time.Instant;
+import java.util.UUID;
 
 /**
  * Aligned with components.schemas.UpdateWarrantyRequest in openapi.yaml.
@@ -15,6 +16,16 @@ import java.time.Instant;
 public record UpdateWarrantyRequest(
         @Size(min = 1, max = 200) String item,
         Instant expiresAt,
+        /**
+         * ADR-022: artículo del inventario que cubre la garantía.
+         *
+         * Se acompaña de `linkInventoryItem` porque, igual que
+         * `clearInterval` en Mantenimiento (ADR-021(i)), aquí `null`
+         * significa "no tocar" — sin un indicador explícito, DESENLAZAR
+         * sería imposible de expresar.
+         */
+        UUID inventoryItemId,
+        Boolean linkInventoryItem,
         @NotNull Integer version
 ) {
 }

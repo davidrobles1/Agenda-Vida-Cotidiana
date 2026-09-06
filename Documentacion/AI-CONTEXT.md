@@ -58,7 +58,9 @@ IA, Finanzas/integración bancaria/estados de cuenta, marketplace, afiliados, pu
 - ADR-001 Monolito modular (Accepted).
 - ADR-002 Android nativo, Kotlin + Compose (Accepted).
 - ADR-003 IA fuera de V1–V4 (Accepted).
-- ADR-004 Finanzas fuera de V1–V4 (Accepted).
+- ADR-004 Finanzas fuera de V1–V4 (Accepted), acotada por ADR-020.
+- ADR-020 "Pagos": la sección de Suscripciones pasa a compromisos de pago;
+  importes y divisa por pago, estrictamente dentro de esa sección (Accepted).
 - ADR-005 Plataformas V1 = Android + iOS + Web (Accepted).
 - ADR-006 Modelo de compartir: owner + colaboradores 1:N vía invitación; estado de completado único global (DEC-001); eliminación en cascada con notificación (DEC-002); lifecycle de INVITATION corregido (DEC-003) (Accepted).
 - ADR-007 Push notifications: interfaz propia `PushNotificationSender`, proveedor **FCM** unificado (DEC-010), entidad `DEVICE_PUSH_TOKEN` (DEC-005) (Accepted).
@@ -71,6 +73,10 @@ IA, Finanzas/integración bancaria/estados de cuenta, marketplace, afiliados, pu
 - ADR-014 Cloud/infra provider: **servidor propio alquilado (self-hosted)**, sustituye AWS (DEC-008 corregida; DEC-009/correo reabierta como `TBD`) (Accepted, 2026-08-15).
 - ADR-015 Contextos de uso Personal/Laboral: selector superior condicional (Calendario + modos habilitados), navbar propio por modo, calendario general agregado (día/semana/mes) coloreado por origen, `REMINDER.context` inferido del navbar de creación. Etiquetado V3, pero **implementación adelantada en paralelo con V2 desde 2026-08-18** (Accepted). Ver FR-014 a FR-019.
 - ADR-016 Módulo Laboral: entidades `PERSON`/`PROJECT`/`COMMITMENT` (extiende ADR-015, que era solo etiqueta de contexto). Seguimientos y Esperando unificados en `COMMITMENT.direction` (`MINE`/`THEIRS`), no dos entidades. Reunión = `REMINDER` con `location` + `REMINDER_SHARE` existente, sin entidad Evento nueva. Sin ORGANIZATION propia (texto libre en `PERSON.organization`). Núcleo V3 (Accepted, 2026-08-22). Ver FR-021 a FR-028, NFR-011, SEC-004, `34-laboral-module-proposal.md`.
+- ADR-019 Aislamiento de recursos por módulo: un recurso pertenece al módulo desde el que se creó (columna `context`), y el filtro baja hasta la consulta SQL — no es un filtro visual. Migración V25 (Garantías, Mantenimiento, Suscripciones, Notas del día) y **V28** (Inventario, Documentos). Todo lo preexistente es `PERSONAL` (Accepted).
+- ADR-021 Mantenimiento recurrente: completar avanza la ocurrencia; un vencido avanza **desde hoy** (el intervalo mide desgaste), sin periodicidad el mantenimiento termina; historial `maintenance_log` con índice único que hace idempotente el botón (Accepted, 2026-08-29).
+- ADR-022 Garantías, Inventario y Documentos: se completa el aislamiento por módulo (V28); filtrado y búsqueda pasan a resolverse **en la consulta**, nunca sobre la página ya cargada; vínculo `warranties.inventory_item_id` con Inventario; "Completar" garantía se presenta como **"Usada"** sin cambiar el valor del contrato (`COMPLETADO`) (Accepted, 2026-09-01).
+- ADR-023 Sistema de temas "Seis Agendas": **Editorial eliminado — y solo Editorial**; Premium Minimal, Modern Productivity y Organic / Human se conservan (nueve temas en total). El portal suma Aurora · Lumen · Neo · Calm · Studio · Papel, cada uno con tipografía, densidad, aire, radio, elevación y capa decorativa propias (no solo color). Tokens en `web/src/themes.css`; los nombres heredados (`--color-*`) se derivan de los nuevos (`--bg`, `--ink`, `--line`, `--t-*`, `--r-scale`, `--density`, `--air`) con `var()`. `:root` queda intacto para LoginPage/Keycloak (Accepted, 2026-09-01).
 
 ## Reglas de seguridad
 - HTTPS siempre; autorización por recurso verificada server-side; deny-by-default; mínimo privilegio.
@@ -112,4 +118,7 @@ IA, Finanzas/integración bancaria/estados de cuenta, marketplace, afiliados, pu
 Nombre del producto, mercado inicial, primer grupo de validación, licencia/repo, límite de colaboradores por recordatorio, formato de username, notificación al editar un recordatorio compartido, auto-vinculación de invitación pendiente si el invitado se registra después, reversión de `PENDING_DELETION`, modo offline/cuenta real vs. local, dispositivos soportados más allá de versión de SO, patrón final de manejo de tokens en la SPA Web.
 
 ## Prohibiciones
-No implementar IA ni Finanzas. No crear microservicios en V1. No implementar autenticación/criptografía propia ni login propio (`POST /auth/login` no existe; el backend es resource server de Keycloak). No implementar verificación de email propia (delegada a Keycloak). No exponer stack traces, SQL, nombres internos o secretos en respuestas/logs. No sobrearquitecturar V1 (grupos/hogares/roles granulares quedan para V2/V3; completado por colaborador individual queda descartado para V1, DEC-001). No usar `REVOKED` en `INVITATION` (vive solo en `REMINDER_SHARE`). No decidir silenciosamente sobre un `DOCUMENTATION_CONFLICT` o un `TBD` de negocio.
+No implementar IA ni Finanzas — con UNA excepción acotada y aprobada
+(ADR-020): la sección "Pagos" maneja importe y divisa POR PAGO. Eso no
+habilita saldos, movimientos, estados de cuenta, conexión bancaria,
+presupuestos ni reportes, y **no se extiende a ninguna otra sección**. No crear microservicios en V1. No implementar autenticación/criptografía propia ni login propio (`POST /auth/login` no existe; el backend es resource server de Keycloak). No implementar verificación de email propia (delegada a Keycloak). No exponer stack traces, SQL, nombres internos o secretos en respuestas/logs. No sobrearquitecturar V1 (grupos/hogares/roles granulares quedan para V2/V3; completado por colaborador individual queda descartado para V1, DEC-001). No usar `REVOKED` en `INVITATION` (vive solo en `REMINDER_SHARE`). No decidir silenciosamente sobre un `DOCUMENTATION_CONFLICT` o un `TBD` de negocio.

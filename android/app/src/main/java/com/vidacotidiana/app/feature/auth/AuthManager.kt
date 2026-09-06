@@ -7,6 +7,9 @@ import com.vidacotidiana.app.BuildConfig
 import com.vidacotidiana.app.core.network.AppAuthConfigProvider
 import com.vidacotidiana.app.core.security.TokenStore
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.suspendCancellableCoroutine
 import net.openid.appauth.AuthState
 import net.openid.appauth.AuthorizationException
@@ -64,6 +67,25 @@ class AuthManager @Inject constructor(
     @Volatile
     private var authState: AuthState = tokenStore.loadAuthState() ?: AuthState(serviceConfig)
 
+    /**
+     * La sesión, OBSERVABLE.
+     *
+     * Antes `isLoggedIn()` solo se podía preguntar, y quien cargaba datos lo
+     * preguntaba una vez al construirse — que en esta app ocurre mientras el
+     * usuario todavía está en la pantalla de login. El resultado: la primera
+     * carga salía sin token, fallaba con 401, y nada volvía a intentarlo al
+     * iniciar sesión, así que la aplicación se quedaba con ese error congelado
+     * aunque el token ya fuera válido.
+     *
+     * Publicándola como flujo, cargar deja de depender de CUÁNDO se construyó
+     * cada pieza: quien necesite datos observa la sesión y reacciona a que se
+     * abra o se cierre. Login, registro, cierre de sesión y expiración del
+     * refresh token pasan todos por aquí, así que ninguno necesita acordarse
+     * de avisar a nadie.
+     */
+    private val _isLoggedIn = MutableStateFlow(authState.isAuthorized)
+    val isLoggedInFlow: StateFlow<Boolean> = _isLoggedIn.asStateFlow()
+
     fun isLoggedIn(): Boolean = authState.isAuthorized
 
     fun buildLoginIntent(): Intent {
@@ -105,6 +127,7 @@ class AuthManager @Inject constructor(
         newAuthState.update(tokenResponse, null)
         authState = newAuthState
         tokenStore.saveAuthState(authState)
+        _isLoggedIn.value = authState.isAuthorized
     }
 
     private suspend fun performTokenRequest(response: AuthorizationResponse): TokenResponse =
@@ -121,6 +144,7 @@ class AuthManager @Inject constructor(
     fun logout() {
         authState = AuthState(serviceConfig)
         tokenStore.clear()
+        _isLoggedIn.value = false
     }
 
     /**
@@ -153,6 +177,11 @@ class AuthManager @Inject constructor(
         return suspendCancellableCoroutine { continuation ->
             authState.performActionWithFreshTokens(authService) { accessToken, _, ex ->
                 if (ex != null || accessToken == null) {
+                    // El refresh token tambien caduca o se revoca. Cuando eso
+                    // pasa la sesion esta cerrada de hecho, y decirlo aqui es
+                    // lo que permite que la interfaz reaccione en vez de
+                    // quedarse mostrando datos de una sesion que ya no existe.
+                    _isLoggedIn.value = false
                     continuation.resume(null)
                 } else {
                     tokenStore.saveAuthState(authState)

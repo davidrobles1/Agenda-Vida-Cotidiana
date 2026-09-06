@@ -59,6 +59,36 @@ android {
         release {
             isMinifyEnabled = false
         }
+
+        debug {
+            // DEMO PÚBLICO: el teléfono no está en la LAN del Mac, así que los
+            // valores de `defaultConfig` (192.168.0.18) no le sirven — y
+            // `localhost` desde el teléfono es el propio teléfono, no el Mac.
+            //
+            // El demo publica UN solo host por ngrok (infra/caddy/Caddyfile.demo),
+            // que reparte por ruta: `/auth/*` → Keycloak (8081) y `/api/*` →
+            // backend (8080). De ahí que el issuer lleve el prefijo `/auth`:
+            // Keycloak corre con KC_HTTP_RELATIVE_PATH=/auth para que emita
+            // URLs coherentes detrás del proxy.
+            //
+            // Verificado contra el demo en marcha: el documento de descubrimiento
+            // declara este mismo issuer en https, y el cliente `android-app`
+            // (público, PKCE S256) acepta ya el redirect nativo, así que no hubo
+            // que tocar Keycloak.
+            //
+            // Solo se sobrescribe en debug: `release` conserva su configuración
+            // y no queda apuntando a un túnel temporal.
+            buildConfigField(
+                "String",
+                "OIDC_ISSUER",
+                "\"https://exchange-affirm-variable.ngrok-free.dev/auth/realms/vida-cotidiana\"",
+            )
+            buildConfigField(
+                "String",
+                "API_BASE_URL",
+                "\"https://exchange-affirm-variable.ngrok-free.dev/api/v1/\"",
+            )
+        }
     }
 
     compileOptions {
@@ -77,7 +107,11 @@ android {
 }
 
 dependencies {
-    val composeBom = platform("androidx.compose:compose-bom:2024.09.00")
+    // FASE 2 (ADR-023 en Android): el BOM sube para disponer de `ModalBottomSheet`
+    // estable, `SwipeToDismissBox`, `animateItem()` y `ripple()` de Material 3 —
+    // las cuatro piezas sobre las que se construyen el motion y los gestos del
+    // artefacto. Sin esta subida habría que reimplementarlas a mano.
+    val composeBom = platform("androidx.compose:compose-bom:2024.12.01")
     implementation(composeBom)
     androidTestImplementation(composeBom)
 
@@ -93,7 +127,10 @@ dependencies {
     // every screen up to now was text-only. BOM-managed, same version family
     // as the rest of Compose already in use above.
     implementation("androidx.compose.material:material-icons-extended")
-    implementation("androidx.navigation:navigation-compose:2.7.7")
+    // FASE 2: 2.8 aporta transiciones por destino en el `NavHost` (el artefacto
+    // las tiene entre pantallas) y rutas con tipos. Se conserva el framework;
+    // solo cambia la versión.
+    implementation("androidx.navigation:navigation-compose:2.8.5")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.4")
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
 

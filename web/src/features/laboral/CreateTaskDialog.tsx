@@ -10,6 +10,7 @@ import { createPlace, placeLocationText, type Place } from '../places/api'
 import { createReminder, type CreateReminderInput, type Reminder } from '../reminders/api'
 import shellStyles from '../../core/ui/dialogs/DialogShell.module.css'
 import laboralUI from '../../core/ui/laboral/LaboralUI.module.css'
+import { DatePicker } from '../../core/ui/pickers/DatePicker'
 
 const MotionDialog = motion.create(Dialog)
 
@@ -154,15 +155,11 @@ export function CreateTaskDialog({ people, projects, places, onCreated, onPlaceC
                   />
                 </label>
 
-                <label className={shellStyles.field}>
-                  <span className={shellStyles.fieldLabel}>Fecha (opcional)</span>
-                  <input
-                    className={shellStyles.textInput}
-                    type="date"
+                <DatePicker
+                    label="Fecha (opcional)"
                     value={dueAtLocal}
-                    onChange={(e) => setDueAtLocal(e.target.value)}
+                    onChange={(next) => setDueAtLocal(next)}
                   />
-                </label>
 
                 <label className={shellStyles.field}>
                   <span className={shellStyles.fieldLabel}>{vocabulary.person} (opcional)</span>

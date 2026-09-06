@@ -7,6 +7,7 @@ import { useVocabulary } from '../../core/user/useVocabulary'
 import type { Person } from '../people/api'
 import { createProject, type CreateProjectInput, type Project } from './api'
 import shellStyles from '../../core/ui/dialogs/DialogShell.module.css'
+import { DatePicker } from '../../core/ui/pickers/DatePicker'
 
 const MotionDialog = motion.create(Dialog)
 
@@ -122,15 +123,11 @@ export function CreateProjectDialog({ people, onCreated }: CreateProjectDialogPr
                   />
                 </label>
 
-                <label className={shellStyles.field}>
-                  <span className={shellStyles.fieldLabel}>Fecha límite (opcional)</span>
-                  <input
-                    className={shellStyles.textInput}
-                    type="date"
+                <DatePicker
+                    label="Fecha límite (opcional)"
                     value={deadline}
-                    onChange={(e) => setDeadline(e.target.value)}
+                    onChange={(next) => setDeadline(next)}
                   />
-                </label>
 
                 <div className={shellStyles.formActions}>
                   {saving && <span className={shellStyles.savingHint}>Guardando…</span>}
