@@ -7,10 +7,14 @@ import androidx.compose.material.icons.outlined.Autorenew
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Dashboard
 import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.Flag
+import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.Place
+import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.VerifiedUser
@@ -32,9 +36,14 @@ enum class AppContext(val label: String) {
 
 /** Rutas reales. Ninguna inventada: son las que ya existen o las que el artefacto define. */
 object Routes {
-    /** Presentación con el logo del Portal. No es navegable: pasa sola al login. */
+    /**
+     * Presentación con el logo del Portal y puerta de entrada.
+     *
+     * Es el ÚNICO destino previo a la sesión: la antigua ruta `login` —una
+     * pantalla propia con botones— se eliminó, porque el formulario real es el
+     * de Keycloak y esta pantalla lo abre directamente.
+     */
     const val INTRO = "intro"
-    const val LOGIN = "login"
 
     // Personal
     const val HOME = "home"
@@ -56,6 +65,12 @@ object Routes {
     const val PEOPLE = "personas"
     const val PROJECTS = "proyectos"
     const val COMMITMENTS = "seguimientos"
+    const val OBJECTIVES = "objetivos"
+    const val ROUTINES = "rutinas"
+    /** La ruta es «recursos» —lo que ve el usuario—; el tipo interno es
+        `WorkResource` para no dar un tercer sentido a "resource" en el código. */
+    const val WORK_RESOURCES = "recursos"
+    const val PLACES = "lugares"
     const val INBOX = "inbox"
 
     // Cuenta
@@ -107,6 +122,15 @@ fun navFor(context: AppContext, profile: ProfessionalProfile): List<Destination>
         Destination(Routes.PEOPLE, profile.personPlural, Icons.Outlined.Groups),
         Destination(Routes.PROJECTS, profile.projectPlural, Icons.Outlined.Description),
         Destination(Routes.COMMITMENTS, "Seguimientos", Icons.Outlined.Autorenew),
+        // Objetivos vive en el CAJÓN y no en la barra inferior: la barra es
+        // para lo que se consulta a diario, y un objetivo no lo es.
+        Destination(Routes.OBJECTIVES, "Objetivos", Icons.Outlined.Flag),
+        // Junto a Objetivos porque las dos son seguimiento del propio trabajo;
+        // Seguimientos, en cambio, son compromisos con terceros. En el cajón,
+        // no en la barra: la barra es para lo diario.
+        Destination(Routes.ROUTINES, "Rutinas", Icons.Outlined.Repeat),
+        Destination(Routes.WORK_RESOURCES, "Recursos", Icons.Outlined.FolderOpen),
+        Destination(Routes.PLACES, "Lugares", Icons.Outlined.Place),
         Destination(Routes.INBOX, "Inbox", Icons.Outlined.Inbox),
     )
     AppContext.PORTAL -> listOf(
@@ -187,6 +211,10 @@ fun createResourceForRoute(route: String?): CreatableResource? = when (route) {
     Routes.PEOPLE -> CreatableResource.PERSON
     Routes.PROJECTS -> CreatableResource.PROJECT
     Routes.COMMITMENTS -> CreatableResource.COMMITMENT
+    Routes.OBJECTIVES -> CreatableResource.OBJECTIVE
+    Routes.ROUTINES -> CreatableResource.ROUTINE
+    Routes.WORK_RESOURCES -> CreatableResource.WORK_RESOURCE
+    Routes.PLACES -> CreatableResource.PLACE
     Routes.INBOX -> CreatableResource.NOTE
     else -> null
 }
@@ -201,6 +229,10 @@ fun createActions(context: AppContext, profile: ProfessionalProfile): List<Creat
         CreateAction(CreatableResource.PROJECT, "Nuevo ${profile.project.lowercase()}", Icons.Outlined.Description),
         CreateAction(CreatableResource.PERSON, "Nueva ${profile.person.lowercase()}", Icons.Outlined.Groups),
         CreateAction(CreatableResource.COMMITMENT, "Nuevo seguimiento", Icons.Outlined.Autorenew),
+        CreateAction(CreatableResource.OBJECTIVE, "Nuevo objetivo", Icons.Outlined.Flag),
+        CreateAction(CreatableResource.ROUTINE, "Nueva rutina", Icons.Outlined.Repeat),
+        CreateAction(CreatableResource.WORK_RESOURCE, "Nuevo recurso", Icons.Outlined.FolderOpen),
+        CreateAction(CreatableResource.PLACE, "Nuevo lugar", Icons.Outlined.Place),
         CreateAction(CreatableResource.NOTE, "Nueva nota al Inbox", Icons.Outlined.Inbox),
     )
     AppContext.PORTAL -> listOf(

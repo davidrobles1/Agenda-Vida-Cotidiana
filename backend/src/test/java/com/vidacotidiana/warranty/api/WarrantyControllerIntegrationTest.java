@@ -10,6 +10,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -82,6 +83,24 @@ class WarrantyControllerIntegrationTest {
         return new MockMultipartFile("file", "garantia.pdf", "application/pdf", new byte[]{'%', 'P', 'D', 'F', 1, 2, 3});
     }
 
+    /**
+     * Una garantía necesita el artículo que cubre (DECISION del Product Owner,
+     * 2026-09-06), así que cada alta crea antes el suyo. El artículo nace
+     * PERSONAL, igual que la garantía: el servicio rechaza enlazar recursos de
+     * módulos distintos.
+     */
+    private String inventoryItemFor(RequestPostProcessor principal) throws Exception {
+        String body = objectMapper.writeValueAsString(
+                Map.of("name", "Artículo " + UUID.randomUUID(), "category", "ELECTRONICOS"));
+        String json = mockMvc.perform(post("/api/v1/inventory-items")
+                        .with(principal)
+                        .contentType("application/json")
+                        .content(body))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        return objectMapper.readTree(json).get("id").asText();
+    }
+
     @Test
     void createListAndCompleteWarranty_happyPath() throws Exception {
         UUID userId = UUID.randomUUID();
@@ -92,6 +111,7 @@ class WarrantyControllerIntegrationTest {
                         .file(pdfFile())
                         .param("item", "Laptop Dell XPS 13")
                         .param("expiresAt", expiresAt)
+                        .param("inventoryItemId", inventoryItemFor(principal))
                         .with(principal))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.item", is("Laptop Dell XPS 13")))
@@ -123,6 +143,7 @@ class WarrantyControllerIntegrationTest {
                         .file(file)
                         .param("item", "Refrigerador")
                         .param("expiresAt", Instant.now().plus(200, ChronoUnit.DAYS).toString())
+                        .param("inventoryItemId", inventoryItemFor(principal))
                         .with(principal))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
@@ -145,6 +166,53 @@ class WarrantyControllerIntegrationTest {
                         .file(emptyFile)
                         .param("item", "Sin archivo")
                         .param("expiresAt", Instant.now().plus(30, ChronoUnit.DAYS).toString())
+                        .param("inventoryItemId", inventoryItemFor(principal))
+                        .with(principal))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("VALIDATION_ERROR")));
+    }
+
+    /**
+     * DECISION del Product Owner (2026-09-06): una garantía siempre cubre un
+     * artículo. La regla vive en el servicio y no solo en la pantalla, así que
+     * una llamada directa a la API tampoco puede saltársela.
+     */
+    @Test
+    void createWarranty_withoutInventoryItemIsRejected() throws Exception {
+        var principal = jwt().jwt(jwtFor(UUID.randomUUID(), "noitem-w@example.com").build());
+
+        mockMvc.perform(multipart("/api/v1/warranties")
+                        .file(pdfFile())
+                        .param("item", "Sin artículo")
+                        .param("expiresAt", Instant.now().plus(30, ChronoUnit.DAYS).toString())
+                        .with(principal))
+                .andExpect(status().isBadRequest());
+    }
+
+    /**
+     * ADR-019 regla 2: enlazar una garantía Personal con un artículo Laboral
+     * haría que un recurso de un módulo apareciera en el otro. Hasta ahora la
+     * única defensa era que el cliente filtrara el selector.
+     */
+    @Test
+    void createWarranty_withItemFromAnotherModuleIsRejected() throws Exception {
+        var principal = jwt().jwt(jwtFor(UUID.randomUUID(), "crossmod-w@example.com").build());
+        String laboralItemJson = mockMvc.perform(post("/api/v1/inventory-items")
+                        .with(principal)
+                        .param("context", "LABORAL")
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(
+                                Map.of("name", "Impresora de oficina", "category", "ELECTRONICOS"))))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String laboralItemId = objectMapper.readTree(laboralItemJson).get("id").asText();
+
+        // La garantía nace PERSONAL (sin `context`), el artículo es LABORAL.
+        mockMvc.perform(multipart("/api/v1/warranties")
+                        .file(pdfFile())
+                        .param("item", "Garantía de la impresora")
+                        .param("expiresAt", Instant.now().plus(30, ChronoUnit.DAYS).toString())
+                        .param("inventoryItemId", laboralItemId)
                         .with(principal))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code", is("VALIDATION_ERROR")));
@@ -159,6 +227,7 @@ class WarrantyControllerIntegrationTest {
                         .file(pdfFile())
                         .param("item", "Lavadora Samsung")
                         .param("expiresAt", expiresAt)
+                        .param("inventoryItemId", inventoryItemFor(principal))
                         .with(principal))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.status", is("VENCIDA")));
@@ -173,6 +242,7 @@ class WarrantyControllerIntegrationTest {
                         .file(pdfFile())
                         .param("item", "Seguro de auto")
                         .param("expiresAt", expiresAt)
+                        .param("inventoryItemId", inventoryItemFor(principal))
                         .with(principal))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.status", is("POR_VENCER")));
@@ -186,6 +256,7 @@ class WarrantyControllerIntegrationTest {
                         .file(pdfFile())
                         .param("item", "")
                         .param("expiresAt", Instant.now().toString())
+                        .param("inventoryItemId", inventoryItemFor(principal))
                         .with(principal))
                 .andExpect(status().isBadRequest());
     }
@@ -201,6 +272,7 @@ class WarrantyControllerIntegrationTest {
                         .file(pdfFile())
                         .param("item", "Private warranty")
                         .param("expiresAt", Instant.now().plus(100, ChronoUnit.DAYS).toString())
+                        .param("inventoryItemId", inventoryItemFor(owner))
                         .with(owner))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
@@ -220,6 +292,7 @@ class WarrantyControllerIntegrationTest {
                         .file(pdfFile())
                         .param("item", "Refrigerador")
                         .param("expiresAt", Instant.now().plus(100, ChronoUnit.DAYS).toString())
+                        .param("inventoryItemId", inventoryItemFor(principal))
                         .with(principal))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
@@ -249,6 +322,7 @@ class WarrantyControllerIntegrationTest {
                         .file(pdfFile())
                         .param("item", "Laptop Dell XPS 13")
                         .param("expiresAt", Instant.now().plus(200, ChronoUnit.DAYS).toString())
+                        .param("inventoryItemId", inventoryItemFor(principal))
                         .with(principal))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
@@ -271,6 +345,7 @@ class WarrantyControllerIntegrationTest {
                         .file(pdfFile())
                         .param("item", "Sofá")
                         .param("expiresAt", Instant.now().plus(200, ChronoUnit.DAYS).toString())
+                        .param("inventoryItemId", inventoryItemFor(principal))
                         .with(principal))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
@@ -296,6 +371,7 @@ class WarrantyControllerIntegrationTest {
                         .file(pdfFile())
                         .param("item", "Private warranty")
                         .param("expiresAt", Instant.now().plus(100, ChronoUnit.DAYS).toString())
+                        .param("inventoryItemId", inventoryItemFor(owner))
                         .with(owner))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
@@ -317,6 +393,7 @@ class WarrantyControllerIntegrationTest {
                         .file(pdfFile())
                         .param("item", "Throwaway warranty")
                         .param("expiresAt", Instant.now().plus(100, ChronoUnit.DAYS).toString())
+                        .param("inventoryItemId", inventoryItemFor(principal))
                         .with(principal))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
@@ -342,6 +419,7 @@ class WarrantyControllerIntegrationTest {
                         .file(pdfFile())
                         .param("item", "Private warranty")
                         .param("expiresAt", Instant.now().plus(100, ChronoUnit.DAYS).toString())
+                        .param("inventoryItemId", inventoryItemFor(owner))
                         .with(owner))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();

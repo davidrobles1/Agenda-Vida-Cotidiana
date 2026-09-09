@@ -168,12 +168,21 @@ fun VisionBoardScreen(
                         color = c.textSecondary,
                         modifier = Modifier.align(Alignment.Center),
                     )
+                    // FIRST_USE. Sin acción propia a propósito: «Pegar imagen» y
+                    // «Elegir foto» están justo encima del lienzo, y repetirlas
+                    // aquí sería el tercer botón para lo mismo.
+                    //
+                    // Ancla arriba a la izquierda, no al centro: el envoltorio
+                    // centrado venía de cuando `EmptyState` se centraba solo, y
+                    // devolvía a esta pantalla el comportamiento que el sistema
+                    // ya no tiene. Así el texto arranca en el mismo eje que el
+                    // resto del contenido.
                     board == null || board.elements.isEmpty() -> Box(
-                        Modifier.align(Alignment.Center).padding(VidaSpacing.lg),
+                        Modifier.align(Alignment.TopStart).padding(VidaSpacing.lg),
                     ) {
                         EmptyState(
                             title = "Tu tablero está en blanco",
-                            body = "Copia una imagen en Chrome y toca «Pegar imagen», o elige una foto.",
+                            body = "Pega una imagen que hayas copiado o elige una foto: los dos botones están justo arriba.",
                         )
                     }
                     else -> board.elements.forEach { element ->

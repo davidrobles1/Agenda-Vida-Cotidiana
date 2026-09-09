@@ -13,6 +13,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import com.vidacotidiana.app.core.app.AppViewModel
@@ -26,6 +27,7 @@ import com.vidacotidiana.app.core.ui.components.EmptyState
 import com.vidacotidiana.app.core.ui.components.HeroCard
 import com.vidacotidiana.app.core.ui.components.LoadingRows
 import com.vidacotidiana.app.core.ui.components.PillTone
+import com.vidacotidiana.app.core.ui.components.ResourceBoard
 import com.vidacotidiana.app.core.ui.components.ResourceEntry
 import com.vidacotidiana.app.core.ui.components.ResourceListScreen
 import com.vidacotidiana.app.core.ui.components.ResourceRow
@@ -38,6 +40,7 @@ import kotlinx.coroutines.CoroutineScope
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import com.vidacotidiana.app.core.ui.VidaVocabulary
 
 /**
  * Las SIETE secciones del contexto Laboral (ADR-016), con el vocabulario del
@@ -80,11 +83,12 @@ private fun Commitment.tone(): Pair<String, PillTone> = when {
  * de traducirlo contra una lista de valores que no existe.
  */
 private fun Project.tone(): Pair<String, PillTone>? =
-    status.takeIf { it.isNotBlank() }?.let { it to PillTone.NEUTRAL }
+    status?.takeIf { it.isNotBlank() }?.let { VidaVocabulary.human(it) to PillTone.NEUTRAL }
 
 @Composable
 fun HoyScreen(viewModel: AppViewModel, drawerState: DrawerState, scope: CoroutineScope) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val context = LocalContext.current
     val today = LocalDate.now()
     val todayContent = viewModel.contentFor(today)
     // Lo que urge de verdad: lo que vence hoy o ya venció.
@@ -139,17 +143,24 @@ fun HoyScreen(viewModel: AppViewModel, drawerState: DrawerState, scope: Coroutin
                 )
             }
         } else {
-            Column(verticalArrangement = Arrangement.spacedBy(VidaSpacing.sm)) {
-                openTasks.take(4).forEachIndexed { i, task ->
-                    StaggeredAppear(2 + i) {
-                        ResourceRow(
-                            task.title,
-                            task.meta,
+            StaggeredAppear(2) {
+                ResourceBoard(
+                    entries = openTasks.take(6).map { task ->
+                        ResourceEntry(
+                            id = task.id,
+                            title = task.title,
+                            subtitle = listOfNotNull(task.meta, task.location).joinToString(" · "),
+                            highlight = task.time?.toString()?.take(5),
                             icon = Icons.AutoMirrored.Outlined.Assignment,
-                            onClick = { viewModel.toggleTask(task.id) },
+                            onComplete = { viewModel.toggleTask(task.id) },
+                            completeLabel = "Hecha",
+                            extraActions = task.location?.let { place ->
+                                listOf("Cómo llegar" to { viewModel.openDirections(context, place) })
+                            } ?: emptyList(),
                         )
-                    }
-                }
+                    },
+                    onOpenDetail = { entry -> viewModel.requestEdit(CreatableResource.TASK, entry.id) },
+                )
             }
         }
 
@@ -163,17 +174,24 @@ fun HoyScreen(viewModel: AppViewModel, drawerState: DrawerState, scope: Coroutin
                     color = VidaTheme.colors.textSecondary,
                 )
             }
-            else -> Column(verticalArrangement = Arrangement.spacedBy(VidaSpacing.sm)) {
-                pressing.take(4).forEachIndexed { i, commitment ->
-                    StaggeredAppear(7 + i) {
-                        ResourceRow(
-                            commitment.description,
-                            dueLabel(commitment.dueOn),
+            else -> StaggeredAppear(7) {
+                ResourceBoard(
+                    entries = pressing.take(6).map { commitment ->
+                        ResourceEntry(
+                            id = commitment.id,
+                            title = commitment.description,
+                            subtitle = commitment.personId?.let { id ->
+                                state.data.people.firstOrNull { p -> p.id == id }?.name
+                            } ?: "Sin persona",
+                            highlight = dueLabel(commitment.dueOn),
                             icon = Icons.Outlined.Autorenew,
                             pill = commitment.tone(),
+                            onComplete = { viewModel.completeResource(CreatableResource.COMMITMENT, commitment.id) },
+                            completeLabel = "Cerrar",
                         )
-                    }
-                }
+                    },
+                    onOpenDetail = { entry -> viewModel.requestEdit(CreatableResource.COMMITMENT, entry.id) },
+                )
             }
         }
     }
@@ -200,8 +218,17 @@ fun AgendaScreen(viewModel: AppViewModel, drawerState: DrawerState, scope: Corou
 
         when {
             state.loading && busy.isEmpty() -> StaggeredAppear(1) { LoadingRows(3) }
+            // EMPTY, y en tono de invitación, no de reproche: una semana sin
+            // nada agendado no es un incumplimiento. El título afirma el hecho
+            // en positivo y la acción se ofrece como opción («si quieres»), no
+            // como corrección. La agenda vacía es justo el momento en que uno
+            // planifica, así que la acción pertenece aquí.
             busy.isEmpty() -> StaggeredAppear(1) {
-                EmptyState("Semana despejada", "No hay nada agendado en los próximos siete días.")
+                EmptyState(
+                    title = "Semana despejada",
+                    body = "No tienes nada agendado en los próximos siete días. Buen momento para planificar, si quieres.",
+                    action = "Nueva tarea" to { viewModel.requestCreate(CreatableResource.TASK) },
+                )
             }
             else -> StaggeredAppear(1) {
                 VidaCard {
@@ -225,18 +252,26 @@ fun LaboralTasksScreen(viewModel: AppViewModel, drawerState: DrawerState, scope:
     val state by viewModel.state.collectAsStateWithLifecycle()
     val today = LocalDate.now()
     val tasks = viewModel.allTasks()
+    val context = LocalContext.current
     val entries = tasks.map {
         ResourceEntry(
             id = it.id,
             title = it.title,
-            subtitle = it.meta,
+            // FR-024: la ubicación acompaña a la fecha en el subtítulo, igual
+            // que en Tareas de Personal. Una sola forma de mostrarla.
+            subtitle = listOfNotNull(it.meta, it.location).joinToString(" · "),
+            highlight = it.time?.toString()?.take(5),
             icon = Icons.AutoMirrored.Outlined.Assignment,
+            group = if (it.done) "Hechas" else "Abiertas",
             onEdit = { viewModel.requestEdit(CreatableResource.TASK, it.id) },
             onComplete = if (!it.done) {
                 { viewModel.completeResource(CreatableResource.TASK, it.id) }
             } else null,
             completeLabel = "Hecha",
             pill = if (it.done) "Hecha" to PillTone.OK else null,
+            extraActions = it.location?.let { place ->
+                listOf("Cómo llegar" to { viewModel.openDirections(context, place) })
+            } ?: emptyList(),
         )
     }
     ResourceListScreen(
@@ -273,12 +308,31 @@ fun LaboralTasksScreen(viewModel: AppViewModel, drawerState: DrawerState, scope:
 fun PeopleScreen(viewModel: AppViewModel, drawerState: DrawerState, scope: CoroutineScope, navController: NavHostController) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val people = state.data.people
+    // V32: en cuántos proyectos está cada persona. Se suman las dos formas de
+    // estar en uno —participante y cliente—, porque viven en sitios distintos
+    // y para quien lee la tarjeta son lo mismo.
+    val projectCount = people.associate { person ->
+        person.id to (
+            state.data.participations.count { it.personId == person.id } +
+                state.data.projects.count { it.clientPersonId == person.id }
+            )
+    }
     val entries = people.map {
+        val inProjects = projectCount[it.id] ?: 0
         ResourceEntry(
             id = it.id,
             title = it.name,
-            subtitle = listOfNotNull(it.role, it.organization).joinToString(" · ").ifBlank { "Sin detalle" },
+            subtitle = listOfNotNull(
+                it.role,
+                it.organization,
+                when {
+                    inProjects == 0 -> null
+                    inProjects == 1 -> "en 1 ${state.profile.project.lowercase()}"
+                    else -> "en $inProjects ${state.profile.projectPlural.lowercase()}"
+                },
+            ).joinToString(" · ").ifBlank { "Sin detalle" },
             icon = Icons.Outlined.Groups,
+            group = it.role?.ifBlank { null } ?: "Sin rol",
             // Una persona no se completa: no existe ese estado en su backend.
             onEdit = { viewModel.requestEdit(CreatableResource.PERSON, it.id) },
             onDelete = { viewModel.deleteResource(CreatableResource.PERSON, it.id) },
@@ -319,17 +373,31 @@ fun ProjectsScreen(viewModel: AppViewModel, drawerState: DrawerState, scope: Cor
         .groupingBy { it.projectId!! }
         .eachCount()
 
+    // V32: cuánta gente hay en cada proyecto — participantes más el cliente,
+    // que sigue viviendo en el propio proyecto y no en la lista.
+    val peopleByProject = state.data.participations.groupingBy { it.projectId }.eachCount()
+
     val entries = projects.map {
         val open = openByProject[it.id] ?: 0
+        val involved = (peopleByProject[it.id] ?: 0) + (if (it.clientPersonId != null) 1 else 0)
         ResourceEntry(
             id = it.id,
             title = it.name,
-            subtitle = when {
-                open == 0 -> "Sin seguimientos abiertos"
-                open == 1 -> "1 seguimiento abierto"
-                else -> "$open seguimientos abiertos"
-            } + (it.deadline?.let { d -> " · entrega ${d.format(DAY_MONTH)}" } ?: ""),
+            subtitle = listOfNotNull(
+                when {
+                    open == 0 -> "Sin seguimientos abiertos"
+                    open == 1 -> "1 seguimiento abierto"
+                    else -> "$open seguimientos abiertos"
+                },
+                when {
+                    involved == 0 -> null
+                    involved == 1 -> "1 persona"
+                    else -> "$involved personas"
+                },
+                it.deadline?.let { d -> "entrega ${d.format(DAY_MONTH)}" },
+            ).joinToString(" · "),
             icon = Icons.Outlined.Description,
+            group = it.status?.ifBlank { null }?.let(VidaVocabulary::human) ?: "Sin estado",
             // El estado de un proyecto es texto libre; no hay «resolver».
             onEdit = { viewModel.requestEdit(CreatableResource.PROJECT, it.id) },
             onDelete = { viewModel.deleteResource(CreatableResource.PROJECT, it.id) },
@@ -338,7 +406,7 @@ fun ProjectsScreen(viewModel: AppViewModel, drawerState: DrawerState, scope: Cor
     }
     // Los chips salen de los estados que el usuario realmente escribió, no de
     // una lista fija: `Project.status` es texto libre.
-    val statuses = listOf("Todos") + projects.map { it.status }.filter { it.isNotBlank() }.distinct().sorted()
+    val statuses = listOf("Todos") + projects.mapNotNull { it.status?.ifBlank { null }?.let(VidaVocabulary::human) }.distinct().sorted()
 
     // Destino prioritario de la barra en Laboral: su cabecera muestra el menú.
     ResourceListScreen(
@@ -371,11 +439,16 @@ fun CommitmentsScreen(viewModel: AppViewModel, drawerState: DrawerState, scope: 
         ResourceEntry(
             id = it.id,
             title = it.description,
-            subtitle = listOfNotNull(
-                it.personId?.let { id -> peopleById[id]?.name },
-                dueLabel(it.dueOn),
-            ).joinToString(" · "),
+            subtitle = it.personId?.let { id -> peopleById[id]?.name } ?: "Sin persona",
+            highlight = dueLabel(it.dueOn),
             icon = Icons.Outlined.Autorenew,
+            // Lo que separa un seguimiento de otro no es su fecha sino DE QUIÉN
+            // depende: es la razón de ser de la sección.
+            group = when {
+                it.status == "DONE" -> "Cerrados"
+                it.direction == "MINE" -> "Me toca a mí"
+                else -> "Lo espero"
+            },
             onEdit = { viewModel.requestEdit(CreatableResource.COMMITMENT, it.id) },
             // El backend lo llama `resolve`, no `complete`: un seguimiento ya
             // cerrado no vuelve a ofrecerlo.
@@ -433,20 +506,42 @@ fun InboxScreen(viewModel: AppViewModel, drawerState: DrawerState, scope: Corout
                     action = "Reintentar" to viewModel::refresh,
                 )
             }
-            unclassified.isEmpty() -> StaggeredAppear(1) {
-                EmptyState("Inbox vacío", "Todo lo que anotaste ya está clasificado.")
+            // DOS VACÍOS OPUESTOS QUE DECÍAN LO MISMO.
+            //
+            // Con el Inbox entero vacío es FIRST_USE: nunca se anotó nada, y
+            // «todo lo que anotaste ya está clasificado» afirmaba un hecho
+            // falso sobre alguien que no había anotado nunca.
+            //
+            // Con notas ya clasificadas es COMPLETED, y va SIN acción: haber
+            // terminado no es un problema que ofrecerse a resolver.
+            unclassified.isEmpty() && state.data.inbox.isEmpty() -> StaggeredAppear(1) {
+                EmptyState(
+                    title = "Aún no has anotado nada",
+                    body = "El Inbox es para apuntar rápido lo que todavía no sabes dónde va. Ya lo clasificarás.",
+                    action = "Nueva nota" to { viewModel.requestCreate(CreatableResource.NOTE) },
+                )
             }
-            else -> Column(verticalArrangement = Arrangement.spacedBy(VidaSpacing.sm)) {
-                unclassified.forEachIndexed { i, note ->
-                    StaggeredAppear(1 + i) {
-                        ResourceRow(
-                            note.title,
-                            note.description ?: "Sin clasificar",
+            unclassified.isEmpty() -> StaggeredAppear(1) {
+                EmptyState(
+                    title = "Inbox al día",
+                    body = "No queda nada por clasificar.",
+                )
+            }
+            else -> StaggeredAppear(1) {
+                // Muro de notas, no lista: una nota suelta es un objeto, y en
+                // cuadricula se ven de golpe todas las que hay sin clasificar.
+                ResourceBoard(
+                    entries = unclassified.map { note ->
+                        ResourceEntry(
+                            id = note.id,
+                            title = note.title,
+                            subtitle = note.description ?: "Sin clasificar",
                             icon = Icons.Outlined.Inbox,
-                            onClick = { viewModel.requestEdit(CreatableResource.NOTE, note.id) },
+                            onEdit = { viewModel.requestEdit(CreatableResource.NOTE, note.id) },
                         )
-                    }
-                }
+                    },
+                    onOpenDetail = { entry -> viewModel.requestEdit(CreatableResource.NOTE, entry.id) },
+                )
             }
         }
     }

@@ -52,16 +52,27 @@ export async function listWarranties(context?: ModuleContext | null): Promise<Wa
   return response.json()
 }
 
+/**
+ * `inventoryItemId` es OBLIGATORIO desde el 2026-09-06 (DECISION del Product
+ * Owner): una garantía siempre cubre un artículo del inventario. Antes el
+ * enlace solo existía al editar, así que toda garantía nacía desconectada y
+ * ligarla era un segundo acto del que había que acordarse.
+ *
+ * La regla se aplica también en el servidor (`WarrantyService#create`): la
+ * validación de pantalla se salta con una llamada directa a la API.
+ */
 export async function createWarranty(
   item: string,
   expiresAt: string,
   file: File,
+  inventoryItemId: string,
   context?: ModuleContext | null,
 ): Promise<Warranty> {
   const formData = new FormData()
   formData.append('file', file)
   formData.append('item', item)
   formData.append('expiresAt', expiresAt)
+  formData.append('inventoryItemId', inventoryItemId)
   // ADR-019: el módulo queda fijado en el alta y no cambia después.
   formData.append('context', creationContext(context))
   const response = await apiFetch('/warranties', { method: 'POST', body: formData })

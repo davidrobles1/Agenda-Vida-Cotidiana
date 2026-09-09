@@ -316,7 +316,7 @@ fun VidaSmallButton(
     ) {
         Text(
             text,
-            style = MaterialTheme.typography.labelLarge.copy(fontSize = 12.5.sp),
+            style = VidaTheme.type.action,
             // Deshabilitado se ve, no solo se comporta: un boton que ignora el
             // toque sin decirlo se lee como una aplicacion rota.
             color = (if (ghost) c.textSecondary else c.onPrimary).copy(alpha = if (enabled) 1f else 0.45f),

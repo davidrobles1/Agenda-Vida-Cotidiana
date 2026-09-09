@@ -6,6 +6,10 @@ import { SimpleDeleteConfirm } from '../../core/ui/dialogs/SimpleDeleteConfirm'
 import { FilterChip } from '../../core/ui/components/FilterChip'
 import { useActiveMode } from '../../core/user/ActiveModeContext'
 import styles from '../../core/ui/patterns/SectionList.module.css'
+import { listMaintenanceRecords, type MaintenanceRecord } from '../maintenance/api'
+// La misma fecha con el mismo formato que en la sección de Mantenimiento: si
+// el artículo la escribiera de otra forma, parecería otro dato.
+import { formatDate as formatMaintenanceDate } from '../maintenance/maintenanceView'
 import { listWarranties, type Warranty } from '../warranties/api'
 import { STATE_MARKS } from '../warranties/warrantiesView'
 import {
@@ -17,9 +21,11 @@ import {
   type InventoryItem,
 } from './api'
 import {
+  MAINTENANCE_TAG_LABELS,
   WARRANTY_TAG_LABELS,
   emptyReason,
   groupByLocation,
+  indexMaintenanceByItem,
   indexWarrantiesByItem,
   summarizeInventory,
 } from './inventoryView'
@@ -47,6 +53,7 @@ export function InventoryPage() {
   const activeMode = useActiveMode()
   const [items, setItems] = useState<InventoryItem[]>([])
   const [warranties, setWarranties] = useState<Warranty[]>([])
+  const [maintenance, setMaintenance] = useState<MaintenanceRecord[]>([])
   const [total, setTotal] = useState(0)
   const [totalUnfiltered, setTotalUnfiltered] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -67,13 +74,18 @@ export function InventoryPage() {
     setLoading(true)
     setError(null)
     try {
-      const [page, warrantyPage] = await Promise.all([
+      // Garantías y mantenimientos son CONTEXTO del artículo, no el listado:
+      // si alguno falla, el inventario se sigue viendo. Por eso cada uno cae
+      // a una lista vacía en vez de tumbar la pantalla entera.
+      const [page, warrantyPage, maintenancePage] = await Promise.all([
         listInventoryItems(activeMode, category, query),
         listWarranties(activeMode).catch(() => ({ items: [] as Warranty[] })),
+        listMaintenanceRecords(activeMode).catch(() => ({ items: [] as MaintenanceRecord[] })),
       ])
       setItems(page.items)
       setTotal(page.totalElements)
       setWarranties(warrantyPage.items)
+      setMaintenance(maintenancePage.items)
       // El total sin filtrar sostiene los mensajes del estado vacío
       // ("tienes N artículos registrados"), que si no mentirían al contar
       // solo lo que el filtro dejó pasar.
@@ -90,7 +102,11 @@ export function InventoryPage() {
   }, [refresh])
 
   const warrantyByItem = useMemo(() => indexWarrantiesByItem(warranties), [warranties])
-  const summary = useMemo(() => summarizeInventory(items, warrantyByItem), [items, warrantyByItem])
+  const maintenanceByItem = useMemo(() => indexMaintenanceByItem(maintenance), [maintenance])
+  const summary = useMemo(
+    () => summarizeInventory(items, warrantyByItem, maintenanceByItem),
+    [items, warrantyByItem, maintenanceByItem],
+  )
   const groups = useMemo(() => groupByLocation(items), [items])
 
   function handleSaved(saved: InventoryItem) {
@@ -155,11 +171,16 @@ export function InventoryPage() {
               <p className={styles.summaryMeta}>enlazados a Garantías</p>
             </div>
 
+            {/* V31: la tercera tarjeta responde la otra mitad de "qué tengo".
+                Antes contaba artículos sin ubicación, un dato de aseo; el
+                mantenimiento pendiente es algo que hay que hacer. La
+                ubicación no se pierde: sigue en cada tarjeta y agrupa la
+                lista entera. */}
             <div className={styles.summaryCard}>
-              <span className={styles.summaryLabel}>Sin ubicación</span>
-              <p className={styles.summaryValue}>{summary.withoutLocationCount}</p>
+              <span className={styles.summaryLabel}>Con mantenimiento</span>
+              <p className={styles.summaryValue}>{summary.withMaintenanceCount}</p>
               <p className={styles.summaryMeta}>
-                {summary.withoutLocationCount > 0 ? 'conviene completarlos' : 'todos ubicados'}
+                {summary.withMaintenanceCount > 0 ? 'tienen algo programado' : 'nada programado'}
               </p>
             </div>
           </section>
@@ -240,10 +261,12 @@ export function InventoryPage() {
             <div className={styles.rows}>
               {group.items.map((item) => {
                 const link = warrantyByItem.get(item.id)
-                // El estado de la fila lo marca la garantía cuando la hay:
-                // es la única información con urgencia que tiene un
-                // artículo de inventario.
-                const state = link ? link.state : 'plain'
+                const due = maintenanceByItem.get(item.id)
+                // El estado de la tarjeta lo marca lo que APREMIA. Un
+                // mantenimiento vencido gana a cualquier estado de garantía:
+                // la garantía te dice si estás cubierto, el mantenimiento te
+                // dice que hay algo que hacer hoy.
+                const state = due?.status === 'VENCIDO' ? 'over' : link ? link.state : 'plain'
 
                 return (
                   <article key={item.id} className={styles.row} data-state={state}>
@@ -260,11 +283,22 @@ export function InventoryPage() {
                             {WARRANTY_TAG_LABELS[link.state]}
                           </span>
                         )}
+                        {/* V31: el artículo ya responde las DOS preguntas —
+                            si sigue cubierto y qué le toca. */}
+                        {due && due.status !== 'COMPLETADO' && (
+                          <span
+                            className={styles.tag}
+                            data-t={due.status === 'VENCIDO' ? 'over' : due.status === 'PROXIMO' ? 'soon' : 'ok'}
+                          >
+                            {MAINTENANCE_TAG_LABELS[due.status]}
+                          </span>
+                        )}
                       </p>
 
                       <p className={styles.rowMeta}>
                         {item.location?.trim() ? `Ubicación: ${item.location}` : 'Sin ubicación registrada'}
                         {link ? ` · Garantía: ${link.warranty.item}` : ''}
+                        {due ? ` · ${due.item}: ${formatMaintenanceDate(due.nextDueAt)}` : ''}
                       </p>
                     </div>
 

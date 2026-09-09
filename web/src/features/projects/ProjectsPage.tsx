@@ -117,7 +117,13 @@ export function ProjectsPage() {
 
       <ListSectionCard
         title={`Tod${vocabulary.projectGender === 'f' ? 'a' : 'o'}s ${article.definitePlural(vocabulary.projectGender)} ${vocabulary.projectPlural.toLowerCase()}`}
-        action={<CreateProjectDialog people={people} onCreated={handleCreated} />}
+        action={
+          <CreateProjectDialog
+            people={people}
+            onCreated={handleCreated}
+            onPersonCreated={(person) => setPeople((current) => [...current, person])}
+          />
+        }
       >
         {loading && <p className={styles.emptyHint}>Cargando…</p>}
         {!loading && projects.length === 0 && (
@@ -176,6 +182,8 @@ export function ProjectsPage() {
             }
           }}
           clientPerson={people.find((p) => p.id === openProject.clientPersonId)}
+          people={people}
+          onPersonCreated={(person) => setPeople((current) => [...current, person])}
           tasks={tasks.filter((t) => t.projectId === openProject.id)}
           notes={notes.filter((n) => n.projectId === openProject.id)}
           documents={documents.filter((d) => d.projectId === openProject.id)}

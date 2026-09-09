@@ -21,6 +21,10 @@ import com.vidacotidiana.app.core.ui.VidaTheme
 import com.vidacotidiana.app.core.ui.components.Eyebrow
 import com.vidacotidiana.app.core.ui.components.LoadingRows
 import com.vidacotidiana.app.core.ui.components.PillTone
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Groups
+import com.vidacotidiana.app.core.ui.components.ResourceBoard
+import com.vidacotidiana.app.core.ui.components.ResourceEntry
 import com.vidacotidiana.app.core.ui.components.ResourceRow
 import com.vidacotidiana.app.core.ui.components.StaggeredAppear
 import com.vidacotidiana.app.core.ui.components.VidaScreen
@@ -145,16 +149,20 @@ fun FamilyScreen(
                     color = c.textSecondary,
                 )
             }
-            else -> Column(verticalArrangement = Arrangement.spacedBy(VidaSpacing.sm)) {
-                state.data.familyMembers.forEachIndexed { index, member ->
-                    StaggeredAppear(7 + index) {
-                        ResourceRow(
+            else -> StaggeredAppear(7) {
+                // Cuadricula: cada miembro es una persona, no una fila.
+                ResourceBoard(
+                    entries = state.data.familyMembers.map { member ->
+                        ResourceEntry(
+                            id = member.userId,
                             title = member.username,
                             subtitle = member.sinceLabel?.let { "Desde el $it" } ?: "En tu familia",
-                            pill = "En tu familia" to PillTone.OK,
+                            icon = Icons.Outlined.Groups,
+                            pill = "Familia" to PillTone.OK,
                         )
-                    }
-                }
+                    },
+                    onOpenDetail = {},
+                )
             }
         }
     }

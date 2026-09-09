@@ -26,11 +26,23 @@ fun WarrantiesScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val warranties = state.data.warranties
+    val today = java.time.LocalDate.now()
+    fun quedan(d: java.time.LocalDate): String {
+        val n = java.time.temporal.ChronoUnit.DAYS.between(today, d)
+        return when {
+            n < 0L -> "Venció"
+            n == 0L -> "Hoy"
+            n == 1L -> "1 día"
+            n < 30L -> "$n días"
+            else -> "${n / 30} ${if (n / 30 == 1L) "mes" else "meses"}"
+        }
+    }
     val entries = warranties.map {
         ResourceEntry(
             id = it.id,
             title = it.product,
-            subtitle = "${it.category} · vence el ${it.expiresLabel}",
+            subtitle = it.expiresLabel,
+            highlight = quedan(it.expiresOn),
             icon = Icons.Outlined.VerifiedUser,
             // Acciones reales: `PATCH /warranties/{id}` y el `complete` que el
             // backend ya expone. Marcar una vencida no tiene sentido, así que

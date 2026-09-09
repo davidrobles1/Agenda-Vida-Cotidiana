@@ -5,6 +5,7 @@ import { motionTokens } from '../../core/motion/tokens'
 import { IconPlus } from '../../core/ui/icons'
 import { useVocabulary } from '../../core/user/useVocabulary'
 import type { Person } from '../people/api'
+import { PersonPicker } from '../people/PersonPicker'
 import { createProject, type CreateProjectInput, type Project } from './api'
 import shellStyles from '../../core/ui/dialogs/DialogShell.module.css'
 import { DatePicker } from '../../core/ui/pickers/DatePicker'
@@ -14,10 +15,12 @@ const MotionDialog = motion.create(Dialog)
 interface CreateProjectDialogProps {
   people: Person[]
   onCreated: (project: Project) => void
+  /** Persona creada desde este formulario, para que la pantalla la incorpore. */
+  onPersonCreated?: (person: Person) => void
 }
 
 /** ADR-016/FR-022, UC-19. Mismo patrón que CreatePersonDialog.tsx. */
-export function CreateProjectDialog({ people, onCreated }: CreateProjectDialogProps) {
+export function CreateProjectDialog({ people, onCreated, onPersonCreated }: CreateProjectDialogProps) {
   // UX-014/UX-015: mismo formulario, mismos campos — solo el nombre cambia.
   const vocabulary = useVocabulary()
   const [isOpen, setIsOpen] = useState(false)
@@ -101,17 +104,18 @@ export function CreateProjectDialog({ people, onCreated }: CreateProjectDialogPr
                   />
                 </label>
 
-                <label className={shellStyles.field}>
-                  <span className={shellStyles.fieldLabel}>Persona cliente (opcional)</span>
-                  <select className={shellStyles.textInput} value={clientPersonId} onChange={(e) => setClientPersonId(e.target.value)}>
-                    <option value="">— Ninguna —</option>
-                    {people.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                {/* El cliente sigue siendo campo del proyecto, no un
+                    participante (DECISION 2026-09-06): son dos listas
+                    disjuntas. Con cero personas, antes el desplegable salía
+                    vacío y no había salida; ahora se crea aquí. */}
+                <PersonPicker
+                  people={people}
+                  value={clientPersonId}
+                  onChange={setClientPersonId}
+                  onCreated={(person) => onPersonCreated?.(person)}
+                  label={`${vocabulary.person} cliente`}
+                  emptyOptionLabel="— Ninguna —"
+                />
 
                 <label className={shellStyles.field}>
                   <span className={shellStyles.fieldLabel}>Estado</span>

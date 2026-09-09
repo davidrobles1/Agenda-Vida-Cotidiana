@@ -25,10 +25,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.vidacotidiana.app.core.ui.VidaSpacing
@@ -159,10 +162,21 @@ fun VidaRow(
             .drawBehind {
                 // El filete de tono solo afecta al borde izquierdo, así que se
                 // dibuja en vez de componer un borde de cuatro lados.
+                //
+                // SE RECORTA AL CONTORNO DE LA FILA. Antes se conseguía la
+                // esquina redondeada dibujando un rectángulo redondeado de
+                // `max(ancho, radio) * 2` y dejando que la mitad derecha se
+                // saliera de vista. Con un radio pequeño colaba; con el de Calm
+                // (26 dp) o el de Organic (24 dp) eso son 52 dp de losa maciza
+                // detrás del contenido. No se veía porque ninguna lista usaba
+                // esta fila todavía: el mosaico cuadrado la había dejado sin
+                // uso. Recortar da la misma esquina sin inventar anchura.
                 val w = railWidth.toPx()
                 val r = spec.radii.card.toPx()
-                drawRoundRect(toneColor, size = Size(w.coerceAtLeast(r) * 2, size.height), cornerRadius = CornerRadius(r, r))
-                drawRect(toneColor, size = Size(w, size.height))
+                val outline = Path().apply {
+                    addRoundRect(RoundRect(0f, 0f, size.width, size.height, CornerRadius(r, r)))
+                }
+                clipPath(outline) { drawRect(toneColor, size = Size(w, size.height)) }
             }
     }
 

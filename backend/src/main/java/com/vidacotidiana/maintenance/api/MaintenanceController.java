@@ -48,7 +48,7 @@ public class MaintenanceController {
     @PostMapping
     public ResponseEntity<MaintenanceRecordResponse> create(@Valid @RequestBody CreateMaintenanceRecordRequest request) {
         MaintenanceRecord created = maintenanceService.create(currentUser.userId(), request.item(), request.nextDueAt(),
-                request.intervalMonths(), ModuleContext.fromNullable(request.context()));
+                request.intervalMonths(), ModuleContext.fromNullable(request.context()), request.inventoryItemId());
         return ResponseEntity.status(HttpStatus.CREATED).body(MaintenanceRecordResponse.from(created));
     }
 
@@ -83,7 +83,12 @@ public class MaintenanceController {
     public MaintenanceRecordResponse update(@PathVariable UUID id, @Valid @RequestBody UpdateMaintenanceRecordRequest request) {
         MaintenanceRecord record = maintenanceService.edit(id, currentUser.userId(), request.item(), request.nextDueAt(),
                 request.intervalMonths(), request.version(),
-                Boolean.TRUE.equals(request.clearInterval()));
+                Boolean.TRUE.equals(request.clearInterval()),
+                request.inventoryItemId(),
+                // V31: solo se toca el enlace si el cliente lo pide de forma
+                // explícita; así `null` puede significar "desenlazar" sin que
+                // omitirlo borre un enlace existente.
+                Boolean.TRUE.equals(request.linkInventoryItem()));
         return MaintenanceRecordResponse.from(record);
     }
 

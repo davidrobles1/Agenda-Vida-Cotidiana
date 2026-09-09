@@ -640,3 +640,97 @@
 .theme-papel input[type='date'] {
   font-family: var(--font-body);
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LA PERSONALIDAD DE UNA PIEZA DE RECURSO, EN UN SOLO SITIO
+
+   Las secciones de recursos pasaron a cuadrícula de tarjetas, y cada módulo
+   CSS se dibujaba su propia caja con borde y radio fijos. Resultado: la pieza
+   se veía igual en Papel que en Neo —dos temas opuestos— y con un trazo tan
+   tenue que los registros no se separaban entre sí.
+
+   Aquí se declara UNA vez qué es una pieza en cada tema; los cuatro módulos
+   que las pintan (SectionList, Pagos, Mantenimiento y ListItemRow) solo
+   consumen estas variables. Mismo criterio que ADR-023 aplica a la tarjeta de
+   sección: la caja solo es caja donde el tema quiere que lo sea.
+
+   TODO TOKEN LLEVA RESPALDO en los `--color-*`, y no es adorno defensivo: los
+   nombres cortos (`--surface-2`, `--line-strong`, `--ink`) solo existen dentro
+   de un bloque de tema. Sin respaldo, en cuanto uno falta la declaración
+   entera queda inválida y la pieza se queda SIN BORDE Y SIN FONDO — que es
+   exactamente el fallo que se vio en Papel: las fichas amontonadas y sin caja.
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root {
+  --tile-bg: var(--color-surface-variant);
+  --tile-border: 1px solid var(--color-border);
+  --tile-radius: var(--radius-card, 12px);
+  --tile-shadow: var(--shadow-1, 0 1px 3px rgb(36 48 60 / 0.06));
+  --tile-rule: 3px;
+}
+
+/* Papel: la ficha de una libreta — trazo cálido, sombra apenas insinuada. */
+.theme-papel {
+  --tile-bg: var(--surface-2, var(--color-surface-variant));
+  --tile-border: 1px solid var(--line-strong, var(--color-border));
+  --tile-radius: var(--radius-card, 12px);
+  --tile-shadow: var(--shadow-1);
+  --tile-rule: 3px;
+}
+
+/* Neo: sin radio, trazo grueso y sombra dura. Es su firma. */
+.theme-neo {
+  --tile-bg: var(--surface-2, var(--color-surface-variant));
+  --tile-border: 2px solid var(--ink, var(--color-text));
+  --tile-radius: 0;
+  --tile-shadow: var(--shadow-1);
+  --tile-rule: 5px;
+}
+
+/* Lumen y Studio renuncian a la caja: la pieza se separa por el filete de
+   estado y por el aire, igual que hacen con la tarjeta de sección. */
+.theme-lumen,
+.theme-studio {
+  --tile-bg: transparent;
+  --tile-border: 0 solid transparent;
+  --tile-radius: 0;
+  --tile-shadow: none;
+  --tile-rule: 2px;
+}
+
+/* Calm: sin borde visible, solo la sombra suave. */
+.theme-calm {
+  --tile-bg: var(--surface-2, var(--color-surface-variant));
+  --tile-border: 1px solid transparent;
+  --tile-radius: var(--radius-card, 12px);
+  --tile-shadow: var(--shadow-1);
+  --tile-rule: 3px;
+}
+
+/* Aurora es oscuro: un realce interior superior da volumen donde una sombra
+   no se ve. */
+.theme-aurora {
+  --tile-bg: var(--surface-2, var(--color-surface-variant));
+  --tile-border: 1px solid var(--line, var(--color-border));
+  --tile-radius: var(--radius-card, 12px);
+  --tile-shadow: var(--shadow-1), inset 0 1px 0 rgb(255 255 255 / 0.06);
+  --tile-rule: 3px;
+}
+
+/* Organic lleva el radio al doble por su `--r-scale`: la pieza se redondea de
+   verdad, y un filete recto arriba desentonaría, así que se afina. */
+.theme-organic {
+  --tile-bg: var(--surface-2, var(--color-surface-variant));
+  --tile-border: 1px solid var(--line, var(--color-border));
+  --tile-radius: var(--radius-card, 12px);
+  --tile-shadow: var(--shadow-1);
+  --tile-rule: 2px;
+}
+
+/* Productivity: funcional y compacta, sin sombra que distraiga. */
+.theme-productivity {
+  --tile-bg: var(--surface-2, var(--color-surface-variant));
+  --tile-border: 1px solid var(--line-strong, var(--color-border));
+  --tile-radius: var(--radius-card, 12px);
+  --tile-shadow: none;
+  --tile-rule: 3px;
+}

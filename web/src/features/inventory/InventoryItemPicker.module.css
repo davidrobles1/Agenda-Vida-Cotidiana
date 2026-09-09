@@ -1,0 +1,65 @@
+/* Selector de artículo del inventario con creación en el propio formulario.
+
+   Deliberadamente discreto: es un campo de un formulario, no una sección.
+   Todo el color y el peso tipográfico salen de los tokens del tema activo
+   (ADR-023), así que este bloque no fija ningún valor propio. */
+
+.hint {
+  margin: 4px 0 0;
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+/* Enlace, no botón: la acción principal del formulario es guardar el recurso,
+   y esto es una salida secundaria. Darle apariencia de botón competiría con
+   "Guardar" por la atención. */
+.inlineAction {
+  align-self: flex-start;
+  margin-top: 6px;
+  padding: 0;
+  min-height: 0;
+
+  background: none;
+  border: none;
+
+  color: var(--color-primary);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+
+.inlineAction:hover {
+  text-decoration: underline;
+}
+
+/* El bloque de creación sí se separa: mientras está abierto, el usuario está
+   rellenando OTRO registro, y confundirlo con los campos del recurso que
+   estaba creando sería el error más fácil de cometer aquí. */
+.inlineForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+
+  margin-top: 8px;
+  padding: var(--space-3);
+
+  background: var(--color-surface-variant);
+  border: 1px solid var(--color-border);
+  border-radius: var(--r-md, 10px);
+}
+
+.inlineTitle {
+  color: var(--color-text-secondary);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.inlineActions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}

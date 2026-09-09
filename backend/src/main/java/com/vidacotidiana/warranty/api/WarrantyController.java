@@ -54,16 +54,22 @@ public class WarrantyController {
     /** Pedido explícito del usuario (2026-08-21): "al registrar una
         garantía subir el archivo de la garantía en formato imagen o pdf en
         un modal central será el registro" — multipart en vez de JSON,
-        mismo shape que DocumentController#upload. */
+        mismo shape que DocumentController#upload.
+
+        `inventoryItemId` es obligatorio (DECISION 2026-09-06): una garantía
+        siempre cubre un artículo del inventario. Se declara `required = true`
+        aquí para que falte el parámetro dé 400 sin llegar al servicio, y el
+        servicio lo vuelve a validar porque es donde vive la regla. */
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<WarrantyResponse> create(
             @RequestPart("file") MultipartFile file,
             @RequestParam("item") String item,
             @RequestParam("expiresAt") Instant expiresAt,
+            @RequestParam("inventoryItemId") UUID inventoryItemId,
             // ADR-019: módulo desde el que se crea. Ausente ⇒ PERSONAL.
             @RequestParam(value = "context", required = false) String context) {
         Warranty created = warrantyService.create(currentUser.userId(), item, expiresAt, file,
-                ModuleContext.fromNullable(context));
+                ModuleContext.fromNullable(context), inventoryItemId);
         return ResponseEntity.status(HttpStatus.CREATED).body(WarrantyResponse.from(created));
     }
 

@@ -1,8 +1,26 @@
+/* De fila a PIEZA CUADRADA: icono arriba, texto en medio, acciones al fondo.
+   Antes era una barra horizontal en la que todo se leía igual. */
 .row {
   display: flex;
-  align-items: center;
-  gap: var(--space-3);
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-2);
   width: 100%;
+
+  aspect-ratio: 1;
+  /* Red de seguridad: antes de romper la caja, la pieza crece. */
+  min-height: 180px;
+
+  padding: var(--space-3);
+
+  /* ADR-023: la caja la pone el tema (ver `--tile-*` en themes.css). */
+  border: var(--tile-border);
+  border-top: var(--tile-rule, 3px) solid var(--line-strong);
+  border-radius: var(--tile-radius);
+  background: var(--tile-bg);
+  box-shadow: var(--tile-shadow);
+
+  overflow: hidden;
 }
 
 .iconBadge {
@@ -43,7 +61,7 @@
 .text {
   display: flex;
   flex-direction: column;
-  flex: 1;
+  flex: 1 1 auto;
   min-width: 0;
 }
 
@@ -51,9 +69,12 @@
   font-size: 0.9375rem;
   font-weight: 500;
   color: var(--color-text);
+  /* En una pieza cuadrada hay dos líneas de sitio: envuelve en vez de
+     recortarse con puntos suspensivos como hacía en una fila. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .subtitle {
@@ -61,11 +82,14 @@
   color: var(--color-text-secondary);
 }
 
+/* Las acciones al fondo de la pieza: quedan a la misma altura en todas,
+   aunque sus títulos ocupen una o dos líneas. */
 .trailing {
+  margin-top: auto;
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  flex-shrink: 0;
+  flex-wrap: wrap;
 }
 
 /* ADR-023 — el artefacto lista distinto en cada agenda. Mismos tratamientos
@@ -79,15 +103,26 @@
 }
 :global(.theme-aurora) .row:hover { background: var(--surface-2); transform: translateY(-2px); }
 :global(.theme-lumen) .row,
-:global(.theme-studio) .row,
-:global(.theme-papel) .row {
+:global(.theme-studio) .row {
+  /* Sin caja, como su tarjeta de sección: los separa el aire y el filete
+     superior, no un subrayado — que en cuadrícula deja la pieza colgando. */
   background: transparent;
   border: 0;
-  border-bottom: 1px solid var(--line);
   border-radius: 0;
   box-shadow: none;
 }
+
+/* Papel sí recupera su caja: como ficha de libreta necesita el papel y el
+   trazo, no un renglón subrayado. */
+:global(.theme-papel) .row {
+  background: var(--surface-2, var(--color-surface-variant));
+  border: 1px solid var(--line-strong, var(--color-border));
+  border-radius: var(--radius-card, 12px);
+  box-shadow: var(--shadow-1);
+}
 :global(.theme-neo) .row { border: 2px solid var(--ink); border-radius: 0; background: var(--surface); }
+/* En cuadrícula, elevar una pieza al pasar el cursor la sacaría de la
+   retícula: se mantiene la sombra dura de Neo, sin el desplazamiento. */
 :global(.theme-neo) .row:hover { transform: translate(-2px, -2px); box-shadow: 4px 4px 0 var(--ink); background: var(--second-soft); }
 :global(.theme-calm) .row { border-radius: var(--r-xl); border-color: transparent; box-shadow: var(--shadow-1); }
 :global(.theme-calm) .row:hover { box-shadow: var(--shadow-2); transform: translateY(-1px); }

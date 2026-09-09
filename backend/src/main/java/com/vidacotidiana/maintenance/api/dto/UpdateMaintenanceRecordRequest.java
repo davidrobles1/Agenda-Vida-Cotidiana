@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 import java.time.Instant;
+import java.util.UUID;
 
 /**
  * Aligned with components.schemas.UpdateMaintenanceRecordRequest in
@@ -23,6 +24,15 @@ public record UpdateMaintenanceRecordRequest(
          * validando con un registro real.
          */
         Boolean clearInterval,
+        /** V31: artículo del inventario al que se le hace. */
+        UUID inventoryItemId,
+        /**
+         * V31: misma distinción que `clearInterval` y que
+         * `UpdateWarrantyRequest.linkInventoryItem` (ADR-022) — sin esta
+         * bandera, mandar `inventoryItemId: null` sería indistinguible de
+         * omitirlo y desenlazar un artículo sería imposible.
+         */
+        Boolean linkInventoryItem,
         @NotNull Integer version
 ) {
 }

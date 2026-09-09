@@ -871,3 +871,123 @@ Documentos, Familia y Compartidos.
 - Qué ocurre con lo compartido cuando una cuenta se purga: `AccountDeletionService`
   no toca `resource_shares` ni `family_links`, igual que hoy no toca
   `reminder_shares` (BE-027, sin decisión aprobada).
+
+---
+
+## ADR-026 Relaciones entre registros: el inventario como centro, y participantes junto al cliente
+
+**Fecha:** 2026-09-06
+**Estado:** Aprobado (decisiones del Product Owner, 2026-09-06)
+
+### Contexto — lo que había, inspeccionado antes de tocar nada
+
+Al revisar qué se puede dar de alta y con qué restricciones, aparecieron tres
+huecos reales:
+
+- **La garantía nacía obligatoriamente desconectada.** La columna
+  `warranties.inventory_item_id` existe desde V28 (ADR-022), pero `POST
+  /warranties` **no la aceptaba**: el enlace solo se podía poner después,
+  editando (`WarrantyDetailDialog`). Registrar la garantía y ligarla al artículo
+  eran dos actos separados, y el segundo había que acordarse de hacerlo.
+- **El mantenimiento no sabía a qué artículo se le hace.**
+  `MaintenanceRecord.item` es texto libre: "Cambio de aceite" y "Auto Toyota"
+  vivían en dos listas que se ignoraban. El artículo podía responder "¿todavía
+  tiene garantía?" pero no "¿qué le toca y cuándo?".
+- **Laboral bloqueaba sin salida.** `CreateCommitmentRequest.personId` es
+  `@NotNull` y el desplegable se llena de `/people`. Sin ninguna persona dada de
+  alta, el formulario no se podía enviar y la pantalla solo decía "Primero
+  necesitas crear al menos una Persona". Era el único punto de la aplicación
+  donde el usuario quedaba atascado.
+
+En todo el producto solo existían **dos** obligaciones de relación: un
+seguimiento exige una persona, y compartir exige un familiar. Los otros catorce
+registros se dan de alta sueltos.
+
+### Decisión
+
+**(a) Una garantía SIEMPRE cubre un artículo del inventario, y se exige en el
+alta.** `POST /warranties` pasa a requerir `inventoryItemId`. No es retroactiva:
+las garantías anteriores sin artículo siguen siendo válidas y `PATCH` no lo
+exige — se restringe lo que entra, no lo que ya está guardado.
+
+**(b) La regla vive en el servicio, no solo en la pantalla** (petición explícita
+del Product Owner: "en todos lados, backend y web/android"). `WarrantyService#create`
+rechaza el alta sin artículo, y también si el artículo es de otro dueño o de
+otro módulo. Hasta ahora la única defensa contra enlazar una garantía Personal
+con un artículo Laboral era que el cliente filtrara el selector: una decisión de
+CLIENTE que una llamada directa a la API se saltaba, contra la regla 2 del
+ADR-019.
+
+**(c) El mantenimiento se liga al artículo, pero OPCIONALMENTE.** Asimetría
+deliberada con (a): una garantía siempre cubre un objeto, pero también se
+mantiene lo que no lo es —el techo, el jardín, una caldera no inventariada—.
+Obligarlo aquí expulsaría casos reales.
+
+**(d) Ningún vínculo obligatorio deja atascado al usuario.** Donde algo es
+obligatorio, el destino se crea en el mismo formulario: `InventoryItemPicker` y
+`PersonPicker` en Web, `QuickCreateRow` en Android. Es además el caso NORMAL, no
+el raro: registras la garantía porque acabas de comprar el artículo, así que lo
+habitual es que no esté todavía en el inventario.
+
+**(e) Participantes y cliente CONVIVEN, y son listas disjuntas.** Un proyecto
+solo sabía de una persona, su cliente; el proveedor y el contacto en obra no
+tenían dónde vivir. Se añade `project_participants` (V32) **sin migrar el
+cliente**: sigue siendo `projects.client_person_id`.
+
+Para que la convivencia no produzca dos verdades, **`CLIENTE` no es un rol de
+participante** y el servicio impide el solapamiento por los dos lados: no se
+puede añadir como participante a quien ya es el cliente, ni nombrar cliente a
+quien ya participa. Sin esa disyunción, la misma persona podría ser cliente Y
+participante CONTACTO, y dos pantallas darían dos respuestas a "¿qué es Ana en
+esta obra?".
+
+**(f) Una persona participa en VARIOS proyectos.** Por eso es una tabla y no una
+columna más: un proveedor trabaja en tres obras a la vez, y con columnas habría
+que duplicarlo tres veces y mantener las fichas sincronizadas a mano. Se
+descartó la alternativa de exigir que toda persona pertenezca a un proyecto,
+propuesta inicialmente: crea un ciclo con el cliente (para registrar al cliente
+habría que inventar antes una obra vacía) y fuerza esa duplicación.
+
+### Consecuencias
+
+- El inventario pasa a ser el centro que le faltaba a Personal: un artículo
+  responde ahora las dos preguntas que se le hacen —si sigue cubierto y qué le
+  toca—. La tarjeta prioriza lo que APREMIA: un mantenimiento vencido gana a
+  cualquier estado de garantía.
+- El contrato de `POST /warranties` cambia. Los dos clientes se actualizaron a
+  la vez; no hay terceros.
+- `ON DELETE` asimétrico y deliberado: el enlace garantía/mantenimiento↔artículo
+  es `SET NULL` (el comprobante sobrevive al artículo, puede hacer falta para
+  reclamar); la participación es `CASCADE` ("Ana es proveedora de una obra que ya
+  no existe" no es un dato que conservar).
+- Cliente y participantes se muestran juntos en el detalle del proyecto, con el
+  cliente encabezando la lista y sin botón de quitar. Antes el cliente era un
+  nombre suelto en la línea de metadatos, indistinguible del estado y la fecha.
+
+### Incidencias encontradas durante la implementación
+
+- **GAP PREEXISTENTE: un `@RequestParam` obligatorio ausente daba 500, no 400.**
+  Descubierto al exigir `inventoryItemId`. No era específico de Garantías:
+  `POST /documents` sin `name` o sin `category` devolvía 500 igual, porque son
+  los dos endpoints multipart que leen sus campos con `@RequestParam`. Se corrige
+  en `GlobalExceptionHandler`, el punto único donde vive la política de errores
+  (AC-006), con un handler para `MissingServletRequestParameterException`,
+  `MissingServletRequestPartException` y `MethodArgumentTypeMismatchException`.
+- **La especificación declaraba `POST /warranties` como `application/json`**
+  aunque el endpoint es multipart desde 2026-08-21. Se corrige a
+  `multipart/form-data` con el archivo declarado como parte binaria.
+
+### TBD / FUTURE
+
+Fuera del alcance de estas dos fases, sin planificar:
+
+- **Documento → lo que respalda** (garantía, pago, artículo). Hoy un documento
+  solo puede pertenecer a una persona o un proyecto, y ese vínculo **no lo ofrece
+  ningún formulario** pese a que el backend lo acepta. Además, la garantía obliga
+  a subir un comprobante y ese archivo **no aparece en Documentos**: hay
+  documentos fuera de Documentos.
+- **Pago → artículo y recibo.** "Seguro del coche" es un pago atado a un objeto.
+- **Objetivo → proyecto**, y la herencia automática del vínculo al crear un
+  registro desde dentro de un proyecto.
+- **Gestión de participantes en Android.** Esta fase solo muestra el conteo; el
+  alta y la baja viven en Web.

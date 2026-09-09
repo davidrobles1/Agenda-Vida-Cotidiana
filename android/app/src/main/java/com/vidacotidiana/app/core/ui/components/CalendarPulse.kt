@@ -180,7 +180,6 @@ fun DayCell(
             Text(
                 text = cell.date.dayOfMonth.toString(),
                 style = MaterialTheme.typography.bodyMedium.copy(
-                    fontSize = 13.sp,
                     fontWeight = when {
                         isSelected || isToday -> FontWeight.ExtraBold
                         else -> FontWeight.SemiBold
@@ -257,7 +256,7 @@ fun MonthGrid(
             listOf("L", "M", "M", "J", "V", "S", "D").forEach { d ->
                 Text(
                     d,
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.5.sp),
+                    style = VidaTheme.type.micro,
                     color = c.textTertiary,
                     modifier = Modifier.weight(1f).clearAndSetSemantics { },
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center,
@@ -355,7 +354,10 @@ fun DayTimeline(
             TimelineItem(
                 rail = task.time!!.toString().take(5),
                 title = task.title,
-                subtitle = task.meta,
+                // FR-024: dónde es, junto al cuándo. Mismo criterio que las
+                // otras tres superficies de tareas: una sola línea, sin
+                // seccion propia.
+                subtitle = listOfNotNull(task.meta, task.location).joinToString(" \u00b7 "),
                 tone = if (task.done) c.successText else c.primary,
                 strikeThrough = task.done,
                 onClick = { onTask(task) },
@@ -366,7 +368,10 @@ fun DayTimeline(
             TimelineItem(
                 rail = "—",
                 title = task.title,
-                subtitle = task.meta,
+                // FR-024: dónde es, junto al cuándo. Mismo criterio que las
+                // otras tres superficies de tareas: una sola línea, sin
+                // seccion propia.
+                subtitle = listOfNotNull(task.meta, task.location).joinToString(" \u00b7 "),
                 tone = if (task.done) c.successText else c.primary,
                 strikeThrough = task.done,
                 onClick = { onTask(task) },
@@ -412,7 +417,7 @@ private fun TimelineItem(
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(VidaSpacing.sm)) {
         Text(
             rail,
-            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.5.sp),
+            style = VidaTheme.type.micro,
             color = c.textTertiary,
             modifier = Modifier.width(38.dp),
             textAlign = androidx.compose.ui.text.style.TextAlign.End,
@@ -474,7 +479,7 @@ private fun NowMarker(now: LocalTime) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(VidaSpacing.sm)) {
         Text(
             now.toString().take(5),
-            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.5.sp, fontWeight = FontWeight.Bold),
+            style = VidaTheme.type.micro,
             color = c.error,
             modifier = Modifier.width(38.dp),
             textAlign = androidx.compose.ui.text.style.TextAlign.End,
@@ -512,12 +517,12 @@ fun DayRibbonItem(
     ) {
         Text(
             date.dayOfWeek.getDisplayName(JavaTextStyle.NARROW, ES).uppercase(),
-            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.5.sp),
+            style = VidaTheme.type.micro,
             color = if (isSelected) c.onPrimary.copy(alpha = 0.85f) else c.textTertiary,
         )
         Text(
             date.dayOfMonth.toString(),
-            style = MaterialTheme.typography.titleLarge.copy(fontSize = 18.sp),
+            style = MaterialTheme.typography.titleLarge,
             color = if (isSelected) c.onPrimary else c.text,
         )
         LoadDots(content, tint = if (isSelected) c.onPrimary.copy(alpha = 0.85f) else null)

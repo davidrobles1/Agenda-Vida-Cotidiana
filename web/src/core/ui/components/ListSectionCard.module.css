@@ -35,10 +35,22 @@
   min-height: 0;
 }
 
+/* CUADRÍCULA, NO LISTA. Los elementos de estas secciones —seguimientos,
+   proyectos, objetivos, rutinas— dejan de apilarse y pasan a distribuirse.
+   Cambio solo de CSS: el marcado, las acciones y el orden del DOM no se tocan.
+
+   Los mensajes sueltos («Cargando…», «Nada por aquí») ocupan la fila entera
+   con `grid-column: 1 / -1`, porque no son elementos de la cuadrícula sino
+   estados de toda la sección. */
 .body {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
   gap: var(--space-3);
+  align-items: stretch;
+}
+
+.body > p {
+  grid-column: 1 / -1;
 }
 
 /* ADR-023 — la "tarjeta" solo es una caja donde el tema quiere que lo sea.

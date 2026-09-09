@@ -29,7 +29,9 @@ public record MaintenanceRecordResponse(
         Instant createdAt,
         Instant updatedAt,
         /** ADR-019: módulo propietario del recurso. */
-        String context
+        String context,
+        /** V31: artículo del inventario al que se le hace. Nulo = sin enlazar. */
+        UUID inventoryItemId
 ) {
     /**
      * ADR-021: UNA sola definición de "próximo" en toda la sección.
@@ -56,7 +58,8 @@ public record MaintenanceRecordResponse(
                 record.getVersion(),
                 record.getCreatedAt(),
                 record.getUpdatedAt(),
-                record.getContext().name()
+                record.getContext().name(),
+                record.getInventoryItemId()
         );
     }
 

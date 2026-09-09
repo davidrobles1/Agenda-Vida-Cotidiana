@@ -7,8 +7,11 @@ import android.content.Context
 import android.content.Intent
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.net.toUri
 import com.vidacotidiana.app.MainActivity
 import com.vidacotidiana.app.R
+import com.vidacotidiana.app.navigation.DeepLinks
+import com.vidacotidiana.app.navigation.Routes
 
 /**
  * AND-007 (ADR-007: "las notificaciones locales ... se mantienen resueltas en el
@@ -17,8 +20,12 @@ import com.vidacotidiana.app.R
  */
 object LocalReminderNotifier {
     const val CHANNEL_ID = "local_reminders"
-    private const val CHANNEL_NAME = "Reminder due"
-    private const val CHANNEL_DESCRIPTION = "Local alerts for your own reminders reaching their due time — no network involved."
+    // En español, como el resto de la aplicación: el nombre y la descripción del
+    // canal se ven en los ajustes del SISTEMA, así que estaban en inglés a la
+    // vista del usuario.
+    private const val CHANNEL_NAME = "Tareas que vencen"
+    private const val CHANNEL_DESCRIPTION =
+        "Avisos de tus propias tareas al llegar su hora. No usan red: los resuelve el teléfono."
 
     fun createChannel(context: Context) {
         val channel = NotificationChannel(
@@ -31,11 +38,30 @@ object LocalReminderNotifier {
         context.getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
     }
 
+    /**
+     * LLEVA A TAREAS, no a "donde estuvieras".
+     *
+     * Antes el intent era un `MainActivity::class.java` desnudo, sin `data`: al
+     * tocar el aviso la aplicación se abría donde el usuario la hubiera dejado y
+     * tenía que ir a buscar aquello de lo que se le acababa de avisar. Era el
+     * único aviso de toda la aplicación que no navegaba — los push sí lo hacen
+     * desde el bloque 1-3, con este mismo mecanismo.
+     *
+     * Va a la LISTA de Tareas y no a la tarea concreta porque no existe una ruta
+     * de detalle por tarea: se abren como hoja de edición desde su lista. Añadir
+     * una ruta nueva solo para esto sería inventar navegación que el resto de la
+     * aplicación no tiene.
+     */
     fun show(context: Context, reminderId: String, title: String) {
         val contentIntent = PendingIntent.getActivity(
             context,
             reminderId.hashCode(),
-            Intent(context, MainActivity::class.java).apply {
+            Intent(
+                Intent.ACTION_VIEW,
+                DeepLinks.section(Routes.TASKS).toUri(),
+                context,
+                MainActivity::class.java,
+            ).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
@@ -43,7 +69,7 @@ object LocalReminderNotifier {
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification_reminder)
-            .setContentTitle("Reminder due")
+            .setContentTitle("Te toca")
             .setContentText(title)
             .setAutoCancel(true)
             .setContentIntent(contentIntent)

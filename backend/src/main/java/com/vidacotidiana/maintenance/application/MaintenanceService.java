@@ -1,5 +1,7 @@
 package com.vidacotidiana.maintenance.application;
 
+import com.vidacotidiana.inventory.application.InventoryItemService;
+import com.vidacotidiana.inventory.domain.InventoryItem;
 import com.vidacotidiana.maintenance.domain.MaintenanceLogEntry;
 import com.vidacotidiana.maintenance.domain.MaintenanceLogRepository;
 import com.vidacotidiana.maintenance.domain.MaintenanceRecord;
@@ -7,6 +9,7 @@ import com.vidacotidiana.maintenance.domain.MaintenanceRecordRepository;
 import com.vidacotidiana.shared.domain.ConflictException;
 import com.vidacotidiana.shared.domain.ModuleContext;
 import com.vidacotidiana.shared.domain.NotFoundException;
+import com.vidacotidiana.shared.domain.ValidationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
@@ -26,11 +29,17 @@ public class MaintenanceService {
 
     private final MaintenanceRecordRepository maintenanceRecordRepository;
     private final MaintenanceLogRepository maintenanceLogRepository;
+    /** V31: solo para validar que el artículo enlazado es del mismo dueño y
+        del mismo módulo. Mantenimiento no depende del agregado Inventario
+        para nada más — mismo criterio que WarrantyService. */
+    private final InventoryItemService inventoryItemService;
 
     public MaintenanceService(MaintenanceRecordRepository maintenanceRecordRepository,
-                              MaintenanceLogRepository maintenanceLogRepository) {
+                              MaintenanceLogRepository maintenanceLogRepository,
+                              InventoryItemService inventoryItemService) {
         this.maintenanceRecordRepository = maintenanceRecordRepository;
         this.maintenanceLogRepository = maintenanceLogRepository;
+        this.inventoryItemService = inventoryItemService;
     }
 
     @Transactional
@@ -49,8 +58,43 @@ public class MaintenanceService {
     @Transactional
     public MaintenanceRecord create(UUID ownerUserId, String item, Instant nextDueAt, Integer intervalMonths,
                                     ModuleContext context) {
+        return create(ownerUserId, item, nextDueAt, intervalMonths, context, null);
+    }
+
+    /**
+     * V31: alta con el artículo del inventario al que se le hace, OPCIONAL.
+     *
+     * A diferencia de la garantía, aquí no se exige: también se mantiene lo
+     * que no es un artículo inventariado (el techo, el jardín). Lo que sí se
+     * exige es que, si viene, sea enlazable — ver {@link #requireLinkableItem}.
+     */
+    @Transactional
+    public MaintenanceRecord create(UUID ownerUserId, String item, Instant nextDueAt, Integer intervalMonths,
+                                    ModuleContext context, UUID inventoryItemId) {
         MaintenanceRecord record = new MaintenanceRecord(ownerUserId, item, nextDueAt, intervalMonths, context);
+        requireLinkableItem(inventoryItemId, ownerUserId, record.getContext());
+        record.linkInventoryItem(inventoryItemId);
         return maintenanceRecordRepository.save(record);
+    }
+
+    /**
+     * Un artículo solo es enlazable si es del mismo dueño Y del mismo módulo.
+     * Copia literal de la regla de `WarrantyService#requireLinkableItem`: el
+     * dueño evita filtrar la existencia de artículos ajenos, y el módulo
+     * impide que un recurso Personal acabe apuntando a uno Laboral, que es lo
+     * que prohíbe la regla 2 del ADR-019.
+     */
+    private void requireLinkableItem(UUID inventoryItemId, UUID callerUserId, ModuleContext recordContext) {
+        if (inventoryItemId == null) {
+            return;
+        }
+        InventoryItem linked = inventoryItemService.getOwnedOrThrow(inventoryItemId, callerUserId);
+        if (linked.getContext() != recordContext) {
+            throw new ValidationException(
+                    "El artículo pertenece al módulo " + linked.getContext()
+                            + " y el mantenimiento al módulo " + recordContext
+                            + ". Solo se pueden enlazar recursos del mismo módulo.");
+        }
     }
 
     @Transactional(readOnly = true)
@@ -112,6 +156,23 @@ public class MaintenanceService {
     @Transactional
     public MaintenanceRecord edit(UUID recordId, UUID callerUserId, String item, Instant nextDueAt,
                                   Integer intervalMonths, int expectedVersion, boolean clearInterval) {
+        return edit(recordId, callerUserId, item, nextDueAt, intervalMonths, expectedVersion, clearInterval,
+                null, false);
+    }
+
+    /**
+     * V31: edición con enlace al artículo del inventario.
+     *
+     * `linkInventoryItem` distingue "no tocar el enlace" (false) de
+     * "cambiarlo" (true), exactamente igual que `clearInterval` aquí mismo
+     * (ADR-021(i)) y que `WarrantyService#edit` (ADR-022): sin ese indicador,
+     * mandar `null` sería indistinguible de no mandar nada y **desenlazar
+     * sería imposible**.
+     */
+    @Transactional
+    public MaintenanceRecord edit(UUID recordId, UUID callerUserId, String item, Instant nextDueAt,
+                                  Integer intervalMonths, int expectedVersion, boolean clearInterval,
+                                  UUID inventoryItemId, boolean linkInventoryItem) {
         MaintenanceRecord record = getOwnedOrThrow(recordId, callerUserId);
 
         if (expectedVersion != record.getVersion()) {
@@ -121,6 +182,10 @@ public class MaintenanceService {
         }
 
         record.applyEdit(item, nextDueAt, intervalMonths, clearInterval);
+        if (linkInventoryItem) {
+            requireLinkableItem(inventoryItemId, callerUserId, record.getContext());
+            record.linkInventoryItem(inventoryItemId);
+        }
         try {
             return maintenanceRecordRepository.save(record);
         } catch (ObjectOptimisticLockingFailureException raceLostToConcurrentUpdate) {

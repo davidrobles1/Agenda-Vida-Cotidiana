@@ -5,7 +5,7 @@ import { SimpleDeleteConfirm } from '../../core/ui/dialogs/SimpleDeleteConfirm'
 import { deletePerson, listPeople, type Person } from './api'
 import { listCommitments, type Commitment } from '../commitments/api'
 import { listReminders, type Reminder } from '../reminders/api'
-import { listProjects, type Project } from '../projects/api'
+import { listAllParticipations, listProjects, type Project, type ProjectParticipant } from '../projects/api'
 import { listNotes } from '../calendar/notes/api'
 import type { Note } from '../calendar/notes/notesData'
 import { listDocuments, type VidaDocument } from '../documents/api'
@@ -47,6 +47,7 @@ export function PeoplePage() {
   const [notes, setNotes] = useState<Note[]>([])
   const [documents, setDocuments] = useState<VidaDocument[]>([])
   const [resources, setResources] = useState<Resource[]>([])
+  const [participations, setParticipations] = useState<ProjectParticipant[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   /** La tarjeta abre el detalle; este es el registro abierto. */
@@ -76,6 +77,12 @@ export function PeoplePage() {
           listDocuments(),
           listResources(),
         ])
+      // V32: en qué proyectos participa cada persona. Va aparte del
+      // `Promise.all` de arriba y con su propio `catch` porque es un dato
+      // añadido: si falla, la pantalla de Personas se sigue viendo entera.
+      listAllParticipations()
+        .then(setParticipations)
+        .catch(() => setParticipations([]))
       setPeople(peoplePage.items)
       setCommitments(commitmentsPage.items)
       setTasks(remindersPage.items)
@@ -161,6 +168,12 @@ export function PeoplePage() {
               tasks.filter((t) => t.personId === person.id),
               notes.filter((n) => n.personId === person.id),
             )
+            // V32: participa como colaborador/proveedor/contacto, MÁS los
+            // proyectos de los que es cliente. Las dos son formas de estar en
+            // un proyecto y viven en sitios distintos, así que se suman aquí.
+            const projectCount =
+              participations.filter((row) => row.personId === person.id).length +
+              projects.filter((project) => project.clientPersonId === person.id).length
 
             return (
               <div key={person.id} className={styles.personCard}>
@@ -190,6 +203,14 @@ export function PeoplePage() {
                     {lastInteractionAt
                       ? `Última interacción: ${formatRelativeDate(lastInteractionAt)}`
                       : 'Sin interacciones registradas'}
+                    {projectCount > 0 && (
+                      <>
+                        {' · '}
+                        {projectCount === 1
+                          ? `en 1 ${vocabulary.project.toLowerCase()}`
+                          : `en ${projectCount} ${vocabulary.projectPlural.toLowerCase()}`}
+                      </>
+                    )}
                   </div>
                 </button>
 

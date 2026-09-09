@@ -520,14 +520,22 @@ paths:
           $ref: '#/components/responses/Unauthorized'
     post:
       summary: Create a warranty (caller becomes owner)
+      description: >
+        multipart/form-data, no JSON: el comprobante es parte del registro.
+        Devuelve 400 si falta el archivo, si el tipo no está admitido, si
+        falta `inventoryItemId`, o si el artículo indicado no es del mismo
+        dueño y del mismo módulo que la garantía.
       security:
         - keycloakBearer: []
       requestBody:
         required: true
         content:
-          application/json:
+          multipart/form-data:
             schema:
               $ref: '#/components/schemas/CreateWarrantyRequest'
+            encoding:
+              file:
+                contentType: image/png, image/jpeg, image/webp, image/gif, application/pdf
       responses:
         '201':
           description: Created
@@ -1610,6 +1618,116 @@ paths:
       responses:
         '204':
           description: Deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /projects/participations:
+    get:
+      summary: >
+        V32 — todas las participaciones del usuario, en todos sus proyectos.
+        Responde "¿en cuántos proyectos está esta persona?" sin una llamada
+        por persona. Segmento literal: convive con /projects/{id} porque un
+        patrón literal siempre gana a uno con variable, y ningún id real
+        podría chocar (son UUID).
+      security:
+        - keycloakBearer: []
+      responses:
+        '200':
+          description: Participaciones del usuario
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProjectParticipant'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /projects/{id}/participants:
+    get:
+      summary: V32 — quién participa en este proyecto (owner only). NO incluye al cliente.
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Participantes del proyecto
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProjectParticipant'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      summary: >
+        V32 — añade a una persona al proyecto con un rol. Devuelve 400 si esa
+        persona ya es el CLIENTE del proyecto (cliente y participantes son
+        listas disjuntas), y 409 si ya participa.
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddParticipantRequest'
+      responses:
+        '201':
+          description: Añadido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectParticipant'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Esa persona ya participa en este proyecto
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /projects/{id}/participants/{participantId}:
+    delete:
+      summary: V32 — quita a una persona del proyecto (owner only).
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: path
+          name: participantId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Quitado
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
@@ -3136,8 +3254,20 @@ components:
           format: date-time
     CreateWarrantyRequest:
       type: object
-      required: [item, expiresAt]
+      description: >
+        Se envía como multipart/form-data, no como JSON: el comprobante es
+        parte del registro, no un adjunto posterior (pedido explícito del
+        usuario, 2026-08-21). `file` es la parte binaria; el resto viajan
+        como campos del formulario.
+      required: [file, item, expiresAt, inventoryItemId]
       properties:
+        file:
+          type: string
+          format: binary
+          description: >
+            Comprobante de la garantía. Obligatorio. Tipos admitidos:
+            image/png, image/jpeg, image/webp, image/gif, application/pdf.
+            Máximo 23 MB.
         item:
           type: string
           minLength: 1
@@ -3149,12 +3279,16 @@ components:
         inventoryItemId:
           type: string
           format: uuid
-          nullable: true
           description: >
-            ADR-022 — artículo del inventario que cubre esta garantía, o null
-            si no está enlazada. El vínculo vive en warranties y no en
-            inventory_items para que un artículo pueda acumular varias
-            garantías a lo largo del tiempo.
+            ADR-022 — artículo del inventario que cubre esta garantía.
+            OBLIGATORIO desde 2026-09-06 (DECISION del Product Owner): una
+            garantía siempre cubre un artículo, y exigirlo en el alta evita
+            que nazca desconectada. Debe ser del mismo dueño y del mismo
+            módulo que la garantía (ADR-019 regla 2); si no, 400. El vínculo
+            vive en warranties y no en inventory_items para que un artículo
+            pueda acumular varias garantías a lo largo del tiempo.
+            La obligación NO es retroactiva: las garantías anteriores sin
+            artículo siguen siendo válidas y PATCH no lo exige.
         context:
           type: string
           enum: [PERSONAL, LABORAL]
@@ -3275,6 +3409,15 @@ components:
             ADR-019 — módulo propietario del recurso. En las peticiones de
             creación es opcional y su ausencia equivale a PERSONAL; se fija
             al crear y no cambia después. En las respuestas siempre viene.
+        inventoryItemId:
+          type: string
+          format: uuid
+          description: >
+            V31 — artículo del inventario al que se le hace este
+            mantenimiento. OPCIONAL, a diferencia del enlace de una garantía:
+            también se mantiene lo que no es un artículo inventariado (el
+            techo, el jardín). Si viene, debe ser del mismo dueño y del mismo
+            módulo que el mantenimiento (ADR-019 regla 2); si no, 400.
     UpdateMaintenanceRecordRequest:
       type: object
       description: Partial update. version is required to detect concurrent modifications (optimistic locking).
@@ -3297,6 +3440,27 @@ components:
             Opcional: si se omite, el mantenimiento tiene una sola fecha y no
             se repite. El cliente la usa para proyectar las siguientes fechas
             en el calendario (ADR-018).
+        clearInterval:
+          type: boolean
+          description: >
+            ADR-021(i) — quita la periodicidad, que es distinto de no
+            mandarla. Un `intervalMonths` ausente significa "no lo toques",
+            así que sin esta bandera un mantenimiento recurrente no podría
+            volver a ser puntual nunca.
+        inventoryItemId:
+          type: string
+          format: uuid
+          nullable: true
+          description: >
+            V31 — artículo del inventario al que se le hace. Solo se aplica
+            si `linkInventoryItem` es true.
+        linkInventoryItem:
+          type: boolean
+          description: >
+            V31 — misma distinción que `clearInterval` y que
+            UpdateWarrantyRequest.linkInventoryItem (ADR-022): sin esta
+            bandera, mandar `inventoryItemId: null` sería indistinguible de
+            omitirlo y desenlazar sería imposible.
         version:
           type: integer
           description: Expected current version of the maintenance record; a mismatch returns 409.
@@ -3522,6 +3686,13 @@ components:
             ADR-019 — módulo propietario del recurso. En las peticiones de
             creación es opcional y su ausencia equivale a PERSONAL; se fija
             al crear y no cambia después. En las respuestas siempre viene.
+        inventoryItemId:
+          type: string
+          format: uuid
+          nullable: true
+          description: >
+            V31 — artículo del inventario al que se le hace este
+            mantenimiento. Nulo = sin enlazar.
     CreatePersonRequest:
       type: object
       required: [name]
@@ -4018,6 +4189,52 @@ components:
           type: string
           format: date-time
         updatedAt:
+          type: string
+          format: date-time
+    AddParticipantRequest:
+      type: object
+      required: [personId, role]
+      description: >
+        V32. `role` es obligatorio: "está en el proyecto" sin decir a qué
+        título no responde nada, y un rol por defecto lo inventaría. OTRO
+        existe para cuando el usuario no quiera precisar.
+      properties:
+        personId:
+          type: string
+          format: uuid
+        role:
+          $ref: '#/components/schemas/ParticipantRole'
+    ParticipantRole:
+      type: string
+      enum: [PROVEEDOR, CONTACTO, COLABORADOR, OTRO]
+      description: >
+        V32. CLIENTE NO está, deliberadamente: el cliente sigue siendo
+        Project.clientPersonId (DECISION del Product Owner del 2026-09-06 —
+        cliente y participantes conviven). Si CLIENTE fuera también un rol
+        habría dos sitios donde decir lo mismo y acabarían discrepando. El
+        servidor rechaza con 400 añadir como participante a quien ya es el
+        cliente, y nombrar cliente a quien ya participa.
+    ProjectParticipant:
+      type: object
+      required: [id, projectId, personId, role]
+      description: >
+        V32. Una persona participando en un proyecto. Devuelve solo la
+        participación, no la persona: el cliente ya tiene la lista de personas
+        y resolver el nombre por su lado evita que una copia quede vieja
+        cuando la persona se renombre.
+      properties:
+        id:
+          type: string
+          format: uuid
+        projectId:
+          type: string
+          format: uuid
+        personId:
+          type: string
+          format: uuid
+        role:
+          $ref: '#/components/schemas/ParticipantRole'
+        createdAt:
           type: string
           format: date-time
     CreateCommitmentRequest:

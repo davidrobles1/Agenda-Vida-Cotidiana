@@ -33,6 +33,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -97,6 +98,7 @@ fun CalendarScreen(
     val selected = state.selectedDate
     val selectedContent = viewModel.contentFor(selected)
 
+    val context = LocalContext.current
     var alertSheet by remember { mutableStateOf<DateAlert?>(null) }
     var taskSheet by remember { mutableStateOf<DayTask?>(null) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -204,13 +206,27 @@ fun CalendarScreen(
             containerColor = c.surfaceVariant,
         ) {
             SheetSurface(onClose = { taskSheet = null }, title = task.title) {
-                Text(task.meta, style = MaterialTheme.typography.bodyMedium, color = c.textSecondary)
+                Text(
+                    listOfNotNull(task.meta, task.location).joinToString(" · "),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = c.textSecondary,
+                )
                 ResourceRow(
                     title = "Compartido con",
                     subtitle = "Nadie todavía",
                     pill = "Solo yo" to PillTone.QUIET,
                 )
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(VidaSpacing.sm)) {
+
+                    // FR-024: «Cómo llegar» solo cuando la tarea tiene sitio.
+                    // Delega en la aplicación de mapas del teléfono; no se pide
+                    // ningún permiso ni se construye mapa propio.
+                    task.location?.let { place ->
+                        VidaSmallButton("Cómo llegar", {
+                            viewModel.openDirections(context, place)
+                            taskSheet = null
+                        }, ghost = true)
+                    }
 
                     // Editar abre el MISMO formulario de la tarea, ya relleno,
                     // contra `PATCH /reminders/{id}`. Ni editor genérico ni
@@ -327,11 +343,21 @@ private fun DayPanel(
     val c = VidaTheme.colors
     val spec = VidaTheme.spec
     val content = viewModel.contentFor(date)
+    // UNA SUPERFICIE, UNA RAZÓN.
+    //
+    // Aquí se apilaban cuatro: pantalla → tarjeta del calendario → este panel
+    // → las tarjetas de cada tarea. El panel llevaba relleno Y borde Y radio,
+    // estando ya dentro de una tarjeta con borde: tres señales para un límite
+    // que la tarjeta contenedora ya dibujaba.
+    //
+    // El RELLENO se queda porque no es decorativo: es lo que separa del blanco
+    // de la tarjeta y hace visibles las piezas blancas de la línea de tiempo.
+    // El BORDE se va: era la señal redundante. La agrupación la sostienen el
+    // tono hundido y la cabecera del día, que ya dice de qué día hablamos.
     Column(
         Modifier
             .fillMaxWidth()
             .background(c.sunken, RoundedCornerShape(spec.radii.control))
-            .border(spec.borderWidth, c.line, RoundedCornerShape(spec.radii.control))
             .padding(VidaSpacing.md),
         verticalArrangement = Arrangement.spacedBy(VidaSpacing.md),
     ) {
@@ -444,7 +470,7 @@ private fun CalendarLegend() {
         ).forEach { (label, color) ->
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                 Box(Modifier.size(7.dp).background(color, RoundedCornerShape(2.dp)))
-                Text(label, style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp), color = c.textSecondary)
+                Text(label, style = VidaTheme.type.caption, color = c.textSecondary)
             }
         }
     }
@@ -461,6 +487,6 @@ private fun MiniStat(value: String, caption: String, modifier: Modifier = Modifi
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(value, style = MaterialTheme.typography.titleLarge, color = c.text)
-        Text(caption, style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.5.sp), color = c.textSecondary, textAlign = TextAlign.Center)
+        Text(caption, style = VidaTheme.type.micro, color = c.textSecondary, textAlign = TextAlign.Center)
     }
 }

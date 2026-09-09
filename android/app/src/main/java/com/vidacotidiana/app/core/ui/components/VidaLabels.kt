@@ -81,26 +81,34 @@ fun Eyebrow(text: String, modifier: Modifier = Modifier, rule: Boolean = true) {
 /** Tono semántico de una píldora. Separado del acento: es información, no marca. */
 enum class PillTone { NEUTRAL, QUIET, OK, WARN, DANGER }
 
-/** Píldora de estado (`.pill`). Neo la dibuja cuadrada y con borde. */
+/**
+ * Píldora de estado (`.pill`). Neo la dibuja cuadrada y con borde.
+ *
+ * Los colores salen de `VidaRoles`, no de la paleta en crudo. El cambio que
+ * importa está en `NEUTRAL`: usaba `primaryContainer`/`primary`, o sea EL
+ * ACENTO, para decir «esto es de tipo tal». Una etiqueta que clasifica no es
+ * una acción y no debe competir con el botón que sí lo es; ahora usa el neutro
+ * hundido. El acento se ha quedado sin un cuarto significado.
+ */
 @Composable
 fun VidaPill(text: String, tone: PillTone = PillTone.NEUTRAL, modifier: Modifier = Modifier) {
     val spec = VidaTheme.spec
-    val c = spec.colors
+    val role = VidaTheme.role
     val (bg, fg) = when (tone) {
-        PillTone.NEUTRAL -> c.primaryContainer to c.primary
-        PillTone.QUIET -> c.sunken to c.textSecondary
-        PillTone.OK -> c.successContainer to c.successText
-        PillTone.WARN -> c.warningContainer to c.warningText
-        PillTone.DANGER -> c.errorContainer to c.error
+        PillTone.NEUTRAL -> role.neutralBg to role.neutralFg
+        PillTone.QUIET -> role.disabledBg to role.disabledFg
+        PillTone.OK -> role.doneBg to role.doneFg
+        PillTone.WARN -> role.warnBg to role.warnFg
+        PillTone.DANGER -> role.errorBg to role.errorFg
     }
     val shape = RoundedCornerShape(spec.radii.pill)
     Box(
         modifier = modifier
             .background(bg, shape)
             .then(if (spec.borderWidth > 1.dp) Modifier.border(1.5.dp, fg, shape) else Modifier)
-            .padding(horizontal = 9.dp, vertical = 3.dp),
+            .padding(horizontal = VidaSpacing.sm, vertical = 3.dp),
     ) {
-        Text(text, style = MaterialTheme.typography.labelLarge.copy(fontSize = 11.sp, fontWeight = FontWeight.Bold), color = fg)
+        Text(text, style = VidaTheme.type.state, color = fg)
     }
 }
 
@@ -116,7 +124,7 @@ fun VidaTypeTag(text: String, modifier: Modifier = Modifier) {
     ) {
         Text(
             text.uppercase(),
-            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.5.sp),
+            style = VidaTheme.type.micro,
             color = spec.colors.textSecondary,
         )
     }

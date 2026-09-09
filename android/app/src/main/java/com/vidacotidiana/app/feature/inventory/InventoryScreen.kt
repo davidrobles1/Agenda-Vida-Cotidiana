@@ -9,16 +9,22 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import com.vidacotidiana.app.core.app.AppViewModel
 import com.vidacotidiana.app.core.app.CreatableResource
+import com.vidacotidiana.app.core.data.MaintenanceStatus
 import com.vidacotidiana.app.core.ui.components.PillTone
 import com.vidacotidiana.app.core.ui.components.ResourceEntry
 import com.vidacotidiana.app.core.ui.components.ResourceListScreen
 import com.vidacotidiana.app.core.ui.components.plural
 import kotlinx.coroutines.CoroutineScope
+import com.vidacotidiana.app.core.ui.VidaVocabulary
 
 /**
- * Inventario. ADR-022: un artículo puede llevar garantía, y ese vínculo se
- * muestra en la píldora — no es un dato nuevo, es la relación que ya existe
- * en el modelo (`Warranty.inventoryItemId`).
+ * Inventario. ADR-022 y V31: un artículo lleva su garantía Y su mantenimiento,
+ * y los dos vínculos se muestran aquí — no son datos nuevos, son las relaciones
+ * que ya existen en el modelo (`Warranty.inventoryItemId`,
+ * `MaintenanceRecord.inventoryItemId`).
+ *
+ * Con las dos, el artículo responde las dos preguntas que se le hacen: si
+ * sigue cubierto y qué le toca.
  */
 @Composable
 fun InventoryScreen(
@@ -29,24 +35,47 @@ fun InventoryScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val items = state.data.inventory
-    // El vínculo real: qué artículos tienen una garantía apuntándoles.
+    // Los vínculos reales: qué artículos tienen algo apuntándoles.
     val warrantied = state.data.warranties.mapNotNull { it.inventoryItemId }.toSet()
+    // De varios mantenimientos gana el que toca ANTES, al revés que la
+    // garantía —de la que importa la que sigue cubriendo—: de un mantenimiento
+    // importa el que hay que hacer primero.
+    val dueByItem = state.data.maintenance
+        .filter { it.inventoryItemId != null }
+        .groupBy { it.inventoryItemId!! }
+        .mapValues { (_, records) -> records.minBy { it.nextDueOn } }
 
     val entries = items.map {
+        val due = dueByItem[it.id]
         ResourceEntry(
             id = it.id,
             title = it.name,
-            subtitle = listOfNotNull(it.category, it.location).joinToString(" · "),
+            subtitle = listOfNotNull(
+                // El valor interno (`ELECTRONICOS`) no se le enseña a nadie.
+                VidaVocabulary.human(it.category),
+                it.location,
+                due?.let { record -> "${record.item}: ${record.nextDueLabel}" },
+            ).joinToString(" · "),
             icon = Icons.Outlined.Inventory2,
+            group = VidaVocabulary.human(it.category),
             // Un artículo no se «completa»: no existe ese estado en su backend.
             onEdit = { viewModel.requestEdit(CreatableResource.INVENTORY, it.id) },
             onDelete = { viewModel.deleteResource(CreatableResource.INVENTORY, it.id) },
-            pill = if (it.id in warrantied) "Con garantía" to PillTone.OK else "Sin garantía" to PillTone.QUIET,
+            // La píldora dice LO QUE APREMIA. Un mantenimiento vencido gana a
+            // cualquier estado de garantía: la garantía dice si estás cubierto,
+            // el mantenimiento dice que hay algo que hacer.
+            pill = when {
+                due?.status == MaintenanceStatus.VENCIDO -> "Mantenimiento vencido" to PillTone.WARN
+                due?.status == MaintenanceStatus.PROXIMO -> "Mantenimiento próximo" to PillTone.WARN
+                it.id in warrantied -> "Con garantía" to PillTone.OK
+                due != null -> "Con mantenimiento" to PillTone.OK
+                else -> "Sin garantía" to PillTone.QUIET
+            },
         )
     }
     // Las categorías salen de lo que el usuario realmente tiene, no de una
     // lista fija que podría no coincidir con sus artículos.
-    val categories = listOf("Todos") + items.map { it.category }.distinct().sorted()
+    val categories = listOf("Todos") + items.map { VidaVocabulary.human(it.category) }.distinct().sorted()
 
     ResourceListScreen(
         title = "Inventario",

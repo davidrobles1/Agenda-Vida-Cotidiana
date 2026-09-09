@@ -10,6 +10,7 @@ import { useResourceSharing } from '../sharing/useResourceSharing'
 import styles from './CreateWarrantyDialog.module.css'
 import { useActiveMode } from '../../core/user/ActiveModeContext'
 import { DatePicker } from '../../core/ui/pickers/DatePicker'
+import { InventoryItemPicker } from '../inventory/InventoryItemPicker'
 
 const MotionDialog = motion.create(Dialog)
 
@@ -29,6 +30,9 @@ export function CreateWarrantyDialog({ onCreated }: CreateWarrantyDialogProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [item, setItem] = useState('')
   const [expiresAt, setExpiresAt] = useState('')
+  // DECISION 2026-09-06: obligatorio. Una garantía siempre cubre un artículo
+  // del inventario, y exigirlo en el alta es lo que evita que nazca suelta.
+  const [inventoryItemId, setInventoryItemId] = useState('')
   const [file, setFile] = useState<File | null>(null)
   const [dragOver, setDragOver] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -42,6 +46,7 @@ export function CreateWarrantyDialog({ onCreated }: CreateWarrantyDialogProps) {
   function reset() {
     setItem('')
     setExpiresAt('')
+    setInventoryItemId('')
     setFile(null)
     sharing.reset()
     setError(null)
@@ -61,11 +66,17 @@ export function CreateWarrantyDialog({ onCreated }: CreateWarrantyDialogProps) {
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
-    if (!item.trim() || !expiresAt || !file || saving) return
+    if (!item.trim() || !expiresAt || !file || !inventoryItemId || saving) return
     setSaving(true)
     setError(null)
     try {
-      const created = await createWarranty(item.trim(), new Date(expiresAt).toISOString(), file, activeMode)
+      const created = await createWarranty(
+        item.trim(),
+        new Date(expiresAt).toISOString(),
+        file,
+        inventoryItemId,
+        activeMode,
+      )
       onCreated(created)
 
       const shareError = await sharing.commit(created.id)
@@ -126,6 +137,19 @@ export function CreateWarrantyDialog({ onCreated }: CreateWarrantyDialogProps) {
                     isRequired
                   />
 
+                {/* El enlace se pide AQUÍ y no al editar: antes toda garantía
+                    nacía desconectada y ligarla era un segundo acto del que
+                    había que acordarse. Si el artículo no existe todavía —el
+                    caso normal, porque acabas de comprarlo— se crea desde el
+                    propio selector. */}
+                <InventoryItemPicker
+                  value={inventoryItemId}
+                  onChange={setInventoryItemId}
+                  required
+                  label="¿Qué artículo cubre?"
+                  hint="Enlazarla es lo que permite responder «¿esto todavía tiene garantía?» desde Inventario."
+                />
+
                 <label
                   className={`${styles.dropzone} ${dragOver ? styles.dropzoneActive : ''}`}
                   onDragOver={(event) => {
@@ -166,7 +190,7 @@ export function CreateWarrantyDialog({ onCreated }: CreateWarrantyDialogProps) {
                   <button type="button" data-variant="secondary" onClick={close} disabled={saving}>
                     Cancelar
                   </button>
-                  <button type="submit" disabled={saving || !item.trim() || !expiresAt || !file}>
+                  <button type="submit" disabled={saving || !item.trim() || !expiresAt || !file || !inventoryItemId}>
                     Guardar
                   </button>
                 </div>

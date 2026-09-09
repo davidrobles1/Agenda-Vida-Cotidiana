@@ -18,9 +18,12 @@ import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 
 /**
  * Uniform error handling (AC-006, NFR-006): every error response uses the
@@ -116,6 +119,29 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleUnsupportedMediaType(HttpMediaTypeNotSupportedException ex) {
         return build(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "UNSUPPORTED_MEDIA_TYPE",
                 "The request Content-Type is not supported by this endpoint.");
+    }
+
+    /**
+     * Falta un parámetro obligatorio de formulario o de consulta, o llega con
+     * un tipo que no se puede convertir (un `inventoryItemId` que no es un
+     * UUID, por ejemplo). Es un error del cliente: 400.
+     *
+     * <p>GAP PREEXISTENTE, encontrado al exigir el artículo en
+     * `POST /warranties` (2026-09-06): sin este handler caía en el 500
+     * genérico. No era específico de Garantías — `POST /documents` sin `name`
+     * o sin `category` devolvía 500 igual, y son los dos endpoints que leen
+     * sus campos con `@RequestParam` porque son multipart. Un 500 aquí no solo
+     * es el código equivocado: hace que el cliente muestre "error del
+     * servidor" ante algo que el usuario puede corregir.
+     *
+     * <p>Mismo mensaje opaco que {@link #handleValidation}: no se devuelve el
+     * nombre interno del parámetro (AC-006).
+     */
+    @ExceptionHandler({MissingServletRequestParameterException.class,
+                       MissingServletRequestPartException.class,
+                       MethodArgumentTypeMismatchException.class})
+    public ResponseEntity<ErrorResponse> handleMissingRequestParameter(Exception ex) {
+        return build(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "One or more fields are invalid.");
     }
 
     /** BLOQUE B: a multipart request over `spring.servlet.multipart.max-file-size`

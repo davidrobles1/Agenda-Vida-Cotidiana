@@ -111,7 +111,16 @@ export function CommitmentsPage() {
 
       <ListSectionCard
         title={direction === 'MINE' ? 'Mías' : 'Esperando'}
-        action={<CreateCommitmentDialog people={people} projects={projects} onCreated={handleCreated} />}
+        action={
+          <CreateCommitmentDialog
+            people={people}
+            projects={projects}
+            onCreated={handleCreated}
+            // Una persona creada dentro del diálogo entra también en la lista
+            // de esta pantalla: si no, el siguiente seguimiento no la vería.
+            onPersonCreated={(person) => setPeople((current) => [...current, person])}
+          />
+        }
       >
         {loading && <p className={styles.emptyHint}>Cargando…</p>}
         {!loading && openCommitments.length === 0 && (

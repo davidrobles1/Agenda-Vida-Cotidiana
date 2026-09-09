@@ -97,6 +97,10 @@ fun VidaCotidianaTheme(
     CompositionLocalProvider(
         LocalVidaColors provides animated,
         LocalVidaThemeSpec provides spec,
+        // Las dos reglas derivadas del spec. Se calculan aquí una vez por tema
+        // en vez de en cada composable que las lee.
+        LocalVidaType provides typeScaleFor(spec),
+        LocalVidaRoles provides rolesFor(animated),
     ) {
         MaterialTheme(
             colorScheme = scheme,
@@ -114,13 +118,24 @@ fun VidaCotidianaTheme(
 }
 
 /**
- * La escala tipográfica del artefacto, mapeada a los roles de Material 3.
+ * Los roles de Material 3, SERVIDOS DESDE LA ESCALA SEMÁNTICA.
  *
- * Las medidas vienen en `sp`, no en `dp`: así respetan el ajuste de tamaño de
- * letra del sistema, algo que la Web no tiene y que en Android es un requisito
- * de accesibilidad real.
+ * Ya no hay dos escalas. `VidaTypeScale` es la única fuente y esto es el puente
+ * hacia M3, igual que `ColorScheme` lo es para el color: los componentes de
+ * serie (`TextField`, `ModalBottomSheet`, `DatePicker`) y las pantallas que aún
+ * escriben `MaterialTheme.typography.titleMedium` reciben exactamente el mismo
+ * estilo que recibe quien pide `VidaTheme.type.cardTitle`.
+ *
+ * El efecto práctico: corregir la jerarquía aquí la corrige en las diecisiete
+ * secciones a la vez, sin tocarlas. `titleMedium` pasa de 15 sp a 16 sp y deja
+ * de medir lo mismo que `bodyLarge`, que era el fallo de fondo.
+ *
+ * Antes existía además `VidaTypography` en `Type.kt`, una TERCERA escala (18/16/
+ * 14 sp, fuente del sistema) que no se usaba en ningún sitio pero que cualquiera
+ * habría tomado por la buena. Borrada.
  */
 private fun typographyFor(spec: VidaThemeSpec): Typography {
+    val t = typeScaleFor(spec)
     val f = spec.fonts
     val display = TextStyle(
         fontFamily = f.display,
@@ -132,20 +147,20 @@ private fun typographyFor(spec: VidaThemeSpec): Typography {
         // Titulares — el héroe de Inicio y el número grande del día.
         displayLarge = display.copy(fontSize = 40.sp, lineHeight = 44.sp),
         displayMedium = display.copy(fontSize = 32.sp, lineHeight = 36.sp),
-        displaySmall = display.copy(fontSize = 26.sp, lineHeight = 30.sp),
-        // Barra superior y títulos de tarjeta.
-        headlineMedium = display.copy(fontSize = 22.sp, lineHeight = 27.sp),
-        headlineSmall = display.copy(fontSize = 19.sp, lineHeight = 24.sp),
+        displaySmall = t.heroFigure,
+        // Barra superior y cabeceras de bloque.
+        headlineMedium = t.screenTitle,
+        headlineSmall = t.sectionTitle,
         titleLarge = display.copy(fontSize = 17.sp, lineHeight = 22.sp),
-        // Cuerpo.
-        titleMedium = TextStyle(fontFamily = f.body, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, lineHeight = 20.sp),
-        bodyLarge = TextStyle(fontFamily = f.body, fontWeight = FontWeight.Normal, fontSize = 15.sp, lineHeight = spec.bodyLineHeight),
-        bodyMedium = TextStyle(fontFamily = f.body, fontWeight = FontWeight.Normal, fontSize = 13.sp, lineHeight = 18.sp),
-        bodySmall = TextStyle(fontFamily = f.body, fontWeight = FontWeight.Normal, fontSize = 12.sp, lineHeight = 16.sp),
-        // Etiquetas — antetítulos, píldoras, chips.
-        labelLarge = TextStyle(fontFamily = f.body, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, lineHeight = 17.sp),
-        labelMedium = TextStyle(fontFamily = f.label, fontWeight = FontWeight.Bold, fontSize = 11.sp, lineHeight = 14.sp, letterSpacing = 0.14.em),
-        labelSmall = TextStyle(fontFamily = f.label, fontWeight = FontWeight.Bold, fontSize = 10.sp, lineHeight = 13.sp, letterSpacing = 0.1.em),
+        // Contenido — los tres primeros niveles de la jerarquía.
+        titleMedium = t.cardTitle,
+        bodyLarge = t.body,
+        bodyMedium = t.metadata,
+        bodySmall = t.caption,
+        // Etiquetas — acción, antetítulo, rótulo mínimo.
+        labelLarge = t.action,
+        labelMedium = t.eyebrow,
+        labelSmall = t.micro,
     )
 }
 
@@ -154,12 +169,25 @@ private val Double.em: androidx.compose.ui.unit.TextUnit get() = androidx.compos
 /**
  * `VidaTheme.colors.textSecondary`, `VidaTheme.spec.radii.card` — el acceso a
  * los tokens desde cualquier composable.
+ *
+ * `type` y `role` se leen igual: `VidaTheme.type.cardTitle`,
+ * `VidaTheme.role.completeFg`. Preferir estos dos a
+ * `MaterialTheme.typography.*` y a `VidaTheme.colors.*` en cuanto lo que se
+ * quiere expresar tiene un nombre en el sistema — que es casi siempre.
  */
 object VidaTheme {
     val colors: VidaColors
         @Composable get() = LocalVidaColors.current
     val spec: VidaThemeSpec
         @Composable get() = LocalVidaThemeSpec.current
+
+    /** La escala tipográfica por significado. Ver `VidaType.kt`. */
+    val type: VidaTypeScale
+        @Composable get() = LocalVidaType.current
+
+    /** Qué significa cada color. Ver `VidaRoles.kt`. */
+    val role: VidaRoles
+        @Composable get() = LocalVidaRoles.current
 }
 
 /** Tachado de una tarea hecha, en un solo sitio. */

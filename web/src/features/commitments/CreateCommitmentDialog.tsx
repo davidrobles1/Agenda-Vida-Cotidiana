@@ -5,6 +5,7 @@ import { motionTokens } from '../../core/motion/tokens'
 import { IconPlus } from '../../core/ui/icons'
 import { useVocabulary } from '../../core/user/useVocabulary'
 import type { Person } from '../people/api'
+import { PersonPicker } from '../people/PersonPicker'
 import type { Project } from '../projects/api'
 import { createCommitment, type Commitment, type CommitmentDirection, type CreateCommitmentInput } from './api'
 import shellStyles from '../../core/ui/dialogs/DialogShell.module.css'
@@ -17,10 +18,13 @@ interface CreateCommitmentDialogProps {
   people: Person[]
   projects: Project[]
   onCreated: (commitment: Commitment) => void
+  /** Avisa de una persona creada desde este mismo formulario, para que la
+      lista de la pantalla no quede vieja detrás del diálogo. */
+  onPersonCreated?: (person: Person) => void
 }
 
 /** ADR-016/FR-025, UC-18. "Seguimientos"/"Esperando" son el mismo formulario — solo cambia `direction`. */
-export function CreateCommitmentDialog({ people, projects, onCreated }: CreateCommitmentDialogProps) {
+export function CreateCommitmentDialog({ people, projects, onCreated, onPersonCreated }: CreateCommitmentDialogProps) {
   // UX-014/UX-015: solo la etiqueta del selector de Proyecto cambia.
   const vocabulary = useVocabulary()
   const [isOpen, setIsOpen] = useState(false)
@@ -101,22 +105,20 @@ export function CreateCommitmentDialog({ people, projects, onCreated }: CreateCo
 
                 {error && <p className={shellStyles.formError} role="alert">{error}</p>}
 
-                {people.length === 0 ? (
-                  <p className={shellStyles.formError} role="alert">
-                    Primero necesitas crear al menos una Persona.
-                  </p>
-                ) : (
-                  <>
-                    <label className={shellStyles.field}>
-                      <span className={shellStyles.fieldLabel}>Persona</span>
-                      <select className={shellStyles.textInput} value={personId} onChange={(e) => setPersonId(e.target.value)}>
-                        {people.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.name}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
+                {/* Antes, sin ninguna persona dada de alta, esto decía
+                    "Primero necesitas crear al menos una Persona" y ahí se
+                    acababa: había que cerrar, ir a otra sección, crearla y
+                    volver a empezar. Era el único punto de la aplicación donde
+                    el usuario quedaba atascado. Ahora se crea aquí mismo. */}
+                <>
+                    <PersonPicker
+                      people={people}
+                      value={personId}
+                      onChange={setPersonId}
+                      onCreated={(person) => onPersonCreated?.(person)}
+                      required
+                      hint="Un seguimiento es siempre con alguien: es lo que responde «¿a quién le debo esto?»."
+                    />
 
                     <label className={shellStyles.field}>
                       <span className={shellStyles.fieldLabel}>Próxima acción</span>
@@ -156,15 +158,16 @@ export function CreateCommitmentDialog({ people, projects, onCreated }: CreateCo
                         ))}
                       </select>
                     </label>
-                  </>
-                )}
+                </>
 
                 <div className={shellStyles.formActions}>
                   {saving && <span className={shellStyles.savingHint}>Guardando…</span>}
                   <button type="button" data-variant="secondary" onClick={close} disabled={saving}>
                     Cancelar
                   </button>
-                  <button type="submit" disabled={saving || people.length === 0}>
+                  {/* Lo que bloquea ahora es no haber ELEGIDO persona, no que
+                      no existan: crearla ya es parte de este formulario. */}
+                  <button type="submit" disabled={saving || !personId}>
                     Guardar
                   </button>
                 </div>

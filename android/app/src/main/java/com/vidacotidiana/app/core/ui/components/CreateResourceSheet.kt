@@ -63,10 +63,24 @@ fun CreateResourceSheet(
     editing: Boolean = false,
     people: List<Pair<String, String>>,
     projects: List<Pair<String, String>>,
+    inventory: List<Pair<String, String>>,
     saving: Boolean,
     error: String?,
     onSubmit: (Map<String, String>, FilePayload?) -> Unit,
     onPickFile: (Uri, (FilePayload?) -> Unit) -> Unit,
+    /**
+     * Crear AQUÍ el registro del que depende este formulario.
+     *
+     * Un vínculo obligatorio que exige que ya exista otro registro es una
+     * trampa: sin ningún artículo, "Nueva garantía" no se puede guardar, y sin
+     * ninguna persona tampoco un seguimiento. Antes la hoja se limitaba a
+     * explicar qué faltaba y dejaba al usuario ahí, teniendo que salir, crear
+     * lo otro y volver a empezar.
+     *
+     * Misma forma que `onPickFile`: el último parámetro recibe el id creado, o
+     * `null` si falló.
+     */
+    onQuickCreate: (ReferenceSource, String, String?, (String?) -> Unit) -> Unit,
     onCancel: () -> Unit,
 ) {
     val c = VidaTheme.colors
@@ -181,26 +195,48 @@ fun CreateResourceSheet(
                 }
 
                 is FormField.Reference -> {
-                    val source = if (field.source == ReferenceSource.PEOPLE) people else projects
+                    val source = when (field.source) {
+                        ReferenceSource.PEOPLE -> people
+                        ReferenceSource.PROJECTS -> projects
+                        ReferenceSource.INVENTORY -> inventory
+                    }
                     LabeledField(field.label, field.required) {
-                        if (source.isEmpty()) {
-                            // Se dice qué falta y por qué, en vez de mostrar un
-                            // selector vacío que parece roto.
-                            Text(
-                                if (field.source == ReferenceSource.PEOPLE) {
-                                    "Primero registra a una persona: un seguimiento es con alguien."
-                                } else {
-                                    "Todavía no tienes proyectos."
-                                },
-                                style = MaterialTheme.typography.bodySmall,
-                                color = c.textSecondary,
-                            )
-                        } else {
-                            VidaChipRow(
-                                source.map { it.second },
-                                source.firstOrNull { it.first == values[field.key] }?.second ?: "",
-                                { label -> values[field.key] = source.first { it.second == label }.first },
-                            )
+                        Column(verticalArrangement = Arrangement.spacedBy(VidaSpacing.xs)) {
+                            if (source.isEmpty()) {
+                                // Se dice qué falta y por qué, en vez de mostrar
+                                // un selector vacío que parece roto.
+                                Text(
+                                    when (field.source) {
+                                        ReferenceSource.PEOPLE ->
+                                            "Un seguimiento es con alguien. Añade a esa persona aquí mismo."
+                                        ReferenceSource.PROJECTS -> "Todavía no tienes proyectos."
+                                        ReferenceSource.INVENTORY ->
+                                            "Una garantía cubre un artículo. Añádelo aquí mismo."
+                                    },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = c.textSecondary,
+                                )
+                            } else {
+                                VidaChipRow(
+                                    source.map { it.second },
+                                    source.firstOrNull { it.first == values[field.key] }?.second ?: "",
+                                    { label -> values[field.key] = source.first { it.second == label }.first },
+                                )
+                            }
+                            // Los proyectos no se crean desde aquí: ningún campo
+                            // obligatorio depende de ellos, así que abrir esa
+                            // puerta añadiría un formulario que nadie necesita.
+                            if (field.source != ReferenceSource.PROJECTS) {
+                                QuickCreateRow(
+                                    source = field.source,
+                                    hasItems = source.isNotEmpty(),
+                                    onCreate = { name, extra ->
+                                        onQuickCreate(field.source, name, extra) { newId ->
+                                            if (newId != null) values[field.key] = newId
+                                        }
+                                    },
+                                )
+                            }
                         }
                     }
                 }
@@ -302,6 +338,76 @@ fun CreateResourceSheet(
         )
     }
 }
+
+/**
+ * Añadir aquí mismo el registro del que depende el formulario.
+ *
+ * Empieza abierto cuando no hay ninguno: con la lista vacía es la única acción
+ * posible, y esconderla tras un botón añadiría un paso que no decide nada.
+ *
+ * La categoría del artículo se PREGUNTA en vez de suponerse. Elegir una por
+ * defecto sería inventarse el dato, y además es la que agrupa el inventario.
+ */
+@Composable
+private fun QuickCreateRow(
+    source: ReferenceSource,
+    hasItems: Boolean,
+    onCreate: (name: String, extra: String?) -> Unit,
+) {
+    val c = VidaTheme.colors
+    var open by remember(source) { mutableStateOf(!hasItems) }
+    var name by remember(source) { mutableStateOf("") }
+    var category by remember(source) { mutableStateOf(INVENTORY_CATEGORIES.first().first) }
+
+    if (!open) {
+        VidaSmallButton(
+            if (source == ReferenceSource.INVENTORY) "¿No está? Añade un artículo" else "Añadir a alguien",
+            { open = true },
+            ghost = true,
+        )
+        return
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(VidaSpacing.xs)) {
+        VidaTextField(
+            name,
+            { name = it },
+            if (source == ReferenceSource.INVENTORY) "Nombre del artículo" else "Nombre de la persona",
+        )
+        if (source == ReferenceSource.INVENTORY) {
+            VidaChipRow(
+                INVENTORY_CATEGORIES.map { it.second },
+                INVENTORY_CATEGORIES.first { it.first == category }.second,
+                { label -> category = INVENTORY_CATEGORIES.first { it.second == label }.first },
+            )
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(VidaSpacing.sm)) {
+            if (hasItems) {
+                VidaSmallButton("Cancelar", { open = false }, ghost = true)
+            }
+            VidaSmallButton(
+                "Añadir",
+                {
+                    if (name.isNotBlank()) {
+                        onCreate(name.trim(), if (source == ReferenceSource.INVENTORY) category else null)
+                        name = ""
+                        if (hasItems) open = false
+                    }
+                },
+                enabled = name.isNotBlank(),
+            )
+        }
+        Text(
+            "Se guarda en el módulo activo, igual que el recurso que estás creando.",
+            style = MaterialTheme.typography.bodySmall,
+            color = c.textSecondary,
+        )
+    }
+}
+
+/** Las mismas tres de `CreatableResource.INVENTORY`: una sola lista, un solo sitio. */
+private val INVENTORY_CATEGORIES: List<Pair<String, String>> =
+    (CreatableResource.INVENTORY.fields.first { it.key == "category" } as FormField.Choice).options
 
 @Composable
 private fun LabeledField(label: String, required: Boolean, content: @Composable () -> Unit) {

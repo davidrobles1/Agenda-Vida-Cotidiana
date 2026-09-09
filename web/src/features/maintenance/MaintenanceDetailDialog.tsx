@@ -14,6 +14,7 @@ import {
 import { everyLabel, formatDate, maintenanceState, STATE_LABELS } from './maintenanceView'
 import styles from './MaintenanceDetailDialog.module.css'
 import { DatePicker } from '../../core/ui/pickers/DatePicker'
+import { InventoryItemPicker } from '../inventory/InventoryItemPicker'
 
 const MotionDialog = motion.create(Dialog)
 
@@ -59,6 +60,7 @@ export function MaintenanceDetailDialog({
   const [item, setItem] = useState(record.item)
   const [nextDueAt, setNextDueAt] = useState(record.nextDueAt.slice(0, 10))
   const [intervalMonths, setIntervalMonths] = useState<number | null>(record.intervalMonths ?? null)
+  const [inventoryItemId, setInventoryItemId] = useState<string>(record.inventoryItemId ?? '')
   const [saving, setSaving] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -97,6 +99,11 @@ export function MaintenanceDetailDialog({
         // Elegir "Sin repetición" tiene que poder QUITAR una periodicidad
         // ya asignada, no solo dejar de mandarla.
         intervalMonths === null,
+        inventoryItemId || null,
+        // Siempre explícito, igual que en Garantías: así elegir "No es un
+        // artículo del inventario" DESENLAZA de verdad en vez de
+        // interpretarse como "no tocar".
+        true,
       )
       onSaved(saved)
       onClose()
@@ -207,6 +214,16 @@ export function MaintenanceDetailDialog({
                   </select>
                 </label>
               </div>
+
+              {/* V31: el artículo al que se le hace, distinto del texto que
+                  describe la tarea. Aquí se puede enlazar un mantenimiento
+                  anterior a esta relación, o desenlazarlo. */}
+              <InventoryItemPicker
+                value={inventoryItemId}
+                onChange={setInventoryItemId}
+                label="¿A qué artículo se le hace?"
+                emptyOptionLabel="— No es un artículo del inventario —"
+              />
 
               <div className={styles.history}>
                 <span className={styles.historyTitle}>Historial</span>

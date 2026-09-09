@@ -14,6 +14,7 @@ import {
 } from '../resources/api'
 import type { Person } from '../people/api'
 import type { Project } from './api'
+import { ProjectParticipants } from './ProjectParticipants'
 import shellStyles from '../../core/ui/dialogs/DialogShell.module.css'
 import styles from './ProjectsPage.module.css'
 import { DatePicker } from '../../core/ui/pickers/DatePicker'
@@ -26,6 +27,10 @@ interface ProjectDetailDialogProps {
   onOpenChange: (open: boolean) => void
   project: Project
   clientPerson?: Person
+  /** V32: todas las personas del usuario, para resolver los participantes por
+      su id y para el selector de "añadir a alguien". */
+  people: Person[]
+  onPersonCreated?: (person: Person) => void
   tasks: Reminder[]
   notes: Note[]
   documents: VidaDocument[]
@@ -53,7 +58,7 @@ function formatDate(iso: string): string {
  * lista es el disparador, y `?open=<id>` permite abrirlo directamente —
  * es el destino de los chips de Proyecto desde una Tarea.
  */
-export function ProjectDetailDialog({ project, isOpen, onOpenChange, clientPerson, tasks, notes, documents, resources, onTaskCreated, onTaskUpdated, onNoteCreated, onResourceCreated, onNoteUpdated }: ProjectDetailDialogProps) {
+export function ProjectDetailDialog({ project, isOpen, onOpenChange, clientPerson, people, onPersonCreated, tasks, notes, documents, resources, onTaskCreated, onTaskUpdated, onNoteCreated, onResourceCreated, onNoteUpdated }: ProjectDetailDialogProps) {
   const [activeForm, setActiveForm] = useState<ActiveForm>('none')
   const [taskView, setTaskView] = useState<TaskView>('list')
   const [movingTaskId, setMovingTaskId] = useState<string | null>(null)
@@ -239,10 +244,21 @@ export function ProjectDetailDialog({ project, isOpen, onOpenChange, clientPerso
               </div>
 
               <p className={styles.detailMeta}>
-                {[clientPerson?.name, project.status, project.deadline && `Entrega: ${formatDate(project.deadline)}`]
+                {[project.status, project.deadline && `Entrega: ${formatDate(project.deadline)}`]
                   .filter(Boolean)
                   .join(' · ') || 'Sin detalles adicionales.'}
               </p>
+
+              {/* V32: el cliente sale de la línea de metadatos y pasa a la
+                  lista de personas, con los demás participantes. Antes era un
+                  nombre suelto entre el estado y la fecha, y no se distinguía
+                  de ellos; aquí queda claro que es una PERSONA con un papel. */}
+              <ProjectParticipants
+                project={project}
+                clientPerson={clientPerson}
+                people={people}
+                onPersonCreated={onPersonCreated}
+              />
 
               <div className={styles.taskSectionHeader}>
                 <h3 className={styles.detailSectionTitle}>Tareas</h3>

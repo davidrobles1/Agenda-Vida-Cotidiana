@@ -1,3 +1,4 @@
+import type { MaintenanceRecord, MaintenanceStatus } from '../maintenance/api'
 import type { Warranty } from '../warranties/api'
 import { warrantyState, type WarrantyViewState } from '../warranties/warrantiesView'
 import type { InventoryItem } from './api'
@@ -39,6 +40,38 @@ export function indexWarrantiesByItem(warranties: Warranty[]): Map<string, Warra
     }
   }
   return index
+}
+
+/**
+ * Índice artículo → mantenimiento que le toca antes (V31).
+ *
+ * La otra mitad de la misma idea que `indexWarrantiesByItem`: el artículo
+ * pasa a responder "¿qué le toca y cuándo?" además de "¿todavía tiene
+ * garantía?". Antes "Cambio de aceite" y "Auto Toyota" vivían en dos listas
+ * que se ignoraban.
+ *
+ * De varios mantenimientos gana el de fecha MÁS PRÓXIMA —el criterio opuesto
+ * al de las garantías, y a propósito: de una garantía importa la que sigue
+ * cubriendo, y de un mantenimiento el que toca antes. Los ya completados no
+ * cuentan: no queda nada que hacer con ellos.
+ */
+export function indexMaintenanceByItem(records: MaintenanceRecord[]): Map<string, MaintenanceRecord> {
+  const index = new Map<string, MaintenanceRecord>()
+  for (const record of records) {
+    if (!record.inventoryItemId || record.status === 'COMPLETADO') continue
+    const current = index.get(record.inventoryItemId)
+    if (!current || record.nextDueAt < current.nextDueAt) {
+      index.set(record.inventoryItemId, record)
+    }
+  }
+  return index
+}
+
+/** Lo que dice la etiqueta del artículo sobre su próximo mantenimiento. */
+export const MAINTENANCE_TAG_LABELS: Record<Exclude<MaintenanceStatus, 'COMPLETADO'>, string> = {
+  AL_DIA: 'Mantenimiento al día',
+  PROXIMO: 'Mantenimiento próximo',
+  VENCIDO: 'Mantenimiento vencido',
 }
 
 export const WARRANTY_TAG_LABELS: Record<WarrantyViewState, string> = {
@@ -86,11 +119,14 @@ export interface InventorySummary {
   locationCount: number
   withWarrantyCount: number
   withoutLocationCount: number
+  /** V31: artículos con algún mantenimiento pendiente. */
+  withMaintenanceCount: number
 }
 
 export function summarizeInventory(
   items: InventoryItem[],
   warrantyByItem: Map<string, WarrantyLink>,
+  maintenanceByItem: Map<string, MaintenanceRecord> = new Map(),
 ): InventorySummary {
   const locations = new Set(items.map((item) => item.location?.trim()).filter((value): value is string => !!value))
   return {
@@ -103,6 +139,7 @@ export function summarizeInventory(
       return link ? link.state === 'ok' || link.state === 'soon' : false
     }).length,
     withoutLocationCount: items.filter((item) => !item.location?.trim()).length,
+    withMaintenanceCount: items.filter((item) => maintenanceByItem.has(item.id)).length,
   }
 }
 

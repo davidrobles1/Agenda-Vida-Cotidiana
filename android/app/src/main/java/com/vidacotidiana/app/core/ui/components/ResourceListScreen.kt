@@ -29,6 +29,21 @@ import com.vidacotidiana.app.core.ui.VidaTheme
 import kotlinx.coroutines.CoroutineScope
 
 /** Una fila de recurso, en el vocabulario que las pantallas comparten. */
+/**
+ * Una acción que opera sobre VARIOS elementos a la vez.
+ *
+ * `onRun` recibe los ids marcados, o el conjunto VACÍO cuando el usuario pulsa
+ * "todos" — que no es lo mismo que "ninguno": el backend de Documentos
+ * interpreta una lista vacía como "todos los de este módulo", precisamente para
+ * no depender de que el cliente enumere una lista paginada que solo tiene a
+ * medias.
+ */
+data class BulkAction(
+    val actionLabel: String,
+    val allLabel: String,
+    val onRun: (Set<String>) -> Unit,
+)
+
 data class ResourceEntry(
     val id: String,
     val title: String,
@@ -51,6 +66,18 @@ data class ResourceEntry(
     val onDelete: (() -> Unit)? = null,
     /** Acciones propias de una sección concreta, como las de Documentos. */
     val extraActions: List<Pair<String, () -> Unit>> = emptyList(),
+    /**
+     * Bajo qué encabezado se agrupa en el mosaico. Lo decide la pantalla:
+     * Pagos agrupa por proximidad, Garantías por estado, Inventario por
+     * categoría. Nulo o vacío = una sola tanda sin encabezado.
+     */
+    val group: String? = null,
+    /**
+     * El dato que se muestra grande en la tarjeta cuando no hay importe: los
+     * días que faltan, la hora, lo que defina a ESE recurso. Lo decide cada
+     * pantalla, porque qué destaca de un recurso es propio de su dominio.
+     */
+    val highlight: String? = null,
 )
 
 /**
@@ -92,11 +119,19 @@ fun ResourceListScreen(
         f == filters.firstOrNull() || entry.pill?.first.equals(f.trimEnd('s'), ignoreCase = true)
     },
     detailExtra: @Composable (ResourceEntry) -> Unit = {},
+    /**
+     * Acción sobre VARIOS elementos a la vez. Nula en casi todas las secciones:
+     * solo Documentos tiene una (descargar en zip), y darle a las demás una
+     * barra de selección que no lleva a ningún sitio sería ruido.
+     */
+    bulkAction: BulkAction? = null,
 ) {
     val c = VidaTheme.colors
     var query by remember { mutableStateOf("") }
     var filter by remember { mutableStateOf(filters.firstOrNull() ?: "") }
     var detail by remember { mutableStateOf<ResourceEntry?>(null) }
+    var selecting by remember { mutableStateOf(false) }
+    var selected by remember { mutableStateOf(emptySet<String>()) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     val visible = entries.filter {
@@ -130,7 +165,46 @@ fun ResourceListScreen(
         if (filters.isNotEmpty()) {
             StaggeredAppear(2) { VidaChipRow(filters, filter, { filter = it }) }
         }
-        StaggeredAppear(3) { Eyebrow(eyebrow) }
+        StaggeredAppear(3) { Eyebrow(if (selecting) "${selected.size} seleccionados" else eyebrow) }
+
+        // La barra de selección vive DEBAJO de los filtros, no en la cabecera:
+        // lo que se descarga es lo que el filtro y la búsqueda dejaron a la
+        // vista, y ponerla arriba sugeriría que actúa sobre todo el listado.
+        bulkAction?.let { bulk ->
+            StaggeredAppear(3) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(VidaSpacing.sm),
+                ) {
+                    if (!selecting) {
+                        VidaSmallButton("Seleccionar", { selecting = true }, ghost = true)
+                        // "Todos" no enumera la lista: manda el conjunto vacío,
+                        // que el backend interpreta como "todos los de este
+                        // módulo". Enumerar desde el cliente dependería de que
+                        // la página cargada los tuviera todos.
+                        VidaSmallButton(bulk.allLabel, { bulk.onRun(emptySet()) }, ghost = true)
+                    } else {
+                        VidaSmallButton(
+                            "Cancelar",
+                            {
+                                selecting = false
+                                selected = emptySet()
+                            },
+                            ghost = true,
+                        )
+                        VidaSmallButton(
+                            bulk.actionLabel,
+                            {
+                                bulk.onRun(selected)
+                                selecting = false
+                                selected = emptySet()
+                            },
+                            enabled = selected.isNotEmpty(),
+                        )
+                    }
+                }
+            }
+        }
         if (loading && entries.isEmpty()) {
             // Mientras carga no se afirma nada: ni que está vacío ni que falló.
             StaggeredAppear(4) { LoadingRows() }
@@ -147,18 +221,37 @@ fun ResourceListScreen(
                 )
             }
         } else if (visible.isEmpty()) {
+            // Dos vacíos distintos que NO se pueden decir igual:
+            //
+            // FIRST_USE (`query` en blanco) — la sección no tiene nada todavía.
+            //   El título NOMBRA la sección en vez de decir «aquí»: es la única
+            //   forma de que responda a «dónde estoy» cuando la pantalla está,
+            //   por definición, vacía de pistas. El cuerpo lo pone cada sección
+            //   —trece cuerpos escritos, ninguno genérico— y la acción es su
+            //   propio alta, que ya existe.
+            //
+            // NO_RESULTS — hay datos, pero el filtro o la búsqueda no los
+            //   alcanza. No lleva acción de alta: crear algo nuevo no es la
+            //   respuesta a una búsqueda fallida, y ofrecerlo insinuaría que el
+            //   usuario no tiene nada cuando sí tiene.
             StaggeredAppear(4) {
                 EmptyState(
-                    title = if (query.isBlank()) "Todavía no hay nada aquí" else "Nada coincide con «$query»",
+                    title = if (query.isBlank()) "Aún no hay nada en ${title.lowercase()}" else "Nada coincide con «$query»",
                     body = if (query.isBlank()) emptyBody else "Prueba con otro término.",
                     action = if (query.isBlank()) addLabel to onAdd else null,
                 )
             }
         } else {
-            visible.forEachIndexed { index, entry ->
-                StaggeredAppear(4 + index) {
-                    ResourceActionCard(entry = entry, onOpenDetail = { detail = entry })
-                }
+            StaggeredAppear(4) {
+                ResourceBoard(
+                    entries = visible,
+                    onOpenDetail = { detail = it },
+                    selecting = selecting,
+                    selectedIds = selected,
+                    onToggleSelect = { entry ->
+                        selected = if (entry.id in selected) selected - entry.id else selected + entry.id
+                    },
+                )
             }
         }
     }
@@ -192,43 +285,4 @@ fun ResourceListScreen(
         }
     }
 
-}
-
-/**
- * Un recurso como TARJETA con sus acciones, no como fila inerte.
- *
- * Fuera del calendario, un listado tradicional obliga a tocar, esperar una
- * hoja y buscar el botón para hacer lo más frecuente —editarlo o darlo por
- * hecho—. Aquí el estado y las acciones están a la vista, y tocar la tarjeta
- * sigue abriendo el detalle: se añade un camino corto sin quitar el largo.
- *
- * Las acciones vienen del propio `ResourceEntry`, así que una sección cuyo
- * recurso no tiene «completar» en el backend no muestra ese botón. No hay
- * acciones decorativas.
- */
-@Composable
-private fun ResourceActionCard(entry: ResourceEntry, onOpenDetail: () -> Unit) {
-    val hasActions = entry.onEdit != null || entry.onComplete != null || entry.onOpen != null
-
-    VidaCard(onClick = onOpenDetail) {
-        ResourceRow(
-            title = entry.title,
-            subtitle = entry.subtitle,
-            icon = entry.icon,
-            tone = entry.tone,
-            typeTag = entry.typeTag,
-            amount = entry.amount,
-            pill = entry.pill,
-        )
-        if (hasActions) {
-            Row(
-                Modifier.fillMaxWidth().padding(top = VidaSpacing.xs),
-                horizontalArrangement = Arrangement.spacedBy(VidaSpacing.sm),
-            ) {
-                entry.onOpen?.let { VidaSmallButton(entry.openLabel, it, ghost = true) }
-                entry.onComplete?.let { VidaSmallButton(entry.completeLabel, it, ghost = true) }
-                entry.onEdit?.let { VidaSmallButton("Editar", it) }
-            }
-        }
-    }
 }

@@ -161,7 +161,11 @@ class AppViewModel @Inject constructor(
             _state.update { it.copy(loading = true) }
             val context = contextParam()
 
-            val remindersResult = runCatching { reminderApi.listReminders() }
+            // ADR-019: el mismo filtro que el resto de recursos. Sin él,
+            // Laboral mostraba también las tareas de Personal y al revés;
+            // Portal sigue recibiendo `null`, que es «sin filtrar», y por eso
+            // es el único que las ve todas.
+            val remindersResult = runCatching { reminderApi.listReminders(context) }
             val dataResult = repository.loadAll(context)
 
             val reminders = remindersResult.getOrNull()?.items
@@ -323,12 +327,27 @@ class AppViewModel @Inject constructor(
             if (editing != null) {
                 val result: Result<Unit> = when (resource) {
                     CreatableResource.TASK -> runCatching {
+                        // El icono y la pegatina se REENVÍAN tal como están.
+                        //
+                        // No es adorno: `Reminder#applyEdit` los aplica siempre
+                        // como llegan, así que omitirlos los BORRA. Editar la
+                        // fecha de una tarea desde el móvil estaba borrando el
+                        // icono y la pegatina que se le habían puesto en la Web.
+                        // Se corrige con el contrato que ya existe —el mismo que
+                        // cumple la Web—, sin tocar backend.
+                        val current = _state.value.reminders.firstOrNull { it.id == editing.id }
                         val updated = reminderApi.updateReminder(
                             editing.id,
                             com.vidacotidiana.app.core.network.UpdateReminderRequest(
                                 title = text("title"),
                                 description = values["description"]?.ifBlank { null },
                                 dueAt = instant("dueAt"),
+                                // Nulo = "no tocar": dejar el campo vacío NO
+                                // borra una ubicación guardada. Limitación
+                                // declarada del backend, no de esta pantalla.
+                                location = values["location"]?.ifBlank { null },
+                                iconId = current?.iconId,
+                                stickerId = current?.stickerId,
                                 version = editing.version,
                             ),
                         )
@@ -348,6 +367,7 @@ class AppViewModel @Inject constructor(
                     CreatableResource.MAINTENANCE -> repository.editMaintenance(
                         editing.id, text("item"), date("nextDueAt") ?: LocalDate.now(),
                         values["intervalMonths"]?.toIntOrNull(), editing.version,
+                        values["inventoryItemId"],
                     )
 
                     CreatableResource.PAYMENT -> repository.editPayment(
@@ -383,6 +403,49 @@ class AppViewModel @Inject constructor(
                     CreatableResource.NOTE -> repository.editNote(
                         editing.id, text("title"), values["description"], editing.version,
                     )
+
+                    // `completed` NO viaja aquí: cambiar el progreso no cumple
+                    // ni reabre nada (AC-018). El estado se cambia con su propia
+                    // acción, nunca como efecto de editar.
+                    CreatableResource.OBJECTIVE -> repository.editObjective(
+                        editing.id,
+                        text("title"),
+                        values["targetValue"]?.toIntOrNull(),
+                        values["currentValue"]?.toIntOrNull(),
+                        date("deadline"),
+                        editing.version,
+                    )
+
+                    // `active` NO viaja aquí: pausar es su propia acción. Y
+                    // cambiar la frecuencia NO recalcula la fecha — el backend
+                    // tampoco lo hace, así que no se inventa esa regla.
+                    CreatableResource.ROUTINE -> repository.editRoutine(
+                        editing.id,
+                        text("title"),
+                        values["description"],
+                        text("frequency").ifBlank { "WEEKLY" },
+                        date("nextExecutionDate") ?: LocalDate.now(),
+                        editing.version,
+                    )
+
+                    CreatableResource.WORK_RESOURCE -> repository.editWorkResource(
+                        editing.id,
+                        text("name"),
+                        text("type").ifBlank { "OTRO" },
+                        values["reference"],
+                        values["description"],
+                        values["personId"],
+                        values["projectId"],
+                        editing.version,
+                    )
+
+                    CreatableResource.PLACE -> repository.editPlace(
+                        editing.id,
+                        text("name"),
+                        values["address"],
+                        values["personId"],
+                        editing.version,
+                    )
                 }
 
                 result
@@ -406,6 +469,11 @@ class AppViewModel @Inject constructor(
                             // en el calendario a una hora que nadie eligió.
                             dueAt = instant("dueAt"),
                             description = values["description"]?.ifBlank { null },
+                            // ADR-019: la tarea nace en el módulo desde el que
+                            // se crea. Omitirlo la mandaba siempre a Personal.
+                            context = context,
+                            // Texto tal cual, sin validar ni transformar.
+                            location = values["location"]?.ifBlank { null },
                         ),
                     )
                     // Una tarea con fecha merece su aviso local: es la misma
@@ -430,13 +498,21 @@ class AppViewModel @Inject constructor(
                     nextDue = date("nextDueAt") ?: LocalDate.now(),
                     intervalMonths = values["intervalMonths"]?.toIntOrNull(),
                     context = context,
+                    inventoryItemId = values["inventoryItemId"],
                 )
 
                 CreatableResource.WARRANTY -> {
-                    if (file == null) {
-                        Result.failure(IllegalStateException("Una garantía necesita su comprobante."))
-                    } else {
-                        repository.createWarranty(text("item"), date("expiresAt") ?: LocalDate.now(), file, context)
+                    val itemId = values["inventoryItemId"].orEmpty()
+                    when {
+                        file == null ->
+                            Result.failure(IllegalStateException("Una garantía necesita su comprobante."))
+                        // El backend lo rechaza igual; decirlo aquí evita un
+                        // viaje de red para recibir el mismo "no" en inglés.
+                        itemId.isBlank() ->
+                            Result.failure(IllegalStateException("Elige el artículo del inventario que cubre esta garantía."))
+                        else -> repository.createWarranty(
+                            text("item"), date("expiresAt") ?: LocalDate.now(), file, itemId, context,
+                        )
                     }
                 }
 
@@ -444,7 +520,8 @@ class AppViewModel @Inject constructor(
                     name = text("name"),
                     category = text("category").ifBlank { "HOGAR" },
                     location = values["location"],
-                )
+                    context = context,
+                ).map { }
 
                 CreatableResource.DOCUMENT -> {
                     if (file == null) {
@@ -456,7 +533,7 @@ class AppViewModel @Inject constructor(
 
                 CreatableResource.PERSON -> repository.createPerson(
                     text("name"), values["role"], values["organization"],
-                )
+                ).map { }
 
                 CreatableResource.PROJECT -> repository.createProject(
                     text("name"), values["status"], date("deadline"),
@@ -470,6 +547,41 @@ class AppViewModel @Inject constructor(
                 )
 
                 CreatableResource.NOTE -> repository.createNote(text("title"), values["description"])
+
+                // Nace siempre en curso: `CreateObjectiveRequest` ni siquiera
+                // acepta `completed`.
+                CreatableResource.OBJECTIVE -> repository.createObjective(
+                    title = text("title"),
+                    targetValue = values["targetValue"]?.toIntOrNull(),
+                    currentValue = values["currentValue"]?.toIntOrNull(),
+                    deadline = date("deadline"),
+                )
+
+                // Nace siempre activa: `CreateRoutineRequest` no acepta
+                // `active`, y el backend la crea con `active = true`.
+                CreatableResource.ROUTINE -> repository.createRoutine(
+                    title = text("title"),
+                    description = values["description"],
+                    frequency = text("frequency").ifBlank { "WEEKLY" },
+                    nextExecutionDate = date("nextExecutionDate") ?: LocalDate.now(),
+                )
+
+                // Persona y proyecto viajan solo si el usuario los eligió. Que
+                // no haya ninguno es un alta válida, no un formulario a medias.
+                CreatableResource.WORK_RESOURCE -> repository.createWorkResource(
+                    name = text("name"),
+                    type = text("type").ifBlank { "OTRO" },
+                    reference = values["reference"],
+                    description = values["description"],
+                    personId = values["personId"],
+                    projectId = values["projectId"],
+                )
+
+                CreatableResource.PLACE -> repository.createPlace(
+                    name = text("name"),
+                    address = values["address"],
+                    personId = values["personId"],
+                )
             }
 
             result
@@ -518,6 +630,7 @@ class AppViewModel @Inject constructor(
                 formInitialValues = buildMap {
                     put("title", reminder.title)
                     local?.let { value -> put("dueAt", value) }
+                    reminder.location?.let { l -> put("location", l) }
                     reminder.description?.let { d -> put("description", d) }
                 },
                 error = null,
@@ -546,7 +659,14 @@ class AppViewModel @Inject constructor(
             }
             CreatableResource.WARRANTY -> {
                 val w = data.warranties.firstOrNull { it.id == id } ?: return
-                values = mapOf("item" to w.product, "expiresAt" to w.expiresOn.toString())
+                values = buildMap {
+                    put("item", w.product)
+                    put("expiresAt", w.expiresOn.toString())
+                    // Las garantías anteriores a la obligación pueden no tener
+                    // artículo. Se abren igual: la regla es del alta, no del
+                    // ciclo de vida, y `editWarranty` no lo manda.
+                    w.inventoryItemId?.let { put("inventoryItemId", it) }
+                }
                 version = w.version
             }
             CreatableResource.MAINTENANCE -> {
@@ -555,6 +675,7 @@ class AppViewModel @Inject constructor(
                     put("item", m.item)
                     put("nextDueAt", m.nextDueOn.toString())
                     m.intervalMonths?.let { put("intervalMonths", it.toString()) }
+                    m.inventoryItemId?.let { put("inventoryItemId", it) }
                 }
                 version = m.version
             }
@@ -595,7 +716,9 @@ class AppViewModel @Inject constructor(
                 val p = data.projects.firstOrNull { it.id == id } ?: return
                 values = buildMap {
                     put("name", p.name)
-                    put("status", p.status)
+                    // Sin estado no se pone la clave, igual que con la entrega:
+                    // el campo aparece vacío en vez de con una cadena inventada.
+                    p.status?.let { put("status", it) }
                     p.deadline?.let { put("deadline", it.toString()) }
                 }
                 version = p.version
@@ -617,6 +740,49 @@ class AppViewModel @Inject constructor(
                     n.description?.let { put("description", it) }
                 }
                 version = n.version
+            }
+            CreatableResource.OBJECTIVE -> {
+                val o = data.objectives.firstOrNull { it.id == id } ?: return
+                values = buildMap {
+                    put("title", o.title)
+                    o.targetValue?.let { put("targetValue", it.toString()) }
+                    // El progreso SÍ se precarga aunque sea 0: es el valor real
+                    // del objetivo y es el campo desde el que se actualiza.
+                    put("currentValue", o.currentValue.toString())
+                    o.deadline?.let { put("deadline", it.toString()) }
+                }
+                version = o.version
+            }
+            CreatableResource.ROUTINE -> {
+                val r = data.routines.firstOrNull { it.id == id } ?: return
+                values = buildMap {
+                    put("title", r.title)
+                    put("frequency", r.frequency)
+                    put("nextExecutionDate", r.nextExecutionDate.toString())
+                    r.description?.let { put("description", it) }
+                }
+                version = r.version
+            }
+            CreatableResource.WORK_RESOURCE -> {
+                val w = data.workResources.firstOrNull { it.id == id } ?: return
+                values = buildMap {
+                    put("name", w.name)
+                    put("type", w.type)
+                    w.reference?.let { put("reference", it) }
+                    w.description?.let { put("description", it) }
+                    w.personId?.let { put("personId", it) }
+                    w.projectId?.let { put("projectId", it) }
+                }
+                version = w.version
+            }
+            CreatableResource.PLACE -> {
+                val p = data.places.firstOrNull { it.id == id } ?: return
+                values = buildMap {
+                    put("name", p.name)
+                    p.address?.let { put("address", it) }
+                    p.personId?.let { put("personId", it) }
+                }
+                version = p.version
             }
         }
 
@@ -647,8 +813,29 @@ class AppViewModel @Inject constructor(
                     data.payments.firstOrNull { it.id == id }?.let { repository.registerPayment(id, it.version) }
                 CreatableResource.COMMITMENT ->
                     data.commitments.firstOrNull { it.id == id }?.let { repository.resolveCommitment(id, it.version) }
-                // Inventario, documentos, personas, proyectos y notas del Inbox
-                // no tienen estado de completado en el backend: no se inventa.
+                // Objetivos es el ÚNICO que cambia de estado con un PATCH: su
+                // backend no expone `/complete`. Y es el único que ALTERNA —
+                // cumplir y reabrir son la misma llamada con distinto valor—,
+                // por eso lee `completed` en vez de mandar `true` fijo.
+                CreatableResource.OBJECTIVE ->
+                    data.objectives.firstOrNull { it.id == id }
+                        ?.let { repository.setObjectiveCompleted(id, !it.completed, it.version) }
+                // «Hecha» de una rutina NO es "completar": registra UNA
+                // ocurrencia y avanza la fecha. Endpoint propio, no un PATCH, y
+                // deliberadamente NADA parecido a la alternancia de Objetivos —
+                // una rutina no se cumple, siempre vuelve.
+                CreatableResource.ROUTINE ->
+                    data.routines.firstOrNull { it.id == id }
+                        ?.let { repository.executeRoutine(id, it.version) }
+                // Inventario, documentos, personas, proyectos, notas del Inbox,
+                // RECURSOS DE TRABAJO y LUGARES no tienen estado de completado
+                // en el backend: no se inventa.
+                //
+                // Que WORK_RESOURCE y PLACE caigan aquí es DELIBERADO, no un
+                // olvido: sus backends no exponen ninguna acción —ni complete,
+                // ni execute, ni resolve—, solo CRUD. Sus tarjetas pasan
+                // `onComplete = null` y por eso no muestran ningún botón que no
+                // llevaría a nada.
                 else -> null
             } ?: return@launch
 
@@ -675,6 +862,56 @@ class AppViewModel @Inject constructor(
             }
             runCatching { context.startActivity(intent) }
                 .onFailure { _state.update { s -> s.copy(error = "No hay ninguna aplicación que pueda abrirlo.") } }
+        }
+    }
+
+    /**
+     * Varios documentos en un zip, entregado al selector del sistema.
+     *
+     * SE COMPARTE, NO SE "DESCARGA A DESCARGAS". Guardar en el almacenamiento
+     * público exigiría permisos que Cotidiana no pide, y el selector ya deja al
+     * usuario mandarlo a Archivos, Drive o donde quiera — que es coexistir con
+     * el teléfono en vez de duplicar su gestor de descargas.
+     *
+     * `ids` vacío significa TODOS los del módulo activo: es el contrato del
+     * backend, no un descuido.
+     */
+    fun downloadDocumentsZip(context: android.content.Context, ids: Set<String>) {
+        viewModelScope.launch {
+            _state.update { it.copy(saving = true) }
+            repository.documentsZip(ids, contextParam())
+                .onSuccess { bytes ->
+                    val prepared = runCatching {
+                        val dir = java.io.File(context.cacheDir, "documentos").apply { mkdirs() }
+                        val file = java.io.File(dir, "documentos.zip")
+                        file.writeBytes(bytes)
+                        androidx.core.content.FileProvider.getUriForFile(
+                            context,
+                            context.packageName + ".files",
+                            file,
+                        )
+                    }
+                    _state.update { it.copy(saving = false) }
+                    prepared
+                        .onSuccess { uri ->
+                            val send = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                type = "application/zip"
+                                putExtra(android.content.Intent.EXTRA_STREAM, uri)
+                                addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            }
+                            runCatching {
+                                context.startActivity(android.content.Intent.createChooser(send, "documentos.zip"))
+                            }.onFailure {
+                                _state.update { s -> s.copy(error = "No se pudo compartir el archivo.") }
+                            }
+                        }
+                        .onFailure { e ->
+                            _state.update { it.copy(error = e.message ?: "No se pudo preparar el zip") }
+                        }
+                }
+                .onFailure { e ->
+                    _state.update { it.copy(saving = false, error = e.message ?: "No se pudo descargar") }
+                }
         }
     }
 
@@ -759,6 +996,105 @@ class AppViewModel @Inject constructor(
     fun cancelCreate() {
         _state.update {
             it.copy(pendingCreate = null, editing = null, formInitialValues = emptyMap(), error = null)
+        }
+    }
+
+    /**
+     * «Cómo llegar»: abre la aplicación de mapas que el usuario ya tenga.
+     *
+     * COEXISTIR, NO REEMPLAZAR: se delega en el sistema con un `geo:` y no se
+     * construye mapa propio ni se añade SDK. No hace falta ningún permiso —no
+     * se pide la ubicación del usuario, solo se declara el destino— y no se
+     * elige aplicación: resuelve Android con lo que haya instalado.
+     *
+     * `location` es TEXTO LIBRE, así que el destino se pasa como consulta
+     * (`?q=`) sobre coordenadas nulas. Nunca se geocodifica aquí ni se inventan
+     * unas coordenadas que el dato no tiene.
+     *
+     * El texto se codifica con `Uri.encode` en vez de concatenarse: una coma o
+     * un espacio en «Av. Reforma 123, CDMX» romperían la URI a mano.
+     */
+    fun openDirections(context: android.content.Context, location: String) {
+        val query = android.net.Uri.encode(location.trim())
+        if (query.isEmpty()) return
+        val intent = android.content.Intent(
+            android.content.Intent.ACTION_VIEW,
+            android.net.Uri.parse("geo:0,0?q=$query"),
+        )
+        runCatching { context.startActivity(intent) }
+            .onFailure {
+                _state.update { it.copy(error = "No hay ninguna aplicación de mapas instalada.") }
+            }
+    }
+
+    /**
+     * Pausar o reanudar una rutina.
+     *
+     * Va aparte de `completeResource` porque NO es la acción principal: la
+     * tarjeta conserva un solo gesto rápido, «Hecha», y esto vive en la hoja de
+     * detalle. Usa el PATCH de edición, que admite `active` — comprobado de
+     * extremo a extremo antes de implementarlo, no supuesto por que exista un
+     * PATCH.
+     *
+     * No toca `nextExecutionDate`: el backend tampoco lo hace al pausar, y
+     * moverla aquí sería inventar una regla de recurrencia.
+     */
+    fun setRoutineActive(id: String, active: Boolean) {
+        val routine = _state.value.data.routines.firstOrNull { it.id == id } ?: return
+        viewModelScope.launch {
+            repository.setRoutineActive(id, active, routine.version)
+                .onSuccess { refresh() }
+                .onFailure { e -> _state.update { it.copy(error = e.message ?: "No se pudo actualizar") } }
+        }
+    }
+
+    /**
+     * Crea, desde el propio formulario, el registro del que ese formulario
+     * depende: el artículo que cubre una garantía, la persona con la que es un
+     * seguimiento.
+     *
+     * Existe porque un vínculo obligatorio que exige otro registro previo deja
+     * al usuario atascado: sin artículos, "Nueva garantía" no se podía guardar
+     * y la hoja solo explicaba qué faltaba. Y es el caso NORMAL, no el raro —
+     * registras la garantía porque acabas de comprar el artículo.
+     *
+     * El registro nuevo nace en el módulo activo, el mismo en el que va a
+     * nacer el recurso que se está creando: el backend rechaza enlazar recursos
+     * de módulos distintos (ADR-019 regla 2).
+     *
+     * `refresh()` después de crear, no inserción a mano: es lo que hace que la
+     * lista del selector incluya el registro nuevo sin duplicarlo.
+     */
+    fun quickCreate(
+        source: ReferenceSource,
+        name: String,
+        extra: String?,
+        onCreated: (String?) -> Unit,
+    ) {
+        viewModelScope.launch {
+            val result = when (source) {
+                ReferenceSource.INVENTORY -> repository.createInventoryItem(
+                    name = name,
+                    category = extra?.ifBlank { null } ?: "HOGAR",
+                    location = null,
+                    context = contextParam(),
+                )
+                ReferenceSource.PEOPLE -> repository.createPerson(name, null, null)
+                // Ningún campo obligatorio depende de un proyecto, así que la
+                // hoja no ofrece esta puerta y aquí no se inventa.
+                ReferenceSource.PROJECTS -> Result.failure(
+                    IllegalStateException("Los proyectos se crean desde su propia sección."),
+                )
+            }
+            result
+                .onSuccess { newId ->
+                    onCreated(newId)
+                    refresh()
+                }
+                .onFailure { e ->
+                    onCreated(null)
+                    _state.update { it.copy(error = e.message ?: "No se pudo crear") }
+                }
         }
     }
 
@@ -849,6 +1185,7 @@ class AppViewModel @Inject constructor(
                     time = due.toLocalTime(),
                     meta = if (r.status == "COMPLETED") "Completada" else "Recordatorio",
                     done = r.status == "COMPLETED",
+                    location = r.location?.ifBlank { null },
                 )
             }
         }
@@ -873,6 +1210,7 @@ class AppViewModel @Inject constructor(
                 time = due?.toLocalTime(),
                 meta = due?.toLocalDate()?.toString() ?: "Sin fecha",
                 done = r.status == "COMPLETED",
+                location = r.location?.ifBlank { null },
             )
         }
     }

@@ -29,6 +29,11 @@ erDiagram
     USER ||--o{ MAINTENANCE_RECORD : owns
     REMINDER ||--o{ REMINDER_SHARE : "compartido con"
     REMINDER ||--o{ INVITATION : "origina"
+    INVENTORY_ITEM ||--o{ WARRANTY : "cubierto por (obligatorio al crear, ADR-026)"
+    INVENTORY_ITEM ||--o{ MAINTENANCE_RECORD : "se le hace (opcional, ADR-026)"
+    PROJECT ||--o{ PROJECT_PARTICIPANT : "tiene"
+    PERSON ||--o{ PROJECT_PARTICIPANT : "participa como"
+    PERSON ||--o{ PROJECT : "es cliente de (lista DISJUNTA de la anterior)"
 
     USER {
       uuid id PK
@@ -389,6 +394,59 @@ al de quien lo recibe.
   vence más tarde** — es la que sigue cubriendo.
 - El artículo enlazado se valida contra el **mismo dueño** (`WarrantyService`):
   enlazar con un artículo ajeno filtraría su existencia.
+- **ADR-026 (2026-09-06): el enlace es OBLIGATORIO al crear.** `POST
+  /warranties` exige `inventoryItemId` y `WarrantyService#create` lo valida —
+  una garantía siempre cubre un artículo. La columna sigue siendo `NULL` en la
+  tabla porque **la obligación no es retroactiva**: las garantías anteriores a
+  la regla siguen siendo válidas y `PATCH` no la exige (también permite
+  desenlazar). Se restringe lo que entra, no lo que ya está guardado.
+- **ADR-026: el artículo debe ser del mismo MÓDULO**, no solo del mismo dueño.
+  Hasta entonces la única defensa era que el cliente filtrara el selector —una
+  decisión de cliente que una llamada directa a la API se saltaba, contra la
+  regla 2 del ADR-019.
+
+### `MAINTENANCE_RECORD.inventory_item_id` — vínculo con Inventario (V31)
+
+| Columna | Tipo | Regla |
+|---|---|---|
+| `maintenance_records.inventory_item_id` | `UUID NULL REFERENCES inventory_items(id) ON DELETE SET NULL` | NULL = sin enlazar |
+
+- **La otra mitad de la misma idea.** Con este vínculo el artículo responde
+  "¿qué le toca y cuándo?" además de "¿todavía tiene garantía?". Antes "Cambio
+  de aceite" y "Auto Toyota" vivían en dos listas que se ignoraban.
+- **`item` se conserva y sigue siendo texto libre**: describe la TAREA ("Cambio
+  de aceite"), no el objeto. Son dos datos distintos.
+- **OPCIONAL, a diferencia del de la garantía** (ADR-026(c)): también se
+  mantiene lo que no es un artículo inventariado —el techo, el jardín—, y
+  obligarlo expulsaría casos reales.
+- Cuando un artículo tiene varios, la lista de Inventario muestra el que **toca
+  antes** — criterio opuesto al de la garantía, y a propósito: de una garantía
+  importa la que sigue cubriendo; de un mantenimiento, el que hay que hacer ya.
+- Mismas dos validaciones que la garantía: mismo dueño y mismo módulo.
+
+### `PROJECT_PARTICIPANT` — quién está en un proyecto (V32)
+
+| Columna | Tipo | Regla |
+|---|---|---|
+| `project_participants.project_id` | `UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE` | |
+| `project_participants.person_id` | `UUID NOT NULL REFERENCES people(id) ON DELETE CASCADE` | |
+| `project_participants.role` | `VARCHAR(32) NOT NULL` | `PROVEEDOR` \| `CONTACTO` \| `COLABORADOR` \| `OTRO` |
+| — | `UNIQUE (project_id, person_id)` | Una persona, una sola vez por proyecto |
+
+- **NO incluye al cliente.** El cliente sigue siendo `projects.client_person_id`
+  (ADR-026(e): cliente y participantes **conviven**). `CLIENTE` no es un rol
+  válido, y el servicio impide el solapamiento por los dos lados: no se puede
+  añadir como participante a quien ya es el cliente, ni nombrar cliente a quien
+  ya participa. Son dos mitades **disjuntas** de "quién está aquí"; sin esa
+  disyunción habría dos verdades que acabarían discrepando.
+- **Tabla y no columna** porque una persona participa en VARIOS proyectos: un
+  proveedor en tres obras se duplicaría tres veces con columnas.
+- **`ON DELETE CASCADE` en los dos lados**, al revés que los enlaces con el
+  inventario: una participación no significa nada sin el proyecto ni sin la
+  persona. Un comprobante de garantía sí sobrevive al artículo; "Ana es
+  proveedora de una obra que ya no existe" no es un dato que conservar.
+- El `UNIQUE` respalda el 409 de duplicado: la comprobación de lectura previa
+  puede perderla una segunda petición simultánea.
 
 ### Estados de Garantía (derivados, nunca almacenados)
 

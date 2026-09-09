@@ -11,6 +11,7 @@ import { useResourceSharing } from '../sharing/useResourceSharing'
 import styles from './CreateMaintenanceDialog.module.css'
 import { useActiveMode } from '../../core/user/ActiveModeContext'
 import { DatePicker } from '../../core/ui/pickers/DatePicker'
+import { InventoryItemPicker } from '../inventory/InventoryItemPicker'
 
 const MotionDialog = motion.create(Dialog)
 
@@ -58,6 +59,8 @@ export function CreateMaintenanceDialog({ onCreated }: CreateMaintenanceDialogPr
   const [item, setItem] = useState('')
   const [nextDueAt, setNextDueAt] = useState('')
   const [selectedInterval, setSelectedInterval] = useState<string | null>(null)
+  // V31: opcional. También se mantiene lo que no es un artículo inventariado.
+  const [inventoryItemId, setInventoryItemId] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   // ADR-025 §2/§5: "hacer mi parte" de un mantenimiento es realizarlo, así
@@ -68,6 +71,7 @@ export function CreateMaintenanceDialog({ onCreated }: CreateMaintenanceDialogPr
     setItem('')
     setNextDueAt('')
     setSelectedInterval(null)
+    setInventoryItemId('')
     sharing.reset()
     setError(null)
   }
@@ -103,6 +107,7 @@ export function CreateMaintenanceDialog({ onCreated }: CreateMaintenanceDialogPr
         new Date(nextDueAt).toISOString(),
         interval?.months ?? undefined,
         activeMode,
+        inventoryItemId || null,
       )
       onCreated(created)
 
@@ -192,6 +197,21 @@ export function CreateMaintenanceDialog({ onCreated }: CreateMaintenanceDialogPr
                     }}
                     isRequired
                   />
+
+                {/* V31: el artículo es un dato DISTINTO del texto de arriba.
+                    "Cambio de aceite" describe la tarea; "Auto Toyota" es el
+                    objeto. Ligarlos es lo que permite que el inventario
+                    responda "¿qué le toca y cuándo?" además de "¿todavía
+                    tiene garantía?".
+
+                    Opcional a propósito: también se mantiene lo que no es un
+                    artículo inventariado (el techo, el jardín). */}
+                <InventoryItemPicker
+                  value={inventoryItemId}
+                  onChange={setInventoryItemId}
+                  label="¿A qué artículo se le hace?"
+                  emptyOptionLabel="— No es un artículo del inventario —"
+                />
 
                 <div className={shellStyles.field}>
                   <span className={shellStyles.fieldLabel}>Compartir con tu familia</span>

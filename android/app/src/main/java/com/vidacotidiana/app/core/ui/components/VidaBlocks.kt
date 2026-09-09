@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -59,6 +60,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vidacotidiana.app.core.data.DayNote
+import com.vidacotidiana.app.core.ui.VidaLayout
 import com.vidacotidiana.app.core.ui.VidaSpacing
 import com.vidacotidiana.app.core.ui.VidaTheme
 import kotlin.math.roundToInt
@@ -158,7 +160,20 @@ private fun HeroButton(text: String, solid: Boolean, onClick: () -> Unit, modifi
     }
 }
 
-/** Tarjeta de una tira horizontal: métrica compacta que además navega. */
+/**
+ * Tarjeta de una tira horizontal: métrica compacta que además navega.
+ *
+ * ANCHO MÍNIMO, NO ANCHO FIJO. Con `width(150.dp)` la cifra se rompía: en Pagos
+ * se leía «MÁS…», «27 20…» e «Inter…» cortados, y «$3,729 MXN» partido en dos
+ * líneas — siendo la primera cifra de la pantalla. Una métrica que no se puede
+ * leer entera no es una métrica. Ahora la pieza parte de 150 dp y crece con su
+ * contenido; la tira sigue desplazándose en horizontal, así que crecer no le
+ * quita sitio a nadie.
+ *
+ * La cifra usa `heroFigure`: es el display del tema con SU peso, no una copia
+ * en negrita. En Lumen sale fina y aireada, en Neo pesada — que es la
+ * diferencia entre las dos agendas.
+ */
 @Composable
 fun StripCard(
     kicker: String,
@@ -168,25 +183,43 @@ fun StripCard(
     modifier: Modifier = Modifier,
 ) {
     val c = VidaTheme.colors
+    val t = VidaTheme.type
     val spec = VidaTheme.spec
     val interaction = remember { MutableInteractionSource() }
     val shape = RoundedCornerShape(spec.radii.card)
     Column(
         modifier = modifier
-            .width(150.dp)
+            .widthIn(min = 150.dp)
             .pressScale(interaction, 0.97f)
             .vidaSurface(shape, spec.radii.card, c.surfaceVariant, c.line)
             .clickable(interactionSource = interaction, indication = ripple(color = c.primary), onClick = onClick)
             .padding(VidaSpacing.md),
-        verticalArrangement = Arrangement.spacedBy(3.dp),
+        verticalArrangement = Arrangement.spacedBy(VidaLayout.textGap),
     ) {
-        Text(kicker.uppercase(), style = MaterialTheme.typography.labelSmall, color = c.textTertiary)
-        Text(value, style = MaterialTheme.typography.displaySmall.copy(fontSize = 24.sp), color = c.text)
-        Text(caption, style = MaterialTheme.typography.bodySmall, color = c.textSecondary)
+        Text(kicker.uppercase(), style = t.micro, color = c.textTertiary)
+        Text(value, style = t.heroFigure, color = c.text, maxLines = 1)
+        Text(caption, style = t.caption, color = c.textSecondary, maxLines = 1)
     }
 }
 
-/** Estado vacío: nunca una lista en blanco, siempre una frase que explique. */
+/**
+ * Estado vacío: nunca una lista en blanco, siempre una frase que explique.
+ *
+ * NO ES UN CENTRO DE PANTALLA. Antes se centraba con 32 dp arriba y abajo, y en
+ * una sección sin datos el resultado era un título flotando sobre mil doscientos
+ * píxeles de nada — Inbox, Agenda y Compartidos se ven así en las capturas. Un
+ * vacío centrado en el eje vertical de un espacio vacío no compone nada; solo
+ * subraya lo que falta.
+ *
+ * Ahora el bloque se alinea a la izquierda con el resto del contenido y ocupa el
+ * alto que necesita. La sección sigue empezando donde empiezan todas, el texto
+ * cae en la misma columna que el de una lista con datos, y el hueco de abajo
+ * pasa a ser margen en vez de agujero.
+ *
+ * `action` es la parte que faltaba: de once estados vacíos solo uno ofrecía la
+ * acción siguiente. Un vacío que dice qué NO hay y no dice qué hacer es un
+ * callejón sin salida.
+ */
 @Composable
 fun EmptyState(
     title: String,
@@ -195,20 +228,19 @@ fun EmptyState(
     action: Pair<String, () -> Unit>? = null,
 ) {
     val c = VidaTheme.colors
+    val t = VidaTheme.type
     Column(
-        modifier = modifier.fillMaxWidth().padding(vertical = 32.dp, horizontal = VidaSpacing.lg),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(VidaSpacing.sm),
+        modifier = modifier.fillMaxWidth().padding(top = VidaLayout.blockGap, bottom = VidaLayout.sectionGap),
+        verticalArrangement = Arrangement.spacedBy(VidaLayout.textGap),
     ) {
-        Text(title, style = MaterialTheme.typography.titleLarge, color = c.text)
+        Text(title, style = t.sectionTitle, color = c.text)
         Text(
             body,
-            style = MaterialTheme.typography.bodyMedium,
+            style = t.body,
             color = c.textSecondary,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
         )
         action?.let {
-            Spacer(Modifier.height(VidaSpacing.xs))
+            Spacer(Modifier.height(VidaSpacing.md))
             VidaSmallButton(it.first, it.second)
         }
     }

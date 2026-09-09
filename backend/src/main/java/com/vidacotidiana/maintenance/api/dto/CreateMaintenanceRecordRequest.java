@@ -8,6 +8,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 import java.time.Instant;
+import java.util.UUID;
 
 /** Aligned with components.schemas.CreateMaintenanceRecordRequest in openapi.yaml. */
 public record CreateMaintenanceRecordRequest(
@@ -17,6 +18,10 @@ public record CreateMaintenanceRecordRequest(
             tiene una sola fecha y no se repite (ver migración V24). */
         @Min(1) @Max(120) Integer intervalMonths,
         /** ADR-019: módulo desde el que se crea. Ausente ⇒ PERSONAL. */
-        @Pattern(regexp = "PERSONAL|LABORAL") String context
+        @Pattern(regexp = "PERSONAL|LABORAL") String context,
+        /** V31: artículo al que se le hace. Opcional a propósito — también se
+            mantiene lo que no es un artículo inventariado (el techo, el
+            jardín). A diferencia de la garantía, aquí no se exige. */
+        UUID inventoryItemId
 ) {
 }

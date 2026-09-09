@@ -43,7 +43,6 @@ import com.vidacotidiana.app.core.ui.components.VidaBottomNav
 import com.vidacotidiana.app.core.ui.components.VidaDrawerContent
 import com.vidacotidiana.app.feature.auth.AuthManager
 import com.vidacotidiana.app.feature.auth.IntroScreen
-import com.vidacotidiana.app.feature.auth.LoginScreen
 import com.vidacotidiana.app.feature.board.VisionBoardScreen
 import com.vidacotidiana.app.feature.calendar.CalendarScreen
 import com.vidacotidiana.app.feature.documents.DocumentsScreen
@@ -57,6 +56,10 @@ import com.vidacotidiana.app.feature.laboral.LaboralTasksScreen
 import com.vidacotidiana.app.feature.laboral.PeopleScreen
 import com.vidacotidiana.app.feature.laboral.ProjectsScreen
 import com.vidacotidiana.app.feature.laboral.CommitmentsScreen
+import com.vidacotidiana.app.feature.objectives.ObjectivesScreen
+import com.vidacotidiana.app.feature.places.PlacesScreen
+import com.vidacotidiana.app.feature.resources.WorkResourcesScreen
+import com.vidacotidiana.app.feature.routines.RoutinesScreen
 import com.vidacotidiana.app.feature.maintenance.MaintenanceScreen
 import com.vidacotidiana.app.feature.notifications.NotificationsScreen
 import com.vidacotidiana.app.feature.settings.AppearanceScreen
@@ -110,7 +113,7 @@ fun AppNavGraph(
         val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
         val bottom = bottomDestinations(state.context, state.profile)
-        val showChrome = currentRoute != null && currentRoute != Routes.LOGIN && currentRoute != Routes.INTRO
+        val showChrome = currentRoute != null && currentRoute != Routes.INTRO
 
         /** La raíz del módulo activo: a donde significa «volver al principio». */
         val moduleRoot = rootRouteFor(state.context)
@@ -237,7 +240,12 @@ fun AppNavGraph(
                         onLogout = {
                             scope.launch { drawerState.close() }
                             authManager.logout()
-                            navController.navigate(Routes.LOGIN) { popUpTo(0) { inclusive = true } }
+                            // Cerrar sesión devuelve al PRINCIPIO del flujo, no
+                            // al formulario. Saltar a `LOGIN` era lo que hacía
+                            // reaparecer el comportamiento anterior: quien cierra
+                            // sesión vuelve a ser alguien sin llave, y a esa
+                            // persona la aplicación se le presenta.
+                            navController.navigate(Routes.INTRO) { popUpTo(0) { inclusive = true } }
                         },
                     )
                     }
@@ -256,25 +264,16 @@ fun AppNavGraph(
                         popEnterTransition = { fadeIn(tween(220)) },
                         popExitTransition = { fadeOut(tween(160)) + slideOutHorizontally(tween(260)) { it / 12 } },
                     ) {
+                        // Único destino antes de la sesión. El formulario real
+                        // lo abre él mismo en el Custom Tab de Keycloak; ya no
+                        // hay pantalla de login propia por medio.
                         composable(Routes.INTRO) {
                             IntroScreen(
-                                onContinue = {
-                                    // REEMPLAZA, no apila: la introducción no
-                                    // es un destino al que se pueda volver, y
-                                    // «atrás» desde el login debe salir de la
-                                    // aplicación, no revivir una animación.
-                                    navController.navigate(Routes.LOGIN) {
-                                        popUpTo(Routes.INTRO) { inclusive = true }
-                                    }
-                                },
-                            )
-                        }
-
-                        composable(Routes.LOGIN) {
-                            LoginScreen(
                                 authManager = authManager,
                                 onLoggedIn = {
-                                    navController.navigate(Routes.HOME) { popUpTo(Routes.LOGIN) { inclusive = true } }
+                                    navController.navigate(Routes.HOME) {
+                                        popUpTo(Routes.INTRO) { inclusive = true }
+                                    }
                                 },
                             )
                         }
@@ -299,6 +298,10 @@ fun AppNavGraph(
                         composable(Routes.PEOPLE) { PeopleScreen(appViewModel, drawerState, scope, navController) }
                         composable(Routes.PROJECTS) { ProjectsScreen(appViewModel, drawerState, scope, navController) }
                         composable(Routes.COMMITMENTS) { CommitmentsScreen(appViewModel, drawerState, scope, navController) }
+                        composable(Routes.OBJECTIVES) { ObjectivesScreen(appViewModel, drawerState, scope, navController) }
+                        composable(Routes.ROUTINES) { RoutinesScreen(appViewModel, drawerState, scope, navController) }
+                        composable(Routes.WORK_RESOURCES) { WorkResourcesScreen(appViewModel, drawerState, scope, navController) }
+                        composable(Routes.PLACES) { PlacesScreen(appViewModel, drawerState, scope, navController) }
                         composable(Routes.INBOX) { InboxScreen(appViewModel, drawerState, scope) }
 
                         // ---- Cuenta ----
@@ -339,10 +342,16 @@ fun AppNavGraph(
                     editing = state.editing != null,
                     people = state.data.people.map { it.id to it.name },
                     projects = state.data.projects.map { it.id to it.name },
+                    // El nombre solo no basta para reconocer un articulo: dos
+                    // pueden llamarse igual en dos sitios distintos.
+                    inventory = state.data.inventory.map {
+                        it.id to (if (it.location.isNullOrBlank()) it.name else "${it.name} · ${it.location}")
+                    },
                     saving = state.saving,
                     error = state.error,
                     onSubmit = { values, file -> appViewModel.create(resource, values, file) },
                     onPickFile = appViewModel::readFile,
+                    onQuickCreate = appViewModel::quickCreate,
                     onCancel = appViewModel::cancelCreate,
                 )
             }

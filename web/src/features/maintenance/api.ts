@@ -15,6 +15,8 @@ export interface MaintenanceRecord {
   version: number
   createdAt: string
   updatedAt: string
+  /** V31: artículo del inventario al que se le hace. Ausente = sin enlazar. */
+  inventoryItemId?: string | null
 }
 
 interface MaintenanceRecordsPage {
@@ -31,15 +33,27 @@ export async function listMaintenanceRecords(context?: ModuleContext | null): Pr
   return response.json()
 }
 
+/**
+ * V31: `inventoryItemId` es OPCIONAL, a diferencia del de una garantía.
+ * También se mantiene lo que no es un artículo inventariado —el techo, el
+ * jardín—, así que obligarlo aquí expulsaría casos reales.
+ */
 export async function createMaintenanceRecord(
   item: string,
   nextDueAt: string,
   intervalMonths?: number,
   context?: ModuleContext | null,
+  inventoryItemId?: string | null,
 ): Promise<MaintenanceRecord> {
   const response = await apiFetch('/maintenance-records', {
     method: 'POST',
-    body: JSON.stringify({ item, nextDueAt, intervalMonths, context: creationContext(context) }),
+    body: JSON.stringify({
+      item,
+      nextDueAt,
+      intervalMonths,
+      context: creationContext(context),
+      inventoryItemId: inventoryItemId || undefined,
+    }),
   })
   if (!response.ok) throw new Error(`POST /maintenance-records failed: ${response.status}`)
   return response.json()
@@ -55,10 +69,21 @@ export async function updateMaintenanceRecord(
       backend trata un nulo como "no lo toques". Sin esta bandera, la opción
       "Sin repetición" del detalle no tendría ningún efecto. */
   clearInterval = false,
+  /** V31: misma distinción que `clearInterval` — sin la bandera, mandar
+      `null` sería indistinguible de omitirlo y desenlazar sería imposible. */
+  inventoryItemId?: string | null,
+  linkInventoryItem = false,
 ): Promise<MaintenanceRecord> {
   const response = await apiFetch(`/maintenance-records/${id}`, {
     method: 'PATCH',
-    body: JSON.stringify({ item, nextDueAt, intervalMonths, clearInterval, version }),
+    body: JSON.stringify({
+      item,
+      nextDueAt,
+      intervalMonths,
+      clearInterval,
+      version,
+      ...(linkInventoryItem ? { inventoryItemId: inventoryItemId ?? null, linkInventoryItem: true } : {}),
+    }),
   })
   if (!response.ok) throw new Error(`PATCH /maintenance-records/${id} failed: ${response.status}`)
   return response.json()

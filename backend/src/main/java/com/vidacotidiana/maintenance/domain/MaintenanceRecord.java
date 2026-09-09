@@ -60,6 +60,19 @@ public class MaintenanceRecord {
     @Column(nullable = false)
     private ModuleContext context = ModuleContext.PERSONAL;
 
+    /**
+     * Artículo del inventario al que se le hace este mantenimiento (V31).
+     * Nulo = sin enlazar, que es como quedan todos los mantenimientos
+     * anteriores a esta relación y también los que no se le hacen a un
+     * artículo (el techo, el jardín).
+     *
+     * Se guarda el id y no la entidad por el mismo motivo que en
+     * {@link com.vidacotidiana.warranty.domain.Warranty}: son dos módulos
+     * independientes y el vínculo es una referencia, no una composición.
+     */
+    @Column(name = "inventory_item_id")
+    private UUID inventoryItemId;
+
     @Version
     @Column(nullable = false)
     private int version;
@@ -118,6 +131,21 @@ public class MaintenanceRecord {
 
     public Integer getIntervalMonths() {
         return intervalMonths;
+    }
+
+    public UUID getInventoryItemId() {
+        return inventoryItemId;
+    }
+
+    /**
+     * Enlaza o desenlaza el artículo al que se le hace este mantenimiento.
+     * `null` desenlaza de forma explícita, a diferencia de los campos de
+     * `applyEdit`, donde `null` significa "no tocar" — misma distinción y
+     * mismo motivo que {@code Warranty#linkInventoryItem}.
+     */
+    public void linkInventoryItem(UUID inventoryItemId) {
+        this.inventoryItemId = inventoryItemId;
+        this.updatedAt = Instant.now();
     }
 
     public MaintenanceStatus getStatus() {

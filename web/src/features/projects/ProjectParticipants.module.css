@@ -1,0 +1,141 @@
+/* Quién está en el proyecto (V32).
+
+   Lista, no cuadrícula: aquí lo que se compara son nombres y papeles leídos en
+   una columna, no objetos que se recorren con la vista. Es la excepción
+   deliberada al patrón de tarjetas del resto de secciones.
+
+   Todos los colores salen de los tokens del tema activo (ADR-023). */
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.title {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.count {
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+
+  padding: 8px 10px;
+
+  background: var(--color-surface-variant);
+  border-radius: var(--r-sm, 8px);
+}
+
+/* El cliente se distingue por un filete, no por un color de fondo distinto:
+   es la misma clase de fila, con más peso. */
+.row[data-client='true'] {
+  border-left: 3px solid var(--color-primary);
+}
+
+.name {
+  color: var(--color-text);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.role {
+  color: var(--color-primary);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.rowNote {
+  flex: 1;
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
+}
+
+.remove {
+  margin-left: auto;
+  padding: 0;
+  min-height: 0;
+
+  background: none;
+  border: none;
+
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.remove:hover {
+  color: var(--color-error, #b3261e);
+  text-decoration: underline;
+}
+
+.empty {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.addAction {
+  align-self: flex-start;
+  padding: 0;
+  min-height: 0;
+
+  background: none;
+  border: none;
+
+  color: var(--color-primary);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.addAction:hover {
+  text-decoration: underline;
+}
+
+.addForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+
+  padding: var(--space-3);
+
+  background: var(--color-surface-variant);
+  border: 1px solid var(--color-border);
+  border-radius: var(--r-md, 10px);
+}
+
+.addActions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}

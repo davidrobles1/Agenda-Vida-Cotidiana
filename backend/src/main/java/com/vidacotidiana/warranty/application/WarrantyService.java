@@ -1,6 +1,7 @@
 package com.vidacotidiana.warranty.application;
 
 import com.vidacotidiana.inventory.application.InventoryItemService;
+import com.vidacotidiana.inventory.domain.InventoryItem;
 import com.vidacotidiana.shared.domain.ModuleContext;
 import com.vidacotidiana.shared.domain.ConflictException;
 import com.vidacotidiana.shared.domain.NotFoundException;
@@ -49,18 +50,35 @@ public class WarrantyService {
         this.inventoryItemService = inventoryItemService;
     }
 
-    /** El archivo es obligatorio al registrar (pedido explícito del
-        usuario: "al registrar una garantía subir el archivo") — validado
-        aquí en la capa de aplicación, no como NOT NULL en la tabla (ver
-        V14__warranty_documents.sql). */
+    /**
+     * DECISION del Product Owner (2026-09-06): una garantía SIEMPRE cubre un
+     * artículo del inventario, y el enlace se exige aquí, en el alta.
+     *
+     * Antes el enlace solo existía en `edit` (ADR-022), así que toda garantía
+     * nacía desconectada por obligación y ligarla era un segundo acto que
+     * había que acordarse de hacer. La regla se aplica en los tres sitios
+     * —servicio, Web y Android—, y esta es la única que la garantiza: la
+     * validación de pantalla se salta con una llamada directa a la API.
+     *
+     * NO es retroactiva: las garantías anteriores sin artículo siguen siendo
+     * válidas y `edit` no lo exige. Se restringe lo que entra, no lo que ya
+     * está guardado.
+     *
+     * El archivo sigue siendo obligatorio también (pedido explícito del
+     * usuario: "al registrar una garantía subir el archivo") — validado en la
+     * capa de aplicación, no como NOT NULL en la tabla (ver
+     * V14__warranty_documents.sql).
+     */
     @Transactional
-    public Warranty create(UUID ownerUserId, String item, Instant expiresAt, MultipartFile file) {
-        return create(ownerUserId, item, expiresAt, file, ModuleContext.PERSONAL);
+    public Warranty create(UUID ownerUserId, String item, Instant expiresAt, MultipartFile file,
+                           UUID inventoryItemId) {
+        return create(ownerUserId, item, expiresAt, file, ModuleContext.PERSONAL, inventoryItemId);
     }
 
     /** ADR-019: alta con el módulo desde el que se creó. */
     @Transactional
-    public Warranty create(UUID ownerUserId, String item, Instant expiresAt, MultipartFile file, ModuleContext context) {
+    public Warranty create(UUID ownerUserId, String item, Instant expiresAt, MultipartFile file, ModuleContext context,
+                           UUID inventoryItemId) {
         // Real gap found in live testing: switching this endpoint from a
         // `@Valid @RequestBody` JSON DTO (which had `@NotBlank`) to plain
         // multipart `@RequestParam`s dropped that validation entirely —
@@ -68,6 +86,9 @@ public class WarrantyService {
         // explicitly here since it's no longer enforced at the controller layer.
         if (item == null || item.isBlank()) {
             throw new ValidationException("item must not be blank.");
+        }
+        if (inventoryItemId == null) {
+            throw new ValidationException("Una garantía debe indicar el artículo del inventario que cubre.");
         }
         if (file == null || file.isEmpty()) {
             throw new ValidationException("A warranty document (image or PDF) is required.");
@@ -82,12 +103,40 @@ public class WarrantyService {
             throw new ValidationException("Document exceeds the " + (MAX_SIZE_BYTES / (1024 * 1024)) + "MB limit.");
         }
         Warranty warranty = new Warranty(ownerUserId, item, expiresAt, context);
+        requireLinkableItem(inventoryItemId, ownerUserId, warranty.getContext());
+        warranty.linkInventoryItem(inventoryItemId);
         try {
             warranty.attachDocument(contentType, file.getBytes());
         } catch (IOException e) {
             throw new UncheckedIOException("Failed to read the uploaded warranty document.", e);
         }
         return warrantyRepository.save(warranty);
+    }
+
+    /**
+     * Un artículo solo es enlazable si es del mismo dueño Y del mismo módulo.
+     *
+     * El dueño evita filtrar la existencia de artículos ajenos (misma regla de
+     * no-enumeración que el resto del servicio: 404, nunca 403).
+     *
+     * El módulo cierra un hueco real de ADR-019/ADR-022: hasta ahora la única
+     * defensa era que `WarrantyDetailDialog` cargaba el selector con
+     * `listInventoryItems(activeMode)`, es decir, una decisión de CLIENTE. Una
+     * llamada directa a la API podía enlazar una garantía Personal con un
+     * artículo Laboral y hacer que un recurso de un módulo apareciera en el
+     * otro, que es exactamente lo que la regla 2 del ADR-019 prohíbe.
+     */
+    private void requireLinkableItem(UUID inventoryItemId, UUID callerUserId, ModuleContext warrantyContext) {
+        if (inventoryItemId == null) {
+            return;
+        }
+        InventoryItem linked = inventoryItemService.getOwnedOrThrow(inventoryItemId, callerUserId);
+        if (linked.getContext() != warrantyContext) {
+            throw new ValidationException(
+                    "El artículo pertenece al módulo " + linked.getContext()
+                            + " y la garantía al módulo " + warrantyContext
+                            + ". Solo se pueden enlazar recursos del mismo módulo.");
+        }
     }
 
     /** Mismo split metadata/bytes que document.application.DocumentService
@@ -183,9 +232,10 @@ public class WarrantyService {
 
         warranty.applyEdit(item, expiresAt);
         if (linkInventoryItem) {
-            if (inventoryItemId != null) {
-                inventoryItemService.getOwnedOrThrow(inventoryItemId, callerUserId);
-            }
+            // Desenlazar (`null`) sigue permitido en la edición: la
+            // obligatoriedad es del alta, no del ciclo de vida. Una garantía
+            // anterior a esta regla puede corregirse sin quedar atrapada.
+            requireLinkableItem(inventoryItemId, callerUserId, warranty.getContext());
             warranty.linkInventoryItem(inventoryItemId);
         }
         try {

@@ -68,6 +68,8 @@ data class MaintenanceRecord(
     val nextDueOn: LocalDate,
     val intervalMonths: Int?,
     val status: MaintenanceStatus,
+    /** V31: artículo del inventario al que se le hace. Nulo = sin enlazar. */
+    val inventoryItemId: String?,
     val version: Int,
 )
 
@@ -100,6 +102,10 @@ data class Payment(
     val kind: String?,
     val billingCycle: String?,
     val amount: Double?,
+    /** Necesaria para sumar: no se pueden sumar pesos con dólares. */
+    val currency: String?,
+    /** Una tarjeta de importe variable no aporta cifra hasta su corte. */
+    val variableAmount: Boolean,
     val version: Int,
 )
 
@@ -121,7 +127,107 @@ data class SharedResource(
 
 data class Person(val id: String, val name: String, val role: String?, val organization: String?, val version: Int)
 
-data class Project(val id: String, val name: String, val status: String, val deadline: LocalDate?, val version: Int)
+data class Project(
+    val id: String,
+    val name: String,
+    /** Opcional: el estado es texto libre y un proyecto puede no tener ninguno. */
+    val status: String?,
+    val deadline: LocalDate?,
+    /** El cliente. Vive aquí y NO en `participations` (DECISION 2026-09-06). */
+    val clientPersonId: String?,
+    val version: Int,
+)
+
+/**
+ * Un objetivo (FR-031).
+ *
+ * Suelto por diseño: sin persona, sin proyecto y sin módulo — su backend no
+ * conoce `ModuleContext`, así que no se filtra ni se le pasa contexto.
+ *
+ * `completed` y `currentValue` son INDEPENDIENTES (AC-018): llegar a la meta no
+ * cumple el objetivo, y cumplirlo no toca el progreso. Este cliente no deriva
+ * ninguno del otro en ninguna parte.
+ */
+data class Objective(
+    val id: String,
+    val title: String,
+    val targetValue: Int?,
+    val currentValue: Int,
+    val deadline: LocalDate?,
+    val completed: Boolean,
+    val version: Int,
+)
+
+/**
+ * Una rutina (FR-032).
+ *
+ * SIN `completed`, y no es un olvido: la misma rutina se hace una y otra vez,
+ * así que su estado permanente es `active` y la ocurrencia en curso se expresa
+ * con `nextExecutionDate`.
+ *
+ * `nextExecutionDate` se lee con `parseDate`, la misma política que el resto de
+ * fechas del proyecto: se toma el DÍA CALENDARIO literal del ISO, sin convertir
+ * zonas. Es exactamente lo que hace la Web (`iso.slice(0, 10)`), y por eso los
+ * dos clientes coinciden siempre en qué día es cada registro.
+ */
+data class Routine(
+    val id: String,
+    val title: String,
+    val description: String?,
+    /** DAILY | WEEKLY | MONTHLY. */
+    val frequency: String,
+    val nextExecutionDate: LocalDate,
+    val active: Boolean,
+    val version: Int,
+)
+
+/**
+ * Un recurso de trabajo (FR-034).
+ *
+ * `WorkResource` y no `Resource`: en este cliente "resource" ya significa
+ * "cualquier cosa creable", y además existe `SharedResource`. La etiqueta que
+ * ve el usuario sigue siendo «Recursos».
+ *
+ * Guarda metadatos y una referencia de TEXTO libre — nunca un archivo. Los dos
+ * vínculos son opcionales y NO excluyentes: puede tener persona, proyecto, los
+ * dos, o ninguno. Un recurso sin ninguno es válido, y hacerlo visible es
+ * justamente lo que la Web no consigue hoy.
+ *
+ * Sin estado: no se completa, no se ejecuta, no se pausa. Su backend no expone
+ * ninguna acción, solo CRUD.
+ */
+data class WorkResource(
+    val id: String,
+    val name: String,
+    /** DOCUMENTO | ENLACE | PLANTILLA | MANUAL | HERRAMIENTA | OTRO. */
+    val type: String,
+    val reference: String?,
+    val description: String?,
+    val personId: String?,
+    val projectId: String?,
+    val version: Int,
+)
+
+/**
+ * Un lugar guardado (FR-033).
+ *
+ * CATÁLOGO, NO RELACIÓN: ninguna tarea lo referencia, y no es un olvido sino
+ * una decisión de producto escrita en la propia entidad del backend. Elegir un
+ * lugar al crear una tarea (en la Web) COPIA su texto; no lo enlaza.
+ *
+ * Consecuencia declarada, no disimulada: renombrar un lugar NO cambia las
+ * tareas ya creadas. Cada una guarda la cadena que se copió aquel día.
+ *
+ * Sin coordenadas: el backend no las tiene. Un lugar es un nombre y, si acaso,
+ * una dirección de texto.
+ */
+data class Place(
+    val id: String,
+    val name: String,
+    val address: String?,
+    val personId: String?,
+    val version: Int,
+)
 
 data class Commitment(
     val id: String,
@@ -156,7 +262,64 @@ data class VidaData(
     val people: List<Person> = emptyList(),
     val projects: List<Project> = emptyList(),
     val commitments: List<Commitment> = emptyList(),
+    val objectives: List<Objective> = emptyList(),
+    val routines: List<Routine> = emptyList(),
+    /** FR-034: recursos de trabajo. TODOS, incluidos los que no cuelgan de nada. */
+    val workResources: List<WorkResource> = emptyList(),
+    /** FR-033: lugares guardados. */
+    val places: List<Place> = emptyList(),
     val inbox: List<InboxNote> = emptyList(),
+    /** V32: quién participa en qué proyecto. Ver `ProjectParticipation`. */
+    val participations: List<ProjectParticipation> = emptyList(),
+    /** ADR-020(f): ciclos ya pagados. Ver `PaymentRecord`. */
+    val paymentRecords: List<PaymentRecord> = emptyList(),
+)
+
+/**
+ * Un ciclo de pago ya registrado (ADR-020(f)).
+ *
+ * `paidOn` es CUÁNDO el usuario lo marcó; `periodDate`, QUÉ ciclo cubre. Para
+ * responder "¿qué llevo cubierto este mes?" manda `paidOn` — ver
+ * `isPaidThisPeriod`.
+ */
+data class PaymentRecord(
+    val id: String,
+    val subscriptionId: String,
+    val periodDate: String,
+    val paidOn: String,
+)
+
+/**
+ * Un compromiso está pagado cuando existe un registro marcado ESTE MES.
+ *
+ * Regla portada literalmente de la Web (`isPaidThisPeriod` en
+ * `paymentsView.ts`), incluida la razón por la que mira `paidOn` y no
+ * `periodDate`: al pagar por adelantado un recibo de septiembre estando en
+ * agosto, el registro guarda `periodDate = 2026-09`, y comparar contra el mes
+ * en curso daría "no pagado" con el pago ya hecho. "Pagado este mes" significa
+ * lo que YO cubrí este mes.
+ *
+ * Vive aquí y no en la pantalla para que los dos clientes no puedan discrepar
+ * sobre qué está pagado.
+ */
+fun List<PaymentRecord>.paidThisPeriod(today: LocalDate = LocalDate.now()): Set<String> {
+    val prefix = "%04d-%02d".format(today.year, today.monthValue)
+    return filter { it.paidOn.startsWith(prefix) }.map { it.subscriptionId }.toSet()
+}
+
+/**
+ * V32. Una persona participando en un proyecto, con su rol.
+ *
+ * NO incluye al cliente: ese sigue siendo `Project.clientPersonId` (DECISION
+ * del Product Owner, 2026-09-06). Cliente y participantes son dos listas
+ * disjuntas, y quien cuenta "¿en cuántos proyectos está esta persona?" tiene
+ * que sumar las dos.
+ */
+data class ProjectParticipation(
+    val id: String,
+    val projectId: String,
+    val personId: String,
+    val role: String,
 )
 
 @Singleton
@@ -195,6 +358,15 @@ class VidaRepository @Inject constructor(
             val projects = async { runCatching { laboralApi.projects().items.map { it.toDomain() } } }
             val commitments = async { runCatching { laboralApi.commitments().items.map { it.toDomain() } } }
             val notes = async { runCatching { laboralApi.notes().items.map { it.toDomain() } } }
+            val participations = async { runCatching { laboralApi.participations().map { it.toDomain() } } }
+            // Sin `context`: los endpoints de objetivos y rutinas no lo aceptan.
+            val objectives = async { runCatching { laboralApi.objectives().items.map { it.toDomain() } } }
+            val routines = async { runCatching { laboralApi.routines().items.map { it.toDomain() } } }
+            // Sin filtrar por persona ni proyecto: los recursos sueltos también
+            // se cargan, que es lo que la pantalla propia viene a hacer visible.
+            val workResources = async { runCatching { laboralApi.workResources().items.map { it.toDomain() } } }
+            val places = async { runCatching { laboralApi.places().items.map { it.toDomain() } } }
+            val paymentRecords = async { runCatching { subscriptionApi.paymentRecords().map { it.toDomain() } } }
 
             VidaData(
                 warranties = warranties.await().getOrDefault(emptyList()),
@@ -209,7 +381,13 @@ class VidaRepository @Inject constructor(
                 people = people.await().getOrDefault(emptyList()),
                 projects = projects.await().getOrDefault(emptyList()),
                 commitments = commitments.await().getOrDefault(emptyList()),
+                objectives = objectives.await().getOrDefault(emptyList()),
+                routines = routines.await().getOrDefault(emptyList()),
+                workResources = workResources.await().getOrDefault(emptyList()),
+                places = places.await().getOrDefault(emptyList()),
                 inbox = notes.await().getOrDefault(emptyList()),
+                participations = participations.await().getOrDefault(emptyList()),
+                paymentRecords = paymentRecords.await().getOrDefault(emptyList()),
             )
         }
     }
@@ -231,7 +409,13 @@ class VidaRepository @Inject constructor(
     private fun LocalDate.toInstantString(): String =
         atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toString()
 
-    suspend fun createMaintenance(item: String, nextDue: LocalDate, intervalMonths: Int?, context: String?): Result<Unit> =
+    suspend fun createMaintenance(
+        item: String,
+        nextDue: LocalDate,
+        intervalMonths: Int?,
+        context: String?,
+        inventoryItemId: String?,
+    ): Result<Unit> =
         runCatching {
             maintenanceApi.create(
                 com.vidacotidiana.app.core.network.CreateMaintenanceRequest(
@@ -239,6 +423,7 @@ class VidaRepository @Inject constructor(
                     nextDueAt = nextDue.toInstantString(),
                     intervalMonths = intervalMonths,
                     context = context,
+                    inventoryItemId = inventoryItemId?.ifBlank { null },
                 ),
             )
             Unit
@@ -267,20 +452,37 @@ class VidaRepository @Inject constructor(
         Unit
     }
 
-    suspend fun createInventoryItem(name: String, category: String, location: String?): Result<Unit> = runCatching {
+    /**
+     * Devuelve el id, no `Unit`: el alta desde el propio formulario de una
+     * garantía necesita seleccionar el artículo recién creado, y volver a
+     * buscarlo por nombre elegiría mal en cuanto hubiera dos que se llaman
+     * igual.
+     */
+    suspend fun createInventoryItem(
+        name: String,
+        category: String,
+        location: String?,
+        context: String?,
+    ): Result<String> = runCatching {
         inventoryApi.create(
             com.vidacotidiana.app.core.network.CreateInventoryItemRequest(name, category, location?.ifBlank { null }),
-        )
-        Unit
+            context,
+        ).id
     }
 
     /**
      * Garantía y documento comparten forma: son multipart porque el archivo es
      * parte del recurso, no un adjunto opcional.
      */
-    suspend fun createWarranty(item: String, expires: LocalDate, file: FilePayload, context: String?): Result<Unit> =
+    suspend fun createWarranty(
+        item: String,
+        expires: LocalDate,
+        file: FilePayload,
+        inventoryItemId: String,
+        context: String?,
+    ): Result<Unit> =
         runCatching {
-            warrantyApi.create(file.toPart(), item, expires.toInstantString(), context)
+            warrantyApi.create(file.toPart(), item, expires.toInstantString(), inventoryItemId, context)
             Unit
         }
 
@@ -290,11 +492,11 @@ class VidaRepository @Inject constructor(
             Unit
         }
 
-    suspend fun createPerson(name: String, role: String?, organization: String?): Result<Unit> = runCatching {
+    /** Devuelve el id por el mismo motivo que `createInventoryItem`. */
+    suspend fun createPerson(name: String, role: String?, organization: String?): Result<String> = runCatching {
         laboralApi.createPerson(
             com.vidacotidiana.app.core.network.CreatePersonRequest(name, role?.ifBlank { null }, organization?.ifBlank { null }),
-        )
-        Unit
+        ).id
     }
 
     suspend fun createProject(name: String, status: String?, deadline: LocalDate?): Result<Unit> = runCatching {
@@ -325,6 +527,138 @@ class VidaRepository @Inject constructor(
         Unit
     }
 
+    /**
+     * `currentValue` viaja solo si el usuario lo escribió: omitirlo deja que el
+     * backend ponga 0, en vez de que este cliente decida el valor inicial.
+     */
+    suspend fun createObjective(
+        title: String,
+        targetValue: Int?,
+        currentValue: Int?,
+        deadline: LocalDate?,
+    ): Result<Unit> = runCatching {
+        laboralApi.createObjective(
+            com.vidacotidiana.app.core.network.CreateObjectiveRequest(
+                title = title,
+                targetValue = targetValue,
+                currentValue = currentValue,
+                deadline = deadline?.toInstantString(),
+            ),
+        )
+        Unit
+    }
+
+    /**
+     * `nextExecutionDate` lo elige el usuario y NO lo deriva este cliente:
+     * AC-019 deja explícitamente como TBD de dónde saldría una fecha inicial
+     * automática, así que inventarla aquí sería decidir por el producto.
+     */
+    suspend fun createRoutine(
+        title: String,
+        description: String?,
+        frequency: String,
+        nextExecutionDate: LocalDate,
+    ): Result<Unit> = runCatching {
+        laboralApi.createRoutine(
+            com.vidacotidiana.app.core.network.CreateRoutineRequest(
+                title = title,
+                description = description?.ifBlank { null },
+                frequency = frequency,
+                nextExecutionDate = nextExecutionDate.toInstantString(),
+            ),
+        )
+        Unit
+    }
+
+    /**
+     * Los dos vínculos son opcionales y no excluyentes. No se valida nada aquí:
+     * el backend comprueba que la persona y el proyecto sean del mismo dueño, y
+     * duplicar esa regla en el cliente solo abriría la puerta a que discrepen.
+     */
+    suspend fun createWorkResource(
+        name: String,
+        type: String,
+        reference: String?,
+        description: String?,
+        personId: String?,
+        projectId: String?,
+    ): Result<Unit> = runCatching {
+        laboralApi.createWorkResource(
+            com.vidacotidiana.app.core.network.CreateWorkResourceRequest(
+                name = name,
+                type = type,
+                reference = reference?.ifBlank { null },
+                description = description?.ifBlank { null },
+                personId = personId?.ifBlank { null },
+                projectId = projectId?.ifBlank { null },
+            ),
+        )
+        Unit
+    }
+
+    /**
+     * LIMITACIÓN CONOCIDA, declarada y fuera de alcance (pendiente #4 y #9): un
+     * vínculo ya guardado NO se puede quitar. `null` significa "no tocar" en el
+     * PATCH, y el selector de la interfaz tampoco permite deseleccionar.
+     */
+    suspend fun editWorkResource(
+        id: String,
+        name: String,
+        type: String,
+        reference: String?,
+        description: String?,
+        personId: String?,
+        projectId: String?,
+        version: Int,
+    ): Result<Unit> = runCatching {
+        laboralApi.updateWorkResource(
+            id,
+            com.vidacotidiana.app.core.network.UpdateWorkResourceRequest(
+                name = name,
+                type = type,
+                reference = reference?.ifBlank { null },
+                description = description?.ifBlank { null },
+                personId = personId?.ifBlank { null },
+                projectId = projectId?.ifBlank { null },
+                version = version,
+            ),
+        )
+        Unit
+    }
+
+    suspend fun createPlace(name: String, address: String?, personId: String?): Result<Unit> =
+        runCatching {
+            laboralApi.createPlace(
+                com.vidacotidiana.app.core.network.CreatePlaceRequest(
+                    name = name,
+                    address = address?.ifBlank { null },
+                    personId = personId?.ifBlank { null },
+                ),
+            )
+            Unit
+        }
+
+    /** `null` = no tocar: una dirección o una persona ya guardadas no se pueden
+        quitar desde aquí. Limitación transversal declarada (pendiente #4). */
+    suspend fun editPlace(
+        id: String,
+        name: String,
+        address: String?,
+        personId: String?,
+        version: Int,
+    ): Result<Unit> = runCatching {
+        laboralApi.updatePlace(
+            id,
+            com.vidacotidiana.app.core.network.UpdatePlaceRequest(
+                name = name,
+                address = address?.ifBlank { null },
+                personId = personId?.ifBlank { null },
+                version = version,
+            ),
+        )
+        Unit
+    }
+
     suspend fun createNote(title: String, description: String?): Result<Unit> = runCatching {
         laboralApi.createNote(
             com.vidacotidiana.app.core.network.CreateNoteRequest(title, description?.ifBlank { null }),
@@ -343,9 +677,28 @@ class VidaRepository @Inject constructor(
             Unit
         }
 
-    suspend fun editMaintenance(id: String, item: String, nextDue: LocalDate, months: Int?, version: Int): Result<Unit> =
+    suspend fun editMaintenance(
+        id: String,
+        item: String,
+        nextDue: LocalDate,
+        months: Int?,
+        version: Int,
+        inventoryItemId: String?,
+    ): Result<Unit> =
         runCatching {
-            maintenanceApi.update(id, com.vidacotidiana.app.core.network.UpdateMaintenanceRequest(item, nextDue.toInstantString(), months, version))
+            maintenanceApi.update(
+                id,
+                com.vidacotidiana.app.core.network.UpdateMaintenanceRequest(
+                    item = item,
+                    nextDueAt = nextDue.toInstantString(),
+                    intervalMonths = months,
+                    version = version,
+                    inventoryItemId = inventoryItemId?.ifBlank { null },
+                    // Siempre explícito: así dejar el campo vacío DESENLAZA de
+                    // verdad, en vez de interpretarse como "no tocar".
+                    linkInventoryItem = true,
+                ),
+            )
             Unit
         }
 
@@ -391,7 +744,111 @@ class VidaRepository @Inject constructor(
             Unit
         }
 
+    /**
+     * Editar un objetivo. NO toca `completed`: cambiar el progreso no cumple ni
+     * reabre nada (AC-018), y mandarlo aquí sería derivar uno del otro por la
+     * puerta de atrás.
+     *
+     * LIMITACIÓN CONOCIDA, no un olvido: un `deadline` o un `targetValue` ya
+     * guardados NO se pueden vaciar. `null` significa "no tocar" en el PATCH de
+     * los cuatro módulos de Laboral, y resolverlo exige una bandera explícita
+     * —como `linkInventoryItem` en Garantías— que esta fase no toca.
+     */
+    suspend fun editObjective(
+        id: String,
+        title: String,
+        targetValue: Int?,
+        currentValue: Int?,
+        deadline: LocalDate?,
+        version: Int,
+    ): Result<Unit> = runCatching {
+        laboralApi.updateObjective(
+            id,
+            com.vidacotidiana.app.core.network.UpdateObjectiveRequest(
+                title = title,
+                targetValue = targetValue,
+                currentValue = currentValue,
+                deadline = deadline?.toInstantString(),
+                version = version,
+            ),
+        )
+        Unit
+    }
+
+    /**
+     * Editar una rutina. NO toca `active`: pausar y reanudar son su propia
+     * acción, no un efecto de editar.
+     *
+     * Cambiar `frequency` NO recalcula `nextExecutionDate` — el backend tampoco
+     * lo hace (`applyEdit` asigna cada campo por separado), así que este cliente
+     * no inventa esa regla. La fecha sigue siendo del usuario.
+     */
+    suspend fun editRoutine(
+        id: String,
+        title: String,
+        description: String?,
+        frequency: String,
+        nextExecutionDate: LocalDate,
+        version: Int,
+    ): Result<Unit> = runCatching {
+        laboralApi.updateRoutine(
+            id,
+            com.vidacotidiana.app.core.network.UpdateRoutineRequest(
+                title = title,
+                description = description?.ifBlank { null },
+                frequency = frequency,
+                nextExecutionDate = nextExecutionDate.toInstantString(),
+                version = version,
+            ),
+        )
+        Unit
+    }
+
     // --- Acciones de estado ---
+
+    /**
+     * «Hecha»: registra UNA ocurrencia.
+     *
+     * Llama al endpoint propio y NO calcula ninguna fecha. El avance lo decide
+     * el servidor desde la fecha PROGRAMADA, no desde hoy, así que una rutina
+     * atrasada varios periodos sigue atrasada tras un clic — es el contrato, no
+     * un fallo, y este cliente no lo compensa con más llamadas.
+     */
+    suspend fun executeRoutine(id: String, version: Int): Result<Unit> =
+        runCatching {
+            laboralApi.executeRoutine(id, com.vidacotidiana.app.core.network.VersionRequest(version))
+            Unit
+        }
+
+    /** Pausar y reanudar: el PATCH de edición admite `active` (verificado). */
+    suspend fun setRoutineActive(id: String, active: Boolean, version: Int): Result<Unit> =
+        runCatching {
+            laboralApi.updateRoutine(
+                id,
+                com.vidacotidiana.app.core.network.UpdateRoutineRequest(active = active, version = version),
+            )
+            Unit
+        }
+
+    /**
+     * Cumplir y reabrir son el MISMO PATCH con distinto valor: no existe
+     * `POST /objectives/{id}/complete`.
+     *
+     * Solo viajan `completed` y `version` —el resto se queda en su valor por
+     * defecto y `encodeDefaults = false` no lo serializa—, así que el título, la
+     * meta, el progreso y la fecha quedan exactamente como estaban.
+     */
+    suspend fun setObjectiveCompleted(id: String, completed: Boolean, version: Int): Result<Unit> =
+        runCatching {
+            laboralApi.updateObjective(
+                id,
+                com.vidacotidiana.app.core.network.UpdateObjectiveRequest(
+                    completed = completed,
+                    version = version,
+                ),
+            )
+            Unit
+        }
 
     suspend fun completeWarranty(id: String, version: Int): Result<Unit> =
         runCatching { warrantyApi.complete(id, com.vidacotidiana.app.core.network.VersionRequest(version)); Unit }
@@ -410,6 +867,23 @@ class VidaRepository @Inject constructor(
 
     suspend fun documentBytes(id: String): Result<ByteArray> =
         runCatching { withContext(kotlinx.coroutines.Dispatchers.IO) { documentApi.content(id).use { it.bytes() } } }
+
+    /**
+     * Varios documentos en un zip. `ids` vacío = todos los del módulo activo,
+     * que es el contrato del backend y evita enumerar desde el cliente una
+     * lista que puede estar paginada.
+     */
+    suspend fun documentsZip(ids: Set<String>, context: String?): Result<ByteArray> =
+        runCatching {
+            withContext(kotlinx.coroutines.Dispatchers.IO) {
+                documentApi.downloadZip(
+                    com.vidacotidiana.app.core.network.DownloadDocumentsRequest(
+                        ids = ids.takeIf { it.isNotEmpty() }?.toList(),
+                        context = context,
+                    ),
+                ).use { it.bytes() }
+            }
+        }
 
     suspend fun shareDocument(id: String, email: String, version: Int): Result<Unit> =
         runCatching { documentApi.share(id, com.vidacotidiana.app.core.network.ShareDocumentRequest(email, version)); Unit }
@@ -433,6 +907,10 @@ class VidaRepository @Inject constructor(
             com.vidacotidiana.app.core.app.CreatableResource.PROJECT -> laboralApi.deleteProject(id)
             com.vidacotidiana.app.core.app.CreatableResource.COMMITMENT -> laboralApi.deleteCommitment(id)
             com.vidacotidiana.app.core.app.CreatableResource.NOTE -> laboralApi.deleteNote(id)
+            com.vidacotidiana.app.core.app.CreatableResource.OBJECTIVE -> laboralApi.deleteObjective(id)
+            com.vidacotidiana.app.core.app.CreatableResource.ROUTINE -> laboralApi.deleteRoutine(id)
+            com.vidacotidiana.app.core.app.CreatableResource.WORK_RESOURCE -> laboralApi.deleteWorkResource(id)
+            com.vidacotidiana.app.core.app.CreatableResource.PLACE -> laboralApi.deletePlace(id)
             // La tarea la borra `ReminderApi`, que no vive en este repositorio.
             com.vidacotidiana.app.core.app.CreatableResource.TASK -> error("Las tareas se borran por ReminderApi")
         }
@@ -518,9 +996,66 @@ private fun MaintenanceDto.toDomain(): MaintenanceRecord {
             days <= 7 -> MaintenanceStatus.PROXIMO
             else -> MaintenanceStatus.AL_DIA
         },
+        inventoryItemId = inventoryItemId,
         version = version,
     )
 }
+
+private fun com.vidacotidiana.app.core.network.PlaceDto.toDomain() = Place(
+    id = id,
+    name = name,
+    address = address,
+    personId = personId,
+    version = version,
+)
+
+private fun com.vidacotidiana.app.core.network.WorkResourceDto.toDomain() = WorkResource(
+    id = id,
+    name = name,
+    type = type,
+    reference = reference,
+    description = description,
+    personId = personId,
+    projectId = projectId,
+    version = version,
+)
+
+private fun com.vidacotidiana.app.core.network.RoutineDto.toDomain() = Routine(
+    id = id,
+    title = title,
+    description = description,
+    frequency = frequency,
+    // `parseDate` no debería fallar aquí —el campo es NOT NULL en el backend—,
+    // pero si el ISO viniera ilegible es preferible una fecha de hoy a tirar
+    // toda la lista de rutinas por un registro.
+    nextExecutionDate = parseDate(nextExecutionDate) ?: LocalDate.now(),
+    active = active,
+    version = version,
+)
+
+private fun com.vidacotidiana.app.core.network.ObjectiveDto.toDomain() = Objective(
+    id = id,
+    title = title,
+    targetValue = targetValue,
+    currentValue = currentValue,
+    deadline = parseDate(deadline),
+    completed = completed,
+    version = version,
+)
+
+private fun com.vidacotidiana.app.core.network.PaymentRecordDto.toDomain() = PaymentRecord(
+    id = id,
+    subscriptionId = subscriptionId,
+    periodDate = periodDate,
+    paidOn = paidOn,
+)
+
+private fun com.vidacotidiana.app.core.network.ProjectParticipantDto.toDomain() = ProjectParticipation(
+    id = id,
+    projectId = projectId,
+    personId = personId,
+    role = role,
+)
 
 private fun InventoryItemDto.toDomain() = InventoryItem(
     id = id,
@@ -565,6 +1100,8 @@ private fun SubscriptionDto.toDomain(): Payment {
         kind = kind,
         billingCycle = billingCycle,
         amount = amount,
+        currency = currency,
+        variableAmount = variableAmount,
         version = version,
     )
 }
@@ -624,7 +1161,7 @@ private fun resourceTypeLabel(type: String): String = when (type) {
 
 private fun PersonDto.toDomain() = Person(id, name, role, organization, version)
 
-private fun ProjectDto.toDomain() = Project(id, name, status, parseDate(deadline), version)
+private fun ProjectDto.toDomain() = Project(id, name, status, parseDate(deadline), clientPersonId, version)
 
 private fun CommitmentDto.toDomain() = Commitment(
     id = id,

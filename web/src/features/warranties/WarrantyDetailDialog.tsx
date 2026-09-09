@@ -1,10 +1,9 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
 import { Dialog, Heading, Modal, ModalOverlay } from 'react-aria-components'
 import { motion } from 'motion/react'
 import { motionTokens } from '../../core/motion/tokens'
 import shellStyles from '../../core/ui/dialogs/DialogShell.module.css'
-import { listInventoryItems, type InventoryItem } from '../inventory/api'
-import { useActiveMode } from '../../core/user/ActiveModeContext'
+import { InventoryItemPicker } from '../inventory/InventoryItemPicker'
 import { completeWarranty, updateWarranty, type Warranty } from './api'
 import { STATE_LABELS, fileLabel, formatFullDate, warrantyState } from './warrantiesView'
 import styles from './WarrantyDetailDialog.module.css'
@@ -32,35 +31,14 @@ interface WarrantyDetailDialogProps {
  * Mantenimiento: la información cabe en una capa.
  */
 export function WarrantyDetailDialog({ warranty, onClose, onSaved }: WarrantyDetailDialogProps) {
-  const activeMode = useActiveMode()
   const [item, setItem] = useState(warranty.item)
   const [expiresAt, setExpiresAt] = useState(warranty.expiresAt.slice(0, 10))
   const [inventoryItemId, setInventoryItemId] = useState<string>(warranty.inventoryItemId ?? '')
-  const [items, setItems] = useState<InventoryItem[] | null>(null)
   const [saving, setSaving] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const state = warrantyState(warranty)
-
-  useEffect(() => {
-    let cancelled = false
-    // El selector de artículo ofrece solo los del módulo activo: enlazar
-    // una garantía Personal con un artículo Laboral rompería el
-    // aislamiento del ADR-019 por la puerta de atrás.
-    listInventoryItems(activeMode)
-      .then((page) => {
-        if (!cancelled) setItems(page.items)
-      })
-      .catch(() => {
-        // El enlace es contexto, no el propósito del diálogo: si falla, se
-        // sigue pudiendo editar el resto.
-        if (!cancelled) setItems([])
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [activeMode])
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
@@ -155,29 +133,17 @@ export function WarrantyDetailDialog({ warranty, onClose, onSaved }: WarrantyDet
 
               {/* ADR-022: el mismo objeto vivía en dos listas que se
                   ignoraban. Enlazarlo es lo que permite responder "¿este
-                  artículo todavía tiene garantía?" desde Inventario. */}
-              <label className={shellStyles.field}>
-                <span className={shellStyles.fieldLabel}>Artículo del inventario</span>
-                <select
-                  className={shellStyles.textInput}
-                  value={inventoryItemId}
-                  onChange={(event) => setInventoryItemId(event.target.value)}
-                  disabled={items === null}
-                >
-                  <option value="">— Sin enlazar —</option>
-                  {(items ?? []).map((option) => (
-                    <option key={option.id} value={option.id}>
-                      {option.name}
-                      {option.location ? ` · ${option.location}` : ''}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              {items !== null && items.length === 0 && (
-                <p className={styles.helper}>
-                  Todavía no tienes artículos en el inventario de este módulo con los que enlazar esta garantía.
-                </p>
-              )}
+                  artículo todavía tiene garantía?" desde Inventario.
+
+                  Aquí NO es obligatorio, a diferencia del alta: las garantías
+                  anteriores a esa regla siguen siendo válidas y deben poder
+                  corregirse —o desenlazarse— sin quedar atrapadas. */}
+              <InventoryItemPicker
+                value={inventoryItemId}
+                onChange={setInventoryItemId}
+                label="Artículo del inventario"
+                emptyOptionLabel="— Sin enlazar —"
+              />
 
               <div className={styles.actions}>
                 <button

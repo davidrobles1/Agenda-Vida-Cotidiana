@@ -10,11 +10,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import com.vidacotidiana.app.core.app.AppViewModel
 import com.vidacotidiana.app.core.app.CreatableResource
+import com.vidacotidiana.app.core.ui.components.BulkAction
 import com.vidacotidiana.app.core.ui.components.PillTone
 import com.vidacotidiana.app.core.ui.components.ResourceEntry
 import com.vidacotidiana.app.core.ui.components.ResourceListScreen
 import com.vidacotidiana.app.core.ui.components.plural
 import kotlinx.coroutines.CoroutineScope
+import com.vidacotidiana.app.core.ui.VidaVocabulary
 
 /** Documentos. Sección secundaria: se llega desde el menú, con vuelta atrás. */
 @Composable
@@ -33,8 +35,9 @@ fun DocumentsScreen(
         ResourceEntry(
             id = it.id,
             title = it.name,
-            subtitle = "${it.category} · ${it.sizeLabel} · ${it.dateLabel}",
+            subtitle = "${VidaVocabulary.human(it.category)} · ${it.sizeLabel} · ${it.dateLabel}",
             icon = Icons.Outlined.Description,
+            group = VidaVocabulary.human(it.category),
             // ADR-025: los documentos se comparten SOLO para verlos, así que la
             // píldora dice quién los ve, no quién puede tocarlos.
             pill = when (it.visibility) {
@@ -60,7 +63,7 @@ fun DocumentsScreen(
             ),
         )
     }
-    val categories = listOf("Todas") + documents.map { it.category }.distinct().sorted()
+    val categories = listOf("Todas") + documents.map { VidaVocabulary.human(it.category) }.distinct().sorted()
 
     ResourceListScreen(
         title = "Documentos",
@@ -75,6 +78,14 @@ fun DocumentsScreen(
         onRetry = viewModel::refresh,
         onAdd = { viewModel.requestCreate(CreatableResource.DOCUMENT) },
         matchesFilter = { entry, f -> f == "Todas" || entry.subtitle.startsWith(f) },
+        // PARIDAD CON WEB: la Web permite bajarse varios documentos en un zip
+        // (`POST /documents/download`) y Android no lo ofrecía, pese a que el
+        // endpoint existía desde el principio.
+        bulkAction = BulkAction(
+            actionLabel = "Descargar zip",
+            allLabel = "Descargar todos",
+            onRun = { ids -> viewModel.downloadDocumentsZip(context, ids) },
+        ),
         drawerState = drawerState,
         scope = scope,
         showBack = true,

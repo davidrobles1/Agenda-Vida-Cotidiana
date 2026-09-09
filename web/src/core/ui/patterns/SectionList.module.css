@@ -262,25 +262,58 @@
   text-transform: uppercase;
 }
 
+/* ─────────────────────────────────────────────────────────────────────────
+   CUADRÍCULA, NO LISTA
+
+   Los recursos se presentaban como filas apiladas: todos ocupaban la misma
+   barra horizontal, así que un documento, una garantía y un artículo se leían
+   igual y había que recorrer cada renglón para distinguirlos. En cuadrícula
+   cada uno es una pieza con su propio peso, y en el ancho de un escritorio
+   caben cuatro o cinco donde antes cabía una.
+
+   Es un cambio SOLO DE CSS: el marcado no se toca, así que la selección
+   múltiple de Documentos, los botones de acción, el orden del DOM y la
+   navegación por teclado siguen funcionando exactamente igual.
+
+   `auto-fill` con mínimo de 190px hace la retícula responsive sin consultas
+   de medios: el navegador mete las columnas que quepan —una en móvil, cinco
+   en un monitor ancho— y todas las piezas miden lo mismo.
+   ───────────────────────────────────────────────────────────────────────── */
 .rows {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 12px;
+  align-items: stretch;
 }
 
 .row {
-  display: grid;
-  grid-template-columns: 34px 1fr auto auto;
-  align-items: center;
-  gap: 12px;
+  /* Columna: marca arriba, cuerpo en medio, fecha y acciones abajo. */
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 
-  padding: 11px 14px;
+  /* Cuadrada de verdad. `min-height` es la red de seguridad para un nombre
+     muy largo: antes de romper la caja, la pieza crece. */
+  aspect-ratio: 1;
+  min-height: 190px;
 
-  border: 1px solid color-mix(in srgb, var(--color-border) 28%, transparent);
-  border-left: 3px solid var(--state-color, var(--color-border));
-  border-radius: 13px;
+  padding: 14px;
 
-  background: var(--color-surface-variant);
+  /* ADR-023: la caja la define el TEMA, no esta hoja. Antes llevaba borde y
+     radio fijos, así que una pieza se veía igual en Papel que en Neo y con un
+     trazo tan tenue que los registros no se separaban entre sí. */
+  border: var(--tile-border);
+  /* El estado pasa del borde izquierdo al superior: en una pieza cuadrada un
+     filete lateral se lee como decoración, y arriba encabeza la tarjeta. */
+  border-top: var(--tile-rule, 3px) solid var(--state-color, var(--line-strong));
+  border-radius: var(--tile-radius);
+
+  background: var(--tile-bg);
+  box-shadow: var(--tile-shadow);
+
+  /* Un nombre desmedido no debe desbordar sobre la pieza vecina. */
+  overflow: hidden;
+  position: relative;
 }
 
 .row[data-state='over']  { --state-color: var(--color-error); }
@@ -308,7 +341,10 @@
   font-size: 0.94rem;
 }
 
-.rowBody { min-width: 0; }
+.rowBody {
+  min-width: 0;
+  flex: 1 1 auto;
+}
 
 .rowName {
   display: flex;
@@ -324,29 +360,65 @@
 }
 
 .rowMeta {
-  margin: 1px 0 0;
+  margin: 3px 0 0;
 
   color: var(--color-text-secondary);
   font-size: 0.75rem;
 
+  /* En una fila se recortaba con puntos suspensivos porque el ancho mandaba.
+     En una pieza cuadrada hay dos líneas de sitio, así que envuelve. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .rowWhen {
+  /* La fecha deja de alinearse a la derecha: en una pieza cuadrada no hay
+     columna con la que alinearla. */
+  text-align: left;
+
   font-family: var(--font-mono);
   font-size: 0.75rem;
   color: var(--color-text);
   font-variant-numeric: tabular-nums;
-  text-align: right;
   white-space: nowrap;
+}
+
+.rowSelect {
+  position: absolute;
+  top: 12px;
+  right: 12px;
 }
 
 .rowActions {
   display: flex;
-  gap: 6px;
+  gap: 5px;
   align-items: center;
+
+  /* Empuja las acciones al fondo: en todas las piezas quedan a la misma
+     altura, aunque sus nombres ocupen una o dos líneas. */
+  margin-top: auto;
+
+  /* UNA sola línea. Con cinco botones en una pieza de ~200px, envolver los
+     partía en dos filas y el cuadrado se deformaba. */
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+
+.rowActions::-webkit-scrollbar { display: none; }
+
+/* Dentro de una pieza los botones se compactan: el mismo relleno que tenían
+   en una fila ancha no cabe aquí, y era la causa de que se desbordaran. */
+.row .actionButton {
+  padding: 4px 8px;
+  font-size: 0.68rem;
+}
+
+.row .iconButton {
+  flex: none;
 }
 
 .tag {
@@ -573,18 +645,23 @@
 :global(.theme-lumen) .row {
   background: transparent;
   border: 0;
-  border-bottom: 1px solid var(--line);
+  /* Era `border-bottom`: un subrayado bajo cada renglón. En cuadrícula un
+     borde solo abajo deja la pieza colgando; el filete pasa arriba, donde ya
+     encabeza el estado. */
   border-radius: 0;
-  padding: calc(var(--row-y) * 1.5) 0;
+  padding: calc(var(--row-y) * 1.2) 0 calc(var(--row-y) * 1.2);
 }
-:global(.theme-lumen) .row:hover { padding-left: 10px; background: transparent; }
+/* El desplazamiento al pasar el cursor era el gesto de una lista; en una
+   pieza cuadrada mover el contenido a la derecha la descuadra. */
+:global(.theme-lumen) .row:hover { background: var(--veil); }
 
 /* Neo — bloques encadenados; al pasar el cursor salta y proyecta sombra. */
 :global(.theme-neo) .row {
   border: 2px solid var(--ink);
   background: var(--surface);
   border-radius: 0;
-  margin-bottom: -2px;
+  /* `margin-bottom: -2px` encadenaba los bloques uno bajo otro, que era su
+     gracia en lista. En cuadrícula solapa la fila siguiente. */
 }
 :global(.theme-neo) .row:hover {
   background: var(--second-soft);
@@ -621,10 +698,11 @@
 
 /* Papel — los renglones del cuaderno. */
 :global(.theme-papel) .row {
-  background: transparent;
-  border: 0;
-  border-bottom: 1px solid var(--line);
-  border-radius: 0;
+  /* Era un renglón de libreta subrayado. Como ficha, recupera su caja: el
+     papel crema, el trazo cálido y el radio suave del tema. */
+  background: var(--surface-2, var(--color-surface-variant));
+  border: 1px solid var(--line-strong, var(--color-border));
+  border-radius: var(--radius-card, 12px);
   padding: calc(var(--row-y) * 1.15) var(--s-3);
 }
 :global(.theme-papel) .row:hover { background: var(--veil); }

@@ -133,6 +133,16 @@ data class DayTask(
     val done: Boolean = false,
     /** Compartida y con parte comprometida (ADR-025). */
     val shared: Boolean = false,
+    /**
+     * ADR-016/FR-024: dónde es, en texto libre. Opcional.
+     *
+     * Vive AQUÍ y no en cada pantalla porque las cuatro superficies que pintan
+     * tareas —Tareas, Hoy, Calendario y Tareas de Laboral— pasan todas por este
+     * modelo, a través de `AppViewModel.allTasks()` y `contentFor()`. Añadirlo
+     * en un solo sitio las cubre las cuatro; hacerlo cuatro veces habría dado
+     * cuatro formas distintas de escribir lo mismo.
+     */
+    val location: String? = null,
 )
 
 /** Lo que un día contiene: los tres ritmos que el calendario superpone. */

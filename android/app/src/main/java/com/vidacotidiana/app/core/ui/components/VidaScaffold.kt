@@ -48,6 +48,8 @@ import com.vidacotidiana.app.core.ui.VidaSpacing
 import com.vidacotidiana.app.core.ui.VidaTheme
 import com.vidacotidiana.app.navigation.AppContext
 import com.vidacotidiana.app.navigation.Destination
+import com.vidacotidiana.app.core.ui.VidaLayout
+import com.vidacotidiana.app.core.ui.VidaIconSize
 
 /**
  * Barra superior del artefacto: menú o atrás, título con la tipografía de
@@ -84,17 +86,44 @@ fun VidaAppBar(
             actions()
         }
         if (subtitle != null) {
+            // ALINEADO CON EL TÍTULO, no con el margen de la pantalla.
+            //
+            // El título arranca después del botón de navegación (6 + 48 + 2 dp)
+            // y el subtítulo arrancaba en el gutter: las dos líneas de una
+            // misma cabecera caían en ejes distintos, y el título parecía
+            // sangrado respecto a todo lo demás. Una cabecera es un bloque; sus
+            // dos líneas comparten eje aunque el bloque entero quede desplazado
+            // por el icono.
+            //
+            // El tamaño no se toca: 22 sp de titular contra 13 sp de apoyo, en
+            // dos tintas distintas, ya es una jerarquía correcta. Bajar el
+            // subtítulo a `textTertiary` lo habría dejado en 2,5:1 de contraste
+            // — por debajo de AA — para resolver un problema que no era de
+            // tamaño sino de eje.
             Text(
                 subtitle,
                 style = MaterialTheme.typography.bodyMedium,
                 color = c.textSecondary,
-                modifier = Modifier.padding(start = VidaSpacing.lg, end = VidaSpacing.lg, bottom = 6.dp),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(
+                    start = 6.dp + VidaLayout.touchTarget + 2.dp,
+                    end = VidaSpacing.lg,
+                    bottom = 6.dp,
+                ),
             )
         }
     }
 }
 
-/** Botón de icono con blanco táctil de 44 dp y onda sin límites. */
+/**
+ * Botón de icono con blanco táctil COMPLETO y onda sin límites.
+ *
+ * Medía 44 dp. Es el botón de atrás, el de menú, el de notificaciones y el «+»
+ * de cabecera: los cuatro que aparecen en todas las pantallas, y los cuatro
+ * quedaban 4 dp por debajo del mínimo de Android. Lo que se dibuja no cambia
+ * —el icono sigue midiendo lo mismo—; lo que crece es el área que responde.
+ */
 @Composable
 fun VidaIconButton(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
@@ -107,7 +136,7 @@ fun VidaIconButton(
     val interaction = remember { MutableInteractionSource() }
     Box(
         modifier = Modifier
-            .size(44.dp)
+            .size(VidaLayout.touchTarget)
             .pressScale(interaction, 0.9f)
             .clickable(
                 interactionSource = interaction,
@@ -117,7 +146,7 @@ fun VidaIconButton(
             ),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(icon, contentDescription = contentDescription, tint = tint ?: c.textSecondary, modifier = Modifier.size(21.dp))
+        Icon(icon, contentDescription = contentDescription, tint = tint ?: c.textSecondary, modifier = Modifier.size(VidaIconSize.medium))
         if (badge) {
             Box(
                 Modifier
@@ -170,7 +199,7 @@ fun ContextBar(
                     ) { onSelect(ctx) }
                     .padding(horizontal = 14.dp, vertical = 7.dp),
             ) {
-                Text(ctx.label, style = MaterialTheme.typography.labelLarge.copy(fontSize = 12.5.sp), color = fg)
+                Text(ctx.label, style = VidaTheme.type.action, color = fg)
             }
         }
     }

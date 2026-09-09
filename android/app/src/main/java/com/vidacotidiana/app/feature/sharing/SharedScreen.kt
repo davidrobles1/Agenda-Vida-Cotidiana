@@ -23,9 +23,11 @@ import com.vidacotidiana.app.core.ui.components.EmptyState
 import com.vidacotidiana.app.core.ui.components.Eyebrow
 import com.vidacotidiana.app.core.ui.components.LoadingRows
 import com.vidacotidiana.app.core.ui.components.PillTone
-import com.vidacotidiana.app.core.ui.components.ResourceRow
+import com.vidacotidiana.app.core.ui.components.ResourceBoard
+import com.vidacotidiana.app.core.ui.components.ResourceEntry
 import com.vidacotidiana.app.core.ui.components.StaggeredAppear
 import com.vidacotidiana.app.core.ui.components.VidaIconButton
+import com.vidacotidiana.app.navigation.Routes
 import com.vidacotidiana.app.core.ui.components.VidaScreen
 import com.vidacotidiana.app.core.ui.components.VidaSegmented
 import kotlinx.coroutines.CoroutineScope
@@ -72,52 +74,84 @@ fun SharedScreen(
                     action = "Reintentar" to viewModel::refresh,
                 )
             }
-            list.isEmpty() -> StaggeredAppear(2) {
-                EmptyState("Nada por aquí todavía", "Al crear o editar un recurso puedes elegir con quién compartirlo.")
+            // TRES SITUACIONES QUE ANTES COMPARTÍAN UN SOLO TEXTO.
+            //
+            // Sin familia es FIRST_USE, no vacío: decirle «puedes elegir con
+            // quién compartirlo» a quien no tiene con quién es un callejón sin
+            // salida disfrazado de instrucción. Aquí sí hay siguiente paso, y
+            // es una pantalla que ya existe.
+            list.isEmpty() && state.data.familyMembers.isEmpty() -> StaggeredAppear(2) {
+                // El título NO puede ser «Todavía no compartes con nadie»:
+                // es literalmente la frase con la que Familia abre su propio
+                // vacío, y dos módulos distintos diciendo lo mismo se leen como
+                // el mismo sitio. Aquí lo que falta no es compartir: es tener
+                // con quién.
+                EmptyState(
+                    title = "Todavía no tienes a nadie en tu familia",
+                    body = "Compartir empieza por ahí. Después podrás elegir con quién va cada cosa al crearla o editarla.",
+                    action = "Ir a Familia" to { navController.navigate(Routes.FAMILY) },
+                )
             }
-        }
-        Column(verticalArrangement = Arrangement.spacedBy(VidaSpacing.sm)) {
-            list.forEachIndexed { index, share ->
-                StaggeredAppear(2 + index) {
-                    ResourceRow(
-                        title = share.label,
-                        subtitle = listOfNotNull(
-                            if (receiving) "De ${share.counterpart}" else "Con ${share.counterpart}",
-                            share.dateLabel,
-                        ).joinToString(" · "),
-                        typeTag = share.type,
-                        tone = if (share.partDone) c.successText else if (share.responsibility) c.warning else null,
-                        pill = when {
-                            !share.responsibility -> "Solo ver" to PillTone.QUIET
-                            share.partDone && receiving -> "Hiciste tu parte" to PillTone.OK
-                            share.partDone -> "Ya hizo su parte" to PillTone.OK
-                            receiving -> "Te toca" to PillTone.WARN
-                            else -> "Pendiente" to PillTone.WARN
-                        },
-                        // Solo quien recibe puede marcar SU parte: el emisor ve
-                        // el estado del otro, no lo cambia.
-                        trailing = if (receiving && share.responsibility) {
-                            {
-                                VidaIconButton(
-                                    icon = if (share.partDone) Icons.AutoMirrored.Filled.ArrowBack else Icons.Filled.Check,
-                                    contentDescription = if (share.partDone) "Deshacer mi parte" else "Ya hice mi parte",
-                                    tint = if (share.partDone) c.successText else c.primary,
-                                    onClick = { viewModel.togglePartDone(share.id, share.partDone) },
-                                )
-                            }
-                        } else {
-                            null
-                        },
+            // Con familia, las dos pestañas significan cosas distintas y por eso
+            // se dicen distinto. Ninguna lleva acción: lo que falta no se hace
+            // desde aquí —se elige al crear o editar el recurso— y un botón
+            // llevaría a otra pantalla a hacer otra cosa.
+            list.isEmpty() -> StaggeredAppear(2) {
+                if (receiving) {
+                    EmptyState(
+                        title = "Nadie te ha compartido nada",
+                        body = "Cuando alguien de tu familia comparta algo contigo, aparecerá aquí.",
+                    )
+                } else {
+                    EmptyState(
+                        title = "Aún no has compartido nada",
+                        body = "Al crear o editar un recurso puedes elegir con quién compartirlo.",
                     )
                 }
             }
         }
-        StaggeredAppear(2 + list.size) {
-            Text(
-                "Compartir se elige al crear o editar el recurso: con quién, y si se compromete con su parte.",
-                style = MaterialTheme.typography.bodySmall,
-                color = c.textSecondary,
-            )
+        if (list.isNotEmpty()) {
+            StaggeredAppear(2) {
+                // Cuadricula: lo compartido son recursos, y verlos distribuidos
+                // deja leer de un vistazo cuantos piden accion.
+                ResourceBoard(
+                    entries = list.map { share ->
+                        ResourceEntry(
+                            id = share.id,
+                            title = share.label,
+                            subtitle = if (receiving) "De ${share.counterpart}" else "Con ${share.counterpart}",
+                            highlight = share.dateLabel,
+                            typeTag = share.type,
+                            tone = if (share.partDone) c.successText else if (share.responsibility) c.warning else null,
+                            pill = when {
+                                !share.responsibility -> "Solo ver" to PillTone.QUIET
+                                share.partDone && receiving -> "Hiciste tu parte" to PillTone.OK
+                                share.partDone -> "Ya hizo su parte" to PillTone.OK
+                                receiving -> "Te toca" to PillTone.WARN
+                                else -> "Pendiente" to PillTone.WARN
+                            },
+                            // Solo quien recibe marca SU parte: el emisor ve el
+                            // estado del otro, no lo cambia.
+                            onComplete = if (receiving && share.responsibility && !share.partDone) {
+                                { viewModel.togglePartDone(share.id, false) }
+                            } else null,
+                            completeLabel = "Ya hice mi parte",
+                        )
+                    },
+                    onOpenDetail = {},
+                )
+            }
+        }
+        // Nota al pie de la LISTA, no de la pantalla: cuando no hay nada, el
+        // estado vacío ya dice esto mismo y verlo dos veces seguidas sobraba.
+        if (list.isNotEmpty()) {
+            StaggeredAppear(2 + list.size) {
+                Text(
+                    "Compartir se elige al crear o editar el recurso: con quién, y si se compromete con su parte.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = c.textSecondary,
+                )
+            }
         }
     }
 }

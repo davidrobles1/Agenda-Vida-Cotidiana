@@ -26,17 +26,29 @@ fun MaintenanceScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val records = state.data.maintenance
+    val today = java.time.LocalDate.now()
+    fun cuando(d: java.time.LocalDate): String {
+        val n = java.time.temporal.ChronoUnit.DAYS.between(today, d)
+        return when {
+            n < 0L -> "Atrasado"
+            n == 0L -> "Hoy"
+            n == 1L -> "Mañana"
+            n < 30L -> "$n días"
+            else -> "${n / 30} ${if (n / 30 == 1L) "mes" else "meses"}"
+        }
+    }
     val entries = records.map {
         ResourceEntry(
             id = it.id,
             title = it.task,
-            subtitle = buildString {
-                append("próxima: ${it.nextDueLabel}")
-                it.intervalMonths?.let { months ->
-                    append(" · cada $months ${if (months == 1) "mes" else "meses"}")
-                }
-            },
+            subtitle = it.nextDueLabel,
+            highlight = cuando(it.nextDueOn),
             icon = Icons.Outlined.Build,
+            group = when (it.status) {
+                MaintenanceStatus.VENCIDO -> "Toca ya"
+                MaintenanceStatus.PROXIMO -> "Próximos"
+                MaintenanceStatus.AL_DIA -> "Al día"
+            },
             onEdit = { viewModel.requestEdit(CreatableResource.MAINTENANCE, it.id) },
             // ADR-021: completar AVANZA la ocurrencia; no cierra el registro.
             onComplete = { viewModel.completeResource(CreatableResource.MAINTENANCE, it.id) },

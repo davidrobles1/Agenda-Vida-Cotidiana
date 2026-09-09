@@ -12,6 +12,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import com.vidacotidiana.app.core.app.AppViewModel
@@ -21,7 +22,8 @@ import com.vidacotidiana.app.core.ui.VidaTheme
 import com.vidacotidiana.app.core.ui.components.EmptyState
 import com.vidacotidiana.app.core.ui.components.Eyebrow
 import com.vidacotidiana.app.core.ui.components.PillTone
-import com.vidacotidiana.app.core.ui.components.ResourceRow
+import com.vidacotidiana.app.core.ui.components.ResourceBoard
+import com.vidacotidiana.app.core.ui.components.ResourceEntry
 import com.vidacotidiana.app.core.ui.components.StaggeredAppear
 import com.vidacotidiana.app.core.ui.components.SwipeToCompleteRow
 import com.vidacotidiana.app.core.ui.components.VidaIconButton
@@ -43,6 +45,7 @@ fun TasksScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val c = VidaTheme.colors
+    val context = LocalContext.current
     val today = LocalDate.now()
     val all = viewModel.allTasks()
 
@@ -57,46 +60,82 @@ fun TasksScreen(
         subtitle = "Lo que te toca, agrupado por cuándo.",
         showBack = true,
         onNavigationClick = { navController.popBackStack() },
-        actions = { VidaIconButton(Icons.Filled.Add, "Nueva tarea") {} },
+        // UNA SOLA SEMÁNTICA DE CREACIÓN. El «+» de la barra llevaba una lambda
+        // vacía: prometía crear una tarea y no hacía nada. Ahora dispara la
+        // misma intención que el botón del estado vacío, así que las dos
+        // entradas al alta son literalmente la misma llamada.
+        actions = {
+            VidaIconButton(Icons.Filled.Add, "Nueva tarea") {
+                viewModel.requestCreate(CreatableResource.TASK)
+            }
+        },
     ) {
         if (state.error != null) {
+            // ERROR, no vacío: no se afirma nada sobre las tareas del usuario
+            // —no las conocemos— y se conserva la salida. Antes era una línea
+            // de texto roja sin forma de reintentar.
             StaggeredAppear(0) {
-                Text(state.error!!, style = MaterialTheme.typography.bodyMedium, color = c.error)
+                EmptyState(
+                    title = "No pudimos cargar tus tareas",
+                    body = "Revisa tu conexión e inténtalo de nuevo.",
+                    action = "Reintentar" to viewModel::refresh,
+                )
             }
         } else if (groups.isEmpty() && !state.loading) {
+            // FIRST_USE: la sección existe pero nunca se ha usado. El cuerpo
+            // dice qué gana el usuario —el agrupado por cuándo toca, que es lo
+            // que esta pantalla hace y no se ve estando vacía— y la acción es
+            // la que ya existe arriba.
             StaggeredAppear(0) {
-                EmptyState("Sin tareas", "Cuando crees una, aparecerá aquí agrupada por cuándo toca.")
+                EmptyState(
+                    title = "Aún no hay tareas",
+                    body = "Anota lo que tienes que hacer y aparecerá agrupado por cuándo toca.",
+                    action = "Nueva tarea" to { viewModel.requestCreate(CreatableResource.TASK) },
+                )
             }
         }
         var index = 0
         groups.forEach { (label, tasks) ->
             StaggeredAppear(index++) { Eyebrow("$label · ${tasks.size}") }
             Column(verticalArrangement = Arrangement.spacedBy(VidaSpacing.sm)) {
-                tasks.forEach { task ->
-                    StaggeredAppear(index++) {
-                        SwipeToCompleteRow(done = task.done, onToggle = { viewModel.toggleTask(task.id) }) {
-                            ResourceRow(
-                                title = task.title,
-                                subtitle = listOfNotNull(task.time?.toString()?.take(5), task.meta).joinToString(" · "),
-                                icon = if (task.done) Icons.Filled.Check else Icons.AutoMirrored.Outlined.Assignment,
-                                markBackground = if (task.done) c.successContainer else c.primaryContainer,
-                                markTint = if (task.done) c.successText else c.primary,
-                                tone = if (task.done) c.successText else c.primary,
-                                strikeThrough = task.done,
-                                pill = if (task.shared) "Te toca" to PillTone.WARN else null,
-                                // Deslizar ya completaba; faltaba poder editar.
-                                // Tocar abre el MISMO formulario de la tarea que
-                                // usa el calendario y el «+».
-                                onClick = { viewModel.requestEdit(CreatableResource.TASK, task.id) },
-                            )
-                        }
-                    }
-                }
+                // Cuadrícula, no lista: cada tarea es una pieza. El
+                // deslizar-para-completar deja de tener sentido en una tarjeta
+                // cuadrada, así que la acción pasa al check de la propia pieza.
+                ResourceBoard(
+                    entries = tasks.map { task ->
+                        ResourceEntry(
+                            id = task.id,
+                            title = task.title,
+                            // La ubicación entra en el subtítulo que ya existe,
+                            // no en una línea propia: es otro dato de "cuándo y
+                            // dónde", no una sección aparte.
+                            subtitle = listOfNotNull(task.meta, task.location).joinToString(" · "),
+                            highlight = task.time?.toString()?.take(5),
+                            icon = if (task.done) Icons.Filled.Check else Icons.AutoMirrored.Outlined.Assignment,
+                            tone = if (task.done) c.successText else c.primary,
+                            pill = if (task.shared) "Te toca" to PillTone.WARN else null,
+                            onEdit = { viewModel.requestEdit(CreatableResource.TASK, task.id) },
+                            onComplete = if (!task.done) {
+                                { viewModel.toggleTask(task.id) }
+                            } else null,
+                            completeLabel = "Hecha",
+                            // Solo cuando hay ubicación de verdad. La acción va
+                            // en la hoja de detalle: la tarjeta conserva «Hecha»
+                            // como único gesto rápido.
+                            extraActions = task.location?.let { place ->
+                                listOf("Cómo llegar" to { viewModel.openDirections(context, place) })
+                            } ?: emptyList(),
+                        )
+                    },
+                    onOpenDetail = { viewModel.requestEdit(CreatableResource.TASK, it.id) },
+                )
             }
         }
-        StaggeredAppear(index) {
+        // La pista explica cómo se maneja UNA LISTA. Sin tareas no hay nada que
+        // tocar, y aparecía justo debajo del estado vacío contradiciéndolo.
+        if (groups.isNotEmpty()) StaggeredAppear(index) {
             Text(
-                "Desliza una tarea hacia la izquierda para marcarla.",
+                "Toca una tarea para editarla, o su marca para darla por hecha.",
                 style = MaterialTheme.typography.bodySmall,
                 color = c.textSecondary,
             )
