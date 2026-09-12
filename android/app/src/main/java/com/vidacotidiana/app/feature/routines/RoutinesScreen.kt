@@ -12,6 +12,23 @@ import com.vidacotidiana.app.core.app.CreatableResource
 import com.vidacotidiana.app.core.data.Routine
 import com.vidacotidiana.app.core.ui.components.PillTone
 import com.vidacotidiana.app.core.ui.components.ResourceEntry
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Text
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import com.vidacotidiana.app.core.ui.VidaLayout
+import com.vidacotidiana.app.core.ui.VidaTheme
+import com.vidacotidiana.app.core.ui.components.VidaRing
+import com.vidacotidiana.app.core.ui.components.vidaClickable
 import com.vidacotidiana.app.core.ui.components.ResourceListScreen
 import com.vidacotidiana.app.core.ui.components.plural
 import kotlinx.coroutines.CoroutineScope
@@ -19,6 +36,8 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import java.util.Locale
+import com.vidacotidiana.app.core.data.DataSlice
+import com.vidacotidiana.app.core.app.sliceError
 
 /**
  * Rutinas (FR-032). Sección secundaria de Laboral: se llega desde el cajón.
@@ -97,7 +116,61 @@ fun RoutinesScreen(
         )
     }
 
+    // Los hábitos CON META van arriba, en anillos: es la composición del
+    // artefacto y distingue «Agua, 4 de 8» de «Sacar la basura», que solo se
+    // marca. Las rutinas de sí/no siguen en la lista de abajo, intactas.
+    val counted = routines.filter { it.targetCount != null && it.active }
+    LaunchedEffect(counted.size) { if (counted.isNotEmpty()) viewModel.loadHabitsToday() }
+
     ResourceListScreen(
+        header = {
+            if (counted.isNotEmpty()) {
+                Column(verticalArrangement = Arrangement.spacedBy(VidaLayout.blockGap)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("HÁBITOS DE HOY", style = VidaTheme.type.eyebrow, color = VidaTheme.colors.textTertiary, modifier = Modifier.weight(1f))
+                        Text("Toca para sumar", style = VidaTheme.type.caption, color = VidaTheme.colors.textTertiary)
+                    }
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .background(VidaTheme.colors.surfaceVariant, RoundedCornerShape(VidaTheme.spec.radii.card))
+                            .border(VidaTheme.spec.borderWidth, VidaTheme.colors.line, RoundedCornerShape(VidaTheme.spec.radii.card))
+                            .padding(18.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        counted.take(4).forEach { r ->
+                            val done = state.habitToday[r.id] ?: 0
+                            val cap = r.targetCount ?: 1
+                            Column(
+                                Modifier
+                                    .weight(1f)
+                                    // Sumar NO ejecuta la rutina: `execute`
+                                    // cierra la ocurrencia y mueve la fecha,
+                                    // esto solo suma dentro del día.
+                                    .vidaClickable(onClick = { viewModel.addHabitProgress(r.id) }),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(6.dp),
+                            ) {
+                                VidaRing(
+                                    percent = if (cap == 0) 0 else (done * 100 / cap).coerceAtMost(100),
+                                    tone = VidaTheme.colors.primary,
+                                    diameter = 66.dp,
+                                    stroke = 7.dp,
+                                    label = done.toString(),
+                                    labelColor = VidaTheme.colors.text,
+                                )
+                                Text(r.title, style = VidaTheme.type.caption, color = VidaTheme.colors.text, maxLines = 1)
+                                Text(
+                                    "de $cap${r.unit?.let { " $it" } ?: ""}",
+                                    style = VidaTheme.type.micro,
+                                    color = VidaTheme.colors.textTertiary,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
         title = "Rutinas",
         subtitle = "Lo que repites, y cuándo toca otra vez.",
         eyebrow = plural(routines.count { it.active }, "activa", "activas"),
@@ -106,7 +179,7 @@ fun RoutinesScreen(
         addLabel = "Nueva rutina",
         emptyBody = "Anota algo que repitas y sabrás cuándo te toca otra vez.",
         loading = state.loading,
-        error = state.error,
+        error = state.sliceError(DataSlice.ROUTINES),
         onRetry = viewModel::refresh,
         onAdd = { viewModel.requestCreate(CreatableResource.ROUTINE) },
         // Se resuelve contra el dato real y no contra la píldora: "Próximas" no

@@ -43,6 +43,14 @@ data class Reminder(
      */
     val iconId: String? = null,
     val stickerId: String? = null,
+    /**
+     * El backend SIEMPRE lo envía; este cliente no lo declaraba y se descartaba
+     * en silencio por `ignoreUnknownKeys`. Se declara ahora porque «hechas esta
+     * semana» necesita saber CUÁNDO se completó una tarea: por fecha de
+     * vencimiento saldría mal, ya que una tarea vencida hace un mes y cerrada
+     * ayer se contaría en el mes pasado.
+     */
+    val updatedAt: String? = null,
     val version: Int,
 )
 

@@ -3,6 +3,7 @@ package com.vidacotidiana.document.api;
 import com.vidacotidiana.document.api.dto.DocumentResponse;
 import com.vidacotidiana.document.api.dto.DownloadDocumentsRequest;
 import com.vidacotidiana.document.api.dto.ShareDocumentRequest;
+import com.vidacotidiana.document.api.dto.LinkDocumentRequest;
 import com.vidacotidiana.document.api.dto.UpdateDocumentRequest;
 import com.vidacotidiana.document.api.dto.VersionRequest;
 import com.vidacotidiana.document.application.DocumentService;
@@ -32,6 +33,7 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -150,5 +152,26 @@ public class DocumentController {
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
         documentService.delete(id, currentUser.userId());
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Colgar el documento de un recurso, o soltarlo enviando los dos nulos.
+     *
+     * Endpoint propio y no un campo más del PATCH: enganchar no es editar el
+     * documento, y el PATCH exige `version` para el bloqueo optimista de su
+     * contenido. Mismo criterio que `/complete`, `/execute` o `/part-done`.
+     */
+    @PostMapping("/{id}/link")
+    public DocumentResponse link(@PathVariable UUID id, @Valid @RequestBody LinkDocumentRequest request) {
+        return DocumentResponse.from(
+                documentService.link(id, currentUser.userId(), request.resourceType(), request.resourceId()));
+    }
+
+    /** Los adjuntos de un recurso concreto. */
+    @GetMapping("/attachments")
+    public List<DocumentResponse> attachments(@RequestParam String resourceType, @RequestParam UUID resourceId) {
+        return documentService.attachmentsOf(currentUser.userId(), resourceType, resourceId).stream()
+                .map(DocumentResponse::from)
+                .toList();
     }
 }

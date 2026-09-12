@@ -138,6 +138,19 @@ data class VidaColors(
     val secondContainer: Color = primaryContainer,
     /** Filete fino, más suave que `border`. `--line` frente a `--line-strong`. */
     val line: Color = border,
+
+    /**
+     * El acento OSCURO, para texto sobre `primaryContainer`. `--indigo-dd`.
+     *
+     * El artefacto usa dos índigos y no uno: `#4F46E5` para pintar y `#3730A3`
+     * para escribir encima del contenedor claro. Con un solo tono, el rótulo de
+     * un chip seleccionado queda a 4,3:1 sobre su propio fondo; con el oscuro,
+     * a 8,9:1. No es un matiz estético: es lo que hace legible un chip activo.
+     *
+     * Por defecto vale `primary`, así que ninguna de las agendas anteriores
+     * cambia hasta que declare el suyo.
+     */
+    val primaryDeep: Color = primary,
 )
 
 val LightVidaColors = VidaColors(

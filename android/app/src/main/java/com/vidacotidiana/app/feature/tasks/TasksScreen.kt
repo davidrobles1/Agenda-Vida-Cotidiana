@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
+import com.vidacotidiana.app.navigation.Routes
 import com.vidacotidiana.app.core.app.AppViewModel
 import com.vidacotidiana.app.core.app.CreatableResource
 import com.vidacotidiana.app.core.ui.VidaSpacing
@@ -127,7 +128,10 @@ fun TasksScreen(
                             } ?: emptyList(),
                         )
                     },
-                    onOpenDetail = { viewModel.requestEdit(CreatableResource.TASK, it.id) },
+                    // Abrir una tarea lleva a SU pantalla, no al formulario
+                    // de edición: el artefacto separa mirar de editar, y los
+                    // pasos solo caben en el detalle.
+                    onOpenDetail = { navController.navigate(Routes.taskRoute(it.id)) },
                 )
             }
         }

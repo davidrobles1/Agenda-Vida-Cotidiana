@@ -72,6 +72,24 @@ public class Document {
     private UUID projectId;
 
     /**
+     * V37 — de qué recurso cuelga este documento, si cuelga de alguno.
+     *
+     * Sin clave ajena a propósito: apunta a cinco tablas distintas (tarea,
+     * mantenimiento, garantía, artículo, pago) y una FK solo puede apuntar a
+     * una. La integridad la sostiene el servicio, que comprueba el dueño del
+     * recurso antes de enlazar.
+     *
+     * `personId`/`projectId` SE CONSERVAN y no se migran aquí: son enlaces de
+     * dominio («el documento de esta persona»), no adjuntos. Son cosas
+     * distintas aunque se parezcan.
+     */
+    @Column(name = "resource_type")
+    private String resourceType;
+
+    @Column(name = "resource_id")
+    private UUID resourceId;
+
+    /**
      * ADR-022: módulo propietario. Se fija al subir el documento y no
      * cambia después — `edit` no lo toca. En un documento compartido el
      * contexto sigue siendo el del dueño: el recurso pertenece al módulo
@@ -248,4 +266,21 @@ public class Document {
         this.sharedWithUserId = null;
         this.updatedAt = Instant.now();
     }
+
+    public String getResourceType() {
+        return resourceType;
+    }
+
+    public UUID getResourceId() {
+        return resourceId;
+    }
+
+    /** Colgar de un recurso — o soltarlo, pasando `null` en los dos. */
+    public void linkTo(String resourceType, UUID resourceId) {
+        boolean both = resourceType != null && !resourceType.isBlank() && resourceId != null;
+        this.resourceType = both ? resourceType.trim().toUpperCase() : null;
+        this.resourceId = both ? resourceId : null;
+        this.updatedAt = java.time.Instant.now();
+    }
+
 }

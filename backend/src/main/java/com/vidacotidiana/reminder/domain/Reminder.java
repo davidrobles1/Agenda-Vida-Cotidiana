@@ -75,6 +75,18 @@ public class Reminder {
     @Column
     private String location;
 
+    /**
+     * V33 — cuánto aprieta.
+     *
+     * Se inicializa aquí y NO en los constructores a propósito: los cuatro que
+     * existen se conservan tal cual para que ninguna llamada previa —tests
+     * incluidos— deje de compilar. Una tarea creada por cualquiera de ellos
+     * nace NORMAL, exactamente igual que el DEFAULT de la columna.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private ReminderPriority priority = ReminderPriority.NORMAL;
+
     @Version
     @Column(nullable = false)
     private int version;
@@ -122,6 +134,24 @@ public class Reminder {
         Instant now = Instant.now();
         this.createdAt = now;
         this.updatedAt = now;
+    }
+
+    public ReminderPriority getPriority() {
+        return priority;
+    }
+
+    /**
+     * Cambiar la prioridad es un acto propio, no parte de `applyEdit`.
+     *
+     * En el artefacto se toca desde la píldora del detalle sin abrir el
+     * formulario, y esa diferencia importa: `applyEdit` exige título y
+     * reescribe media entidad, mientras que esto mueve un peldaño.
+     */
+    public void changePriority(ReminderPriority priority) {
+        if (priority != null && priority != this.priority) {
+            this.priority = priority;
+            this.updatedAt = Instant.now();
+        }
     }
 
     public UUID getId() {

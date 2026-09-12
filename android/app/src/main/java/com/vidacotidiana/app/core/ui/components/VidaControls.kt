@@ -46,6 +46,7 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.runtime.remember
 import androidx.compose.foundation.clickable
 import androidx.compose.material3.ripple
+import com.vidacotidiana.app.core.ui.VidaLayout
 import com.vidacotidiana.app.core.ui.VidaSpacing
 import com.vidacotidiana.app.core.ui.VidaTheme
 
@@ -133,23 +134,45 @@ fun VidaChipRow(
             val on = option == selected
             val interaction = remember { MutableInteractionSource() }
             val shape = RoundedCornerShape(spec.radii.pill)
-            val bg by animateColorAsState(if (on) c.primary else Color.Transparent, label = "chipBg")
-            val fg by animateColorAsState(if (on) c.onPrimary else c.textSecondary, label = "chipFg")
+            /*
+             * ARTEFACTO MAESTRO, `.chip`:
+             *   reposo      background: var(--sunk);      color: var(--ink2)
+             *   seleccionado background: var(--indigo-c);  color: var(--indigo-dd)
+             *                box-shadow: 0 6px 16px rgba(79,70,229,.22)
+             *   padding: 10px 16px · 13px/600 · radio píldora
+             *
+             * Sin filete en ninguno de los dos estados. El chip anterior pintaba
+             * el acento MACIZO al seleccionar, que sobre una fila de seis chips
+             * gritaba más que el botón de guardar; el artefacto lo resuelve con
+             * el contenedor claro y el acento oscuro encima.
+             */
+            val bg by animateColorAsState(if (on) c.primaryContainer else c.sunken, label = "chipBg")
+            val fg by animateColorAsState(if (on) c.primaryDeep else c.textSecondary, label = "chipFg")
             Box(
                 modifier = Modifier
                     .pressScale(interaction, 0.94f)
+                    .then(
+                        if (on) Modifier.vidaSoftShadow(
+                            corner = spec.radii.pill, color = c.primary,
+                            keyBlur = 16.dp, keyOffsetY = 6.dp, keyAlpha = 0.22f,
+                            ambientBlur = 0.dp, ambientOffsetY = 0.dp, ambientAlpha = 0f,
+                        ) else Modifier,
+                    )
                     .background(bg, shape)
-                    .border(spec.borderWidth, if (on) c.primary else c.border, shape)
                     .clickable(
                         interactionSource = interaction,
                         indication = ripple(color = c.primary),
                         role = Role.RadioButton,
                     ) { onSelect(option) }
-                    .defaultMinSize(minHeight = 40.dp)
-                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                    .defaultMinSize(minHeight = VidaLayout.touchTarget)
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(option, style = MaterialTheme.typography.labelLarge, color = fg)
+                Text(
+                    option,
+                    style = MaterialTheme.typography.labelLarge.copy(fontSize = 13.sp, lineHeight = 17.sp),
+                    color = fg,
+                )
             }
         }
     }
@@ -213,17 +236,30 @@ fun VidaTextField(
     val c = VidaTheme.colors
     val spec = VidaTheme.spec
     val shape = RoundedCornerShape(spec.radii.control)
+    /*
+     * ARTEFACTO MAESTRO, `.field`:
+     *   background: var(--sunk) · border-radius: 18px · padding: 15px 17px
+     *   font-size: 15px / line-height: 20px · placeholder: var(--ink4)
+     *
+     * SIN FILETE. El campo anterior llevaba borde sobre `surfaceElevated`, que
+     * en una hoja con seis campos dibujaba seis rectángulos compitiendo con las
+     * tarjetas. El artefacto hunde el campo en vez de encerrarlo: el contraste
+     * lo da el fondo, no una línea.
+     */
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .background(c.surfaceElevated, shape)
-            .border(spec.borderWidth, c.border, shape)
-            .defaultMinSize(minHeight = 48.dp)
-            .padding(horizontal = 14.dp, vertical = 12.dp),
+            .background(c.sunken, shape)
+            .defaultMinSize(minHeight = 50.dp)
+            .padding(horizontal = 17.dp, vertical = 15.dp),
         contentAlignment = Alignment.CenterStart,
     ) {
         if (value.isEmpty()) {
-            Text(placeholder, style = MaterialTheme.typography.bodyLarge, color = c.textTertiary)
+            Text(
+                placeholder,
+                style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, lineHeight = 20.sp),
+                color = c.textTertiary,
+            )
         }
         BasicTextField(
             value = value,

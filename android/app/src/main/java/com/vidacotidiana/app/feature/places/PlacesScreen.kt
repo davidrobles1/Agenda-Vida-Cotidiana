@@ -15,6 +15,8 @@ import com.vidacotidiana.app.core.ui.components.ResourceEntry
 import com.vidacotidiana.app.core.ui.components.ResourceListScreen
 import com.vidacotidiana.app.core.ui.components.plural
 import kotlinx.coroutines.CoroutineScope
+import com.vidacotidiana.app.core.data.DataSlice
+import com.vidacotidiana.app.core.app.sliceError
 
 /**
  * Lugares (FR-033). Sección secundaria de Laboral: se llega desde el cajón.
@@ -78,7 +80,7 @@ fun PlacesScreen(
         addLabel = "Nuevo lugar",
         emptyBody = "Guarda una dirección a la que vuelvas para no volver a escribirla.",
         loading = state.loading,
-        error = state.error,
+        error = state.sliceError(DataSlice.PLACES),
         onRetry = viewModel::refresh,
         onAdd = { viewModel.requestCreate(CreatableResource.PLACE) },
         drawerState = drawerState,

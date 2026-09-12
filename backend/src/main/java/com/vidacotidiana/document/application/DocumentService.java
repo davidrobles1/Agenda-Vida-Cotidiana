@@ -46,15 +46,18 @@ public class DocumentService {
     private final PersonService personService;
     private final ProjectService projectService;
     private final ResourceSharingService resourceSharingService;
+    private final AttachmentTargets attachmentTargets;
 
     public DocumentService(DocumentRepository documentRepository, UserRepository userRepository,
                             PersonService personService, ProjectService projectService,
-                            ResourceSharingService resourceSharingService) {
+                            ResourceSharingService resourceSharingService,
+                            AttachmentTargets attachmentTargets) {
         this.documentRepository = documentRepository;
         this.userRepository = userRepository;
         this.personService = personService;
         this.projectService = projectService;
         this.resourceSharingService = resourceSharingService;
+        this.attachmentTargets = attachmentTargets;
     }
 
     @Transactional
@@ -308,5 +311,54 @@ public class DocumentService {
             throw new ConflictException("DOCUMENT_VERSION_CONFLICT",
                     "Document " + document.getId() + " was modified concurrently; refetch and retry.");
         }
+    }
+
+    /**
+     * Colgar un documento de un recurso, o soltarlo (V37).
+     *
+     * ES LA MECÁNICA ÚNICA. Garantías, mantenimientos, tareas, artículos y
+     * pagos usan esta misma ruta: no hay un almacén de archivos por módulo.
+     * (El blob propio de `warranties` se conserva solo por compatibilidad
+     * mientras los clientes migran — ver V38.)
+     *
+     * Con los dos campos nulos el documento se DESENGANCHA sin borrarse: sigue
+     * en Documentos, deja de pertenecer a ese registro.
+     */
+    @Transactional
+    public Document link(UUID documentId, UUID callerUserId, String resourceType, UUID resourceId) {
+        Document document = getOwnedOrThrow(documentId, callerUserId);
+
+        // SOLTAR sigue siendo válido y no valida nada: los dos campos nulos
+        // significan «ya no cuelga de ningún sitio». No es un destino ausente,
+        // es la ausencia de destino.
+        boolean detaching = (resourceType == null || resourceType.isBlank()) && resourceId == null;
+        if (!detaching) {
+            // LA PROPIEDAD SE COMPRUEBA EN LOS DOS EXTREMOS.
+            //
+            // Antes solo se validaba el documento, así que un `resourceId`
+            // arbitrario —incluido el de otro usuario— se aceptaba y se
+            // guardaba. Que el cliente ofrezca únicamente destinos válidos no
+            // sustituye a esto: la autorización vive donde está el dato.
+            if (!attachmentTargets.isSupported(resourceType)) {
+                throw new ValidationException(
+                        "No se puede colgar un documento de un «" + resourceType + "». "
+                                + "Tipos admitidos: " + String.join(", ", attachmentTargets.supportedTypes()) + ".");
+            }
+            if (!attachmentTargets.belongsTo(resourceType, resourceId, callerUserId)) {
+                // 404 y no 403: que exista o no un recurso ajeno no se
+                // confirma, misma regla de no-enumeración que el resto (AC-004).
+                throw new NotFoundException("ATTACHMENT_TARGET_NOT_FOUND", "No encontramos ese destino.");
+            }
+        }
+
+        document.linkTo(resourceType, resourceId);
+        return document;
+    }
+
+    /** Los adjuntos de un recurso, del más reciente al más antiguo. */
+    @Transactional(readOnly = true)
+    public List<Document> attachmentsOf(UUID callerUserId, String resourceType, UUID resourceId) {
+        return documentRepository.findByOwnerUserIdAndResourceTypeAndResourceIdOrderByCreatedAtDesc(
+                callerUserId, resourceType, resourceId);
     }
 }

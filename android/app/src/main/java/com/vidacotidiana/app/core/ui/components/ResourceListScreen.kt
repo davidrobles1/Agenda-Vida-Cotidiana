@@ -98,6 +98,28 @@ fun ResourceListScreen(
     entries: List<ResourceEntry>,
     filters: List<String>,
     metrics: List<Triple<String, String, String>> = emptyList(),
+    /**
+     * Composición propia de la sección, encima de la búsqueda.
+     *
+     * La tira de métricas sirve para «7 · al mes», pero el artefacto pone en
+     * varias secciones piezas que no son cifras sueltas: los anillos de hábito
+     * de Rutinas, la retícula de severidades de Garantías. Sin este hueco,
+     * cada pantalla tendría que abandonar `ResourceListScreen` y reimplementar
+     * cabecera, búsqueda, filtros y estados — que es exactamente cómo aparecen
+     * cuatro versiones distintas de la misma pantalla.
+     *
+     * Vacío por defecto: ninguna de las llamadas existentes cambia.
+     */
+    header: @Composable () -> Unit = {},
+    /**
+     * Abrir el registro en SU PANTALLA en vez de en la hoja interna.
+     *
+     * El artefacto le da pantalla propia a pago, mantenimiento, persona y
+     * proyecto, con héroe, propiedades y secciones — eso no cabe en una hoja.
+     * Cuando se pasa, la lista navega; cuando no, se conserva exactamente el
+     * comportamiento anterior, así que ninguna sección existente cambia.
+     */
+    onOpenRoute: ((ResourceEntry) -> Unit)? = null,
     addLabel: String,
     emptyBody: String,
     drawerState: DrawerState,
@@ -149,7 +171,17 @@ fun ResourceListScreen(
             VidaIconButton(Icons.Outlined.Notifications, "Notificaciones", badge = true, onClick = onNotifications)
         },
     ) {
-        if (metrics.isNotEmpty()) {
+        // UNA CIFRA ES UNA AFIRMACIÓN SOBRE LOS DATOS, y cuando la carga falló
+        // no tenemos datos sobre los que afirmar nada.
+        //
+        // Antes las métricas y la cabecera se componían siempre, así que la
+        // pantalla llegaba a decir «0 compromisos · todo al día» justo encima
+        // de «No pudimos cargar esta sección». Callarlas no es esconder
+        // información: es no inventarla. Cuando hay datos en memoria de una
+        // carga anterior sí se siguen mostrando — ahí la cifra sí tiene
+        // respaldo, y borrarla castigaría al usuario por un fallo de red.
+        val untrusted = error != null && entries.isEmpty()
+        if (metrics.isNotEmpty() && !untrusted) {
             StaggeredAppear(0) {
                 Row(
                     Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
@@ -159,13 +191,18 @@ fun ResourceListScreen(
                 }
             }
         }
-        StaggeredAppear(1) {
+        if (!untrusted) StaggeredAppear(1) { header() }
+        StaggeredAppear(2) {
             VidaSearchField(query, { query = it }, "Buscar en ${title.lowercase()}…")
         }
         if (filters.isNotEmpty()) {
             StaggeredAppear(2) { VidaChipRow(filters, filter, { filter = it }) }
         }
-        StaggeredAppear(3) { Eyebrow(if (selecting) "${selected.size} seleccionados" else eyebrow) }
+        // El antetítulo («1 REGISTRADA», «0 ARTÍCULOS») es un recuento, y por
+        // tanto la misma clase de afirmación que las métricas de arriba.
+        if (!untrusted) {
+            StaggeredAppear(3) { Eyebrow(if (selecting) "${selected.size} seleccionados" else eyebrow) }
+        }
 
         // La barra de selección vive DEBAJO de los filtros, no en la cabecera:
         // lo que se descarga es lo que el filtro y la búsqueda dejaron a la
@@ -245,7 +282,7 @@ fun ResourceListScreen(
             StaggeredAppear(4) {
                 ResourceBoard(
                     entries = visible,
-                    onOpenDetail = { detail = it },
+                    onOpenDetail = { entry -> onOpenRoute?.invoke(entry) ?: run { detail = entry } },
                     selecting = selecting,
                     selectedIds = selected,
                     onToggleSelect = { entry ->

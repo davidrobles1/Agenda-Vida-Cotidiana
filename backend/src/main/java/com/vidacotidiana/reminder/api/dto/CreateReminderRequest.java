@@ -29,6 +29,12 @@ public record CreateReminderRequest(
         @Size(max = 32) String stickerId,
         UUID personId,
         UUID projectId,
-        @Size(max = 500) String location
+        @Size(max = 500) String location,
+        /**
+         * V33 — cuánto aprieta. Opcional por el mismo motivo que `context`:
+         * las pantallas anteriores a esta migración no lo envían, y hacerlo
+         * obligatorio las rompería el día del merge. Ausente significa NORMAL.
+         */
+        @Pattern(regexp = "LOW|NORMAL|URGENT") String priority
 ) {
 }

@@ -88,6 +88,17 @@ data class Document(
     val sizeLabel: String,
     val dateLabel: String,
     val visibility: String,
+    /**
+     * El tamaño en crudo, además de la etiqueta ya formateada.
+     *
+     * `sizeLabel` sirve para pintar «240 KB» en una fila, pero no para SUMAR:
+     * el total de espacio de la sección necesita el número. El DTO ya lo traía
+     * y el dominio lo descartaba.
+     */
+    val sizeBytes: Long = 0,
+    /** V37: de qué recurso cuelga, si cuelga de alguno. Nulo = suelto. */
+    val resourceType: String? = null,
+    val resourceId: String? = null,
     val version: Int,
 )
 
@@ -178,6 +189,15 @@ data class Routine(
     val frequency: String,
     val nextExecutionDate: LocalDate,
     val active: Boolean,
+    /**
+     * V35 — meta diaria y unidad. Nulos = rutina de sí/no.
+     *
+     * Es lo que separa «Sacar la basura», que se marca hecha, de «Agua», que
+     * lleva un anillo con 4 de 8. Sin meta no hay contador y el artefacto
+     * dibuja la rutina como casilla, no como anillo.
+     */
+    val targetCount: Int? = null,
+    val unit: String? = null,
     val version: Int,
 )
 
@@ -249,6 +269,22 @@ data class InboxNote(
 )
 
 /** Todo lo que la aplicación necesita para pintarse, en una sola carga. */
+/**
+ * CADA COLECCIÓN QUE SE CARGA POR SEPARADO.
+ *
+ * Existe porque `loadAll` lanza diecinueve peticiones independientes y hasta
+ * ahora las resolvía todas en el mismo saco: una lista vacía significaba a la
+ * vez «no tienes nada» y «no pude preguntarlo». Con una porción por colección,
+ * el fallo de cada una sobrevive hasta la pantalla que la enseña, y ninguna
+ * otra sección tiene que fingir que también falló.
+ */
+enum class DataSlice {
+    WARRANTIES, MAINTENANCE, INVENTORY, DOCUMENTS, PAYMENTS,
+    FAMILY_MEMBERS, INVITATIONS, SHARED_WITH_ME, SHARED_BY_ME,
+    PEOPLE, PROJECTS, COMMITMENTS, OBJECTIVES, ROUTINES,
+    WORK_RESOURCES, PLACES, INBOX, PARTICIPATIONS, PAYMENT_RECORDS,
+}
+
 data class VidaData(
     val warranties: List<Warranty> = emptyList(),
     val maintenance: List<MaintenanceRecord> = emptyList(),
@@ -273,7 +309,37 @@ data class VidaData(
     val participations: List<ProjectParticipation> = emptyList(),
     /** ADR-020(f): ciclos ya pagados. Ver `PaymentRecord`. */
     val paymentRecords: List<PaymentRecord> = emptyList(),
-)
+    /**
+     * QUÉ COLECCIONES NO SE PUDIERON CARGAR.
+     *
+     * Es la pieza que impide que un vacío mienta (ADR-021 k). La lista de una
+     * porción que está aquí NO dice nada sobre lo que el usuario tiene: dice
+     * que no pudimos preguntarlo. Quien pinte un estado vacío o una cifra
+     * tiene que mirar esto antes, y `AppUiState.sliceError` es el atajo para
+     * hacerlo en una línea.
+     */
+    val failed: Set<DataSlice> = emptySet(),
+) {
+    /**
+     * TODAS las colecciones, una sola vez y en un solo sitio.
+     *
+     * «En total» sumaba a mano ocho de estos campos, así que dejaba fuera
+     * objetivos, proyectos, personas y lo compartido —y cada colección nueva
+     * quedaba fuera también, salvo que alguien se acordara de editar aquella
+     * línea—. Enumerarlas aquí, junto a su declaración, hace que olvidarse sea
+     * mucho más difícil: quien añada un campo arriba lo tiene a la vista.
+     *
+     * No incluye `participations` ni `paymentRecords`: no son cosas que el
+     * usuario haya dado de alta, sino relaciones y registros derivados de
+     * otras. Contarlas inflaría el total con filas que él nunca creó.
+     */
+    val collections: List<List<Any>>
+        get() = listOf(
+            warranties, maintenance, inventory, documents, payments,
+            familyMembers, sharedWithMe, sharedByMe, people, projects,
+            commitments, objectives, routines, workResources, places, inbox,
+        )
+}
 
 /**
  * Un ciclo de pago ya registrado (ADR-020(f)).
@@ -368,26 +434,64 @@ class VidaRepository @Inject constructor(
             val places = async { runCatching { laboralApi.places().items.map { it.toDomain() } } }
             val paymentRecords = async { runCatching { subscriptionApi.paymentRecords().map { it.toDomain() } } }
 
+            // EL FALLO DE CADA PORCIÓN SE ANOTA, NO SE TIRA.
+            //
+            // Antes esto era `getOrDefault(emptyList())` diecinueve veces, y
+            // ahí moría la única información que distinguía «no tienes nada»
+            // de «no pude preguntarlo». La lista vacía sigue estando —las
+            // pantallas necesitan algo que recorrer mientras se resuelve la
+            // pantalla de error— pero ahora viene acompañada de la verdad.
+            val failed = mutableSetOf<DataSlice>()
+            fun <T> Result<List<T>>.recorded(slice: DataSlice): List<T> {
+                if (isFailure) failed += slice
+                return getOrDefault(emptyList())
+            }
+
+            // Se resuelven en variables antes de construir `VidaData` para que
+            // `failed` esté completo cuando se lee: si se anotara dentro de la
+            // propia llamada al constructor, el orden de evaluación decidiría
+            // en silencio cuántos fallos se ven.
+            val vWarranties = warranties.await().recorded(DataSlice.WARRANTIES)
+            val vMaintenance = maintenance.await().recorded(DataSlice.MAINTENANCE)
+            val vInventory = inventory.await().recorded(DataSlice.INVENTORY)
+            val vDocuments = documents.await().recorded(DataSlice.DOCUMENTS)
+            val vPayments = payments.await().recorded(DataSlice.PAYMENTS)
+            val vMembers = members.await().recorded(DataSlice.FAMILY_MEMBERS)
+            val vInvitations = invitations.await().recorded(DataSlice.INVITATIONS)
+            val vSharedIn = sharedIn.await().recorded(DataSlice.SHARED_WITH_ME)
+            val vSharedOut = sharedOut.await().recorded(DataSlice.SHARED_BY_ME)
+            val vPeople = people.await().recorded(DataSlice.PEOPLE)
+            val vProjects = projects.await().recorded(DataSlice.PROJECTS)
+            val vCommitments = commitments.await().recorded(DataSlice.COMMITMENTS)
+            val vObjectives = objectives.await().recorded(DataSlice.OBJECTIVES)
+            val vRoutines = routines.await().recorded(DataSlice.ROUTINES)
+            val vWorkResources = workResources.await().recorded(DataSlice.WORK_RESOURCES)
+            val vPlaces = places.await().recorded(DataSlice.PLACES)
+            val vInbox = notes.await().recorded(DataSlice.INBOX)
+            val vParticipations = participations.await().recorded(DataSlice.PARTICIPATIONS)
+            val vPaymentRecords = paymentRecords.await().recorded(DataSlice.PAYMENT_RECORDS)
+
             VidaData(
-                warranties = warranties.await().getOrDefault(emptyList()),
-                maintenance = maintenance.await().getOrDefault(emptyList()),
-                inventory = inventory.await().getOrDefault(emptyList()),
-                documents = documents.await().getOrDefault(emptyList()),
-                payments = payments.await().getOrDefault(emptyList()),
-                familyMembers = members.await().getOrDefault(emptyList()),
-                receivedInvitations = invitations.await().getOrDefault(emptyList()),
-                sharedWithMe = sharedIn.await().getOrDefault(emptyList()),
-                sharedByMe = sharedOut.await().getOrDefault(emptyList()),
-                people = people.await().getOrDefault(emptyList()),
-                projects = projects.await().getOrDefault(emptyList()),
-                commitments = commitments.await().getOrDefault(emptyList()),
-                objectives = objectives.await().getOrDefault(emptyList()),
-                routines = routines.await().getOrDefault(emptyList()),
-                workResources = workResources.await().getOrDefault(emptyList()),
-                places = places.await().getOrDefault(emptyList()),
-                inbox = notes.await().getOrDefault(emptyList()),
-                participations = participations.await().getOrDefault(emptyList()),
-                paymentRecords = paymentRecords.await().getOrDefault(emptyList()),
+                warranties = vWarranties,
+                maintenance = vMaintenance,
+                inventory = vInventory,
+                documents = vDocuments,
+                payments = vPayments,
+                familyMembers = vMembers,
+                receivedInvitations = vInvitations,
+                sharedWithMe = vSharedIn,
+                sharedByMe = vSharedOut,
+                people = vPeople,
+                projects = vProjects,
+                commitments = vCommitments,
+                objectives = vObjectives,
+                routines = vRoutines,
+                workResources = vWorkResources,
+                places = vPlaces,
+                inbox = vInbox,
+                participations = vParticipations,
+                paymentRecords = vPaymentRecords,
+                failed = failed,
             )
         }
     }
@@ -1030,6 +1134,8 @@ private fun com.vidacotidiana.app.core.network.RoutineDto.toDomain() = Routine(
     // toda la lista de rutinas por un registro.
     nextExecutionDate = parseDate(nextExecutionDate) ?: LocalDate.now(),
     active = active,
+    targetCount = targetCount,
+    unit = unit,
     version = version,
 )
 
@@ -1072,13 +1178,31 @@ private fun DocumentDto.toDomain() = Document(
     sizeLabel = humanSize(sizeBytes),
     dateLabel = parseDate(createdAt)?.label() ?: "—",
     visibility = visibility,
+    sizeBytes = sizeBytes,
+    resourceType = resourceType,
+    resourceId = resourceId,
     version = version,
 )
 
-private fun humanSize(bytes: Long): String = when {
-    bytes >= 1_048_576 -> String.format(Locale.US, "%.1f MB", bytes / 1_048_576.0)
-    bytes >= 1024 -> String.format(Locale.US, "%.0f KB", bytes / 1024.0)
-    else -> "$bytes B"
+/**
+ * El tamaño con la unidad que le corresponde: B, KB o MB según la magnitud.
+ *
+ * Deja de ser privado porque la cifra de «Espacio» de Documentos formateaba
+ * por su cuenta y siempre en megas, así que un archivo de 1 KB se anunciaba
+ * como «0.0 MB» —un contador diciendo cero justo al lado de la lista que
+ * mostraba el archivo y su tamaño real—. Ya había un formateador correcto en
+ * la aplicación; sólo no se podía llamar desde fuera.
+ */
+fun humanSize(bytes: Long): String {
+    val (value, unit) = humanSizeParts(bytes)
+    return "$value $unit"
+}
+
+/** Lo mismo, partido, para quien pinta la cifra y la unidad por separado. */
+fun humanSizeParts(bytes: Long): Pair<String, String> = when {
+    bytes >= 1_048_576 -> String.format(Locale.US, "%.1f", bytes / 1_048_576.0) to "MB"
+    bytes >= 1024 -> String.format(Locale.US, "%.0f", bytes / 1024.0) to "KB"
+    else -> "$bytes" to "B"
 }
 
 private fun SubscriptionDto.toDomain(): Payment {

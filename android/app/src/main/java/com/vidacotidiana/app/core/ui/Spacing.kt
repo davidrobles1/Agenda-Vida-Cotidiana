@@ -28,17 +28,27 @@ object VidaSpacing {
  * el medio paso de 4) y no inventan medidas nuevas.
  */
 object VidaLayout {
+    /*
+     * ARTEFACTO MAESTRO — los cuatro huecos se transcriben de su CSS:
+     *   .pad     → padding: 0 20px   → gutter 20
+     *   .gap-l   → 24px              → sectionGap 24
+     *   .gap     → 16px              → blockGap 16
+     *   listas   → gap: 10px         → itemGap 10
+     * Antes eran 16/20/12/8. §2 prohíbe sustituir un espaciado por otro
+     * «parecido», así que se mueven a los del artefacto en vez de aproximarlos.
+     */
+
     /** Margen lateral de toda pantalla. Constante en las diecisiete secciones. */
-    val gutter: Dp = 16.dp
+    val gutter: Dp = 20.dp
 
     /** Entre dos secciones con antetítulo propio. El respiro mayor de la página. */
-    val sectionGap: Dp = 20.dp
+    val sectionGap: Dp = 24.dp
 
     /** Entre bloques dentro de una misma sección. */
-    val blockGap: Dp = 12.dp
+    val blockGap: Dp = 16.dp
 
     /** Entre piezas hermanas de una lista o una rejilla. */
-    val itemGap: Dp = 8.dp
+    val itemGap: Dp = 10.dp
 
     /** Padding interno de una tarjeta de contenido. */
     val cardPadding: Dp = 16.dp

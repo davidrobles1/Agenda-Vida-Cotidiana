@@ -60,6 +60,8 @@ import com.vidacotidiana.app.core.ui.components.VidaPill
 import com.vidacotidiana.app.core.ui.components.PillTone
 import com.vidacotidiana.app.core.ui.components.VidaScreen
 import com.vidacotidiana.app.core.ui.components.VidaSegmented
+import com.vidacotidiana.app.core.ui.components.VidaTileRow
+import com.vidacotidiana.app.core.ui.components.VidaTileSpec
 import com.vidacotidiana.app.core.ui.components.VidaSmallButton
 import com.vidacotidiana.app.core.ui.components.openDrawerAction
 import com.vidacotidiana.app.core.ui.components.vidaSurface
@@ -288,6 +290,42 @@ private fun MonthDensity(
             VidaSmallButton("Hoy", { viewModel.goToToday() }, ghost = selected != today)
         }
 
+        // LA RETÍCULA DEL ARTEFACTO, Y ARRIBA.
+        //
+        // Estas tres cifras ya existían, pero vivían AL PIE de la rejilla, en
+        // tres cajitas centradas que había que bajar a buscar. Un resumen que
+        // se lee después de lo que resume no resume nada: llega cuando ya
+        // recorriste el mes celda a celda.
+        //
+        // Ahora abren, como en todas las demás secciones, y con las piezas del
+        // artefacto en vez de con un componente propio de esta pantalla.
+        //
+        // «El día más cargado» baja al pie de su pieza: es un matiz de «este
+        // mes», no una tercera cifra del mismo rango.
+        VidaTileRow(
+            listOf(
+                VidaTileSpec(
+                    "Este mes", monthTasks.toString(),
+                    busiest?.takeIf { viewModel.contentFor(it.date).total > 0 }
+                        ?.let { "tareas · el ${it.date.dayOfMonth} es el más cargado" }
+                        ?: "tareas",
+                    c.primaryContainer, c.primary, c.primaryDeep,
+                    weight = 1.32f,
+                ),
+                VidaTileSpec(
+                    "Avisos", monthAlerts.toString(), "derivados",
+                    if (monthAlerts == 0) c.successContainer else c.warningContainer,
+                    if (monthAlerts == 0) c.successText else c.warningText,
+                    if (monthAlerts == 0) c.successText else c.warningText,
+                ),
+                VidaTileSpec(
+                    "Hoy", viewModel.contentFor(today).total.toString(), "en tu día",
+                    c.sunken, c.text, c.textSecondary,
+                    onClick = { viewModel.goToToday() },
+                ),
+            ),
+        )
+
         CalendarLegend()
 
         // La rejilla, con gesto horizontal para cambiar de mes: mismo umbral
@@ -314,17 +352,6 @@ private fun MonthDensity(
                 dayPanel = {
                     DayPanel(viewModel, selected, today, now, onAlert, onTask)
                 },
-            )
-        }
-
-        // Pie: tres cifras derivadas de lo que la rejilla acaba de pintar.
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(VidaSpacing.sm)) {
-            MiniStat(viewModel.contentFor(today).total.toString(), "hoy", Modifier.weight(1f))
-            MiniStat(monthAlerts.toString(), "avisos del mes", Modifier.weight(1f))
-            MiniStat(
-                busiest?.takeIf { viewModel.contentFor(it.date).total > 0 }?.date?.dayOfMonth?.toString() ?: "—",
-                "día más cargado",
-                Modifier.weight(1f),
             )
         }
     }
@@ -476,17 +503,3 @@ private fun CalendarLegend() {
     }
 }
 
-@Composable
-private fun MiniStat(value: String, caption: String, modifier: Modifier = Modifier) {
-    val c = VidaTheme.colors
-    val spec = VidaTheme.spec
-    Column(
-        modifier
-            .background(c.sunken, RoundedCornerShape(spec.radii.control))
-            .padding(vertical = 10.dp, horizontal = 8.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(value, style = MaterialTheme.typography.titleLarge, color = c.text)
-        Text(caption, style = VidaTheme.type.micro, color = c.textSecondary, textAlign = TextAlign.Center)
-    }
-}

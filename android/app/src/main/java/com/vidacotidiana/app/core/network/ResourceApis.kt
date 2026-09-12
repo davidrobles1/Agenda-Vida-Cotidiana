@@ -325,8 +325,24 @@ data class DocumentDto(
     val visibility: String,
     val sharedWithEmail: String? = null,
     val context: String? = null,
+    /**
+     * V37 — de qué recurso cuelga este documento, si cuelga de alguno.
+     *
+     * Nulos = documento suelto, que es el caso de todos los anteriores a esa
+     * migración. Es la mecánica ÚNICA de adjuntos: garantías, mantenimientos,
+     * tareas, artículos y pagos pasan por aquí, no por un almacén propio.
+     */
+    val resourceType: String? = null,
+    val resourceId: String? = null,
     val version: Int = 0,
     val createdAt: String? = null,
+)
+
+/** Colgar de un recurso — o soltar, con los dos nulos. No borra el documento. */
+@Serializable
+data class LinkDocumentRequest(
+    val resourceType: String? = null,
+    val resourceId: String? = null,
 )
 
 /**
@@ -346,6 +362,21 @@ interface DocumentApi {
         @Query("context") context: String? = null,
         @Query("size") size: Int = MAX_PAGE_SIZE,
     ): Page<DocumentDto>
+
+    /**
+     * Los adjuntos de UN recurso. Devuelve lista, no página: un registro tiene
+     * unos pocos adjuntos, y paginarlos sería pedir una segunda vuelta por algo
+     * que cabe entero.
+     */
+    @GET("documents/attachments")
+    suspend fun attachments(
+        @Query("resourceType") resourceType: String,
+        @Query("resourceId") resourceId: String,
+    ): List<DocumentDto>
+
+    /** Colgar o soltar. Endpoint propio: enganchar no es editar el documento. */
+    @POST("documents/{id}/link")
+    suspend fun link(@Path("id") id: String, @Body request: LinkDocumentRequest): DocumentDto
 
     /** Multipart, como garantías: un documento ES su archivo. */
     @Multipart
@@ -617,6 +648,13 @@ data class RoutineDto(
     val frequency: String,
     val nextExecutionDate: String,
     val active: Boolean = true,
+    /**
+     * V35 — meta diaria del hábito y su unidad. Nulos = rutina de sí/no, que es
+     * como se comportan todas las anteriores a esa migración. Es lo que
+     * distingue «Sacar la basura» (hecha o no) de «Agua: 4 de 8».
+     */
+    val targetCount: Int? = null,
+    val unit: String? = null,
     val version: Int = 0,
 )
 

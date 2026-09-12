@@ -19,6 +19,8 @@ import com.vidacotidiana.app.core.ui.components.ResourceListScreen
 import com.vidacotidiana.app.core.ui.components.plural
 import kotlinx.coroutines.CoroutineScope
 import com.vidacotidiana.app.core.ui.VidaVocabulary
+import com.vidacotidiana.app.core.data.DataSlice
+import com.vidacotidiana.app.core.app.sliceError
 
 /**
  * Recursos de trabajo (FR-034).
@@ -92,7 +94,7 @@ fun WorkResourcesScreen(
         addLabel = "Nuevo recurso",
         emptyBody = "Guarda un enlace, una plantilla o un manual para tenerlo a mano.",
         loading = state.loading,
-        error = state.error,
+        error = state.sliceError(DataSlice.WORK_RESOURCES),
         onRetry = viewModel::refresh,
         onAdd = { viewModel.requestCreate(CreatableResource.WORK_RESOURCE) },
         // El filtro es el TIPO real, no una categoría inventada: la píldora ya

@@ -143,6 +143,16 @@ data class DayTask(
      * cuatro formas distintas de escribir lo mismo.
      */
     val location: String? = null,
+    /**
+     * El día al que pertenece, cuando lo tiene.
+     *
+     * `meta` ya llevaba la fecha, pero como TEXTO de presentación
+     * ("2026-09-07" o "Sin fecha"): sirve para pintarla y no para razonar sobre
+     * ella. Sin este campo, saber si una tarea está atrasada obligaba a
+     * re-parsear una cadena pensada para leerse. La fecha existe desde siempre
+     * en `reminders.dueAt`; lo único que faltaba era exponerla.
+     */
+    val date: LocalDate? = null,
 )
 
 /** Lo que un día contiene: los tres ritmos que el calendario superpone. */

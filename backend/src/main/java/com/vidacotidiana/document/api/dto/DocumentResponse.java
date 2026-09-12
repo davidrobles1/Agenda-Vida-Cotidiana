@@ -21,6 +21,9 @@ public record DocumentResponse(
         String sharedWithEmail,
         UUID personId,
         UUID projectId,
+        /** V37: de qué recurso cuelga. Nulo = documento suelto. */
+        String resourceType,
+        UUID resourceId,
         /** ADR-022: módulo propietario del recurso (el del dueño, no el de
             quien lo recibe compartido). */
         String context,
@@ -40,6 +43,8 @@ public record DocumentResponse(
                 document.getSharedWithEmail(),
                 document.getPersonId(),
                 document.getProjectId(),
+                document.getResourceType(),
+                document.getResourceId(),
                 document.getContext().name(),
                 document.getVersion(),
                 document.getCreatedAt(),

@@ -17,6 +17,13 @@ public record RoutineResponse(
         RoutineFrequency frequency,
         Instant nextExecutionDate,
         boolean active,
+        /**
+         * V35 — meta diaria y unidad. Nulos = rutina de sí/no, que es como se
+         * comportan todas las anteriores a esta migración. Sin exponerlos aquí,
+         * el cliente no podría dibujar el anillo «4 de 8» del artefacto.
+         */
+        Integer targetCount,
+        String unit,
         int version,
         Instant createdAt,
         Instant updatedAt
@@ -30,6 +37,8 @@ public record RoutineResponse(
                 routine.getFrequency(),
                 routine.getNextExecutionDate(),
                 routine.isActive(),
+                routine.getTargetCount(),
+                routine.getUnit(),
                 routine.getVersion(),
                 routine.getCreatedAt(),
                 routine.getUpdatedAt()

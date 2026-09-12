@@ -19,4 +19,13 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, UUID
      * otro.
      */
     Page<Subscription> findByOwnerUserIdAndContext(UUID ownerUserId, ModuleContext context, Pageable pageable);
+
+    /**
+     * ¿Existe este registro Y es de este usuario?
+     *
+     * Lo usa la validación de adjuntos: colgar un documento de un recurso
+     * exige comprobar el DESTINO, no solo el documento. Spring Data deriva la
+     * consulta del nombre, así que no hay implementación que mantener.
+     */
+    boolean existsByIdAndOwnerUserId(UUID id, UUID ownerUserId);
 }

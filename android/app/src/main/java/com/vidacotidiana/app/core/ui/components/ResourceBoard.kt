@@ -524,7 +524,11 @@ private fun ResourceRowItem(
                 entry.title,
                 style = t.cardTitle,
                 color = c.text,
-                maxLines = 1,
+                // Dos líneas, no una: la fila ya crece con su contenido, y el
+                // nombre es lo que identifica la pieza. Con una píldora a la
+                // derecha, un título medianamente largo se cortaba —«Impermea-
+                // bilizar la a…»— y perdía justamente el dato que lo distingue.
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
             if (entry.subtitle.isNotBlank()) {

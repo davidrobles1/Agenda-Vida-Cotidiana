@@ -26,6 +26,8 @@ public record ReminderResponse(
         UUID personId,
         UUID projectId,
         String location,
+        /** V33: LOW | NORMAL | URGENT. Nunca nulo — el default es NORMAL. */
+        String priority,
         int version,
         Instant createdAt,
         Instant updatedAt
@@ -44,6 +46,7 @@ public record ReminderResponse(
                 reminder.getPersonId(),
                 reminder.getProjectId(),
                 reminder.getLocation(),
+                reminder.getPriority().name(),
                 reminder.getVersion(),
                 reminder.getCreatedAt(),
                 reminder.getUpdatedAt()

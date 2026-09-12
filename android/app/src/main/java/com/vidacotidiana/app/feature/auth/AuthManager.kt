@@ -181,7 +181,25 @@ class AuthManager @Inject constructor(
                     // pasa la sesion esta cerrada de hecho, y decirlo aqui es
                     // lo que permite que la interfaz reaccione en vez de
                     // quedarse mostrando datos de una sesion que ya no existe.
-                    _isLoggedIn.value = false
+                    //
+                    // Y HAY QUE BORRARLA DE DISCO, no solo apagar la bandera.
+                    // Antes solo se ponia `_isLoggedIn = false`: la interfaz
+                    // reaccionaba en esa ejecucion, pero `authState` seguia
+                    // guardado como autorizado, y al abrir la app otra vez la
+                    // linea que inicializa `_isLoggedIn` con
+                    // `authState.isAuthorized` resucitaba la sesion muerta. El
+                    // resultado era una app permanentemente "con sesion" que
+                    // recibia 401 en cada peticion y nunca ofrecia volver a
+                    // entrar — ni relanzandola. Pasa siempre que el servidor de
+                    // identidad se reinicia sin conservar su almacenamiento:
+                    // el refresh token queda emitido por un realm que ya no
+                    // existe y no hay refresco posible.
+                    //
+                    // `logout()` es exactamente esto, pero ademas es lo que
+                    // llama el boton de Cerrar sesion: reutilizarlo garantiza
+                    // que una sesion caducada y una cerrada a mano dejen el
+                    // dispositivo en el mismo estado.
+                    logout()
                     continuation.resume(null)
                 } else {
                     tokenStore.saveAuthState(authState)

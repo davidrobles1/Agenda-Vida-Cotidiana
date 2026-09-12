@@ -343,8 +343,5 @@ private fun DrawerItem(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
-        destination.count?.let {
-            Text(it.toString(), style = MaterialTheme.typography.labelLarge, color = c.textTertiary)
-        }
     }
 }

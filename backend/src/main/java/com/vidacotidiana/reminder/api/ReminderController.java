@@ -48,7 +48,8 @@ public class ReminderController {
     public ResponseEntity<ReminderResponse> create(@Valid @RequestBody CreateReminderRequest request) {
         Reminder created = reminderService.create(
                 currentUser.userId(), request.title(), request.description(), request.dueAt(), request.context(),
-                request.iconId(), request.stickerId(), request.personId(), request.projectId(), request.location());
+                request.iconId(), request.stickerId(), request.personId(), request.projectId(), request.location(),
+                request.priority());
         return ResponseEntity.status(HttpStatus.CREATED).body(ReminderResponse.from(created));
     }
 

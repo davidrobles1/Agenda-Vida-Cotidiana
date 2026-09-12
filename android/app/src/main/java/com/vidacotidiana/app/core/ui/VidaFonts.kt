@@ -61,12 +61,20 @@ object VidaFonts {
         Font(R.font.caveat_600, FontWeight.SemiBold),
     )
 
-    /** Aurora. */
+    /**
+     * Aurora — y, desde el artefacto maestro, también Claro y Noche.
+     *
+     * El 700 se añadió para el artefacto: sus cifras grandes van en Sora Bold y
+     * los títulos en SemiBold, y esa diferencia de peso es lo que hace que un
+     * «27» pese como dato y no como encabezado. Sin este fichero, Compose caía
+     * al 600 más cercano y las dos jerarquías se veían iguales.
+     */
     val Sora = FontFamily(
         Font(R.font.sora_200, FontWeight.ExtraLight),
         Font(R.font.sora_300, FontWeight.Light),
         Font(R.font.sora_400, FontWeight.Normal),
         Font(R.font.sora_600, FontWeight.SemiBold),
+        Font(R.font.sora_700, FontWeight.Bold),
     )
 
     /** Lumen — cuerpo y display a la vez. */

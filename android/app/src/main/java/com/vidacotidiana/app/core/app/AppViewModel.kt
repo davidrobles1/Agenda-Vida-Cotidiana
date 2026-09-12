@@ -7,9 +7,17 @@ import com.vidacotidiana.app.core.calendar.AlertSourceRecord
 import com.vidacotidiana.app.core.calendar.DateAlert
 import com.vidacotidiana.app.core.calendar.DayContent
 import com.vidacotidiana.app.core.calendar.DayTask
+import com.vidacotidiana.app.core.data.DataSlice
 import com.vidacotidiana.app.core.data.DayNote
 import com.vidacotidiana.app.core.data.DayNotesRepository
 import com.vidacotidiana.app.core.data.FilePayload
+import com.vidacotidiana.app.core.data.AttachTo
+import com.vidacotidiana.app.core.data.Attachment
+import com.vidacotidiana.app.core.data.Mood
+import com.vidacotidiana.app.core.network.CurrentUser
+import com.vidacotidiana.app.core.network.UserApi
+import com.vidacotidiana.app.core.data.TaskStep
+import com.vidacotidiana.app.core.data.WellbeingRepository
 import com.vidacotidiana.app.core.data.FileReader
 import com.vidacotidiana.app.core.data.UserSearchResult
 import com.vidacotidiana.app.core.data.VidaData
@@ -63,10 +71,58 @@ data class AppUiState(
     val reminders: List<Reminder> = emptyList(),
     val data: VidaData = VidaData(),
     val loading: Boolean = true,
+    /**
+     * El fallo de la carga de TAREAS. Vive aparte de `data.failed` porque los
+     * recordatorios no viajan dentro de `VidaData`: se piden por su cuenta.
+     *
+     * Antes esta era la ÚNICA petición cuyo fallo llegaba a la interfaz, y por
+     * eso mandaba sobre todas las demás: si caía, las diecinueve secciones
+     * decían haber fallado aunque hubieran cargado bien; y si respondía, el
+     * fallo de las otras diecinueve no lo contaba nadie.
+     */
+    val remindersFailed: Boolean = false,
+    /**
+     * Algo falló en la última carga, sea lo que sea. Sirve para lo transversal
+     * —Inicio, que mira las siete fuentes— no para que una sección concreta
+     * decida: para eso está [sliceError], que sólo mira lo suyo.
+     */
     val error: String? = null,
     /** Notas del día seleccionado, tal como las devuelve el servicio. */
     val notes: List<DayNote> = emptyList(),
     val notesLoading: Boolean = false,
+
+    /* ── Las tres capacidades del artefacto (V34/V35/V36) ────────────────── */
+
+    /**
+     * El ánimo de HOY. `null` no es un error: es que el día aún no se ha
+     * marcado, que es el estado normal al abrir por primera vez.
+     */
+    /** La cuenta de quien ha entrado. `/api/v1/me`, no un dato inventado. */
+    val user: CurrentUser? = null,
+
+    val moodToday: Mood? = null,
+    /** La semana que pinta Bienestar. */
+    val moodWeek: List<Mood> = emptyList(),
+    val moodLoading: Boolean = false,
+    val moodError: String? = null,
+
+    /**
+     * Los pasos de la tarea abierta. Se cargan al entrar en el detalle y no en
+     * `loadAll`: pedirlos para las veinte tareas de una lista serían veinte
+     * peticiones para pintar dos líneas.
+     */
+    val steps: List<TaskStep> = emptyList(),
+    val stepsFor: String? = null,
+    val stepsLoading: Boolean = false,
+    val stepsError: String? = null,
+
+    /** Los adjuntos del recurso abierto (V37). Mecánica única para los cinco tipos. */
+    val attachments: List<Attachment> = emptyList(),
+    val attachmentsFor: String? = null,
+    val attachmentsLoading: Boolean = false,
+
+    /** Lo hecho HOY de cada hábito, por id de rutina. */
+    val habitToday: Map<String, Int> = emptyMap(),
     /** Búsqueda de usuarios de Familia (ADR-025 §1). */
     val userSearch: List<UserSearchResult> = emptyList(),
     val searching: Boolean = false,
@@ -90,6 +146,36 @@ data class AppUiState(
     val formInitialValues: Map<String, String> = emptyMap(),
 )
 
+/** El texto con el que se cuenta un fallo de carga. Uno solo, en un sitio. */
+const val LOAD_FAILED = "No se pudo cargar"
+
+/**
+ * ¿Puede ESTA sección afirmar algo sobre sus datos?
+ *
+ * Devuelve el error si su porción falló, y `null` si cargó —aunque otras
+ * porciones hayan fallado—. Es lo que permite que Garantías diga la verdad
+ * sobre garantías mientras Pagos dice la verdad sobre pagos, en vez de que un
+ * único error global las obligue a todas a la misma respuesta.
+ */
+fun AppUiState.sliceError(slice: DataSlice): String? =
+    if (slice in data.failed) LOAD_FAILED else null
+
+/** Lo mismo para las tareas, que se piden fuera de `VidaData`. */
+val AppUiState.tasksError: String?
+    get() = if (remindersFailed) LOAD_FAILED else null
+
+/**
+ * ¿Falló ALGO de la última carga?
+ *
+ * Lo usa lo transversal —Inicio, que mira las siete fuentes a la vez y no
+ * puede responder por ninguna si le falta cualquiera—. Mira los datos, no
+ * `error`: ese campo es una bolsa de «lo último que salió mal» que también
+ * recoge fallos de guardado y de compartir, y un alta fallida no debe hacer
+ * que Inicio afirme que no pudo cargar.
+ */
+val AppUiState.loadFailed: Boolean
+    get() = remindersFailed || data.failed.isNotEmpty()
+
 /** El recurso concreto que se está editando. */
 data class EditTarget(val resource: CreatableResource, val id: String, val version: Int)
 
@@ -99,6 +185,8 @@ class AppViewModel @Inject constructor(
     private val reminderApi: ReminderApi,
     private val repository: VidaRepository,
     private val dayNotes: DayNotesRepository,
+    private val wellbeing: WellbeingRepository,
+    private val userApi: UserApi,
     private val alarmScheduler: ReminderAlarmScheduler,
     private val authManager: AuthManager,
     private val fileReader: FileReader,
@@ -178,16 +266,24 @@ class AppViewModel @Inject constructor(
             if (data != null) deriveAlerts(data)
 
             _state.update {
+                // El vacío afirma un hecho sobre los datos del usuario; si la
+                // carga falló no sabemos nada de ellos (ADR-021 k), así que el
+                // fallo se conserva y la pantalla lo dice.
+                //
+                // Y se conserva POR PORCIÓN. Antes bastaba con que fallaran
+                // las tareas para que las diecinueve secciones restantes
+                // dijeran haber fallado, y bastaba con que las tareas
+                // respondieran para que el fallo de las otras diecinueve no lo
+                // contara nadie. Ahora cada una responde de lo suyo.
+                val slicesFailed = data?.failed ?: it.data.failed
                 it.copy(
                     reminders = reminders ?: it.reminders,
                     data = data ?: it.data,
                     loading = false,
-                    // El vacío afirma un hecho sobre los datos del usuario; si
-                    // la carga falló no sabemos nada de ellos (ADR-021 k), así
-                    // que el error se conserva y la pantalla lo dice.
+                    remindersFailed = remindersResult.isFailure,
                     error = when {
-                        remindersResult.isFailure -> remindersResult.exceptionOrNull()?.message ?: "No se pudo cargar"
-                        dataResult.isFailure -> dataResult.exceptionOrNull()?.message ?: "No se pudo cargar"
+                        remindersResult.isFailure || dataResult.isFailure -> LOAD_FAILED
+                        slicesFailed.isNotEmpty() -> LOAD_FAILED
                         else -> null
                     },
                 )
@@ -685,7 +781,13 @@ class AppViewModel @Inject constructor(
                     put("service", p.name)
                     put("nextPaymentDate", p.renewsOn.toString())
                     p.billingCycle?.let { put("billingCycle", it) }
-                    p.amount?.let { put("amount", it.toString()) }
+                    // `349.0` era el `Double` volcado tal cual, mientras el
+                    // resto de Pagos dice «$349 MXN». El tipo no cambia —el
+                    // formulario sigue enviando un número— pero lo que se lee
+                    // es la misma cifra que se leía antes de abrirlo.
+                    p.amount?.let { amount ->
+                        put("amount", if (amount % 1.0 == 0.0) amount.toLong().toString() else amount.toString())
+                    }
                 }
                 version = p.version
             }
@@ -1186,6 +1288,7 @@ class AppViewModel @Inject constructor(
                     meta = if (r.status == "COMPLETED") "Completada" else "Recordatorio",
                     done = r.status == "COMPLETED",
                     location = r.location?.ifBlank { null },
+                    date = date,
                 )
             }
         }
@@ -1211,6 +1314,7 @@ class AppViewModel @Inject constructor(
                 meta = due?.toLocalDate()?.toString() ?: "Sin fecha",
                 done = r.status == "COMPLETED",
                 location = r.location?.ifBlank { null },
+                date = due?.toLocalDate(),
             )
         }
     }
@@ -1310,4 +1414,255 @@ class AppViewModel @Inject constructor(
                 .onFailure { e -> _state.update { it.copy(error = e.message) } }
         }
     }
+
+    /* ══════════════════════════════════════════════════════════════════════
+       LAS TRES CAPACIDADES DEL ARTEFACTO — contra la API real
+       ══════════════════════════════════════════════════════════════════════ */
+
+    /**
+     * Carga el ánimo de hoy y el de la semana.
+     *
+     * DOS PETICIONES Y NO UNA: el de hoy se necesita en Inicio, donde la cara
+     * vive en una tarjeta pequeña; la semana solo en Bienestar. Pedir siempre
+     * las dos haría que abrir Inicio trajera seis días que nadie va a mirar.
+     */
+    fun loadMood(includeWeek: Boolean = false) {
+        viewModelScope.launch {
+            _state.update { it.copy(moodLoading = true, moodError = null) }
+            val today = wellbeing.moodToday()
+            val week = if (includeWeek) {
+                val to = LocalDate.now()
+                wellbeing.moods(to.minusDays(6), to)
+            } else {
+                null
+            }
+            _state.update { st ->
+                st.copy(
+                    moodLoading = false,
+                    moodToday = today.getOrNull() ?: st.moodToday,
+                    moodWeek = week?.getOrNull() ?: st.moodWeek,
+                    // Si falla, se dice. No se rellena con un valor de reserva
+                    // que aparentaría un ánimo que el usuario nunca marcó.
+                    moodError = (today.exceptionOrNull() ?: week?.exceptionOrNull())?.let { friendly(it) },
+                )
+            }
+        }
+    }
+
+    /**
+     * Marcar cómo te sientes. Upsert: volver a tocar el mismo día corrige.
+     *
+     * Se pinta en cuanto responde el servidor y no antes: el ánimo es el dato
+     * más sensible del producto, y mostrarlo guardado antes de estarlo sería
+     * decirle al usuario que quedó registrado algo que quizá no quedó.
+     */
+    fun setMood(value: Int, note: String? = null, tags: List<String> = emptyList()) {
+        viewModelScope.launch {
+            _state.update { it.copy(moodLoading = true, moodError = null) }
+            wellbeing.setMood(value, note, tags)
+                .onSuccess { saved ->
+                    _state.update { st ->
+                        st.copy(
+                            moodLoading = false,
+                            moodToday = saved,
+                            moodWeek = st.moodWeek.filterNot { it.date == saved.date } + saved,
+                            moodError = null,
+                        )
+                    }
+                }
+                .onFailure { e -> _state.update { it.copy(moodLoading = false, moodError = friendly(e)) } }
+        }
+    }
+
+    /** Borrado DURO del historial (Ajustes → Privacidad). */
+    fun deleteMoodHistory(onDone: (Int) -> Unit = {}) {
+        viewModelScope.launch {
+            wellbeing.deleteAllMoods()
+                .onSuccess { n ->
+                    _state.update { it.copy(moodToday = null, moodWeek = emptyList(), moodError = null) }
+                    onDone(n)
+                }
+                .onFailure { e -> _state.update { it.copy(moodError = friendly(e)) } }
+        }
+    }
+
+    /* ── Pasos de una tarea ─────────────────────────────────────────────── */
+
+    fun loadSteps(reminderId: String) {
+        viewModelScope.launch {
+            _state.update { it.copy(stepsLoading = true, stepsError = null, stepsFor = reminderId) }
+            wellbeing.steps(reminderId)
+                .onSuccess { list -> _state.update { it.copy(stepsLoading = false, steps = list) } }
+                .onFailure { e ->
+                    _state.update { it.copy(stepsLoading = false, steps = emptyList(), stepsError = friendly(e)) }
+                }
+        }
+    }
+
+    fun addStep(reminderId: String, title: String) {
+        if (title.isBlank()) return
+        viewModelScope.launch {
+            wellbeing.addStep(reminderId, title)
+                .onSuccess { step -> _state.update { it.copy(steps = it.steps + step) } }
+                .onFailure { e -> _state.update { it.copy(stepsError = friendly(e)) } }
+        }
+    }
+
+    /**
+     * Marcar o desmarcar. El porcentaje NO se toca aquí: se deriva de la lista
+     * con `percentDone()`, así que actualizar el paso ya mueve el anillo.
+     */
+    fun toggleStep(reminderId: String, stepId: String) {
+        viewModelScope.launch {
+            wellbeing.toggleStep(reminderId, stepId)
+                .onSuccess { updated ->
+                    _state.update { st ->
+                        st.copy(steps = st.steps.map { if (it.id == updated.id) updated else it })
+                    }
+                }
+                .onFailure { e -> _state.update { it.copy(stepsError = friendly(e)) } }
+        }
+    }
+
+    fun renameStep(reminderId: String, stepId: String, title: String) {
+        viewModelScope.launch {
+            wellbeing.renameStep(reminderId, stepId, title)
+                .onSuccess { updated ->
+                    _state.update { st ->
+                        st.copy(steps = st.steps.map { if (it.id == updated.id) updated else it })
+                    }
+                }
+                .onFailure { e -> _state.update { it.copy(stepsError = friendly(e)) } }
+        }
+    }
+
+    fun deleteStep(reminderId: String, stepId: String) {
+        viewModelScope.launch {
+            wellbeing.deleteStep(reminderId, stepId)
+                .onSuccess { _state.update { st -> st.copy(steps = st.steps.filterNot { it.id == stepId }) } }
+                .onFailure { e -> _state.update { it.copy(stepsError = friendly(e)) } }
+        }
+    }
+
+    /** Reordenar mandando la lista COMPLETA: el resultado no depende del orden. */
+    fun reorderSteps(reminderId: String, orderedIds: List<String>) {
+        viewModelScope.launch {
+            wellbeing.reorderSteps(reminderId, orderedIds)
+                .onSuccess { list -> _state.update { it.copy(steps = list) } }
+                .onFailure { e -> _state.update { it.copy(stepsError = friendly(e)) } }
+        }
+    }
+
+    /* ── Progreso de un hábito ──────────────────────────────────────────── */
+
+    /**
+     * Lo hecho hoy de cada rutina CON META. Las de sí/no no se consultan: no
+     * tienen contador y preguntarlo sería una petición por nada.
+     */
+    fun loadHabitsToday() {
+        viewModelScope.launch {
+            val counted = _state.value.data.routines.filter { it.targetCount != null }
+            if (counted.isEmpty()) return@launch
+            val today = counted.associate { r ->
+                r.id to (wellbeing.progressToday(r.id).getOrNull() ?: 0)
+            }
+            _state.update { it.copy(habitToday = it.habitToday + today) }
+        }
+    }
+
+    /**
+     * Sumar uno al hábito. NO ejecuta la rutina: `execute` cierra la ocurrencia
+     * y mueve la fecha, `progress` suma dentro del día. Fundirlos haría que
+     * beber un vaso de agua adelantara la rutina a mañana.
+     */
+    fun addHabitProgress(routineId: String, delta: Int = 1) {
+        viewModelScope.launch {
+            wellbeing.addProgress(routineId, delta)
+                .onSuccess { p -> _state.update { it.copy(habitToday = it.habitToday + (routineId to p.count)) } }
+                .onFailure { e -> _state.update { it.copy(error = friendly(e)) } }
+        }
+    }
+
+    fun setHabitProgress(routineId: String, value: Int) {
+        viewModelScope.launch {
+            wellbeing.setProgress(routineId, value)
+                .onSuccess { p -> _state.update { it.copy(habitToday = it.habitToday + (routineId to p.count)) } }
+                .onFailure { e -> _state.update { it.copy(error = friendly(e)) } }
+        }
+    }
+
+    /** Declarar la meta diaria de un hábito, o retirarla con `null`. */
+    fun setHabitTarget(routineId: String, targetCount: Int?, unit: String?) {
+        viewModelScope.launch {
+            wellbeing.setTarget(routineId, targetCount, unit)
+                .onSuccess { refresh() }
+                .onFailure { e -> _state.update { it.copy(error = friendly(e)) } }
+        }
+    }
+
+
+    /**
+     * El mensaje que ve el usuario cuando algo falla.
+     *
+     * Un solo sitio y no `e.message ?: "..."` repetido: así el texto de red
+     * caída es el mismo en Bienestar, en los pasos y en los hábitos, en vez de
+     * tres redacciones que el usuario interpreta como tres fallos distintos.
+     */
+    private fun friendly(e: Throwable): String =
+        e.message?.takeIf { it.isNotBlank() } ?: "No se pudo conectar. Inténtalo otra vez."
+
+
+    /**
+     * Quién ha entrado. Lo necesita Perfil y el saludo de Portal.
+     *
+     * Si falla NO se rellena con un nombre de relleno: la pantalla enseña su
+     * estado y el usuario sabe que no se pudo leer, en vez de ver un nombre que
+     * no es el suyo.
+     */
+    fun loadUser() {
+        if (_state.value.user != null) return
+        viewModelScope.launch {
+            runCatching { userApi.getCurrentUser() }
+                .onSuccess { u -> _state.update { it.copy(user = u) } }
+                .onFailure { e -> _state.update { it.copy(error = friendly(e)) } }
+        }
+    }
+
+
+    /* ── ADJUNTOS (V37) ─────────────────────────────────────────────────── */
+
+    /**
+     * Los adjuntos de un recurso. UNA sola función para los cinco tipos: una
+     * garantía y una tarea preguntan igual cambiando `type`.
+     *
+     * Un fallo deja la lista vacía y no rompe la pantalla: los adjuntos son
+     * accesorios del registro, no el registro.
+     */
+    fun loadAttachments(type: AttachTo, resourceId: String) {
+        viewModelScope.launch {
+            _state.update { it.copy(attachmentsLoading = true, attachmentsFor = resourceId) }
+            wellbeing.attachments(type, resourceId)
+                .onSuccess { list -> _state.update { it.copy(attachmentsLoading = false, attachments = list) } }
+                .onFailure { _state.update { it.copy(attachmentsLoading = false, attachments = emptyList()) } }
+        }
+    }
+
+    /** Colgar un documento existente de este recurso. */
+    fun attachDocument(documentId: String, type: AttachTo, resourceId: String) {
+        viewModelScope.launch {
+            wellbeing.attach(documentId, type, resourceId)
+                .onSuccess { loadAttachments(type, resourceId) }
+                .onFailure { e -> _state.update { it.copy(error = friendly(e)) } }
+        }
+    }
+
+    /** Soltar SIN borrar: el documento sigue existiendo en Documentos. */
+    fun detachDocument(documentId: String, type: AttachTo, resourceId: String) {
+        viewModelScope.launch {
+            wellbeing.detach(documentId)
+                .onSuccess { loadAttachments(type, resourceId) }
+                .onFailure { e -> _state.update { it.copy(error = friendly(e)) } }
+        }
+    }
+
 }

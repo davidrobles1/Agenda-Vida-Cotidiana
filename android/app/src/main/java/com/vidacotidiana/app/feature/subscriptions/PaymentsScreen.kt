@@ -6,6 +6,11 @@ import androidx.compose.material3.DrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavHostController
+import com.vidacotidiana.app.core.ui.VidaTheme
+import com.vidacotidiana.app.core.ui.components.VidaTileRow
+import com.vidacotidiana.app.core.ui.components.VidaTileSpec
+import com.vidacotidiana.app.navigation.Routes
 import com.vidacotidiana.app.core.app.AppViewModel
 import com.vidacotidiana.app.core.app.CreatableResource
 import com.vidacotidiana.app.core.data.paidThisPeriod
@@ -17,6 +22,8 @@ import kotlinx.coroutines.CoroutineScope
 import java.time.LocalDate
 import java.time.YearMonth
 import java.util.Locale
+import com.vidacotidiana.app.core.data.DataSlice
+import com.vidacotidiana.app.core.app.sliceError
 
 /**
  * Pagos (ADR-020). Es destino prioritario de la barra inferior en Personal, así
@@ -32,6 +39,7 @@ fun PaymentsScreen(
     viewModel: AppViewModel,
     drawerState: DrawerState,
     scope: CoroutineScope,
+    navController: NavHostController,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val payments = state.data.payments.sortedBy { it.renewsOn }
@@ -116,40 +124,49 @@ fun PaymentsScreen(
         .sortedByDescending { it.second }
 
     ResourceListScreen(
+        // El artefacto le da pantalla propia a este registro.
+        onOpenRoute = { navController.navigate(Routes.paymentRoute(it.id)) },
         title = "Pagos",
         subtitle = "Lo que pagas cada mes, y cuándo.",
         eyebrow = plural(entries.size, "compromiso", "compromisos"),
         entries = entries,
         filters = listOf("Todos", "Pendientes", "Este mes", "Vencidos", "Tarjetas", "Créditos"),
-        metrics = listOfNotNull(
-            totalsByCurrency.firstOrNull()?.let { (currency, total) ->
-                Triple(
-                    "Total del mes",
-                    formatTotal(total, currency),
-                    // El pie dice cuánto FALTA, no cuántos hay: es la pregunta
-                    // que se le hace a un total del mes. Mismo criterio que la
-                    // tarjeta equivalente de la Web.
-                    when {
-                        pending.isEmpty() -> "Todo pagado"
-                        pendingByCurrency.isNotEmpty() ->
-                            "Te faltan " + pendingByCurrency.first()
-                                .let { (c, t) -> formatTotal(t, c) }
-                        sinImporte > 0 -> "$sinImporte sin importe"
-                        else -> "${inPeriod.size} en el periodo"
-                    },
-                )
-            },
-            Triple(
-                "Pendientes",
-                pending.size.toString(),
-                if (overdue > 0) "$overdue vencido${if (overdue == 1) "" else "s"}" else "Ninguno vencido",
-            ),
-            next?.let { Triple("Más próximo", it.renewsLabel, it.name) },
-        ),
+        // LA RETÍCULA DEL ARTEFACTO en lugar de la tira que se desplazaba.
+        //
+        // Dos piezas y no cuatro: en Pagos lo que manda es cuánto hay este mes,
+        // y a su lado cuánto queda sin pagar. La tira anterior dejaba la
+        // segunda cifra fuera de pantalla, y una cifra que hay que desplazar
+        // para ver no cumple su función.
+        //
+        // ADR-020: importes SOLO aquí. Esta retícula no habilita saldos,
+        // movimientos ni presupuestos.
+        header = {
+            val totalLabel = totalsByCurrency.firstOrNull()
+                ?.let { (currency, total) -> formatTotal(total, currency) } ?: "—"
+            VidaTileRow(
+                listOf(
+                    VidaTileSpec(
+                        "Este mes", totalLabel,
+                        plural(entries.size, "compromiso", "compromisos"),
+                        VidaTheme.colors.primaryContainer,
+                        VidaTheme.colors.primary,
+                        VidaTheme.colors.primaryDeep,
+                        weight = 1.32f,
+                    ),
+                    VidaTileSpec(
+                        "Sin pagar", pending.size.toString(),
+                        if (pending.isEmpty()) "todo al día" else "este periodo",
+                        if (pending.isEmpty()) VidaTheme.colors.successContainer else VidaTheme.colors.errorContainer,
+                        if (pending.isEmpty()) VidaTheme.colors.successText else VidaTheme.colors.error,
+                        if (pending.isEmpty()) VidaTheme.colors.successText else VidaTheme.colors.error,
+                    ),
+                ),
+            )
+        },
         addLabel = "Agregar pago",
         emptyBody = "Registra un pago para saber cuándo toca y cuánto representa.",
         loading = state.loading,
-        error = state.error,
+        error = state.sliceError(DataSlice.PAYMENTS),
         onRetry = viewModel::refresh,
         onAdd = { viewModel.requestCreate(CreatableResource.PAYMENT) },
         // Los chips de Pagos no miran una píldora: cruzan la fecha con hoy y el

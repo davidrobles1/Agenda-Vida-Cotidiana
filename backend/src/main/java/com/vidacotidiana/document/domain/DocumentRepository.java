@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.UUID;
 
 public interface DocumentRepository extends JpaRepository<Document, UUID> {
@@ -62,4 +63,14 @@ public interface DocumentRepository extends JpaRepository<Document, UUID> {
             @Param("category") DocumentCategory category,
             @Param("query") String query,
             Pageable pageable);
+
+    /**
+     * Los adjuntos de UN recurso (V37).
+     *
+     * Lleva `ownerUserId` en la firma y no solo el recurso: sin él, conocer un
+     * id bastaría para leer los adjuntos de otra persona. La pertenencia es
+     * parte de la consulta, no una comprobación que alguien deba recordar.
+     */
+    List<Document> findByOwnerUserIdAndResourceTypeAndResourceIdOrderByCreatedAtDesc(
+            UUID ownerUserId, String resourceType, UUID resourceId);
 }

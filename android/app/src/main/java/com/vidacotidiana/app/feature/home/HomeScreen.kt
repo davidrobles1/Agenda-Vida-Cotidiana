@@ -1,38 +1,65 @@
 package com.vidacotidiana.app.feature.home
 
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material3.Icon
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.unit.dp
+import com.vidacotidiana.app.core.ui.components.MoodFace
+import com.vidacotidiana.app.core.ui.components.MoodScale
+import com.vidacotidiana.app.core.ui.components.drawMoodFace
+import com.vidacotidiana.app.core.ui.components.vidaClickable
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.SolidColor
+import com.vidacotidiana.app.core.ui.components.VidaTile
+import java.time.Instant
+import java.time.temporal.ChronoUnit
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.automirrored.outlined.Assignment
 import androidx.compose.material.icons.outlined.Autorenew
 import androidx.compose.material.icons.outlined.Build
+import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.VerifiedUser
 import androidx.compose.material3.DrawerState
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.vidacotidiana.app.core.app.AppViewModel
-import com.vidacotidiana.app.core.calendar.AlertSeverity
-import com.vidacotidiana.app.core.calendar.weekOf
+import com.vidacotidiana.app.core.attention.AttentionEngine
+import com.vidacotidiana.app.core.attention.AttentionItem
+import com.vidacotidiana.app.core.attention.AttentionSource
+import com.vidacotidiana.app.core.attention.AttentionUrgency
 import com.vidacotidiana.app.core.data.WarrantyStatus
-import com.vidacotidiana.app.core.ui.VidaSpacing
+import com.vidacotidiana.app.core.ui.VidaLayout
 import com.vidacotidiana.app.core.ui.VidaTheme
 import com.vidacotidiana.app.core.ui.components.DayRibbonItem
 import com.vidacotidiana.app.core.ui.components.Eyebrow
 import com.vidacotidiana.app.core.ui.components.HeroCard
-import com.vidacotidiana.app.core.ui.components.ResourceRow
+import com.vidacotidiana.app.core.ui.components.PillTone
+import com.vidacotidiana.app.core.ui.components.ResourceBoard
+import com.vidacotidiana.app.core.ui.components.ResourceEntry
 import com.vidacotidiana.app.core.ui.components.StaggeredAppear
 import com.vidacotidiana.app.core.ui.components.StripCard
 import com.vidacotidiana.app.core.ui.components.VidaCard
@@ -41,20 +68,67 @@ import com.vidacotidiana.app.core.ui.components.VidaProgress
 import com.vidacotidiana.app.core.ui.components.VidaScreen
 import com.vidacotidiana.app.core.ui.components.VidaSmallButton
 import com.vidacotidiana.app.core.ui.components.openDrawerAction
+import com.vidacotidiana.app.core.ui.components.plural
 import com.vidacotidiana.app.navigation.Routes
 import kotlinx.coroutines.CoroutineScope
 import java.time.LocalDate
 import java.time.format.TextStyle
 import java.util.Locale
+import com.vidacotidiana.app.core.app.loadFailed
+import com.vidacotidiana.app.core.ui.components.AttentionList
+import com.vidacotidiana.app.core.ui.components.moodSky
+import com.vidacotidiana.app.core.ui.components.moodInk
 
 /**
- * Inicio como CENTRO DE CONTROL, no como lista de registros.
+ * INICIO RESPONDE A UNA PREGUNTA: ¿qué necesita mi atención?
  *
- * La jerarquía del artefacto, en este orden y por este motivo: primero LO QUE
- * URGE —una sola cosa, con su salida—, después los próximos días en el mismo
- * lenguaje visual del calendario (continuidad, no repetición), después el
- * progreso real del día, después las áreas y por último la actividad.
+ * ANTES ENUMERABA MÓDULOS. De sus cinco secciones, dos eran contadores en crudo
+ * («Inventario · 4 artículos», que ni viene ni requiere nada) y otra eran dos
+ * enlaces fijos rotulados como «actividad reciente». La única que intentaba
+ * hablar de atención —el héroe— leía `contentFor(hoy).alerts`, es decir los
+ * avisos derivados de ADR-018, que solo existen en las fechas exactas de
+ * antelación. Una tarea vencida ayer, un pago cuyo día pasó sin pagarse o un
+ * mantenimiento atrasado no llegaban aquí: había que ir módulo por módulo a
+ * comprobarlo.
+ *
+ * AHORA LA PANTALLA LEE `AttentionEngine`, que mira el estado real de las siete
+ * fuentes con fecha que ya existían y trae lo que reclama, con el motivo por el
+ * que reclama. La diferencia de percepción no está en el diseño: está en que
+ * «Garantías — 5» pasa a ser «La garantía del ipad vence en 3 días».
+ *
+ * EL ORDEN ES LA TESIS:
+ *
+ *  1. HÉROE     — cuántas cosas te reclaman y de dónde salen. Cuando no hay
+ *                 ninguna, lo dice con seguridad: eso también es información.
+ *  2. AHORA     — lo vencido y lo de hoy, junto, sin importar de qué módulo.
+ *  3. ESTA SEMANA — lo que viene en siete días.
+ *  4. TU DÍA    — el cierre del día: cuánto llevas hecho.
+ *  5. PRÓXIMOS 7 DÍAS — la semana en el lenguaje del calendario.
+ *  6. TUS ÁREAS — acceso. Va al final porque es lo que el usuario consulta
+ *                 cuando quiere, no lo que necesita saber al abrir.
+ *
+ * NO FILTRA POR CONTEXTO y es correcto: `loadAll` ya pide los datos con el
+ * contexto activo (ADR-019), así que en Personal solo hay Personal. Portal
+ * recibe todo junto porque eso es Portal.
  */
+/**
+ * Cuántas filas dibuja cada sección. Lo que no cabe sigue contado en el
+ * antetítulo y sigue estando en su módulo: se acota lo que se PINTA, no lo que
+ * se sabe.
+ */
+private const val MAX_ROWS = 6
+
+/**
+ * La cifra de un mosaico, o una raya cuando todavía no hay cifra que dar.
+ *
+ * Un cero es una afirmación —«no tienes nada»— y mientras se carga o cuando la
+ * consulta falló no hay nada que afirmar. Poner «0» ahí era lo que hacía que
+ * Inicio le dijera al usuario que tenía el día libre justo cuando el teléfono
+ * no había podido preguntarlo.
+ */
+private fun figureOrDash(value: Int, loading: Boolean, failed: Boolean): String =
+    if (loading || failed) "—" else value.toString()
+
 @Composable
 fun HomeScreen(
     viewModel: AppViewModel,
@@ -64,16 +138,38 @@ fun HomeScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val c = VidaTheme.colors
+    val t = VidaTheme.type
     val today = LocalDate.now()
-    val todayContent = viewModel.contentFor(today)
-    val urgent = todayContent.alerts.firstOrNull { it.severity == AlertSeverity.HIGH }
-        ?: todayContent.alerts.firstOrNull()
 
-    val todayTasks = todayContent.tasks
+    // El ánimo de HOY, no la semana: en Inicio la cara es pequeña y le basta.
+    LaunchedEffect(Unit) { viewModel.loadMood() }
+
+    val attention = AttentionEngine.scan(state.data, viewModel.allTasks(), today)
+    val now = AttentionEngine.now(attention)
+    val soon = AttentionEngine.soon(attention)
+    val forToday = AttentionEngine.today(attention)
+    val overdue = AttentionEngine.overdue(attention)
+
+    // LOS TRES ESTADOS QUE INICIO NO DISTINGUÍA.
+    //
+    // Esta pantalla no consultaba `loading` ni el resultado de la carga, así
+    // que pintaba ceros con total confianza tanto mientras cargaba como
+    // cuando no había podido hablar con el servidor: «Nada te reclama» era la
+    // misma frase para «no tienes nada» y para «no lo sé». Como lee las siete
+    // fuentes a la vez, le basta con que falle una para no poder responder.
+    val firstLoad = state.loading && state.data.collections.all { it.isEmpty() }
+    val cannotAnswer = state.loadFailed && attention.isEmpty()
+
+    val todayTasks = viewModel.contentFor(today).tasks
     val doneCount = todayTasks.count { it.done }
 
     VidaScreen(
-        title = "¡Hola!",
+        // El saludo era «¡Hola!» a secas aunque la sesión ya conocía al
+        // usuario: `/api/v1/me` se pedía y se guardaba, y nadie lo leía. No se
+        // inventa una segunda fuente ni se guarda el nombre aparte — se usa la
+        // que ya hay, y si todavía no ha llegado el saludo es el de siempre.
+        title = state.user?.username?.takeIf { it.isNotBlank() }
+            ?.let { "¡Hola, $it!" } ?: "¡Hola!",
         subtitle = today.dayOfWeek.getDisplayName(TextStyle.FULL, Locale("es", "MX"))
             .replaceFirstChar { it.uppercase() } + " ${today.dayOfMonth} de " +
             today.month.getDisplayName(TextStyle.FULL, Locale("es", "MX")),
@@ -86,23 +182,266 @@ fun HomeScreen(
             VidaIconButton(Icons.Outlined.Settings, "Ajustes") { onNavigate(Routes.SETTINGS) }
         },
     ) {
+        /* ══════════════════════════════════════════════════════════════════
+           1 — LA RETÍCULA DE CUATRO PIEZAS
+           ══════════════════════════════════════════════════════════════════
+
+           EL ARTEFACTO MAESTRO ABRE CON CUATRO CIFRAS, no con un héroe.
+
+           Su retícula es `1.32fr / 1fr` en dos filas de 120 y 100 dp, con 10 dp
+           de hueco. Esa proporción es la tesis de la pantalla: la pieza grande
+           —lo que te toca hoy— domina sin aplastar a las otras tres, y las
+           cuatro se leen de un vistazo antes de leer una sola fila de lista.
+
+           El héroe anterior decía lo mismo en una frase y ocupaba el mismo
+           espacio. La diferencia es que una frase se lee; cuatro cifras se
+           reconocen.
+
+           CADA CIFRA ES EXACTAMENTE SU ETIQUETA, y lleva a ese mismo conjunto:
+             · Para hoy  → `AttentionEngine.today`, siete fuentes  → Día
+             · Atrasado  → `AttentionEngine.overdue`, siete fuentes → lo atrasado
+             · En total  → TODAS las colecciones de `VidaData`      → sin destino
+             · Hechas    → tareas COMPLETED de la semana            → Tareas
+
+           «Para hoy» contaba antes `now()`, que es vencido + hoy: la etiqueta
+           prometía hoy y la cifra incluía lo atrasado, que además volvía a
+           contarse en el mosaico contiguo. Los tres registros atrasados se
+           contaban dos veces y el usuario leía nueve donde tenía seis.
+
+           «En total» no lleva a ningún sitio, y es deliberado: el artefacto es
+           el único de los cuatro que NO le pone galón. Es una cifra para
+           mirar, no una puerta — y la puerta que tenía llevaba a Inventario,
+           que contiene una fracción de lo que la cifra cuenta.
+        */
         StaggeredAppear(0) {
-            HeroCard(
-                eyebrow = "Lo que urge",
-                title = urgent?.label ?: "Nada urgente hoy",
-                body = urgent?.let { "${it.source.label} · ${it.message}" } ?: "Tu día está en calma.",
-                primaryAction = (urgent?.let { "Ver en ${it.source.label}" } ?: "Ver el día") to {
-                    onNavigate(urgent?.source?.route ?: Routes.CALENDAR)
-                },
-                secondaryAction = "Abrir calendario" to { onNavigate(Routes.CALENDAR) },
-            )
+            val oldest = overdue.minByOrNull { it.date }
+            val oldestDays = oldest?.let { ChronoUnit.DAYS.between(it.date, today) } ?: 0L
+
+            val d = state.data
+            val total = d.collections.sumOf { it.size } + viewModel.allTasks().size
+            val sections = d.collections.count { it.isNotEmpty() } +
+                if (viewModel.allTasks().isNotEmpty()) 1 else 0
+
+            val weekAgo = Instant.now().minus(7, ChronoUnit.DAYS)
+            val doneThisWeek = state.reminders.count { r ->
+                r.status == "COMPLETED" &&
+                    (r.updatedAt?.let { runCatching { Instant.parse(it).isAfter(weekAgo) }.getOrDefault(false) } ?: false)
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                // Fila 1 — 120 dp. La pieza grande y la de lo atrasado.
+                Row(
+                    Modifier.fillMaxWidth().height(120.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    VidaTile(
+                        kicker = "Para hoy",
+                        figure = figureOrDash(forToday.size, firstLoad, cannotAnswer),
+                        caption = when {
+                            firstLoad -> "Mirando tus secciones…"
+                            cannotAnswer -> "No pudimos consultarlo"
+                            forToday.isEmpty() -> "Nada te reclama hoy"
+                            else -> AttentionEngine.breakdown(forToday)
+                        },
+                        background = Brush.linearGradient(listOf(c.primary, c.primaryDeep)),
+                        figureColor = c.onPrimary,
+                        kickerColor = c.onPrimary.copy(alpha = 0.85f),
+                        captionColor = c.onPrimary.copy(alpha = 0.78f),
+                        figureSize = 54.dp,
+                        chevron = true,
+                        modifier = Modifier.weight(1.32f).fillMaxHeight(),
+                        // «Para hoy» describe la jornada: lleva a la línea del
+                        // día, que ahora muestra las siete fuentes de hoy y no
+                        // solo las tareas — el mismo conjunto que cuenta.
+                        onClick = { onNavigate(Routes.DAY) },
+                    )
+                    VidaTile(
+                        kicker = "Atrasado",
+                        figure = figureOrDash(overdue.size, firstLoad, cannotAnswer),
+                        caption = when {
+                            firstLoad -> "Comprobando…"
+                            cannotAnswer -> "Sin respuesta"
+                            overdue.isEmpty() -> "Nada pendiente"
+                            oldestDays <= 1L -> "lo más viejo, de ayer"
+                            else -> "lo más viejo, $oldestDays días"
+                        },
+                        background = SolidColor(c.errorContainer),
+                        figureColor = c.error,
+                        kickerColor = c.error,
+                        captionColor = c.error.copy(alpha = 0.75f),
+                        figureSize = 46.dp,
+                        chevron = true,
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                        // Lo atrasado cruza módulos —una tarea, un pago y un
+                        // mantenimiento—, así que llevaba a Tareas, donde sólo
+                        // estaba uno de los tres. Ahora lleva a la misma lista
+                        // que Inicio ya pinta debajo, filtrada por atrasado.
+                        onClick = { onNavigate(Routes.attentionRoute(AttentionUrgency.OVERDUE)) },
+                    )
+                }
+                // Fila 2 — 100 dp. El inventario del producto y lo ya resuelto.
+                Row(
+                    Modifier.fillMaxWidth().height(100.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    VidaTile(
+                        kicker = "En total",
+                        figure = figureOrDash(total, firstLoad, cannotAnswer),
+                        caption = when {
+                            firstLoad -> "Contando…"
+                            cannotAnswer -> "Sin respuesta"
+                            else -> plural(sections, "sección", "secciones").let { "en $it" }
+                        },
+                        background = SolidColor(c.sunken),
+                        figureColor = c.text,
+                        kickerColor = c.textSecondary,
+                        captionColor = c.textTertiary,
+                        figureSize = 38.dp,
+                        modifier = Modifier.weight(1.32f).fillMaxHeight(),
+                    )
+                    VidaTile(
+                        // «Hechas» a secas parecía abarcar todo el esfuerzo de
+                        // la semana, pero sólo cuenta tareas: una rutina
+                        // cumplida o un pago liquidado no lo movían. Contarlo
+                        // todo exigiría un «cuándo se completó» que rutinas,
+                        // pagos y mantenimientos no guardan, así que la cifra
+                        // se queda en lo que sí puede sostener y la leyenda lo
+                        // dice — antes que un número que promete de más.
+                        kicker = "Hechas",
+                        figure = figureOrDash(doneThisWeek, firstLoad, state.remindersFailed),
+                        caption = when {
+                            firstLoad -> "Revisando…"
+                            state.remindersFailed -> "Sin respuesta"
+                            else -> "tareas, esta semana"
+                        },
+                        background = SolidColor(c.secondContainer),
+                        figureColor = c.second,
+                        kickerColor = c.second,
+                        captionColor = c.second.copy(alpha = 0.75f),
+                        figureSize = 38.dp,
+                        chevron = true,
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                        onClick = { onNavigate(Routes.TASKS) },
+                    )
+                }
+            }
         }
 
-        StaggeredAppear(1) { Eyebrow("Los próximos 7 días") }
-        StaggeredAppear(2) {
+        // 2 — «¿Cómo te sientes hoy?» (V36).
+        //
+        // Va AQUÍ, entre el héroe y lo que reclama, que es su sitio en el
+        // artefacto maestro: después de saber cómo está tu día y antes de
+        // ponerte a resolverlo. La cara es la misma pieza de Bienestar, en
+        // pequeño, y tocar cualquier parte de la tarjeta abre la sección.
+        StaggeredAppear(1) {
+            val marked = state.moodToday?.value
+            // El fondo lo decide el TEMA, no una tabla de cremas fijos: con
+            // el color literal, en Noche esta tarjeta se quedaba clara bajo
+            // un texto que sí había cambiado a claro.
+            val sky = moodSky(marked)
+            val deep = moodInk(marked)
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(sky, RoundedCornerShape(26.dp))
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(13.dp)) {
+                    Box(Modifier.vidaClickable(onClick = { onNavigate(Routes.WELLBEING) })) {
+                        MoodFace(value = marked, size = 50.dp, strokeWidth = 4f, surface = c.surfaceVariant)
+                    }
+                    Column(
+                        Modifier.weight(1f).vidaClickable(onClick = { onNavigate(Routes.WELLBEING) }),
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                    ) {
+                        Text("¿Cómo te sientes hoy?", style = t.cardTitle, color = c.text)
+                        Text(
+                            if (marked == null) "Sin marcar" else MoodScale.ECHOES[marked],
+                            style = t.caption,
+                            color = deep,
+                        )
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Icon(Icons.Outlined.Lock, contentDescription = null, tint = c.textTertiary, modifier = Modifier.size(12.dp))
+                        Text("Solo tú", style = t.micro, color = c.textTertiary)
+                    }
+                }
+                // Los cinco, a lo ancho. Marcar desde aquí guarda de verdad:
+                // no abre la sección, la resuelve.
+                Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                    (0..4).forEach { k ->
+                        val on = marked == k
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(44.dp)
+                                .background(
+                                    if (on) c.surfaceVariant else c.surfaceVariant.copy(alpha = 0.55f),
+                                    RoundedCornerShape(16.dp),
+                                )
+                                .vidaClickable(onClick = { viewModel.setMood(k) }),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Canvas(Modifier.size(24.dp)) {
+                                drawMoodFace(k.toFloat(), 1f, 2f, androidx.compose.ui.graphics.Color.Transparent)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3 — Lo que no puede esperar, de los siete módulos a la vez.
+        if (now.isNotEmpty()) {
+            // El recuento va en el antetítulo, no en la lista: así la cifra
+            // dice la verdad completa aunque solo se dibujen las primeras. Un
+            // muro de veinte filas no reduce carga mental, la traslada.
+            StaggeredAppear(1) { Eyebrow("Ahora · ${now.size}") }
+            StaggeredAppear(2) { AttentionList(now.take(MAX_ROWS), onNavigate) }
+        }
+
+        // 3 — Lo que viene. Se calla cuando no hay nada: una sección vacía en
+        // Inicio es ruido, no información.
+        if (soon.isNotEmpty()) {
+            StaggeredAppear(3) { Eyebrow("Esta semana · ${soon.size}") }
+            StaggeredAppear(4) { AttentionList(soon.take(MAX_ROWS), onNavigate) }
+        }
+
+        // 4 — El cierre del día. No repite lo de arriba: aquello dice qué falta,
+        // esto dice cuánto llevas.
+        StaggeredAppear(5) { Eyebrow("Tu día") }
+        StaggeredAppear(6) {
+            VidaCard {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(
+                        when {
+                            todayTasks.isEmpty() -> "Sin tareas para hoy"
+                            todayTasks.size - doneCount > 0 ->
+                                plural(todayTasks.size - doneCount, "tarea pendiente", "tareas pendientes")
+                            else -> "Todo hecho hoy"
+                        },
+                        style = t.cardTitle,
+                        color = c.text,
+                    )
+                    if (todayTasks.isNotEmpty()) {
+                        Text("$doneCount de ${todayTasks.size}", style = t.caption, color = c.textSecondary)
+                    }
+                }
+                VidaProgress(if (todayTasks.isEmpty()) 0f else doneCount.toFloat() / todayTasks.size)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(VidaLayout.itemGap)) {
+                    VidaSmallButton("Ver tareas", { onNavigate(Routes.TASKS) }, ghost = true)
+                    VidaSmallButton("Compartidos", { onNavigate(Routes.SHARED) }, ghost = true)
+                }
+            }
+        }
+
+        // 5 — La semana, en el mismo lenguaje visual del calendario.
+        StaggeredAppear(7) { Eyebrow("Los próximos 7 días") }
+        StaggeredAppear(8) {
             Row(
                 Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(VidaSpacing.sm),
+                horizontalArrangement = Arrangement.spacedBy(VidaLayout.itemGap),
             ) {
                 (0..6).map { today.plusDays(it.toLong()) }.forEach { date ->
                     DayRibbonItem(
@@ -116,37 +455,18 @@ fun HomeScreen(
             }
         }
 
-        StaggeredAppear(3) { Eyebrow("Tu día") }
-        StaggeredAppear(4) {
-            VidaCard {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text(
-                        if (todayTasks.size - doneCount > 0) {
-                            "${todayTasks.size - doneCount} " +
-                                if (todayTasks.size - doneCount == 1) "tarea pendiente" else "tareas pendientes"
-                        } else {
-                            "Todo hecho hoy"
-                        },
-                        style = MaterialTheme.typography.titleMedium,
-                        color = c.text,
-                    )
-                    Text("$doneCount de ${todayTasks.size}", style = MaterialTheme.typography.bodySmall, color = c.textSecondary)
-                }
-                VidaProgress(if (todayTasks.isEmpty()) 0f else doneCount.toFloat() / todayTasks.size)
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(VidaSpacing.sm)) {
-                    VidaSmallButton("Ver tareas", { onNavigate(Routes.TASKS) }, ghost = true)
-                    VidaSmallButton("Compartidos", { onNavigate(Routes.SHARED) }, ghost = true)
-                }
-            }
-        }
-
-        StaggeredAppear(5) { Eyebrow("Lo que se viene") }
-        StaggeredAppear(6) {
+        // 6 — Acceso, al final y rotulado como lo que es. Antes esto se llamaba
+        // «Lo que se viene» y presentaba cuatro contadores como si reclamaran
+        // algo; el inventario no viene ni requiere nada, solo existe. Ahora que
+        // la atención está resuelta arriba, estas cifras son lo que siempre
+        // fueron: el estado general, para consultar cuando se quiera.
+        StaggeredAppear(9) { Eyebrow("Tus áreas") }
+        StaggeredAppear(10) {
             Row(
                 Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(VidaSpacing.sm),
+                horizontalArrangement = Arrangement.spacedBy(VidaLayout.itemGap),
             ) {
-                StripCard("Pagos", state.data.payments.size.toString(), "compromisos", { onNavigate(Routes.PAYMENTS) })
+                StripCard("Pagos", state.data.payments.size.toString(), "al mes", { onNavigate(Routes.PAYMENTS) })
                 StripCard("Mantenimiento", state.data.maintenance.size.toString(), "programados", { onNavigate(Routes.MAINTENANCE) })
                 StripCard(
                     "Garantías",
@@ -157,23 +477,20 @@ fun HomeScreen(
                 StripCard("Inventario", state.data.inventory.size.toString(), "artículos", { onNavigate(Routes.INVENTORY) })
             }
         }
-
-        StaggeredAppear(7) { Eyebrow("Actividad reciente") }
-        StaggeredAppear(8) {
-            Column(verticalArrangement = Arrangement.spacedBy(VidaSpacing.sm)) {
-                ResourceRow(
-                    title = "Tienes ${todayContent.alerts.size} avisos hoy",
-                    subtitle = "Derivados de tus garantías, pagos y mantenimientos",
-                    icon = Icons.Outlined.Autorenew,
-                    onClick = { onNavigate(Routes.CALENDAR) },
-                )
-                ResourceRow(
-                    title = "Compartidos contigo",
-                    subtitle = "Lo que tu familia comparte",
-                    icon = Icons.Outlined.Share,
-                    onClick = { onNavigate(Routes.SHARED) },
-                )
-            }
-        }
     }
 }
+
+/**
+ * La lista de cosas que reclaman.
+ *
+ * Usa `ResourceBoard` como el resto de la aplicación, y cae en su composición de
+ * FILA porque ninguna entrada trae cifra destacada. Es deliberado: el importe de
+ * un pago va dentro del motivo («Se paga hoy · $349 MXN») y no como dato héroe,
+ * porque aquí lo que importa no es cuánto es sino que te toca. Pasarlo como
+ * `amount` convertiría la lista en una retícula de cuadrados y mezclaría siete
+ * módulos en piezas que compiten entre sí.
+ *
+ * La píldora dice de qué módulo viene cada cosa. Sin ella, siete fuentes juntas
+ * se leerían como una lista plana y se perdería justo lo que hace valiosa a la
+ * sección: que la aplicación miró en todas partes.
+ */

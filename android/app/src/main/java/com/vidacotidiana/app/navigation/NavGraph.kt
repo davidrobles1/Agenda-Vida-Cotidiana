@@ -36,6 +36,7 @@ import com.vidacotidiana.app.core.app.AppViewModel
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.width
 import com.vidacotidiana.app.core.app.CreatableResource
+import com.vidacotidiana.app.feature.wellbeing.BienestarScreen
 import com.vidacotidiana.app.core.ui.VidaCotidianaTheme
 import com.vidacotidiana.app.core.ui.components.CreateResourceSheet
 import com.vidacotidiana.app.core.ui.components.CreateSheet
@@ -45,6 +46,13 @@ import com.vidacotidiana.app.feature.auth.AuthManager
 import com.vidacotidiana.app.feature.auth.IntroScreen
 import com.vidacotidiana.app.feature.board.VisionBoardScreen
 import com.vidacotidiana.app.feature.calendar.CalendarScreen
+import com.vidacotidiana.app.feature.calendar.DiaScreen
+import com.vidacotidiana.app.feature.calendar.NotasDiaScreen
+import com.vidacotidiana.app.feature.create.CrearScreen
+import com.vidacotidiana.app.feature.laboral.PersonaDetalleScreen
+import com.vidacotidiana.app.feature.laboral.ProyectoDetalleScreen
+import com.vidacotidiana.app.feature.maintenance.MantDetalleScreen
+import com.vidacotidiana.app.feature.subscriptions.PagoDetalleScreen
 import com.vidacotidiana.app.feature.documents.DocumentsScreen
 import com.vidacotidiana.app.feature.family.FamilyScreen
 import com.vidacotidiana.app.feature.home.HomeScreen
@@ -62,13 +70,19 @@ import com.vidacotidiana.app.feature.resources.WorkResourcesScreen
 import com.vidacotidiana.app.feature.routines.RoutinesScreen
 import com.vidacotidiana.app.feature.maintenance.MaintenanceScreen
 import com.vidacotidiana.app.feature.notifications.NotificationsScreen
+import com.vidacotidiana.app.feature.portal.PortalScreen
 import com.vidacotidiana.app.feature.settings.AppearanceScreen
+import com.vidacotidiana.app.feature.settings.CapacidadesScreen
+import com.vidacotidiana.app.feature.settings.PerfilScreen
 import com.vidacotidiana.app.feature.settings.SettingsScreen
 import com.vidacotidiana.app.feature.sharing.SharedScreen
 import com.vidacotidiana.app.feature.subscriptions.PaymentsScreen
+import com.vidacotidiana.app.feature.tasks.TareaDetalleScreen
 import com.vidacotidiana.app.feature.tasks.TasksScreen
 import com.vidacotidiana.app.feature.warranties.WarrantiesScreen
 import kotlinx.coroutines.launch
+import com.vidacotidiana.app.core.attention.AttentionUrgency
+import com.vidacotidiana.app.feature.attention.AtencionScreen
 
 /**
  * El armazón de la aplicación: tema, cajón, barra inferior por contexto,
@@ -110,7 +124,23 @@ fun AppNavGraph(
         val drawerState = rememberDrawerState(DrawerValue.Closed)
         val scope = rememberCoroutineScope()
         var createSheetOpen by remember { mutableStateOf(false) }
-        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+        /*
+         * UN ESTADO POR HOJA, Y NO UNO COMPARTIDO.
+         *
+         * EL FALLO QUE ESTO ARREGLA: el selector del «+» y el formulario de
+         * alta/edición usaban el MISMO `SheetState`. Al elegir un recurso, en
+         * el mismo fotograma se cerraba el selector (`createSheetOpen = false`)
+         * y se componía el formulario (`pendingCreate`), que heredaba un estado
+         * ya asentado en `Hidden`. Resultado: el formulario de agregar y el de
+         * editar no llegaban a mostrarse — la hoja se montaba invisible y solo
+         * volvía a funcionar tras reiniciar la pantalla.
+         *
+         * `SheetState` guarda la animación de UNA hoja concreta. Dos hojas que
+         * pueden solaparse un fotograma necesitan dos.
+         */
+        val pickerSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        val formSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
         val bottom = bottomDestinations(state.context, state.profile)
         val showChrome = currentRoute != null && currentRoute != Routes.INTRO
@@ -282,7 +312,7 @@ fun AppNavGraph(
                         composable(Routes.HOME) { HomeScreen(appViewModel, navController::navigateSafely, drawerState, scope) }
                         composable(Routes.CALENDAR) { CalendarScreen(appViewModel, navController::navigateSafely, drawerState, scope) }
                         composable(Routes.BOARD) { VisionBoardScreen(appViewModel, drawerState, scope) }
-                        composable(Routes.PAYMENTS) { PaymentsScreen(appViewModel, drawerState, scope) }
+                        composable(Routes.PAYMENTS) { PaymentsScreen(appViewModel, drawerState, scope, navController) }
                         composable(Routes.SHARED) { SharedScreen(appViewModel, drawerState, scope, navController) }
                         composable(Routes.DOCUMENTS) { DocumentsScreen(appViewModel, drawerState, scope, navController) }
                         composable(Routes.INVENTORY) { InventoryScreen(appViewModel, drawerState, scope, navController) }
@@ -290,9 +320,49 @@ fun AppNavGraph(
                         composable(Routes.MAINTENANCE) { MaintenanceScreen(appViewModel, drawerState, scope, navController) }
                         composable(Routes.FAMILY) { FamilyScreen(appViewModel, drawerState, scope, navController) }
                         composable(Routes.TASKS) { TasksScreen(appViewModel, drawerState, scope, navController) }
+                        // Bienestar (V36). Fuera de la barra inferior a
+                        // propósito: la navegación aprobada de Personal no se
+                        // toca. Se llega desde la tarjeta del ánimo de Inicio.
+                        composable(Routes.WELLBEING) { BienestarScreen(appViewModel, navController) }
+                        composable(Routes.PORTAL) { PortalScreen(appViewModel, navController) }
+                        composable(Routes.PROFILE) { PerfilScreen(appViewModel, navController) }
+                        composable(Routes.CAPABILITIES) { CapacidadesScreen(navController) }
+                        composable(Routes.DAY_NOTES) { NotasDiaScreen(appViewModel, navController) }
+                        composable(Routes.DAY) { DiaScreen(appViewModel, navController) }
+                        composable(Routes.ATTENTION) { e ->
+                            val raw = e.arguments?.getString("urgencia")
+                            // Un valor desconocido no puede tumbar la pantalla:
+                            // se cae del lado de lo atrasado, que es la entrada
+                            // que existe hoy.
+                            val urgency = runCatching { AttentionUrgency.valueOf(raw.orEmpty()) }
+                                .getOrDefault(AttentionUrgency.OVERDUE)
+                            AtencionScreen(appViewModel, navController, urgency)
+                        }
+                        composable(Routes.CREATE) { CrearScreen(appViewModel, navController) }
+                        composable(Routes.PAYMENT_DETAIL) { e ->
+                            PagoDetalleScreen(e.arguments?.getString("paymentId").orEmpty(), appViewModel, navController)
+                        }
+                        composable(Routes.MAINTENANCE_DETAIL) { e ->
+                            MantDetalleScreen(e.arguments?.getString("recordId").orEmpty(), appViewModel, navController)
+                        }
+                        composable(Routes.PERSON_DETAIL) { e ->
+                            PersonaDetalleScreen(e.arguments?.getString("personId").orEmpty(), appViewModel, navController)
+                        }
+                        composable(Routes.PROJECT_DETAIL) { e ->
+                            ProyectoDetalleScreen(e.arguments?.getString("projectId").orEmpty(), appViewModel, navController)
+                        }
+                        // Detalle de tarea. El id viaja en la ruta: la pantalla
+                        // es de UNA tarea, no de la lista.
+                        composable(Routes.TASK_DETAIL) { entry ->
+                            TareaDetalleScreen(
+                                taskId = entry.arguments?.getString("taskId").orEmpty(),
+                                viewModel = appViewModel,
+                                navController = navController,
+                            )
+                        }
 
                         // ---- Laboral ----
-                        composable(Routes.HOY) { HoyScreen(appViewModel, drawerState, scope) }
+                        composable(Routes.HOY) { HoyScreen(appViewModel, drawerState, scope, navController) }
                         composable(Routes.AGENDA) { AgendaScreen(appViewModel, drawerState, scope) }
                         composable(Routes.TASKS_LAB) { LaboralTasksScreen(appViewModel, drawerState, scope, navController) }
                         composable(Routes.PEOPLE) { PeopleScreen(appViewModel, drawerState, scope, navController) }
@@ -320,7 +390,11 @@ fun AppNavGraph(
                         // las raices del modulo conserva el selector de siempre.
                         onCreate = {
                             val direct = createResourceForRoute(currentRoute)
-                            if (direct != null) appViewModel.requestCreate(direct) else createSheetOpen = true
+                            // Dentro de una sección, el «+» crea DE ESA sección
+                            // sin preguntar — eso no cambia. Fuera de ella, el
+                            // artefacto abre su pantalla Crear a pantalla
+                            // completa en vez de una hoja apretada.
+                            if (direct != null) appViewModel.requestCreate(direct) else navController.navigate(Routes.CREATE)
                         },
                     )
                 }
@@ -333,7 +407,7 @@ fun AppNavGraph(
         state.pendingCreate?.let { resource ->
             ModalBottomSheet(
                 onDismissRequest = appViewModel::cancelCreate,
-                sheetState = sheetState,
+                sheetState = formSheetState,
                 containerColor = com.vidacotidiana.app.core.ui.VidaTheme.colors.surfaceVariant,
             ) {
                 CreateResourceSheet(
@@ -360,7 +434,7 @@ fun AppNavGraph(
         if (createSheetOpen) {
             ModalBottomSheet(
                 onDismissRequest = { createSheetOpen = false },
-                sheetState = sheetState,
+                sheetState = pickerSheetState,
                 containerColor = com.vidacotidiana.app.core.ui.VidaTheme.colors.surfaceVariant,
             ) {
                 CreateSheet(

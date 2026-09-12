@@ -55,6 +55,20 @@ public class Routine {
     @Column(nullable = false)
     private boolean active;
 
+    /**
+     * V35 — meta diaria del hábito, y la unidad que la rotula.
+     *
+     * NULL en las dos = rutina de sí/no, que es como se comportaban todas hasta
+     * V35 y como siguen comportándose las que ya existen. El contador es opt-in
+     * por rutina: el anillo del artefacto solo muestra «4 de 8» cuando alguien
+     * ha dicho que esa rutina se cuenta.
+     */
+    @Column(name = "target_count")
+    private Integer targetCount;
+
+    @Column(name = "unit")
+    private String unit;
+
     @Version
     @Column(nullable = false)
     private int version;
@@ -104,6 +118,26 @@ public class Routine {
 
     public Instant getNextExecutionDate() {
         return nextExecutionDate;
+    }
+
+    public Integer getTargetCount() {
+        return targetCount;
+    }
+
+    public String getUnit() {
+        return unit;
+    }
+
+    /** Un hábito se cuenta solo si alguien le puso meta. */
+    public boolean isCounted() {
+        return targetCount != null && targetCount > 0;
+    }
+
+    /** Declarar (o retirar) la meta diaria. `null` devuelve la rutina a sí/no. */
+    public void setTarget(Integer targetCount, String unit) {
+        this.targetCount = (targetCount != null && targetCount > 0) ? targetCount : null;
+        this.unit = (unit == null || unit.isBlank()) ? null : unit.trim();
+        this.updatedAt = java.time.Instant.now();
     }
 
     public boolean isActive() {

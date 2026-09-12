@@ -80,6 +80,32 @@ public class ReminderService {
      * principle applied here too, not just to Reminder itself).
      */
     @Transactional
+    /**
+     * V33 — la misma creación, declarando cuánto aprieta.
+     *
+     * Sobrecarga en vez de un parámetro más en la firma de diez: así las
+     * llamadas anteriores —Tareas, el alta rápida del calendario, los tests—
+     * siguen compilando sin tocarlas, y la tarea nace NORMAL como hasta ahora.
+     */
+    public Reminder create(UUID ownerUserId, String title, String description, Instant dueAt, String context,
+                            String iconId, String stickerId, UUID personId, UUID projectId, String location,
+                            String priority) {
+        Reminder reminder = create(ownerUserId, title, description, dueAt, context, iconId, stickerId,
+                personId, projectId, location);
+        if (priority != null && !priority.isBlank()) {
+            reminder.changePriority(com.vidacotidiana.reminder.domain.ReminderPriority.from(priority));
+        }
+        return reminder;
+    }
+
+    /** Mover el peldaño sin abrir el formulario, como hace el detalle del artefacto. */
+    @Transactional
+    public Reminder changePriority(UUID id, UUID ownerUserId, String priority) {
+        Reminder reminder = getOwnedOrThrow(id, ownerUserId);
+        reminder.changePriority(com.vidacotidiana.reminder.domain.ReminderPriority.from(priority));
+        return reminder;
+    }
+
     public Reminder create(UUID ownerUserId, String title, String description, Instant dueAt, String context,
                             String iconId, String stickerId, UUID personId, UUID projectId, String location) {
         if (personId != null) {

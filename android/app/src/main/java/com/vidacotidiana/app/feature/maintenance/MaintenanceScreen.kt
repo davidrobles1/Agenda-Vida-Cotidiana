@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
+import com.vidacotidiana.app.navigation.Routes
 import com.vidacotidiana.app.core.app.AppViewModel
 import com.vidacotidiana.app.core.app.CreatableResource
 import com.vidacotidiana.app.core.data.MaintenanceStatus
@@ -15,6 +16,8 @@ import com.vidacotidiana.app.core.ui.components.ResourceEntry
 import com.vidacotidiana.app.core.ui.components.ResourceListScreen
 import com.vidacotidiana.app.core.ui.components.plural
 import kotlinx.coroutines.CoroutineScope
+import com.vidacotidiana.app.core.data.DataSlice
+import com.vidacotidiana.app.core.app.sliceError
 
 /** Mantenimiento. Origen de los avisos de 7/3/0 días del calendario. */
 @Composable
@@ -62,6 +65,8 @@ fun MaintenanceScreen(
         )
     }
     ResourceListScreen(
+        // El artefacto le da pantalla propia a este registro.
+        onOpenRoute = { navController.navigate(Routes.maintenanceRoute(it.id)) },
         title = "Mantenimiento",
         subtitle = "Lo que toca revisar, y cuándo vuelve.",
         eyebrow = plural(entries.size, "programado", "programados"),
@@ -74,7 +79,7 @@ fun MaintenanceScreen(
         addLabel = "Nuevo mantenimiento",
         emptyBody = "Programa un mantenimiento y el calendario avisará solo.",
         loading = state.loading,
-        error = state.error,
+        error = state.sliceError(DataSlice.MAINTENANCE),
         onRetry = viewModel::refresh,
         onAdd = { viewModel.requestCreate(CreatableResource.MAINTENANCE) },
         drawerState = drawerState,

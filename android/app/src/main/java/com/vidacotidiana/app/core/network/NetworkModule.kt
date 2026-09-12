@@ -103,4 +103,21 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideVisionBoardApi(retrofit: Retrofit): VisionBoardApi = retrofit.create(VisionBoardApi::class.java)
+
+    /* Las tres capacidades del artefacto: ánimo (V36), pasos (V34) y progreso
+       de hábito (V35). Ver `WellbeingApis.kt`. */
+
+    @Provides
+    @Singleton
+    fun provideMoodApi(retrofit: Retrofit): MoodApi = retrofit.create(MoodApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideReminderStepApi(retrofit: Retrofit): ReminderStepApi =
+        retrofit.create(ReminderStepApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideRoutineProgressApi(retrofit: Retrofit): RoutineProgressApi =
+        retrofit.create(RoutineProgressApi::class.java)
 }

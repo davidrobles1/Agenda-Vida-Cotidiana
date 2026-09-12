@@ -90,6 +90,13 @@ fun typeScaleFor(spec: VidaThemeSpec): VidaTypeScale {
         fontStyle = if (f.displayItalic) FontStyle.Italic else FontStyle.Normal,
         letterSpacing = (-0.02).em,
     )
+    // La cifra puede llevar su propio peso (ver `VidaFontSet.figureWeight`) y su
+    // propio tracking: el artefacto aprieta las cifras a -0,04 em, más que los
+    // títulos, que es lo que les da esa presencia de dato y no de encabezado.
+    val figure = if (f.figureWeight == null) display else display.copy(
+        fontWeight = f.figureWeight,
+        letterSpacing = (-0.04).em,
+    )
     return VidaTypeScale(
         screenTitle = display.copy(fontSize = 22.sp, lineHeight = 27.sp),
         sectionTitle = display.copy(fontSize = 19.sp, lineHeight = 24.sp),
@@ -130,8 +137,14 @@ fun typeScaleFor(spec: VidaThemeSpec): VidaTypeScale {
 
         // Las dos cifras: mismo carácter, dos pesos de presencia. `hero` es el
         // importe (Pagos), `metric` el dato derivado (días, hora).
-        heroFigure = display.copy(fontSize = 26.sp, lineHeight = 30.sp),
-        metricFigure = display.copy(fontSize = 21.sp, lineHeight = 25.sp),
+        //
+        // ARTEFACTO MAESTRO: las cifras no heredan el peso del titular, heredan
+        // `figureWeight`. En Claro/Noche eso son 700 frente a los 600 de los
+        // títulos — la diferencia que hace que un «27» pese como un dato y no
+        // como un encabezado. Cuando el tema no lo declara, se cae en
+        // `displayWeight` y las ocho agendas anteriores no cambian.
+        heroFigure = figure.copy(fontSize = 26.sp, lineHeight = 30.sp),
+        metricFigure = figure.copy(fontSize = 21.sp, lineHeight = 25.sp),
     )
 }
 

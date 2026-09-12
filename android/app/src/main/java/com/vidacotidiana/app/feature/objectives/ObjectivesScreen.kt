@@ -19,6 +19,8 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import java.util.Locale
+import com.vidacotidiana.app.core.data.DataSlice
+import com.vidacotidiana.app.core.app.sliceError
 
 /**
  * Objetivos (FR-031). Sección secundaria de Laboral: se llega desde el cajón,
@@ -91,7 +93,7 @@ fun ObjectivesScreen(
         addLabel = "Nuevo objetivo",
         emptyBody = "Anota lo que quieres lograr y podrás seguir su avance.",
         loading = state.loading,
-        error = state.error,
+        error = state.sliceError(DataSlice.OBJECTIVES),
         onRetry = viewModel::refresh,
         onAdd = { viewModel.requestCreate(CreatableResource.OBJECTIVE) },
         // El `matchesFilter` por defecto compara con la píldora, y lo que está

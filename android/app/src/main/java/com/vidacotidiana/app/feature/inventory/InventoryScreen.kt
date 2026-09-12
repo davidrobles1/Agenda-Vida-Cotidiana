@@ -12,10 +12,15 @@ import com.vidacotidiana.app.core.app.CreatableResource
 import com.vidacotidiana.app.core.data.MaintenanceStatus
 import com.vidacotidiana.app.core.ui.components.PillTone
 import com.vidacotidiana.app.core.ui.components.ResourceEntry
+import com.vidacotidiana.app.core.ui.VidaTheme
+import com.vidacotidiana.app.core.ui.components.VidaTileRow
+import com.vidacotidiana.app.core.ui.components.VidaTileSpec
 import com.vidacotidiana.app.core.ui.components.ResourceListScreen
 import com.vidacotidiana.app.core.ui.components.plural
 import kotlinx.coroutines.CoroutineScope
 import com.vidacotidiana.app.core.ui.VidaVocabulary
+import com.vidacotidiana.app.core.data.DataSlice
+import com.vidacotidiana.app.core.app.sliceError
 
 /**
  * Inventario. ADR-022 y V31: un artículo lleva su garantía Y su mantenimiento,
@@ -57,6 +62,14 @@ fun InventoryScreen(
                 due?.let { record -> "${record.item}: ${record.nextDueLabel}" },
             ).joinToString(" · "),
             icon = Icons.Outlined.Inventory2,
+            // La cifra que convierte la lista en RETÍCULA (`shapeOf`): los días
+            // que faltan para su próximo mantenimiento. El artículo que no
+            // tiene ninguno se queda sin cifra en vez de recibir un cero que
+            // parecería «vence hoy».
+            highlight = due?.let { record ->
+                val d = java.time.temporal.ChronoUnit.DAYS.between(java.time.LocalDate.now(), record.nextDueOn)
+                if (d < 0) "${-d}d" else "${d}d"
+            },
             group = VidaVocabulary.human(it.category),
             // Un artículo no se «completa»: no existe ese estado en su backend.
             onEdit = { viewModel.requestEdit(CreatableResource.INVENTORY, it.id) },
@@ -78,6 +91,20 @@ fun InventoryScreen(
     val categories = listOf("Todos") + items.map { VidaVocabulary.human(it.category) }.distinct().sorted()
 
     ResourceListScreen(
+        // Retícula del artefacto: el inventario no reclama nada, así que sus
+        // piezas dicen QUÉ HAY y cuánto de eso está cubierto.
+        header = {
+            VidaTileRow(
+                listOf(
+                    VidaTileSpec("Artículos", items.size.toString(), "en casa",
+                        VidaTheme.colors.sunken, VidaTheme.colors.text, VidaTheme.colors.textSecondary, weight = 1.32f),
+                    VidaTileSpec("Con garantía", warrantied.size.toString(), "cubiertos",
+                        VidaTheme.colors.successContainer, VidaTheme.colors.successText, VidaTheme.colors.successText),
+                    VidaTileSpec("Con mantenim.", dueByItem.size.toString(), "programado",
+                        VidaTheme.colors.primaryContainer, VidaTheme.colors.primary, VidaTheme.colors.primaryDeep),
+                ),
+            )
+        },
         title = "Inventario",
         subtitle = "Qué tienes, dónde está y si sigue con garantía.",
         eyebrow = plural(entries.size, "artículo", "artículos"),
@@ -86,7 +113,7 @@ fun InventoryScreen(
         addLabel = "Nuevo artículo",
         emptyBody = "Registra lo que tienes para no perderle la pista.",
         loading = state.loading,
-        error = state.error,
+        error = state.sliceError(DataSlice.INVENTORY),
         onRetry = viewModel::refresh,
         onAdd = { viewModel.requestCreate(CreatableResource.INVENTORY) },
         // Aquí los chips son categorías, no estados: filtran por el texto que

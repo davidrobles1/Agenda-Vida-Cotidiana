@@ -30,8 +30,23 @@ import androidx.compose.ui.unit.TextUnit
  * Todos los valores salen de `web/src/themes.css`. Ninguno está inventado.
  */
 
-/** Identidad de cada agenda. El orden es el del selector de la Web. */
+/**
+ * Identidad de cada agenda. El orden es el del selector de la Web.
+ *
+ * CLARO y NOCHE van primero porque son las dos del ARTEFACTO MAESTRO
+ * (https://claude.ai/code/artifact/b31707e4-2719-4a26-b7e8-b870ded5a0ec), que
+ * es la fuente de verdad visual aprobada. No son un segundo lenguaje: son dos
+ * juegos de valores más dentro del mismo sistema de tokens de ADR-023, que es
+ * justamente lo que permite que el artefacto gobierne sin duplicar un solo
+ * componente.
+ *
+ * Las ocho agendas anteriores siguen compilando y funcionando. Si deben
+ * retirarse es una decisión de producto abierta — ver `36-artefacto-matriz-
+ * implementacion.md` §B-2.
+ */
 enum class VisualTheme(val id: String, val label: String, val tagline: String) {
+    CLARO("claro", "Claro", "El del artefacto"),
+    NOCHE("noche", "Noche", "Mismos tokens, otro valor"),
     AURORA("aurora", "Aurora", "Noche premium"),
     LUMEN("lumen", "Lumen", "Aire y tipografía"),
     NEO("neo", "Neo", "Cartel de alto contraste"),
@@ -43,8 +58,12 @@ enum class VisualTheme(val id: String, val label: String, val tagline: String) {
     ORGANIC("organic", "Organic / Human", "Formas vivas");
 
     companion object {
-        val DEFAULT = PAPEL
+        /** El artefacto maestro es la fuente de verdad: Claro es el de serie. */
+        val DEFAULT = CLARO
         fun from(id: String?): VisualTheme = entries.firstOrNull { it.id == id } ?: DEFAULT
+
+        /** Las dos del artefacto, que Apariencia muestra arriba y separadas. */
+        val ARTEFACTO = listOf(CLARO, NOCHE)
     }
 }
 
@@ -81,6 +100,16 @@ data class VidaFontSet(
     val hand: FontFamily? = null,
     /** Peso de los titulares — de 200 en Lumen a 900 en Neo. */
     val displayWeight: FontWeight = FontWeight.SemiBold,
+    /**
+     * Peso de las CIFRAS, separado del de los titulares.
+     *
+     * El artefacto maestro los distingue: los títulos van a 600 y las cifras
+     * grandes —el «5» de Para hoy, el «27» de En total, los importes— a 700.
+     * Con un solo peso no se puede reproducir, y §2 prohíbe aproximar. Por
+     * defecto vale lo mismo que `displayWeight`, así que las ocho agendas
+     * anteriores no cambian ni un píxel.
+     */
+    val figureWeight: FontWeight? = null,
     /** Studio titula en cursiva. */
     val displayItalic: Boolean = false,
     /** Neo titula en caja alta. */
@@ -124,6 +153,8 @@ object VidaThemes {
         warning: Long, warningContainer: Long,
         error: Long, errorContainer: Long,
         line: Long, border: Long,
+        /** `--indigo-dd`: solo lo declaran las agendas del artefacto. */
+        primaryDeep: Long? = null,
     ) = VidaColors(
         primary = hex(primary), onPrimary = hex(onPrimary), primaryContainer = hex(primaryContainer),
         success = hex(success), successText = hex(success), successContainer = hex(successContainer),
@@ -136,6 +167,75 @@ object VidaThemes {
         textTertiary = hex(textTertiary),
         second = hex(second), secondContainer = hex(secondContainer),
         line = hex(line),
+        primaryDeep = if (primaryDeep == null) hex(primary) else hex(primaryDeep),
+    )
+
+    /**
+     * CLARO — transcripción literal de los tokens del artefacto maestro.
+     *
+     * Cada valor sale del `:root` del artefacto, sin redondear:
+     *   --bg #FFFFFF · --ink #101322 · --ink2 #6B7280 · --ink3 #9CA3AF
+     *   --line #ECEEF2 · --line3 #E2E5EA · --sunk #F6F7F9 · --sunk2 #FAFBFC
+     *   --indigo #4F46E5 · --indigo-c #EEF0FF · --violet #7C3AED
+     *   --green #10A37F · --amber2 #C2670A · --rose #E11D48
+     *   --r-card 24 · --r-field 18
+     *
+     * El ROJO se reserva a lo que está mal: la severidad alta de ADR-018 usa
+     * ámbar, igual que en el artefacto.
+     */
+    private val claro = VidaThemeSpec(
+        theme = VisualTheme.CLARO,
+        colors = colors(
+            surface = 0xFFFFFFFF, surfaceVariant = 0xFFFFFFFF, sunken = 0xFFF6F7F9, surfaceElevated = 0xFFFAFBFC,
+            text = 0xFF101322, textSecondary = 0xFF6B7280, textTertiary = 0xFF9CA3AF,
+            primary = 0xFF4F46E5, primaryContainer = 0xFFEEF0FF, onPrimary = 0xFFFFFFFF,
+            second = 0xFF7C3AED, secondContainer = 0xFFF3EEFF,
+            success = 0xFF10A37F, successContainer = 0xFFE7F7F1,
+            warning = 0xFFC2670A, warningContainer = 0xFFFFF4E0,
+            error = 0xFFE11D48, errorContainer = 0xFFFFF0F3,
+            line = 0xFFECEEF2, border = 0xFFE2E5EA,
+            // --indigo-dd del artefacto: el tono con el que se ESCRIBE sobre
+            // primaryContainer. Noche no lo declara porque allí escribir en
+            // oscuro sobre #1E2140 sería ilegible: usa su propio primary claro.
+            primaryDeep = 0xFF3730A3,
+        ),
+        fonts = VidaFontSet(
+            display = VidaFonts.Sora, body = VidaFonts.Inter, label = VidaFonts.Inter,
+            hand = VidaFonts.Caveat,
+            displayWeight = FontWeight.SemiBold,
+            // BLOQUEANTE B-1: falta `sora_700.ttf` en res/font. Hasta que el
+            // fichero exista, Compose resuelve W700 al peso más cercano (600).
+            figureWeight = FontWeight.Bold,
+        ),
+        radii = VidaRadii(card = 24.dp, control = 18.dp),
+        elevation = VidaElevation(card = 3.dp),
+        eyebrow = EyebrowStyle.UPPER_TRACKED,
+        bodyLineHeight = 19.sp,
+    )
+
+    /** NOCHE — el bloque `[data-vida-theme="noche"]` del artefacto, tal cual. */
+    private val noche = VidaThemeSpec(
+        theme = VisualTheme.NOCHE,
+        colors = colors(
+            surface = 0xFF0F1216, surfaceVariant = 0xFF161A20, sunken = 0xFF181C22, surfaceElevated = 0xFF151920,
+            text = 0xFFECEFF4, textSecondary = 0xFF9AA3B2, textTertiary = 0xFF7A8494,
+            primary = 0xFF7C74F0, primaryContainer = 0xFF1E2140, onPrimary = 0xFF0F1216,
+            second = 0xFF9B7BF5, secondContainer = 0xFF211A32,
+            success = 0xFF2FC79F, successContainer = 0xFF10291F,
+            warning = 0xFFE08A2E, warningContainer = 0xFF2A1E0E,
+            error = 0xFFFF5C7A, errorContainer = 0xFF2C141C,
+            line = 0xFF232830, border = 0xFF2C323C,
+        ),
+        fonts = VidaFontSet(
+            display = VidaFonts.Sora, body = VidaFonts.Inter, label = VidaFonts.Inter,
+            hand = VidaFonts.Caveat,
+            displayWeight = FontWeight.SemiBold, figureWeight = FontWeight.Bold,
+        ),
+        radii = VidaRadii(card = 24.dp, control = 18.dp),
+        elevation = VidaElevation(card = 3.dp),
+        eyebrow = EyebrowStyle.UPPER_TRACKED,
+        isDark = true,
+        bodyLineHeight = 19.sp,
     )
 
     private val aurora = VidaThemeSpec(
@@ -331,6 +431,8 @@ object VidaThemes {
     )
 
     private val all = mapOf(
+        VisualTheme.CLARO to claro,
+        VisualTheme.NOCHE to noche,
         VisualTheme.AURORA to aurora,
         VisualTheme.LUMEN to lumen,
         VisualTheme.NEO to neo,
@@ -344,6 +446,21 @@ object VidaThemes {
 
     fun of(theme: VisualTheme): VidaThemeSpec = all.getValue(theme)
 
-    /** Para el selector de Ajustes y para las previsualizaciones parametrizadas. */
+    /**
+     * TODAS las agendas. Sigue existiendo entera: `AppPreferences` puede
+     * devolver cualquiera de las once por su id, y las vistas previas
+     * parametrizadas las recorren. Que una agenda no se ofrezca no significa
+     * que deje de funcionar.
+     */
     val catalogue: List<VidaThemeSpec> = VisualTheme.entries.map { all.getValue(it) }
+
+    /**
+     * Lo que el usuario PUEDE elegir: únicamente las dos del artefacto maestro.
+     *
+     * Las ocho de ADR-023 se conservan en `catalogue` y siguen resolviéndose
+     * por id —nada que dependa de ellas se rompe, y un usuario que ya tuviera
+     * Papel guardado lo sigue viendo—, pero no se ofrecen en Apariencia: la
+     * experiencia visible es la del artefacto y solo la del artefacto.
+     */
+    val selectable: List<VidaThemeSpec> = VisualTheme.ARTEFACTO.map { all.getValue(it) }
 }

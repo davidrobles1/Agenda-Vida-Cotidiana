@@ -12,9 +12,14 @@ import com.vidacotidiana.app.core.app.CreatableResource
 import com.vidacotidiana.app.core.data.WarrantyStatus
 import com.vidacotidiana.app.core.ui.components.PillTone
 import com.vidacotidiana.app.core.ui.components.ResourceEntry
+import com.vidacotidiana.app.core.ui.VidaTheme
+import com.vidacotidiana.app.core.ui.components.VidaTileRow
+import com.vidacotidiana.app.core.ui.components.VidaTileSpec
 import com.vidacotidiana.app.core.ui.components.ResourceListScreen
 import com.vidacotidiana.app.core.ui.components.plural
 import kotlinx.coroutines.CoroutineScope
+import com.vidacotidiana.app.core.data.DataSlice
+import com.vidacotidiana.app.core.app.sliceError
 
 /** Garantías. De aquí salen los avisos de 30/15/0 días que pinta el calendario. */
 @Composable
@@ -61,19 +66,48 @@ fun WarrantiesScreen(
         )
     }
     ResourceListScreen(
+        // La composición del artefacto: las severidades de ADR-018 como piezas,
+        // no como una tira que se desplaza y deja la tercera fuera de pantalla.
+        // UNA SOLA CLASIFICACIÓN, la que ya calcula `WarrantyDto.toDomain`.
+        //
+        // Aquí había dos bloques de cifras con dos definiciones distintas de la
+        // misma palabra: arriba «Vigentes» era `status == VIGENTE` y abajo
+        // `status != VENCIDA`, que incluye las que están por vencer. La
+        // pantalla llegaba a decir «VIGENTES 0» y «Vigentes 1» a la vez, y los
+        // tres mosaicos sumaban dos sobre una única garantía registrada,
+        // porque el iPad caía en dos categorías.
+        //
+        // `WarrantyStatus` ya es una partición de tres, disjunta y completa, y
+        // ya aplica los 30 días de ADR-018 en un único sitio. Lo único que hacía
+        // falta era dejar de reimplementarla: ahora los contadores, la píldora
+        // de cada fila y los filtros leen exactamente lo mismo.
+        header = {
+            val vigentes = warranties.count { it.status == WarrantyStatus.VIGENTE }
+            val pronto = warranties.count { it.status == WarrantyStatus.POR_VENCER }
+            val vencidas = warranties.count { it.status == WarrantyStatus.VENCIDA }
+            VidaTileRow(
+                listOf(
+                    VidaTileSpec("Vigentes", vigentes.toString(), "sin prisa",
+                        VidaTheme.colors.successContainer, VidaTheme.colors.successText, VidaTheme.colors.successText),
+                    VidaTileSpec("Vencen pronto", pronto.toString(), "30 días o menos",
+                        VidaTheme.colors.warningContainer, VidaTheme.colors.warningText, VidaTheme.colors.warningText),
+                    VidaTileSpec("Vencidas", vencidas.toString(), "sin cobertura",
+                        VidaTheme.colors.errorContainer, VidaTheme.colors.error, VidaTheme.colors.error),
+                ),
+            )
+        },
         title = "Garantías",
         subtitle = "Lo que aún está cubierto, y hasta cuándo.",
         eyebrow = plural(entries.size, "registrada", "registradas"),
         entries = entries,
+        // Los tres filtros son los tres estados, ni uno más: antes había cinco
+        // conceptos visuales para tres categorías reales, y dos de ellos
+        // («Vigentes» arriba y abajo) querían decir cosas distintas.
         filters = listOf("Todas", "Vigentes", "Por vencer", "Vencidas"),
-        metrics = listOf(
-            Triple("Vigentes", warranties.count { it.status == WarrantyStatus.VIGENTE }.toString(), "cubiertas"),
-            Triple("Por vencer", warranties.count { it.status == WarrantyStatus.POR_VENCER }.toString(), "atención"),
-        ),
         addLabel = "Nueva garantía",
         emptyBody = "Registra una garantía y te avisaremos 30, 15 y 0 días antes.",
         loading = state.loading,
-        error = state.error,
+        error = state.sliceError(DataSlice.WARRANTIES),
         onRetry = viewModel::refresh,
         onAdd = { viewModel.requestCreate(CreatableResource.WARRANTY) },
         drawerState = drawerState,

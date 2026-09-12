@@ -20,7 +20,6 @@ import com.vidacotidiana.app.core.app.AppViewModel
 import com.vidacotidiana.app.core.ui.VidaSpacing
 import com.vidacotidiana.app.core.ui.VidaTheme
 import com.vidacotidiana.app.core.ui.components.EmptyState
-import com.vidacotidiana.app.core.ui.components.Eyebrow
 import com.vidacotidiana.app.core.ui.components.LoadingRows
 import com.vidacotidiana.app.core.ui.components.PillTone
 import com.vidacotidiana.app.core.ui.components.ResourceBoard
@@ -30,6 +29,8 @@ import com.vidacotidiana.app.core.ui.components.VidaIconButton
 import com.vidacotidiana.app.navigation.Routes
 import com.vidacotidiana.app.core.ui.components.VidaScreen
 import com.vidacotidiana.app.core.ui.components.VidaSegmented
+import com.vidacotidiana.app.core.ui.components.VidaTileRow
+import com.vidacotidiana.app.core.ui.components.VidaTileSpec
 import kotlinx.coroutines.CoroutineScope
 
 /**
@@ -61,8 +62,44 @@ fun SharedScreen(
         StaggeredAppear(0) {
             VidaSegmented(listOf("Me compartieron", "Yo compartí"), tab, { tab = it })
         }
-        StaggeredAppear(1) {
-            Eyebrow("${list.size} ${if (receiving) "recibidos" else "compartidos"}")
+        // LA RETÍCULA DEL ARTEFACTO, y no el contador que había.
+        //
+        // «7 recibidos» no dice lo único que importa aquí: de esos siete, ¿en
+        // cuántos tengo que hacer algo? Las tres piezas separan justamente eso
+        // —me toca, ya está, solo mirar— y por eso la primera pesa más.
+        //
+        // Cambia con la pestaña porque las dos direcciones no significan lo
+        // mismo: recibiendo, «me toca» es trabajo mío; enviando, es trabajo que
+        // espero de otra persona.
+        //
+        // ADR-018: ámbar, nunca rojo. Que me toque algo no es un error.
+        if (list.isNotEmpty()) {
+            StaggeredAppear(1) {
+                val mine = list.count { it.responsibility && !it.partDone }
+                val done = list.count { it.partDone }
+                val readOnly = list.count { !it.responsibility }
+                VidaTileRow(
+                    listOf(
+                        VidaTileSpec(
+                            if (receiving) "Te toca" else "Esperando",
+                            mine.toString(),
+                            if (receiving) "con tu parte" else "su parte",
+                            if (mine == 0) c.successContainer else c.warningContainer,
+                            if (mine == 0) c.successText else c.warningText,
+                            if (mine == 0) c.successText else c.warningText,
+                            weight = 1.32f,
+                        ),
+                        VidaTileSpec(
+                            "Hecho", done.toString(), "su parte",
+                            c.successContainer, c.successText, c.successText,
+                        ),
+                        VidaTileSpec(
+                            "Solo ver", readOnly.toString(), "sin parte",
+                            c.surfaceElevated, c.textSecondary, c.textTertiary,
+                        ),
+                    ),
+                )
+            }
         }
         when {
             state.loading && list.isEmpty() -> StaggeredAppear(2) { LoadingRows(2) }
