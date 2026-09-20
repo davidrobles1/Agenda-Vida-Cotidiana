@@ -40,6 +40,7 @@ import com.vidacotidiana.app.core.ui.components.EmptyState
 import com.vidacotidiana.app.core.ui.components.LoadingRows
 import com.vidacotidiana.app.core.ui.components.StaggeredAppear
 import com.vidacotidiana.app.core.ui.components.VidaScreen
+import com.vidacotidiana.app.core.ui.VidaDates
 
 /**
  * NOTAS DEL DÍA.
@@ -70,7 +71,7 @@ fun NotasDiaScreen(viewModel: AppViewModel, navController: NavHostController) {
 
     VidaScreen(
         title = "Notas del día",
-        subtitle = state.selectedDate.toString(),
+        subtitle = VidaDates.absolute(state.selectedDate),
         showBack = true,
         onNavigationClick = { navController.popBackStack() },
     ) {
@@ -108,7 +109,7 @@ fun NotasDiaScreen(viewModel: AppViewModel, navController: NavHostController) {
                                     .background(rails[i % rails.size], RoundedCornerShape(2.dp)),
                             )
                             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text(state.selectedDate.toString(), style = t.micro, color = c.textTertiary)
+                                Text(VidaDates.relative(state.selectedDate), style = t.micro, color = c.textTertiary)
                                 // El texto ENTERO. Si no cabe, la caja se
                                 // desplaza; no se trunca.
                                 Box(

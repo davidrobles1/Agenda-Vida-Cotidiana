@@ -40,6 +40,7 @@ import androidx.navigation.NavHostController
 import com.vidacotidiana.app.core.app.AppViewModel
 import com.vidacotidiana.app.core.ui.VidaLayout
 import com.vidacotidiana.app.core.ui.VidaTheme
+import com.vidacotidiana.app.core.ui.components.subeSobreElTeclado
 import com.vidacotidiana.app.core.ui.components.LoadingRows
 import com.vidacotidiana.app.core.ui.components.MoodFace
 import com.vidacotidiana.app.core.ui.components.MoodScale
@@ -59,8 +60,12 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import com.vidacotidiana.app.core.ui.components.moodSky
 import com.vidacotidiana.app.core.ui.components.moodInk
+import com.vidacotidiana.app.core.ui.components.moodSkyStrong
+import com.vidacotidiana.app.core.ui.components.vidaHalo
+import com.vidacotidiana.app.core.ui.components.vidaFloat
 
 /**
  * BIENESTAR — «¿Cómo te sientes hoy?».
@@ -159,7 +164,11 @@ fun BienestarScreen(viewModel: AppViewModel, navController: NavHostController) {
                         )
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            if (marked == null) "Toca una carita" else MoodScale.ECHOES[marked],
+                            when {
+                                marked != null -> MoodScale.ECHOES[marked]
+                                state.moodError != null -> "No pudimos consultarlo"
+                                else -> "Toca una carita"
+                            },
                             style = MaterialTheme.typography.bodySmall.copy(
                                 fontWeight = FontWeight.SemiBold, fontSize = 13.sp, lineHeight = 18.sp,
                             ),
@@ -177,6 +186,11 @@ fun BienestarScreen(viewModel: AppViewModel, navController: NavHostController) {
                                 Box(
                                     Modifier
                                         .size(154.dp)
+                                        // `.halo` del artefacto: 5,2 s, escala
+                                        // 1 → 1,08 y opacidad .5 → .85. Estaba
+                                        // dibujado pero quieto, y un halo que no
+                                        // respira es sólo una mancha.
+                                        .vidaHalo()
                                         .blur(18.dp)
                                         .background(
                                             MoodScale.accentOf(marked).copy(alpha = 0.16f),
@@ -185,6 +199,10 @@ fun BienestarScreen(viewModel: AppViewModel, navController: NavHostController) {
                                 )
                             }
                             MoodFace(
+                                // `.floatybig`: 5,2 s, ±7 px y ±1,2° de
+                                // balanceo. Es la pieza central de la pantalla
+                                // y la única que el artefacto mueve así.
+                                modifier = Modifier.vidaFloat(7.dp, 5200, rotation = 1.2f),
                                 value = marked,
                                 size = 140.dp,
                                 strokeWidth = 3.4f,
@@ -206,7 +224,11 @@ fun BienestarScreen(viewModel: AppViewModel, navController: NavHostController) {
                                             // ánimo EN ESTE TEMA; en Noche el
                                             // crema fijo invertía la lectura y
                                             // los no elegidos parecían activos.
-                                            if (on) moodSky(k) else c.sunken,
+                                            // El elegido usa el tinte FUERTE:
+                                            // con el suave se confundía con
+                                            // la tarjeta, que lleva ese mismo
+                                            // tinte de fondo.
+                                            if (on) moodSkyStrong(k) else c.sunken,
                                             RoundedCornerShape(20.dp),
                                         )
                                         .vidaClickable(onClick = { viewModel.setMood(k, null, tags.toList()) }),
@@ -325,13 +347,23 @@ fun BienestarScreen(viewModel: AppViewModel, navController: NavHostController) {
                                 onValueChange = { draft = it },
                                 textStyle = noteStyle.copy(color = c.text),
                                 cursorBrush = SolidColor(c.primary),
-                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                                // UNA línea, como dice el propio texto de
+                                // sugerencia. Sin esto el «Listo» del teclado
+                                // metía un salto de línea en vez de confirmar,
+                                // así que la nota no llegaba a guardarse nunca.
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(
+    imeAction = ImeAction.Done,
+    // La misma regla que `VidaTextField`: una nota es una frase.
+    capitalization = KeyboardCapitalization.Sentences,
+),
                                 keyboardActions = KeyboardActions(onDone = {
                                     commit()
                                     focus.clearFocus()
                                 }),
                                 modifier = Modifier
                                     .fillMaxWidth()
+                                    .subeSobreElTeclado()
                                     .onFocusChanged { if (!it.isFocused) commit() },
                                 decorationBox = { inner ->
                                     if (draft.isEmpty()) {

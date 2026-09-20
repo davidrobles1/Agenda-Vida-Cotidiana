@@ -139,6 +139,26 @@ data class VidaColors(
     /** Filete fino, más suave que `border`. `--line` frente a `--line-strong`. */
     val line: Color = border,
 
+    /* ---------------------------------------------------------------------
+       LOS DOS TONOS DE MÓDULO QUE FALTABAN.
+
+       El artefacto maestro declara OCHO tonos —indigo, green, amber, coral,
+       violet, violet2, rose, ink— y los usa para que cada registro se
+       reconozca por su color antes de leerlo: un servicio no se ve igual que
+       una tarjeta ni que un crédito. Aquí solo existían cinco, así que
+       pantallas enteras pintaban todas sus filas del mismo color y se perdía
+       esa lectura. `coral` (`--coral #E2734A`) y `violet2` (`--violet2
+       #7C6BD6`) son los dos que faltaban, con sus contenedores.
+
+       Llevan valor por defecto por el mismo motivo que los de arriba: los
+       temas que no los declaren siguen siendo coherentes en vez de no
+       compilar.
+       --------------------------------------------------------------------- */
+    val coral: Color = warning,
+    val coralContainer: Color = warningContainer,
+    val violet2: Color = second,
+    val violet2Container: Color = secondContainer,
+
     /**
      * El acento OSCURO, para texto sobre `primaryContainer`. `--indigo-dd`.
      *

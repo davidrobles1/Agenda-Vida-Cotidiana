@@ -68,7 +68,24 @@ data class AttentionItem(
     val urgency: AttentionUrgency,
     val date: LocalDate,
     val amount: String? = null,
-)
+) {
+    /**
+     * El id del registro, sin el prefijo del módulo.
+     *
+     * `id` es «maintenance:8f3a-…» para que dos módulos no colisionen dentro
+     * de la misma lista; navegar hasta el registro necesita el uuid a secas.
+     */
+    val resourceId: String get() = id.substringAfter(':')
+
+    /**
+     * La clave con la que se recuerda que este aviso ya se ha visto.
+     *
+     * LLEVA LA FECHA. Cuando un mantenimiento vuelva a tocar dentro de seis
+     * meses será un aviso nuevo y tiene que aparecer sin leer; con el id solo,
+     * marcarlo leído una vez lo callaría para siempre.
+     */
+    val noticeKey: String get() = "$id@$date"
+}
 
 /** Ventana de «lo que viene»: una semana. Más allá deja de ser algo que atender. */
 private const val SOON_DAYS = 7L
@@ -225,10 +242,16 @@ object AttentionEngine {
             )
         }
 
-    /** `MaintenanceStatus.AL_DIA` incluye lo ya completado: ese no reclama. */
+    /**
+     * Ni lo que está al día ni lo ya terminado reclaman nada. Son dos estados
+     * distintos —uno vuelve, el otro no— pero coinciden en lo único que decide
+     * si entran aquí: no hay nada que hacer con ellos.
+     */
     private fun maintenance(data: VidaData, today: LocalDate): List<AttentionItem> =
         data.maintenance.mapNotNull { m ->
-            if (m.status == MaintenanceStatus.AL_DIA) return@mapNotNull null
+            if (m.status == MaintenanceStatus.AL_DIA || m.status == MaintenanceStatus.HECHO) {
+                return@mapNotNull null
+            }
             val urgency = urgencyOf(m.nextDueOn, today) ?: return@mapNotNull null
             AttentionItem(
                 id = "maintenance:${m.id}",

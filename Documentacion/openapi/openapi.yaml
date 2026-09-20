@@ -1905,6 +1905,33 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+    delete:
+      summary: >-
+        Reopen a commitment (owner only) — deletes the resolution created by the
+        POST above, returning the commitment to OPEN. Idempotent. Mirrors
+        DELETE /maintenance-records/{id}/occurrences/last and
+        DELETE /subscriptions/{id}/payments/last: the undo is a DELETE on the
+        thing that was created, not a new verb.
+      security:
+        - keycloakBearer: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Commitment reopened
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Commitment'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /notes:
     get:
       summary: List own notes (paginated) — funcionalidad Agenda+Notas completa, V2.
@@ -3243,6 +3270,24 @@ components:
           type: string
           maxLength: 500
           description: ADR-016/FR-024. Solo relevante para una "reunión".
+        priority:
+          type: string
+          enum: [LOW, NORMAL, URGENT]
+          description: >
+            V33. Nunca nulo en la respuesta: el valor por defecto es NORMAL.
+            El artefacto aprobado lo rotula sobre cada fila de Tareas
+            (ALTA/MEDIA/BAJA) y de él sale el tono de la fila.
+        stepCount:
+          type: integer
+          description: >
+            Cuántos pasos tiene la tarea. Se resuelve con UNA agregación por
+            página, no con una consulta por tarea. Ausente cuando no se
+            consultó — que no es lo mismo que cero.
+        stepsDone:
+          type: integer
+          description: >
+            Cuántos de esos pasos están hechos. El porcentaje del anillo del
+            artefacto se DERIVA de estos dos; no se guarda en ninguna parte.
         version:
           type: integer
           description: Optimistic locking version, incremented on every update.

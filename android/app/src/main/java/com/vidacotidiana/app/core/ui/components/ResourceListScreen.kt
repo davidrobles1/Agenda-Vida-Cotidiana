@@ -61,8 +61,31 @@ data class ResourceEntry(
     val onEdit: (() -> Unit)? = null,
     val onComplete: (() -> Unit)? = null,
     val completeLabel: String = "Hecho",
+    /**
+     * Abrir el contenido del recurso con lo que el teléfono ya tenga.
+     *
+     * ESTE CAMPO ERA MUERTO. Documentos y Recursos de trabajo lo rellenaban
+     * desde hace tiempo, pero ninguna pieza de la interfaz lo leía: ni la
+     * tarjeta, ni el mosaico, ni la hoja de detalle. El resultado es que
+     * Documentos tenía un visor completo —descarga, FileProvider e intent al
+     * lector del sistema— al que no se podía llegar desde ninguna parte.
+     */
     val onOpen: (() -> Unit)? = null,
     val openLabel: String = "Abrir",
+    /**
+     * VOLVER AL ESTADO ANTERIOR.
+     *
+     * La contraria de `onComplete`, y nula exactamente donde no existe: un
+     * documento no se completa y por tanto tampoco se descompleta, y una rutina
+     * ejecutada no tiene forma de borrar su última ocurrencia en el backend.
+     *
+     * Va aparte de `onComplete` y no como un toggle sobre él porque los dos
+     * sentidos no son simétricos en la pantalla: hay registros que pueden
+     * deshacerse SIN estar completados —un mantenimiento repetible adelantado
+     * por error sigue estando «activo»— y un toggle no sabría expresar eso.
+     */
+    val onRevert: (() -> Unit)? = null,
+    val revertLabel: String = "Deshacer",
     val onDelete: (() -> Unit)? = null,
     /** Acciones propias de una sección concreta, como las de Documentos. */
     val extraActions: List<Pair<String, () -> Unit>> = emptyList(),
@@ -78,6 +101,27 @@ data class ResourceEntry(
      * pantalla, porque qué destaca de un recurso es propio de su dominio.
      */
     val highlight: String? = null,
+    /**
+     * EL AVANCE, en tanto por ciento — el anillo del artefacto.
+     *
+     * Cuando viene, SUSTITUYE al cuadro del icono en la fila, exactamente como
+     * hace el artefacto aprobado: `o.ring !== undefined ? C.ring(...) : mark`.
+     * No se añade al lado; una fila con anillo Y marca tendría dos piezas
+     * redondas compitiendo a la izquierda.
+     *
+     * Nulo cuando no hay avance que mostrar —una tarea sin pasos—, y entonces
+     * la fila enseña su icono como siempre.
+     */
+    val ring: Int? = null,
+    /**
+     * Hay una acción de este registro EN VUELO.
+     *
+     * El control de «hecho» lo dice mientras dura —gira en vez de quedarse
+     * quieto— y deja de aceptar toques. Sin esto, pulsar la palomilla no
+     * producía ninguna señal hasta que volvía la red, así que parecía rota y se
+     * pulsaba otra vez.
+     */
+    val busy: Boolean = false,
 )
 
 /**
@@ -126,7 +170,16 @@ fun ResourceListScreen(
     scope: CoroutineScope,
     showBack: Boolean,
     onBack: () -> Unit,
-    onNotifications: () -> Unit,
+    /**
+     * A dónde lleva la campana. NULA = no se dibuja.
+     *
+     * Era obligatoria y las TRECE secciones le pasaban `{}`: un botón que no
+     * hacía nada, con el punto rojo fijado a `true` encima, en todas las
+     * pantallas de recursos. Ahora o lleva a los avisos o no está.
+     */
+    onNotifications: (() -> Unit)? = null,
+    /** Cuántos avisos sin leer. El punto sale de esta cifra, no de un `true`. */
+    notificationsBadge: Int = 0,
     loading: Boolean = false,
     error: String? = null,
     onRetry: () -> Unit = {},
@@ -147,6 +200,8 @@ fun ResourceListScreen(
      * barra de selección que no lleva a ningún sitio sería ruido.
      */
     bulkAction: BulkAction? = null,
+    /** La forma del artefacto cuando la sección la fija. Nula: se deduce. */
+    shape: ResourceShape? = null,
 ) {
     val c = VidaTheme.colors
     var query by remember { mutableStateOf("") }
@@ -166,9 +221,21 @@ fun ResourceListScreen(
         subtitle = subtitle,
         showBack = showBack,
         onNavigationClick = if (showBack) onBack else openDrawerAction(drawerState, scope),
+        // Las ocho secciones de recursos ya tienen su propio «reintentar»; el
+        // gesto de tirar es el mismo acto, disponible sin tener que fallar
+        // primero. Una sola línea aquí lo da en todas.
+        onRefresh = onRetry,
+        refreshing = loading,
         actions = {
             VidaIconButton(Icons.Filled.Add, addLabel, onClick = onAdd)
-            VidaIconButton(Icons.Outlined.Notifications, "Notificaciones", badge = true, onClick = onNotifications)
+            onNotifications?.let { abrir ->
+                VidaIconButton(
+                    Icons.Outlined.Notifications,
+                    if (notificationsBadge == 0) "Avisos" else "Avisos · $notificationsBadge sin leer",
+                    badge = notificationsBadge > 0,
+                    onClick = abrir,
+                )
+            }
         },
     ) {
         // UNA CIFRA ES UNA AFIRMACIÓN SOBRE LOS DATOS, y cuando la carga falló
@@ -281,6 +348,7 @@ fun ResourceListScreen(
         } else {
             StaggeredAppear(4) {
                 ResourceBoard(
+                    shape = shape,
                     entries = visible,
                     onOpenDetail = { entry -> onOpenRoute?.invoke(entry) ?: run { detail = entry } },
                     selecting = selecting,
@@ -303,8 +371,23 @@ fun ResourceListScreen(
                 Text(entry.subtitle, style = MaterialTheme.typography.bodyMedium, color = c.textSecondary)
                 detailExtra(entry)
 
+                // VER EL CONTENIDO, arriba y sin compartir fila con nada.
+                // Es la acción principal de un documento —para eso se guardó—
+                // y hasta ahora no estaba en ningún sitio: el campo existía y
+                // nadie lo pintaba.
+                entry.onOpen?.let { open ->
+                    VidaSmallButton(entry.openLabel, { open(); detail = null })
+                }
+
                 entry.extraActions.forEach { (label, action) ->
                     VidaSmallButton(label, { action(); detail = null }, ghost = true)
+                }
+
+                // Deshacer en su propia línea: es la salida a un error, y
+                // ponerla al lado de «Hecho» invitaba justo al toque
+                // equivocado que viene a reparar.
+                entry.onRevert?.let { revert ->
+                    VidaSmallButton(entry.revertLabel, { revert(); detail = null }, ghost = true)
                 }
 
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(VidaSpacing.sm)) {

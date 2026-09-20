@@ -2,6 +2,9 @@ package com.vidacotidiana.reminder.application;
 
 import com.vidacotidiana.reminder.domain.ReminderStep;
 import com.vidacotidiana.reminder.domain.ReminderStepRepository;
+import java.util.stream.Collectors;
+import java.util.Map;
+import java.util.Collection;
 import com.vidacotidiana.shared.domain.NotFoundException;
 import com.vidacotidiana.shared.domain.ValidationException;
 import org.springframework.stereotype.Service;
@@ -120,4 +123,30 @@ public class ReminderStepService {
         return stepRepository.findByIdAndReminderId(stepId, reminderId)
                 .orElseThrow(() -> new NotFoundException("STEP_NOT_FOUND", "Ese paso no existe en esta tarea."));
     }
+
+    /**
+     * CUÁNTO LLEVA HECHO CADA UNA de estas tareas.
+     *
+     * Lo usa la lista de Tareas para pintar el anillo de avance del artefacto
+     * en cada fila. Vive aquí y no en `ReminderService` porque el avance es un
+     * hecho sobre los PASOS, y este es el servicio que responde por ellos.
+     *
+     * Una sola agregación para toda la página: preguntar por cada tarea
+     * convertiría una pantalla en cuarenta consultas. Las tareas sin pasos no
+     * salen en el mapa, y eso es lo correcto — «sin pasos» no es «cero de
+     * cero», y quien lo pinte tiene que poder distinguirlo.
+     */
+    @Transactional(readOnly = true)
+    public Map<UUID, StepProgress> progressOf(Collection<UUID> reminderIds) {
+        if (reminderIds == null || reminderIds.isEmpty()) {
+            return Map.of();
+        }
+        return stepRepository.progressOf(reminderIds).stream()
+                .collect(Collectors.toMap(
+                        ReminderStepRepository.ReminderStepProgress::getReminderId,
+                        row -> new StepProgress((int) row.getTotal(), (int) row.getDone())));
+    }
+
+    /** El avance de UNA tarea: cuántos pasos tiene y cuántos están hechos. */
+    public record StepProgress(int total, int done) {}
 }

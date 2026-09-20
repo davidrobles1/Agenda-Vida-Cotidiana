@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
+import com.vidacotidiana.app.navigation.Routes
 import com.vidacotidiana.app.core.app.AppViewModel
 import com.vidacotidiana.app.core.app.CreatableResource
 import com.vidacotidiana.app.core.data.WarrantyStatus
@@ -48,6 +49,7 @@ fun WarrantiesScreen(
             title = it.product,
             subtitle = it.expiresLabel,
             highlight = quedan(it.expiresOn),
+            busy = it.id in state.busy,
             icon = Icons.Outlined.VerifiedUser,
             // Acciones reales: `PATCH /warranties/{id}` y el `complete` que el
             // backend ya expone. Marcar una vencida no tiene sentido, así que
@@ -57,6 +59,13 @@ fun WarrantiesScreen(
                 { viewModel.completeResource(CreatableResource.WARRANTY, it.id) }
             } else null,
             completeLabel = "Ya la usé",
+            // VENCIDA cubre dos cosas distintas: caducada por fecha y marcada
+            // como usada. Solo la segunda se puede deshacer —el mismo endpoint
+            // alterna—, y se reconoce porque su fecha todavía no ha pasado.
+            onRevert = if (it.status == WarrantyStatus.VENCIDA && !it.expiresOn.isBefore(today)) {
+                { viewModel.revertResource(CreatableResource.WARRANTY, it.id) }
+            } else null,
+            revertLabel = "No la usé",
             onDelete = { viewModel.deleteResource(CreatableResource.WARRANTY, it.id) },
             pill = when (it.status) {
                 WarrantyStatus.VIGENTE -> "Vigente" to PillTone.OK
@@ -89,7 +98,7 @@ fun WarrantiesScreen(
                 listOf(
                     VidaTileSpec("Vigentes", vigentes.toString(), "sin prisa",
                         VidaTheme.colors.successContainer, VidaTheme.colors.successText, VidaTheme.colors.successText),
-                    VidaTileSpec("Vencen pronto", pronto.toString(), "30 días o menos",
+                    VidaTileSpec("Pronto", pronto.toString(), "en 30 días",
                         VidaTheme.colors.warningContainer, VidaTheme.colors.warningText, VidaTheme.colors.warningText),
                     VidaTileSpec("Vencidas", vencidas.toString(), "sin cobertura",
                         VidaTheme.colors.errorContainer, VidaTheme.colors.error, VidaTheme.colors.error),
@@ -114,6 +123,9 @@ fun WarrantiesScreen(
         scope = scope,
         showBack = true,
         onBack = { navController.popBackStack() },
-        onNotifications = {},
+        // La campana lleva de verdad a los avisos, y el punto sale de
+        // cuántos quedan sin leer. Antes era `{}` con `badge = true`.
+        onNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
+        notificationsBadge = viewModel.avisosSinLeer(),
     )
 }

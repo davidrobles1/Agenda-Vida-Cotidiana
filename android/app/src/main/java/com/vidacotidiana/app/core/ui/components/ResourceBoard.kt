@@ -1,5 +1,7 @@
 package com.vidacotidiana.app.core.ui.components
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -19,8 +21,10 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.vidacotidiana.app.core.ui.VidaIconSize
@@ -28,6 +32,10 @@ import com.vidacotidiana.app.core.ui.VidaLayout
 import com.vidacotidiana.app.core.ui.VidaSpacing
 import com.vidacotidiana.app.core.ui.VidaTheme
 import com.vidacotidiana.app.core.ui.tileFigure
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.ui.unit.Dp
 
 /**
  * LA FORMA DE UNA PIEZA LA DECIDE SU CONTENIDO, NO SU ENTIDAD.
@@ -73,6 +81,15 @@ enum class ResourceShape { HERO, METRIC, LIST, COMPACT }
  * rompería la retícula por una excepción. La pieza sin cifra se resuelve dentro
  * del cuadrado (ver `focal` en `ResourceTile`), no fuera de él.
  */
+/**
+ * LA FORMA QUE PIDE LA PANTALLA, cuando el artefacto la fija.
+ *
+ * `shapeOf` deduce la forma del contenido, y acierta en la mayoría de las
+ * secciones. Pero en Tareas y en Pagos el artefacto maestro NO usa mosaicos:
+ * usa filas, con el nombre como dato principal y la hora o el importe a un
+ * lado. Deducirla del contenido convertía la hora de una tarea en el titular de
+ * la pieza y dejaba el nombre debajo, que es justo al revés de lo aprobado.
+ */
 internal fun shapeOf(entries: List<ResourceEntry>): ResourceShape = when {
     entries.any { it.amount != null } -> ResourceShape.HERO
     entries.any { it.highlight != null } -> ResourceShape.METRIC
@@ -102,6 +119,8 @@ fun ResourceBoard(
     selecting: Boolean = false,
     selectedIds: Set<String> = emptySet(),
     onToggleSelect: (ResourceEntry) -> Unit = {},
+    /** La forma del artefacto cuando la pantalla la fija. Nula: se deduce. */
+    shape: ResourceShape? = null,
 ) {
     // Se conserva el orden en que la pantalla los entregó: ya vienen ordenados
     // por lo que su dominio considera importante.
@@ -121,11 +140,12 @@ fun ResourceBoard(
                     // una pieza más de la lista.
                     Box(Modifier.padding(top = VidaLayout.blockGap)) { Eyebrow("$group · ${items.size}") }
                 }
-                when (shapeOf(items)) {
+                val itemShape = shape ?: shapeOf(items)
+                when (itemShape) {
                     ResourceShape.HERO, ResourceShape.METRIC -> TileGrid(
                         items = items,
                         columns = columns,
-                        hero = shapeOf(items) == ResourceShape.HERO,
+                        hero = itemShape == ResourceShape.HERO,
                         onOpenDetail = onOpenDetail,
                         selecting = selecting,
                         selectedIds = selectedIds,
@@ -134,7 +154,7 @@ fun ResourceBoard(
                     ResourceShape.LIST, ResourceShape.COMPACT -> Column(
                         verticalArrangement = Arrangement.spacedBy(VidaLayout.itemGap),
                     ) {
-                        val dense = shapeOf(items) == ResourceShape.COMPACT
+                        val dense = itemShape == ResourceShape.COMPACT
                         items.forEach { entry ->
                             ResourceRowItem(
                                 entry = entry,
@@ -429,18 +449,82 @@ private fun TileCorner(entry: ResourceEntry, selecting: Boolean, selected: Boole
         return
     }
 
-    entry.onComplete?.let { done ->
-        TouchTarget(onClick = done) {
-            Box(
-                Modifier
-                    .size(34.dp)
-                    .border(spec.borderWidth, role.completeBorder, shape),
-                contentAlignment = Alignment.Center,
-            ) {
+    CompleteControl(entry, shape, 34.dp)
+}
+
+/**
+ * EL CONTROL DE «HECHO», que dice cuándo está trabajando.
+ *
+ * Escrito una vez porque estaba escrito dos —idéntico en la tarjeta y en la
+ * fila—, y dos copias del mismo botón acaban respondiendo distinto.
+ *
+ * Mientras la petición viaja, la palomilla se sustituye por un giro y el toque
+ * deja de aceptarse. Es lo único que faltaba para que pulsar tuviera respuesta:
+ * antes no cambiaba nada hasta que volvía la red, y sobre una conexión real eso
+ * son segundos de pantalla muda.
+ *
+ * LA MISMA MARCA SIRVE PARA LOS DOS SENTIDOS, Y SE VE CUÁL ES CUÁL.
+ *
+ * `VidaRoles` fija `completeFg = textSecondary` y `completeBorder = border`:
+ * gris, y el MISMO gris tanto si el registro está hecho como si no. Así que la
+ * lista de tareas enseñaba la misma palomilla gris en los dos casos y no había
+ * forma de saber, mirando la fila, si ya estaba resuelta. El estado estaba en
+ * el grupo («Hechas») y en el tono del título, pero no donde el ojo lo busca,
+ * que es en la propia marca.
+ *
+ * Ahora son dos dibujos distintos, y son los que esta misma aplicación ya usa
+ * en los PASOS de una tarea (`VidaTick`):
+ *   · pendiente → círculo vacío, borde fino, palomilla apagada. Una casilla.
+ *   · hecho     → relleno macizo en el verde de «cumplido», palomilla blanca.
+ *
+ * Volver a tocarla deshace, que es lo que da la vuelta atrás sin añadir un
+ * segundo gesto a la tarjeta.
+ */
+@Composable
+private fun CompleteControl(
+    entry: ResourceEntry,
+    shape: androidx.compose.ui.graphics.Shape,
+    boxSize: Dp,
+) {
+    val c = VidaTheme.colors
+    val role = VidaTheme.role
+    val spec = VidaTheme.spec
+    // Completar manda sobre deshacer: mientras quede algo que completar, el
+    // gesto rápido es ese. Deshacer toma la marca solo cuando ya no lo hay —y
+    // eso es, exactamente, que el registro está hecho.
+    val hecho = entry.onComplete == null
+    val action = entry.onComplete ?: entry.onRevert ?: return
+    // El relleno crece al marcarse en vez de aparecer de golpe: es el mismo
+    // gesto que ya hace la palomilla de un paso.
+    val escala by animateFloatAsState(
+        targetValue = if (hecho) 1.06f else 1f,
+        animationSpec = tween(240),
+        label = "marcaEscala",
+    )
+    TouchTarget(onClick = if (entry.busy) ({}) else action) {
+        Box(
+            Modifier
+                .size(boxSize)
+                .scale(escala)
+                .background(if (hecho) c.success else androidx.compose.ui.graphics.Color.Transparent, shape)
+                .border(
+                    spec.borderWidth,
+                    if (hecho) c.success else role.completeBorder,
+                    shape,
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (entry.busy) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(VidaIconSize.small),
+                    strokeWidth = 2.dp,
+                    color = if (hecho) c.onPrimary else role.completeFg,
+                )
+            } else {
                 Icon(
                     Icons.Filled.Check,
-                    contentDescription = entry.completeLabel,
-                    tint = role.completeFg,
+                    contentDescription = if (hecho) entry.revertLabel else entry.completeLabel,
+                    tint = if (hecho) c.onPrimary else role.completeFg,
                     modifier = Modifier.size(VidaIconSize.small),
                 )
             }
@@ -505,13 +589,26 @@ private fun ResourceRowItem(
         verticalPadding = if (dense) VidaLayout.itemGap else VidaLayout.rowPadding,
     ) {
         if (!dense) {
-            entry.icon?.let { icon ->
-                VidaMark(
-                    background = entry.tone?.copy(alpha = 0.14f) ?: c.primaryContainer,
-                    contentColor = entry.tone ?: c.primary,
-                    boxSize = 36.dp,
-                ) {
-                    Icon(icon, contentDescription = null, modifier = Modifier.size(VidaIconSize.small))
+            // EL ANILLO SUSTITUYE A LA MARCA, como en el artefacto: donde hay
+            // avance que mostrar, la pieza redonda de la izquierda ES el
+            // avance. Dibujar los dos dejaría dos círculos compitiendo.
+            val ring = entry.ring
+            if (ring != null) {
+                VidaRing(
+                    percent = ring,
+                    tone = entry.tone ?: c.primary,
+                    diameter = 40.dp,
+                    stroke = 4.dp,
+                )
+            } else {
+                entry.icon?.let { icon ->
+                    VidaMark(
+                        background = entry.tone?.copy(alpha = 0.14f) ?: c.primaryContainer,
+                        contentColor = entry.tone ?: c.primary,
+                        boxSize = 36.dp,
+                    ) {
+                        Icon(icon, contentDescription = null, modifier = Modifier.size(VidaIconSize.small))
+                    }
                 }
             }
         }
@@ -520,6 +617,36 @@ private fun ResourceRowItem(
             Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(VidaLayout.textGap),
         ) {
+            // EL ANTETÍTULO Y SU DATO, la línea que el artefacto pone ENCIMA
+            // del nombre: a la izquierda qué clase de cosa es —«ALTA»,
+            // «SERVICIO», «RUTINA»— y a la derecha su hora, en el tono de la
+            // pieza. Es lo que permite ojear una lista sin leerla, y aquí no se
+            // pintaba: `typeTag` y `highlight` llegaban a la fila y se
+            // descartaban, así que todas las filas se veían iguales.
+            if (entry.typeTag != null || entry.highlight != null) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(VidaSpacing.sm),
+                    verticalAlignment = Alignment.Bottom,
+                ) {
+                    Text(
+                        entry.typeTag.orEmpty(),
+                        style = t.eyebrow,
+                        color = c.textTertiary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                    entry.highlight?.let { value ->
+                        Text(
+                            value,
+                            style = t.micro.copy(fontWeight = FontWeight.Bold),
+                            color = entry.tone ?: c.primary,
+                            maxLines = 1,
+                        )
+                    }
+                }
+            }
             Text(
                 entry.title,
                 style = t.cardTitle,
@@ -545,6 +672,18 @@ private fun ResourceRowItem(
         // El estado va al final de la fila, alineado con el de sus vecinas: en
         // una lista, lo que se compara entre piezas debe caer en la misma
         // columna. Dentro del cuadrado no había columna que compartir.
+        // El importe, a la DERECHA y en tipografía de display, como en el
+        // artefacto: en una lista de pagos lo que se compara entre filas es la
+        // cifra, y compararla exige que caigan todas en la misma columna.
+        entry.amount?.let { amount ->
+            Text(
+                amount,
+                style = t.metricFigure.copy(fontSize = 17.sp, lineHeight = 21.sp),
+                color = c.text,
+                maxLines = 1,
+            )
+        }
+
         entry.pill?.let { (label, tone) -> VidaPill(label, tone) }
 
         if (selecting) {
@@ -574,23 +713,7 @@ private fun ResourceRowItem(
                 }
             }
         } else {
-            entry.onComplete?.let { done ->
-                TouchTarget(onClick = done) {
-                    Box(
-                        Modifier
-                            .size(32.dp)
-                            .border(spec.borderWidth, role.completeBorder, RoundedCornerShape(spec.radii.control)),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(
-                            Icons.Filled.Check,
-                            contentDescription = entry.completeLabel,
-                            tint = role.completeFg,
-                            modifier = Modifier.size(VidaIconSize.small),
-                        )
-                    }
-                }
-            }
+            CompleteControl(entry, RoundedCornerShape(spec.radii.control), 32.dp)
         }
     }
 }

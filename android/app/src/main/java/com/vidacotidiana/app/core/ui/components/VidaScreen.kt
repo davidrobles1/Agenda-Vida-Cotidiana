@@ -29,6 +29,8 @@ import com.vidacotidiana.app.navigation.AppContext
 import com.vidacotidiana.app.navigation.CreateAction
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.ExperimentalMaterial3Api
 
 /**
  * El esqueleto que comparten todas las pantallas: barra superior con menú o
@@ -40,6 +42,7 @@ import kotlinx.coroutines.launch
  * misma animación de llegada— en vez de que cada una acabe con su propia
  * interpretación del espaciado.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VidaScreen(
     title: String,
@@ -50,6 +53,16 @@ fun VidaScreen(
     laboralEnabled: Boolean = true,
     onContextSelect: (AppContext) -> Unit = {},
     actions: @Composable () -> Unit = {},
+    /**
+     * TIRAR PARA REFRESCAR.
+     *
+     * Va aquí y no en cada pantalla porque el gesto es del armazón: todas las
+     * secciones pasan por `VidaScreen`, así que ponerlo una vez lo da en todas
+     * y con el mismo indicador. Nulo = la pantalla no se refresca (un detalle,
+     * un formulario), y entonces no hay gesto que insinuar.
+     */
+    onRefresh: (() -> Unit)? = null,
+    refreshing: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val c = VidaTheme.colors
@@ -57,6 +70,25 @@ fun VidaScreen(
         Modifier
             .fillMaxSize()
             .background(c.surface),
+        /*
+         * EL HUECO PARA EL TECLADO NO SE HACE AQUÍ.
+         *
+         * `MainActivity` llama a `enableEdgeToEdge()`, así que el sistema deja
+         * de encoger la ventana al abrir el teclado y solo REPORTA su altura
+         * como inset; alguien tiene que consumirla o el teclado se dibuja
+         * encima del contenido.
+         *
+         * Ese alguien es `NavGraph`, no esta pantalla. El inset del teclado
+         * mide desde el borde de la VENTANA, y cuando esto llega aquí la
+         * columna de `NavGraph` ya ha apartado su trozo de abajo para la barra
+         * de secciones: descontar aquí la altura del teclado la descontaba por
+         * segunda vez, y dejaba una franja en blanco del tamaño de la barra
+         * entre el contenido y el teclado.
+         *
+         * Que el campo concreto suba hasta verse lo resuelve el propio
+         * `BasicTextField`, que pide entrar en vista al enfocarse dentro de un
+         * contenedor con scroll — y ya puede, porque el sitio existe.
+         */
     ) {
         VidaAppBar(
             title = title,
@@ -68,19 +100,30 @@ fun VidaScreen(
         if (context != null) {
             ContextBar(current = context, laboralEnabled = laboralEnabled, onSelect = onContextSelect)
         }
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = VidaSpacing.lg),
-            verticalArrangement = Arrangement.spacedBy(VidaSpacing.md),
-        ) {
-            Spacer(Modifier.height(VidaSpacing.xs))
-            content()
-            // Aire al final: el artefacto nunca deja el último bloque pegado al
-            // borde, y con la barra inferior encima se notaría todavía más.
-            Spacer(Modifier.height(VidaSpacing.xl))
+        val body: @Composable () -> Unit = {
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = VidaSpacing.lg),
+                verticalArrangement = Arrangement.spacedBy(VidaSpacing.md),
+            ) {
+                Spacer(Modifier.height(VidaSpacing.xs))
+                content()
+                // Aire al final: el artefacto nunca deja el último bloque pegado
+                // al borde, y con la barra inferior encima se notaría más.
+                Spacer(Modifier.height(VidaSpacing.xl))
+            }
+        }
+
+        if (onRefresh != null) {
+            PullToRefreshBox(
+                isRefreshing = refreshing,
+                onRefresh = onRefresh,
+                modifier = Modifier.fillMaxWidth().weight(1f),
+            ) { body() }
+        } else {
+            Box(Modifier.fillMaxWidth().weight(1f)) { body() }
         }
     }
 }

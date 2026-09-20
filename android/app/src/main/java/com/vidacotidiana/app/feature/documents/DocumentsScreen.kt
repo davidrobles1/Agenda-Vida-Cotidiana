@@ -8,6 +8,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
+import com.vidacotidiana.app.navigation.Routes
 import com.vidacotidiana.app.core.app.AppViewModel
 import com.vidacotidiana.app.core.app.CreatableResource
 import com.vidacotidiana.app.core.ui.components.BulkAction
@@ -63,7 +64,12 @@ fun DocumentsScreen(
             // Abrirlo se delega al visor del sistema en vez de construir uno
             // propio dentro de Cotidiana.
             onOpen = { viewModel.openDocument(context, it.id, it.name) },
-            openLabel = "Abrir",
+            openLabel = "Ver documento",
+            // QUÉ ES, en el antetítulo. El backend solo acepta cinco tipos
+            // —PDF, PNG, JPEG, WEBP y GIF (`ALLOWED_CONTENT_TYPES`)—, así que
+            // todo lo que hay aquí se puede abrir con lo que el teléfono ya
+            // trae. Decirlo en la tarjeta ahorra abrir para averiguarlo.
+            typeTag = it.name.substringAfterLast('.', "").uppercase().ifBlank { null },
             onDelete = { viewModel.deleteResource(CreatableResource.DOCUMENT, it.id) },
             extraActions = listOf(
                 "Compartir archivo" to { viewModel.shareDocumentFile(context, it.id, it.name) },
@@ -120,6 +126,9 @@ fun DocumentsScreen(
         scope = scope,
         showBack = true,
         onBack = { navController.popBackStack() },
-        onNotifications = {},
+        // La campana lleva de verdad a los avisos, y el punto sale de
+        // cuántos quedan sin leer. Antes era `{}` con `badge = true`.
+        onNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
+        notificationsBadge = viewModel.avisosSinLeer(),
     )
 }

@@ -4,6 +4,9 @@ import com.vidacotidiana.identity.infrastructure.CurrentUser;
 import com.vidacotidiana.reminder.api.dto.CompleteReminderRequest;
 import com.vidacotidiana.reminder.api.dto.CreateReminderRequest;
 import com.vidacotidiana.reminder.api.dto.ReminderResponse;
+import java.util.Map;
+import java.util.List;
+import com.vidacotidiana.reminder.application.ReminderStepService;
 import com.vidacotidiana.reminder.api.dto.UpdateReminderRequest;
 import com.vidacotidiana.reminder.application.ReminderService;
 import com.vidacotidiana.reminder.domain.Reminder;
@@ -37,10 +40,13 @@ import java.util.UUID;
 public class ReminderController {
 
     private final ReminderService reminderService;
+    private final ReminderStepService stepService;
     private final CurrentUser currentUser;
 
-    public ReminderController(ReminderService reminderService, CurrentUser currentUser) {
+    public ReminderController(ReminderService reminderService, ReminderStepService stepService,
+                              CurrentUser currentUser) {
         this.reminderService = reminderService;
+        this.stepService = stepService;
         this.currentUser = currentUser;
     }
 
@@ -62,13 +68,55 @@ public class ReminderController {
             @RequestParam(value = "context", required = false) String context) {
         Pageable pageable = PageRequest.of(page, Math.min(size, 100));
         Page<Reminder> reminders = reminderService.listAccessibleTo(currentUser.userId(), context, pageable);
-        return PageResponse.from(reminders.map(ReminderResponse::from));
+
+        // EL AVANCE DE TODA LA PÁGINA, EN UNA SOLA CONSULTA.
+        //
+        // El artefacto aprobado pone un anillo con el porcentaje en cada fila
+        // de Tareas. Derivarlo exige saber cuántos pasos tiene cada una y
+        // cuántos están hechos; preguntarlo tarea por tarea convertiría esta
+        // pantalla en cuarenta consultas, y por eso el anillo no existía aquí.
+        // Una agregación por los ids de la página cuesta una.
+        Map<UUID, ReminderStepService.StepProgress> progress = stepService.progressOf(
+                reminders.getContent().stream().map(Reminder::getId).toList());
+
+        return PageResponse.from(reminders.map(r -> ReminderResponse.from(r, progressOrEmpty(progress, r.getId()))));
     }
 
     @GetMapping("/{id}")
     public ReminderResponse get(@PathVariable UUID id) {
         Reminder reminder = reminderService.getAccessible(id, currentUser.userId());
-        return ReminderResponse.from(reminder);
+        // Para una sola tarea la agregación es la misma consulta, así que el
+        // detalle responde con el mismo dato que la lista y no pueden discrepar.
+        return ReminderResponse.from(reminder, progressOrEmpty(
+                stepService.progressOf(List.of(reminder.getId())), reminder.getId()));
+    }
+
+    /**
+     * El avance de una tarea, con CERO DE CERO cuando no tiene pasos.
+     *
+     * La agregación solo devuelve las tareas que tienen alguno, así que la
+     * ausencia significa «no tiene ninguno» — y eso sí es un hecho, no un
+     * desconocimiento: la consulta se hizo. Devolver nulo aquí haría que el
+     * cliente creyera que no se miró.
+     */
+    private static ReminderStepService.StepProgress progressOrEmpty(
+            Map<UUID, ReminderStepService.StepProgress> progress, UUID reminderId) {
+        return progress.getOrDefault(reminderId, new ReminderStepService.StepProgress(0, 0));
+    }
+
+    /**
+     * El avance de UNA tarea recién guardada, para que la respuesta de escribir
+     * diga lo mismo que la de leer.
+     *
+     * Existe porque no decirlo tiene consecuencias visibles. `stepCount` nulo
+     * significa «no se consultó» (no «cero»), y `complete` y `update` devolvían
+     * la tarea sin él: el cliente sustituía la suya por la respuesta y con ello
+     * perdía el avance, así que el anillo de la tarjeta desaparecía al marcarla
+     * —o, más a la vista, al devolverla a pendiente— y no volvía hasta una
+     * recarga completa. Es la misma consulta que ya hace el detalle.
+     */
+    private ReminderStepService.StepProgress progresoDe(Reminder reminder) {
+        return progressOrEmpty(stepService.progressOf(List.of(reminder.getId())), reminder.getId());
     }
 
     @PostMapping("/{id}/complete")
@@ -76,7 +124,7 @@ public class ReminderController {
                                       @RequestBody(required = false) CompleteReminderRequest request) {
         Integer expectedVersion = (request != null) ? request.version() : null;
         Reminder reminder = reminderService.toggleCompletion(id, currentUser.userId(), expectedVersion);
-        return ReminderResponse.from(reminder);
+        return ReminderResponse.from(reminder, progresoDe(reminder));
     }
 
     @PatchMapping("/{id}")
@@ -85,7 +133,7 @@ public class ReminderController {
                 id, currentUser.userId(), request.title(), request.description(), request.dueAt(),
                 request.iconId(), request.stickerId(), request.personId(), request.projectId(), request.location(),
                 request.version());
-        return ReminderResponse.from(reminder);
+        return ReminderResponse.from(reminder, progresoDe(reminder));
     }
 
     @DeleteMapping("/{id}")

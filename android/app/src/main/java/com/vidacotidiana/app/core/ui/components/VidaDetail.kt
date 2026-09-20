@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vidacotidiana.app.core.ui.VidaLayout
 import com.vidacotidiana.app.core.ui.VidaTheme
+import androidx.compose.ui.graphics.Brush
 
 /**
  * LA COMPOSICIÓN DE DETALLE DEL ARTEFACTO MAESTRO.
@@ -260,7 +261,7 @@ fun VidaTileRow(
                 kicker = spec.kicker,
                 figure = spec.figure,
                 caption = spec.caption,
-                background = androidx.compose.ui.graphics.SolidColor(spec.background),
+                background = spec.backgroundBrush ?: androidx.compose.ui.graphics.SolidColor(spec.background),
                 figureColor = spec.figureColor,
                 kickerColor = spec.foreground,
                 captionColor = spec.foreground.copy(alpha = 0.75f),
@@ -454,6 +455,17 @@ data class VidaTileSpec(
     val figureColor: Color,
     val foreground: Color,
     val weight: Float = 1f,
-    val figureSize: androidx.compose.ui.unit.Dp = 26.dp,
+    /**
+     * Relleno con DEGRADADO, cuando el artefacto lo pide.
+     *
+     * La pieza «Este mes» de Pagos es `linear-gradient(145deg, --indigo-l,
+     * --indigo-d)` con sombra índigo y texto blanco; aquí era un relleno plano
+     * y pálido, y por eso la pantalla se veía mucho menos viva que el
+     * artefacto. Nulo en el resto: una pieza plana sigue siendo plana.
+     */
+    val backgroundBrush: Brush? = null,
+    /** 22 dp y no 26: en la tira de 92 dp quedan 60 utiles y el contenido
+        pedia los 60 exactos, asi que la leyenda se cortaba por abajo. */
+    val figureSize: androidx.compose.ui.unit.Dp = 22.dp,
     val onClick: (() -> Unit)? = null,
 )

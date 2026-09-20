@@ -133,6 +133,16 @@ data class DayTask(
     val done: Boolean = false,
     /** Compartida y con parte comprometida (ADR-025). */
     val shared: Boolean = false,
+    /** V33: `LOW` | `NORMAL` | `URGENT`. El antetítulo y el tono del artefacto. */
+    val priority: String? = null,
+    /**
+     * Cuánto lleva hecha, en tanto por ciento — el anillo del artefacto.
+     *
+     * `null` cuando la tarea NO TIENE pasos: entonces no hay avance que
+     * dibujar y la fila enseña su icono, como hasta ahora. Se deriva de los
+     * pasos; no existe un número guardado que pueda quedar desfasado.
+     */
+    val percent: Int? = null,
     /**
      * ADR-016/FR-024: dónde es, en texto libre. Opcional.
      *

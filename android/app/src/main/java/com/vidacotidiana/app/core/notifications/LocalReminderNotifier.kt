@@ -39,18 +39,24 @@ object LocalReminderNotifier {
     }
 
     /**
-     * LLEVA A TAREAS, no a "donde estuvieras".
+     * LLEVA A ESA TAREA, no a la lista.
      *
      * Antes el intent era un `MainActivity::class.java` desnudo, sin `data`: al
      * tocar el aviso la aplicación se abría donde el usuario la hubiera dejado y
-     * tenía que ir a buscar aquello de lo que se le acababa de avisar. Era el
-     * único aviso de toda la aplicación que no navegaba — los push sí lo hacen
-     * desde el bloque 1-3, con este mismo mecanismo.
+     * tenía que ir a buscar aquello de lo que se le acababa de avisar. Eso se
+     * arregló llevando a la lista de Tareas, con este razonamiento: «no existe
+     * una ruta de detalle por tarea, se abren como hoja de edición desde su
+     * lista».
      *
-     * Va a la LISTA de Tareas y no a la tarea concreta porque no existe una ruta
-     * de detalle por tarea: se abren como hoja de edición desde su lista. Añadir
-     * una ruta nueva solo para esto sería inventar navegación que el resto de la
-     * aplicación no tiene.
+     * ESE RAZONAMIENTO CADUCÓ. `Routes.TASK_DETAIL` existe desde que la tarea
+     * tiene pantalla propia —con sus pasos, sus adjuntos y su estado—, así que
+     * dejar el aviso en la lista obligaba a buscar entre varias la que acababa
+     * de avisar. Un aviso que nombra una tarea concreta tiene que abrir esa
+     * tarea concreta.
+     *
+     * Si la tarea ya no existe cuando se toca el aviso —borrada desde otro
+     * dispositivo—, su pantalla lo dice y ofrece volver. No hace falta
+     * comprobarlo aquí, que además sería comprobarlo con datos viejos.
      */
     fun show(context: Context, reminderId: String, title: String) {
         val contentIntent = PendingIntent.getActivity(
@@ -58,7 +64,7 @@ object LocalReminderNotifier {
             reminderId.hashCode(),
             Intent(
                 Intent.ACTION_VIEW,
-                DeepLinks.section(Routes.TASKS).toUri(),
+                DeepLinks.section(Routes.taskRoute(reminderId)).toUri(),
                 context,
                 MainActivity::class.java,
             ).apply {

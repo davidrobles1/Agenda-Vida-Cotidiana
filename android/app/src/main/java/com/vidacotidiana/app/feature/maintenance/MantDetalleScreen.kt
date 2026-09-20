@@ -85,14 +85,20 @@ fun MantDetalleScreen(
         }
 
         val days = ChronoUnit.DAYS.between(today, record.nextDueOn)
+        // HECHO y AL_DIA no son lo mismo y esta pantalla los confundía: usaba
+        // AL_DIA como «ya está hecho» y por eso deshabilitaba «Marcar hecho»
+        // sobre cualquier mantenimiento que todavía no tocase. Adelantar un
+        // cambio de aceite es normal, y el backend lo contempla —si la fecha ya
+        // pasó cuenta el siguiente intervalo desde hoy.
+        val terminado = record.status == MaintenanceStatus.HECHO
         val tone = when {
-            record.status == MaintenanceStatus.AL_DIA -> c.success
+            terminado -> c.success
             days < 0 -> c.warning   // atrasado es AVISO, no error
             days <= 3 -> c.warning
             else -> c.primary
         }
         val estado = when {
-            record.status == MaintenanceStatus.AL_DIA -> "Al día"
+            terminado -> "Terminado"
             days < 0 -> "Tocaba hace ${-days} días"
             days == 0L -> "Toca hoy"
             else -> "Toca en $days días"
@@ -113,9 +119,14 @@ fun MantDetalleScreen(
                 listOfNotNull(
                     VidaProperty(
                         "Estado",
-                        if (record.status == MaintenanceStatus.AL_DIA) "Al día" else "Pendiente",
-                        if (record.status == MaintenanceStatus.AL_DIA) c.successContainer else c.warningContainer,
-                        if (record.status == MaintenanceStatus.AL_DIA) c.successText else c.warningText,
+                        when (record.status) {
+                            MaintenanceStatus.HECHO -> "Terminado"
+                            MaintenanceStatus.AL_DIA -> "Al día"
+                            MaintenanceStatus.PROXIMO -> "Próximo"
+                            MaintenanceStatus.VENCIDO -> "Toca ya"
+                        },
+                        if (terminado) c.successContainer else c.warningContainer,
+                        if (terminado) c.successText else c.warningText,
                     ),
                     record.intervalMonths?.let {
                         VidaProperty("Cada cuánto", "Cada $it meses", c.primaryContainer, c.primaryDeep)
@@ -150,7 +161,9 @@ fun MantDetalleScreen(
                 leftCaption = VidaDates.relative(record.nextDueOn, today).lowercase(),
                 rightLabel = "Estado",
                 rightValue = estado,
-                rightCaption = record.intervalMonths?.let { "cada $it meses" } ?: "sin ritmo fijo",
+                // Vacio cuando el ritmo ya es una propiedad de arriba: si no,
+                // «Cada 6 meses» aparecia dos veces en la misma pantalla.
+                rightCaption = if (record.intervalMonths != null) "" else "sin ritmo fijo",
                 rightTone = tone,
                 rightBackground = if (days < 0) c.warningContainer else c.primaryContainer,
             )
@@ -184,11 +197,27 @@ fun MantDetalleScreen(
         }
 
         StaggeredAppear(5) {
-            VidaSmallButton(
-                if (record.status == MaintenanceStatus.AL_DIA) "Ya está al día" else "Marcar hecho",
-                { viewModel.completeResource(CreatableResource.MAINTENANCE, record.id) },
-                enabled = record.status != MaintenanceStatus.AL_DIA,
-            )
+            androidx.compose.foundation.layout.Row(
+                horizontalArrangement = androidx.compose.foundation.layout.Arrangement
+                    .spacedBy(com.vidacotidiana.app.core.ui.VidaSpacing.sm),
+            ) {
+                // Volver atrás está SIEMPRE, no solo sobre lo terminado:
+                // adelantar un repetible por error avanza su fecha meses
+                // enteros, y hasta ahora no había forma de recuperarla.
+                VidaSmallButton(
+                    if (terminado) "Volver a programarlo" else "Deshacer el último",
+                    { viewModel.revertResource(CreatableResource.MAINTENANCE, record.id) },
+                    ghost = true,
+                    enabled = record.id !in state.busy,
+                )
+                if (!terminado) {
+                    VidaSmallButton(
+                        "Marcar hecho",
+                        { viewModel.completeResource(CreatableResource.MAINTENANCE, record.id) },
+                        enabled = record.id !in state.busy,
+                    )
+                }
+            }
         }
     }
 }

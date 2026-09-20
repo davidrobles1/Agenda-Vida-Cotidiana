@@ -47,6 +47,24 @@ class ReminderAlarmScheduler @Inject constructor(@ApplicationContext private val
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) alarmManager.canScheduleExactAlarms() else true
 
     /**
+     * Si el teléfono nos deja DIBUJAR el aviso.
+     *
+     * Son dos permisos distintos y hacen falta los dos: uno para que suene la
+     * alarma a su hora (`SCHEDULE_EXACT_ALARM`) y otro para que lo que la alarma
+     * produce llegue a verse (`POST_NOTIFICATIONS`, obligatorio desde Android
+     * 13). `LocalReminderNotifier` ya comprobaba el segundo y no dibujaba nada
+     * si faltaba… pero NADIE lo pedía nunca, así que en un teléfono moderno la
+     * función entera estaba muerta desde el primer día: la alarma sonaba y el
+     * aviso se descartaba en silencio.
+     *
+     * Se expone desde aquí, y no se comprueba en la pantalla, porque el momento
+     * de preguntar es el momento de programar: es cuando el permiso significa
+     * algo para el usuario.
+     */
+    fun avisosPermitidos(): Boolean =
+        androidx.core.app.NotificationManagerCompat.from(context).areNotificationsEnabled()
+
+    /**
      * No-ops (does not throw) if dueAtMillis is already in the past, or if
      * exact-alarm permission isn't granted — the caller (RemindersScreen) is
      * responsible for prompting for that permission before calling this; this
@@ -54,13 +72,29 @@ class ReminderAlarmScheduler @Inject constructor(@ApplicationContext private val
      */
     fun schedule(reminderId: String, title: String, dueAtMillis: Long) {
         if (dueAtMillis <= System.currentTimeMillis()) return
-        if (!canScheduleExactAlarms()) return
 
-        alarmManager.setExactAndAllowWhileIdle(
-            AlarmManager.RTC_WAKEUP,
-            dueAtMillis,
-            pendingIntentFor(reminderId, title),
-        )
+        /*
+         * SIN PERMISO DE ALARMA EXACTA, APROXIMADA — PERO NUNCA NADA.
+         *
+         * Esto era `if (!canScheduleExactAlarms()) return`: se rendía en
+         * silencio. Y en Android 12+ `SCHEDULE_EXACT_ALARM` NO se concede sola
+         * a una aplicación con `targetSdk` moderno, así que en la práctica no
+         * se programaba ninguna alarma y el aviso de una tarea no llegaba
+         * jamás. El comentario original delegaba la petición del permiso en
+         * «RemindersScreen», una pantalla que ya no existe.
+         *
+         * Un aviso que puede retrasarse unos minutos es incomparablemente
+         * mejor que uno que no llega. `setAndAllowWhileIdle` atraviesa el modo
+         * de ahorro igual que su hermana exacta; lo único que pierde es la
+         * puntualidad al minuto, y eso se recupera en cuanto el usuario
+         * concede el permiso desde los ajustes del sistema.
+         */
+        val pendingIntent = pendingIntentFor(reminderId, title)
+        if (canScheduleExactAlarms()) {
+            alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, dueAtMillis, pendingIntent)
+        } else {
+            alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, dueAtMillis, pendingIntent)
+        }
         persist(ScheduledLocalReminder(reminderId, title, dueAtMillis))
     }
 
@@ -75,17 +109,9 @@ class ReminderAlarmScheduler @Inject constructor(@ApplicationContext private val
         val now = System.currentTimeMillis()
         readStore().forEach { scheduled ->
             if (scheduled.dueAtMillis > now) {
-                if (canScheduleExactAlarms()) {
-                    alarmManager.setExactAndAllowWhileIdle(
-                        AlarmManager.RTC_WAKEUP,
-                        scheduled.dueAtMillis,
-                        pendingIntentFor(scheduled.reminderId, scheduled.title),
-                    )
-                }
-                // If permission was revoked while the device was off, this
-                // reminder silently won't fire — same fail-closed behavior as
-                // schedule(). The user would need to reopen the app to see
-                // the permission prompt again (RemindersScreen's own check).
+                // Misma regla que `schedule`: exacta si se puede, aproximada
+                // si no, pero nunca dejar la tarea sin aviso por un permiso.
+                schedule(scheduled.reminderId, scheduled.title, scheduled.dueAtMillis)
             } else {
                 // The due moment already passed while the device was off —
                 // deliberately dropped rather than fired late with no

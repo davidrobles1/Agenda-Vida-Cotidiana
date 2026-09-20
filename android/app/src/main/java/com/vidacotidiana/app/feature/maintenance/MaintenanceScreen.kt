@@ -41,26 +41,41 @@ fun MaintenanceScreen(
         }
     }
     val entries = records.map {
+        val hecho = it.status == MaintenanceStatus.HECHO
         ResourceEntry(
             id = it.id,
             title = it.task,
-            subtitle = it.nextDueLabel,
-            highlight = cuando(it.nextDueOn),
+            // Un puntual terminado no tiene «próxima vez» que anunciar: su
+            // fecha ya pasó y repetirla sonaría a que sigue pendiente.
+            subtitle = if (hecho) "Terminado · no se repite" else it.nextDueLabel,
+            highlight = if (hecho) null else cuando(it.nextDueOn),
             icon = Icons.Outlined.Build,
             group = when (it.status) {
                 MaintenanceStatus.VENCIDO -> "Toca ya"
                 MaintenanceStatus.PROXIMO -> "Próximos"
                 MaintenanceStatus.AL_DIA -> "Al día"
+                MaintenanceStatus.HECHO -> "Hechos"
             },
             onEdit = { viewModel.requestEdit(CreatableResource.MAINTENANCE, it.id) },
             // ADR-021: completar AVANZA la ocurrencia; no cierra el registro.
-            onComplete = { viewModel.completeResource(CreatableResource.MAINTENANCE, it.id) },
+            // Terminado el puntual, ya no hay ocurrencia que completar.
+            onComplete = if (hecho) null else {
+                { viewModel.completeResource(CreatableResource.MAINTENANCE, it.id) }
+            },
             completeLabel = "Hecho",
+            // La vuelta atrás borra la última ejecución y devuelve la fecha
+            // anterior. Se ofrece SIEMPRE, no solo sobre los terminados:
+            // adelantar un mantenimiento repetible por error es igual de fácil
+            // y hasta ahora no había forma de recuperar la fecha.
+            onRevert = { viewModel.revertResource(CreatableResource.MAINTENANCE, it.id) },
+            revertLabel = if (hecho) "Volver a programarlo" else "Deshacer el último",
+            busy = it.id in state.busy,
             onDelete = { viewModel.deleteResource(CreatableResource.MAINTENANCE, it.id) },
             pill = when (it.status) {
                 MaintenanceStatus.VENCIDO -> "Toca ya" to PillTone.WARN
                 MaintenanceStatus.PROXIMO -> "Próximo" to PillTone.NEUTRAL
                 MaintenanceStatus.AL_DIA -> "Al día" to PillTone.OK
+                MaintenanceStatus.HECHO -> "Hecho" to PillTone.QUIET
             },
         )
     }
@@ -71,7 +86,7 @@ fun MaintenanceScreen(
         subtitle = "Lo que toca revisar, y cuándo vuelve.",
         eyebrow = plural(entries.size, "programado", "programados"),
         entries = entries,
-        filters = listOf("Todos", "Toca ya", "Próximo", "Al día"),
+        filters = listOf("Todos", "Toca ya", "Próximo", "Al día", "Hecho"),
         metrics = listOf(
             Triple("Toca ya", records.count { it.status == MaintenanceStatus.VENCIDO }.toString(), "atrasados"),
             Triple("Próximos", records.count { it.status == MaintenanceStatus.PROXIMO }.toString(), "en camino"),
@@ -86,6 +101,9 @@ fun MaintenanceScreen(
         scope = scope,
         showBack = true,
         onBack = { navController.popBackStack() },
-        onNotifications = {},
+        // La campana lleva de verdad a los avisos, y el punto sale de
+        // cuántos quedan sin leer. Antes era `{}` con `badge = true`.
+        onNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
+        notificationsBadge = viewModel.avisosSinLeer(),
     )
 }

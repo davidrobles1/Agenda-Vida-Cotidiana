@@ -53,6 +53,8 @@ fun AtencionScreen(
         },
         showBack = true,
         onNavigationClick = { navController.popBackStack() },
+        onRefresh = viewModel::refresh,
+        refreshing = state.loading,
     ) {
         when {
             // Mientras carga no se afirma que no hay nada, y si la consulta

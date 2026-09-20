@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalTextStyle
@@ -35,6 +36,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -46,9 +48,56 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.runtime.remember
 import androidx.compose.foundation.clickable
 import androidx.compose.material3.ripple
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.isImeVisible
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.focus.onFocusChanged
+import kotlinx.coroutines.delay
 import com.vidacotidiana.app.core.ui.VidaLayout
 import com.vidacotidiana.app.core.ui.VidaSpacing
 import com.vidacotidiana.app.core.ui.VidaTheme
+
+/**
+ * QUE EL CAMPO SUBA POR ENCIMA DEL TECLADO.
+ *
+ * Hacer sitio para el teclado —`imePadding` en la columna de `NavGraph`— es la
+ * mitad del asunto: el contenido ya no queda tapado, pero el campo que tienes
+ * enfocado puede haberse quedado justo en el borde, medio cortado contra la
+ * primera fila de teclas.
+ *
+ * El problema de tiempos es el motivo de que no baste con lo que hace Compose
+ * por su cuenta: el campo pide entrar en vista al recibir el foco, y en ese
+ * instante el teclado todavía no ha entrado, así que el cálculo sale contra el
+ * alto de antes —donde el campo SÍ se veía entero— y no se mueve nada. Aquí se
+ * vuelve a pedir cuando el teclado ya está, y tras su animación.
+ *
+ * Se reacciona a las dos cosas —foco y teclado— porque cualquiera de ellas
+ * puede llegar primero: tocar un campo con el teclado ya abierto es tan normal
+ * como abrirlo tocándolo.
+ */
+@OptIn(ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
+@Composable
+fun Modifier.subeSobreElTeclado(): Modifier {
+    val enVista = remember { BringIntoViewRequester() }
+    var enfocado by remember { mutableStateOf(false) }
+    val tecladoAbierto = WindowInsets.isImeVisible
+    LaunchedEffect(enfocado, tecladoAbierto) {
+        if (enfocado && tecladoAbierto) {
+            delay(260)
+            runCatching { enVista.bringIntoView() }
+        }
+    }
+    return this
+        .bringIntoViewRequester(enVista)
+        .onFocusChanged { enfocado = it.isFocused }
+}
 
 /**
  * Controles del artefacto: segmentos, chips, campo de búsqueda y botones.
@@ -232,10 +281,24 @@ fun VidaTextField(
     modifier: Modifier = Modifier,
     numeric: Boolean = false,
     multiline: Boolean = false,
+    /**
+     * Qué hace el «Realizado» del teclado.
+     *
+     * El campo ya declaraba `ImeAction.Done`, así que el teclado ofrecía el
+     * botón… y detrás no había nada: pulsarlo solo escondía el teclado y lo
+     * escrito se quedaba sin añadir. Una tecla que promete confirmar y no
+     * confirma es peor que no ofrecerla.
+     *
+     * Nulo en los campos donde confirmar no significa nada por sí solo —el
+     * título de un alta no se guarda al pulsar «Realizado»—, y entonces el
+     * comportamiento es el de siempre: cerrar el teclado.
+     */
+    onDone: (() -> Unit)? = null,
 ) {
     val c = VidaTheme.colors
     val spec = VidaTheme.spec
     val shape = RoundedCornerShape(spec.radii.control)
+    val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
     /*
      * ARTEFACTO MAESTRO, `.field`:
      *   background: var(--sunk) · border-radius: 18px · padding: 15px 17px
@@ -249,6 +312,10 @@ fun VidaTextField(
     Box(
         modifier = modifier
             .fillMaxWidth()
+            // Aquí, en el control compartido, para que lo tengan todos los
+            // campos de la aplicación —«Añadir paso», la nota del día, el alta—
+            // en vez de que cada pantalla lo arregle a su manera.
+            .subeSobreElTeclado()
             .background(c.sunken, shape)
             .defaultMinSize(minHeight = 50.dp)
             .padding(horizontal = 17.dp, vertical = 15.dp),
@@ -269,6 +336,30 @@ fun VidaTextField(
             keyboardOptions = KeyboardOptions(
                 keyboardType = if (numeric) KeyboardType.Number else KeyboardType.Text,
                 imeAction = if (multiline) ImeAction.Default else ImeAction.Done,
+                /*
+                 * MAYÚSCULA AL EMPEZAR.
+                 *
+                 * Sin esto el teclado abre en minúscula y cada título hay que
+                 * corregirlo a mano. `Sentences` es la regla del idioma —
+                 * primera letra de cada frase en alta, el resto tal cual—, no
+                 * `Words`, que pondría «Cambio De Aceite» convirtiendo cada
+                 * registro en un titular.
+                 *
+                 * Solo sobre texto: un campo numérico no tiene mayúsculas, y
+                 * pedirlas ahí hace que algunos teclados ofrezcan la fila de
+                 * letras sobre un campo que las rechaza al teclearlas.
+                 */
+                capitalization = if (numeric) {
+                    KeyboardCapitalization.None
+                } else {
+                    KeyboardCapitalization.Sentences
+                },
+            ),
+            // El teclado se cierra DESPUÉS de ejecutar la acción, no en su
+            // lugar: así «Realizado» añade el paso y además recoge el teclado,
+            // que es lo que el usuario espera de esa tecla.
+            keyboardActions = KeyboardActions(
+                onDone = onDone?.let { accion -> { accion(); focusManager.clearFocus() } },
             ),
             textStyle = LocalTextStyle.current.merge(MaterialTheme.typography.bodyLarge).copy(color = c.text),
             cursorBrush = SolidColor(c.primary),

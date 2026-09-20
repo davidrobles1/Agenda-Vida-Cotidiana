@@ -78,6 +78,7 @@ import com.vidacotidiana.app.core.app.loadFailed
 import com.vidacotidiana.app.core.ui.components.AttentionList
 import com.vidacotidiana.app.core.ui.components.moodSky
 import com.vidacotidiana.app.core.ui.components.moodInk
+import com.vidacotidiana.app.core.ui.components.vidaFloat
 
 /**
  * INICIO RESPONDE A UNA PREGUNTA: ¿qué necesita mi atención?
@@ -142,7 +143,13 @@ fun HomeScreen(
     val today = LocalDate.now()
 
     // El ánimo de HOY, no la semana: en Inicio la cara es pequeña y le basta.
-    LaunchedEffect(Unit) { viewModel.loadMood() }
+    // El ánimo de hoy y QUIÉN eres. Lo segundo faltaba: el saludo leía
+    // `state.user` pero nadie lo pedía desde aquí —solo Portal—, así que en
+    // Inicio siempre era nulo y el saludo se quedaba en «¡Hola!».
+    LaunchedEffect(Unit) {
+        viewModel.loadMood()
+        viewModel.loadUser()
+    }
 
     val attention = AttentionEngine.scan(state.data, viewModel.allTasks(), today)
     val now = AttentionEngine.now(attention)
@@ -174,11 +181,24 @@ fun HomeScreen(
             .replaceFirstChar { it.uppercase() } + " ${today.dayOfMonth} de " +
             today.month.getDisplayName(TextStyle.FULL, Locale("es", "MX")),
         onNavigationClick = openDrawerAction(drawerState, scope),
+        onRefresh = viewModel::refresh,
+        refreshing = state.loading,
         context = state.context,
         laboralEnabled = state.laboralEnabled,
         onContextSelect = viewModel::setContext,
         actions = {
-            VidaIconButton(Icons.Outlined.Notifications, "Notificaciones", badge = true) { onNavigate(Routes.NOTIFICATIONS) }
+            // EL PUNTO DICE LA VERDAD O NO ESTÁ.
+            //
+            // Estaba fijado a `true`: un aviso permanente que nunca se apagaba
+            // por mucho que el usuario leyera, y que por eso dejaba de
+            // significar nada. Ahora sale del mismo conjunto que pinta la
+            // pantalla de avisos, menos lo ya leído.
+            val sinLeer = attention.count { it.noticeKey !in state.readNotices }
+            VidaIconButton(
+                Icons.Outlined.Notifications,
+                if (sinLeer == 0) "Avisos" else "Avisos · $sinLeer sin leer",
+                badge = sinLeer > 0,
+            ) { onNavigate(Routes.NOTIFICATIONS) }
             VidaIconButton(Icons.Outlined.Settings, "Ajustes") { onNavigate(Routes.SETTINGS) }
         },
     ) {
@@ -247,7 +267,12 @@ fun HomeScreen(
                         figureColor = c.onPrimary,
                         kickerColor = c.onPrimary.copy(alpha = 0.85f),
                         captionColor = c.onPrimary.copy(alpha = 0.78f),
-                        figureSize = 54.dp,
+                        // 46 dp y no 54: en 88 dp útiles, 16 de antetítulo
+                        // + 54 de cifra + 3 + 15 de leyenda son 88 justos, y
+                        // cualquier redondeo se comía la leyenda. La jerarquía
+                        // de esta pieza la da su ancho (1.32f) y su degradado,
+                        // no ocho puntos más de cifra.
+                        figureSize = 46.dp,
                         chevron = true,
                         modifier = Modifier.weight(1.32f).fillMaxHeight(),
                         // «Para hoy» describe la jornada: lleva a la línea del
@@ -296,7 +321,12 @@ fun HomeScreen(
                         figureColor = c.text,
                         kickerColor = c.textSecondary,
                         captionColor = c.textTertiary,
-                        figureSize = 38.dp,
+                        // 28 dp. La fila de 100 dp deja 68 utiles y el
+                        // contenido pide 16 de antetitulo + cifra + 3 + 15 de
+                        // leyenda: con 34 daba 68 EXACTOS y se cortaba igual,
+                        // porque «justo» y «cabe» no son lo mismo cuando el
+                        // texto redondea hacia arriba. Con 28 sobran 6.
+                        figureSize = 28.dp,
                         modifier = Modifier.weight(1.32f).fillMaxHeight(),
                     )
                     VidaTile(
@@ -318,7 +348,12 @@ fun HomeScreen(
                         figureColor = c.second,
                         kickerColor = c.second,
                         captionColor = c.second.copy(alpha = 0.75f),
-                        figureSize = 38.dp,
+                        // 28 dp. La fila de 100 dp deja 68 utiles y el
+                        // contenido pide 16 de antetitulo + cifra + 3 + 15 de
+                        // leyenda: con 34 daba 68 EXACTOS y se cortaba igual,
+                        // porque «justo» y «cabe» no son lo mismo cuando el
+                        // texto redondea hacia arriba. Con 28 sobran 6.
+                        figureSize = 28.dp,
                         chevron = true,
                         modifier = Modifier.weight(1f).fillMaxHeight(),
                         onClick = { onNavigate(Routes.TASKS) },
@@ -349,7 +384,12 @@ fun HomeScreen(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(13.dp)) {
                     Box(Modifier.vidaClickable(onClick = { onNavigate(Routes.WELLBEING) })) {
-                        MoodFace(value = marked, size = 50.dp, strokeWidth = 4f, surface = c.surfaceVariant)
+                        // `.floaty` del artefacto: la cara respira despacio en
+                        // vez de quedarse impresa sobre la tarjeta.
+                        MoodFace(
+                            value = marked, size = 50.dp, strokeWidth = 4f, surface = c.surfaceVariant,
+                            modifier = Modifier.vidaFloat(),
+                        )
                     }
                     Column(
                         Modifier.weight(1f).vidaClickable(onClick = { onNavigate(Routes.WELLBEING) }),
@@ -357,7 +397,16 @@ fun HomeScreen(
                     ) {
                         Text("¿Cómo te sientes hoy?", style = t.cardTitle, color = c.text)
                         Text(
-                            if (marked == null) "Sin marcar" else MoodScale.ECHOES[marked],
+                            // «Sin marcar» afirma que el usuario no marcó su
+                            // día; si la consulta falló, eso no lo sabemos, y
+                            // decirlo borraba de la pantalla un ánimo que sí
+                            // estaba guardado.
+                            when {
+                                marked != null -> MoodScale.ECHOES[marked]
+                                state.moodError != null -> "No pudimos consultarlo"
+                                state.moodLoading -> "Un momento…"
+                                else -> "Sin marcar"
+                            },
                             style = t.caption,
                             color = deep,
                         )
@@ -416,6 +465,10 @@ fun HomeScreen(
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text(
                         when {
+                            // Mismo criterio que los mosaicos: sin datos
+                            // fiables no se afirma que el día está libre.
+                            state.remindersFailed && todayTasks.isEmpty() -> "No pudimos consultar tus tareas"
+                            state.loading && todayTasks.isEmpty() -> "Comprobando tu día…"
                             todayTasks.isEmpty() -> "Sin tareas para hoy"
                             todayTasks.size - doneCount > 0 ->
                                 plural(todayTasks.size - doneCount, "tarea pendiente", "tareas pendientes")

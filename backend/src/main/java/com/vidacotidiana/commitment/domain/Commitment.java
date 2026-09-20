@@ -147,6 +147,23 @@ public class Commitment {
     }
 
     /**
+     * Devuelve el seguimiento a OPEN.
+     *
+     * Existe por la misma razón que `Maintenance#revertToOccurrence` y que el
+     * toggle de Reminder/Warranty: resolver por error es trivial y hasta ahora
+     * este era el ÚNICO recurso con estado sin marcha atrás — la única salida
+     * era borrarlo y volver a crearlo, que pierde la fecha y el histórico.
+     *
+     * No es un toggle como el de Reminder: `resolve()` ya es idempotente y
+     * fundir los dos haría que reintentar un "Hecho" que falló por red
+     * reabriera lo que sí se había guardado. Idempotente también aquí.
+     */
+    public void reopen() {
+        this.status = CommitmentStatus.OPEN;
+        this.updatedAt = Instant.now();
+    }
+
+    /**
      * Partial update — a null argument leaves the corresponding field
      * unchanged. {@code direction} is intentionally editable: flipping who
      * must act next is the entire point of the unified model (ADR-016), not

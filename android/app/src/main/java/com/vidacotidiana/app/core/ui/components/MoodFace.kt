@@ -298,3 +298,20 @@ fun moodInk(value: Int?): Color {
     // que contrasta es el vivo.
     return if (VidaTheme.spec.isDark) MoodScale.accentOf(value) else MoodScale.deepOf(value)
 }
+
+/**
+ * El tinte del ánimo, más marcado.
+ *
+ * Para lo que tiene que destacar SOBRE una tarjeta que ya lleva [moodSky] de
+ * fondo — el selector elegido, por ejemplo. Con el mismo tinte suave los dos,
+ * el elegido se fundía con la tarjeta y dejaba de distinguirse en Noche.
+ */
+@Composable
+fun moodSkyStrong(value: Int): Color {
+    val c = VidaTheme.colors
+    return if (VidaTheme.spec.isDark) {
+        MoodScale.accentOf(value).copy(alpha = 0.46f).compositeOver(c.surface)
+    } else {
+        MoodScale.skyOf(value)
+    }
+}

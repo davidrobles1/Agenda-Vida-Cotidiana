@@ -72,8 +72,15 @@ fun PortalScreen(viewModel: AppViewModel, navController: NavHostController) {
     LaunchedEffect(Unit) { viewModel.loadUser() }
 
     val attention = AttentionEngine.scan(state.data, viewModel.allTasks(), today)
-    val now = AttentionEngine.now(attention)
-    val overdue = now.count { it.urgency == AttentionUrgency.OVERDUE }
+    // «Para hoy» es HOY, no «hoy + lo atrasado».
+    //
+    // Esta pantalla contaba `now()` —que son las dos cosas— bajo la etiqueta
+    // «para hoy», y ademas enseñaba lo atrasado al lado: los mismos registros
+    // se contaban dos veces, exactamente el mismo fallo que tenia Inicio. Como
+    // la causa era una sola —confundir «lo que no puede esperar» con «lo de
+    // hoy»—, la correccion es la misma en los dos sitios.
+    val forToday = AttentionEngine.today(attention)
+    val overdue = AttentionEngine.overdue(attention).size
     val name = state.user?.username?.takeIf { it.isNotBlank() }
         ?: state.user?.email?.substringBefore('@')
 
@@ -134,7 +141,7 @@ fun PortalScreen(viewModel: AppViewModel, navController: NavHostController) {
                     horizontalArrangement = Arrangement.spacedBy(7.dp),
                 ) {
                     listOfNotNull(
-                        "${now.size} para hoy",
+                        "${forToday.size} para hoy",
                         if (overdue > 0) "$overdue atrasado" else null,
                         "${state.data.payments.size} pagos",
                     ).forEach { label ->

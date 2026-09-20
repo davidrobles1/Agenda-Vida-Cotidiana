@@ -6,6 +6,7 @@ import com.vidacotidiana.maintenance.domain.MaintenanceLogEntry;
 import com.vidacotidiana.maintenance.domain.MaintenanceLogRepository;
 import com.vidacotidiana.maintenance.domain.MaintenanceRecord;
 import com.vidacotidiana.maintenance.domain.MaintenanceRecordRepository;
+import com.vidacotidiana.maintenance.domain.MaintenanceStatus;
 import com.vidacotidiana.shared.domain.ConflictException;
 import com.vidacotidiana.shared.domain.ModuleContext;
 import com.vidacotidiana.shared.domain.NotFoundException;
@@ -259,6 +260,20 @@ public class MaintenanceService {
         java.util.List<MaintenanceLogEntry> history =
                 maintenanceLogRepository.findByMaintenanceRecordIdOrderByScheduledDateDesc(recordId);
         if (history.isEmpty()) {
+            // SIN HISTORIAL PERO COMPLETADO: es el rastro del contrato
+            // antiguo. `POST /{id}/complete` solo invierte el booleano y no
+            // escribe entrada, así que todo lo que se marcó por ahí quedó en
+            // COMPLETED sin nada que deshacer — y devolver el registro tal cual
+            // dejaba esos mantenimientos cerrados para siempre.
+            //
+            // Reabrir sin tocar la fecha es exactamente lo contrario de lo que
+            // hizo aquel toggle, así que la operación sigue siendo un deshacer
+            // y no una invención: no hay fecha anterior que restaurar porque
+            // nunca se avanzó ninguna.
+            if (record.getStatus() == MaintenanceStatus.COMPLETED) {
+                record.toggleCompletion();
+                return maintenanceRecordRepository.save(record);
+            }
             return record;
         }
         MaintenanceLogEntry last = history.get(0);

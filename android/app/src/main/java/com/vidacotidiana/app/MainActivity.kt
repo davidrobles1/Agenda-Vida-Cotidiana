@@ -82,7 +82,16 @@ class MainActivity : ComponentActivity() {
         intent.data?.let { uri ->
             if (uri.scheme == DeepLinks.SCHEME) {
                 return when (uri.host) {
-                    DeepLinks.SECTION_HOST -> uri.pathSegments.firstOrNull()
+                    // TODOS los segmentos, no solo el primero.
+                    //
+                    // Una ruta de sección es un segmento («tareas»), pero la de
+                    // un registro concreto son dos («tarea/<id>»), y quedarse
+                    // con el primero devolvía «tarea» — que no es una ruta
+                    // registrada. Así que un aviso que quisiera abrir una tarea
+                    // concreta no podía: o no navegaba, o reventaba al intentar
+                    // ir a un destino inexistente.
+                    DeepLinks.SECTION_HOST ->
+                        uri.pathSegments.joinToString("/").takeIf { it.isNotBlank() }
                     DeepLinks.CREATE_HOST -> DeepLinks.ACTION_CREATE_TASK
                     else -> null
                 }

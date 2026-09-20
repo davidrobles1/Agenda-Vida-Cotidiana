@@ -1,6 +1,7 @@
 package com.vidacotidiana.reminder.api.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.vidacotidiana.reminder.application.ReminderStepService;
 import com.vidacotidiana.reminder.domain.Reminder;
 
 import java.time.Instant;
@@ -28,11 +29,37 @@ public record ReminderResponse(
         String location,
         /** V33: LOW | NORMAL | URGENT. Nunca nulo — el default es NORMAL. */
         String priority,
+        /**
+         * EL AVANCE DE SUS PASOS, para el anillo del artefacto.
+         *
+         * El diseño aprobado pone un anillo con el porcentaje en CADA fila de
+         * Tareas, y ese porcentaje se deriva de los pasos. Sin estos dos
+         * campos el cliente tendría que pedir los pasos de cada tarea —una
+         * petición por fila— y por eso la lista no tenía anillo.
+         *
+         * NULOS cuando no se han consultado, y eso NO es cero: «sin pasos» y
+         * «no lo sé» son cosas distintas, y un cero afirmaría la primera. El
+         * porcentaje se DERIVA de los dos; no se guarda en ninguna parte.
+         */
+        Integer stepCount,
+        Integer stepsDone,
         int version,
         Instant createdAt,
         Instant updatedAt
 ) {
+    /** Sin avance consultado: los dos campos van nulos, que es «no lo sé». */
     public static ReminderResponse from(Reminder reminder) {
+        return from(reminder, null);
+    }
+
+    /**
+     * Con el avance de sus pasos, cuando quien responde ya lo tiene.
+     *
+     * `progress` nulo deja los campos nulos en vez de ponerlos a cero: una
+     * tarea sin pasos y una tarea cuyos pasos no se han mirado no son lo mismo,
+     * y el cliente necesita distinguirlas para decidir si dibuja el anillo.
+     */
+    public static ReminderResponse from(Reminder reminder, ReminderStepService.StepProgress progress) {
         return new ReminderResponse(
                 reminder.getId(),
                 reminder.getOwnerUserId(),
@@ -47,6 +74,8 @@ public record ReminderResponse(
                 reminder.getProjectId(),
                 reminder.getLocation(),
                 reminder.getPriority().name(),
+                progress == null ? null : progress.total(),
+                progress == null ? null : progress.done(),
                 reminder.getVersion(),
                 reminder.getCreatedAt(),
                 reminder.getUpdatedAt()

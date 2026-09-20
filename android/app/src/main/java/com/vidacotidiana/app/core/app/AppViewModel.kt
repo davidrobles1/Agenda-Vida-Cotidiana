@@ -45,6 +45,12 @@ import java.time.LocalDate
 import java.time.YearMonth
 import java.time.ZoneId
 import javax.inject.Inject
+import com.vidacotidiana.app.core.ui.VidaDates
+import com.vidacotidiana.app.core.data.replacing
+import com.vidacotidiana.app.core.ui.components.Celebration
+import com.vidacotidiana.app.core.ui.components.CelebrationTier
+import com.vidacotidiana.app.navigation.Routes
+import com.vidacotidiana.app.core.data.paidThisPeriod
 
 /**
  * Estado transversal de la aplicación: contexto activo, tema, perfil, fecha
@@ -65,6 +71,21 @@ data class AppUiState(
     val theme: VisualTheme = VisualTheme.DEFAULT,
     val profile: ProfessionalProfile = ProfessionalProfile.DEFAULT,
     val laboralEnabled: Boolean = true,
+    /**
+     * Las claves de los avisos que el usuario ya ha visto.
+     *
+     * Aquí y no dentro de `data` porque no viene del servidor: los avisos se
+     * DERIVAN de los registros (ADR-018) y lo leído se guarda en el
+     * dispositivo, igual que el tema y el perfil.
+     */
+    val readNotices: Set<String> = emptySet(),
+    /**
+     * Hay que pedirle al teléfono permiso para mostrar avisos.
+     *
+     * Se enciende al programar la alarma de una tarea sin tenerlo, que es el
+     * único momento en que la pregunta se explica sola.
+     */
+    val pedirPermisoAvisos: Boolean = false,
     val selectedDate: LocalDate = LocalDate.now(),
     val visibleMonth: YearMonth = YearMonth.now(),
     val calendarDensity: String = "Mes",
@@ -144,7 +165,67 @@ data class AppUiState(
     val editing: EditTarget? = null,
     /** Valores con los que abrir la hoja ya rellena. */
     val formInitialValues: Map<String, String> = emptyMap(),
+    /**
+     * LO QUE QUEDÓ A MEDIAS EN CADA ALTA.
+     *
+     * Vive en el estado y no en la hoja porque la hoja se destruye al cerrarse
+     * — que era exactamente el problema: cerrar por error borraba lo escrito
+     * sin preguntar. Por recurso, para que empezar una tarea y abrir luego una
+     * garantía no se pisen.
+     *
+     * NO se persiste en disco a propósito: un borrador es de esta sesión. Que
+     * sobreviva a cerrar la aplicación entera sería otra decisión, con su
+     * pregunta de cuándo caduca, y nadie la ha tomado.
+     */
+    val drafts: Map<CreatableResource, Map<String, String>> = emptyMap(),
+
+    /**
+     * QUÉ REGISTROS TIENEN UNA ACCIÓN EN VUELO.
+     *
+     * EL PROBLEMA QUE RESUELVE. Al pulsar la palomilla de una tarea o el «ya lo
+     * pagué» de un pago, la aplicación llamaba al servidor y, al volver, hacía
+     * un `refresh()` completo —veinte peticiones—. Entre el toque y el primer
+     * cambio visible pasaban segundos en los que la pantalla no se movía: el
+     * usuario pulsaba, no ocurría nada, y volvía a pulsar.
+     *
+     * Con el id aquí, el control que se pulsó puede decir que está trabajando
+     * en el instante del toque, y deja de aceptar un segundo toque que
+     * registraría la acción dos veces.
+     */
+    val busy: Set<String> = emptySet(),
+
+    /**
+     * LA CELEBRACIÓN EN CURSO, si la hay.
+     *
+     * Vive en el estado y no dentro de una pantalla porque la capa que la pinta
+     * está en el armazón: si viviera en la pantalla, el redibujo que provoca
+     * dar algo por hecho la destruiría a media reproducción.
+     */
+    val celebration: Celebration? = null,
+
+    /**
+     * A DÓNDE LLEVAR tras crear algo.
+     *
+     * Crear es el ÚNICO caso que navega, y es deliberado: confirmar que se creó
+     * sin enseñarlo obligaría al usuario a ir a buscarlo. Ninguna celebración
+     * mueve la pantalla; ésta no es la celebración, es el alta.
+     */
+    val goTo: String? = null,
 )
+
+/**
+ * CÓMO SE DICE QUE ALGO VUELVE.
+ *
+ * La segunda línea de una celebración cierra el asunto, y para eso tiene que
+ * decir CUÁNDO regresa lo que acaba de hacerse. No se escribe a mano: sale de
+ * la fecha nueva que el servidor devuelve al completar —`nextDueAt`,
+ * `nextPaymentDate`, `nextExecutionDate`—, así que no puede contradecirla.
+ *
+ * `VidaDates.relative` decide la forma: cerca se cuenta en días («mañana», «en
+ * 6 días»), lejos se dice la fecha. «Vuelve en 182 días» no sitúa a nadie.
+ */
+private fun vuelveEl(date: java.time.LocalDate): String =
+    "Vuelve " + VidaDates.relative(date).replaceFirstChar { it.lowercase() }
 
 /** El texto con el que se cuenta un fallo de carga. Uno solo, en un sitio. */
 const val LOAD_FAILED = "No se pudo cargar"
@@ -197,6 +278,7 @@ class AppViewModel @Inject constructor(
             theme = prefs.theme.value,
             profile = prefs.profile.value,
             laboralEnabled = prefs.laboralEnabled.value,
+            readNotices = prefs.readNotices.value,
         ),
     )
     val state: StateFlow<AppUiState> = _state.asStateFlow()
@@ -452,7 +534,7 @@ class AppViewModel @Inject constructor(
                         alarmScheduler.cancel(updated.id)
                         updated.dueAt
                             ?.let { runCatching { Instant.parse(it).toEpochMilli() }.getOrNull() }
-                            ?.let { millis -> runCatching { alarmScheduler.schedule(updated.id, updated.title, millis) } }
+                            ?.let { millis -> runCatching { programarAviso(updated.id, updated.title, millis) } }
                         Unit
                     }
 
@@ -547,6 +629,22 @@ class AppViewModel @Inject constructor(
                 result
                     .onSuccess {
                         _state.update { it.copy(saving = false, pendingCreate = null, editing = null, formInitialValues = emptyMap()) }
+                        // CRUZAR LA META ES UN UMBRAL, no un cambio guardado.
+                        //
+                        // Y no cierra el objetivo: AC-018 dice que `completed` y
+                        // `currentValue` son independientes, así que la línea
+                        // invita a cerrarlo en vez de darlo por cerrado. Cerrarlo
+                        // tiene su propio logro, porque es otro acto.
+                        val metaAhora = cruzaLaMeta(editing, values)
+                        if (metaAhora != null) {
+                            celebrar(
+                                CelebrationTier.ACHIEVE,
+                                "Meta alcanzada",
+                                metaAhora + ". Ciérralo cuando quieras.",
+                            )
+                        } else {
+                            celebrar(CelebrationTier.CONFIRM, "Cambios guardados")
+                        }
                         refresh()
                     }
                     .onFailure { e ->
@@ -576,7 +674,7 @@ class AppViewModel @Inject constructor(
                     // alarma exacta que ya programa el resto de la aplicación.
                     created.dueAt
                         ?.let { runCatching { Instant.parse(it).toEpochMilli() }.getOrNull() }
-                        ?.let { millis -> runCatching { alarmScheduler.schedule(created.id, created.title, millis) } }
+                        ?.let { millis -> runCatching { programarAviso(created.id, created.title, millis) } }
                     Unit
                 }
 
@@ -686,7 +784,20 @@ class AppViewModel @Inject constructor(
                     // a pulsar otra vez y duplicar el recurso. Que la lista
                     // aparezca actualizada detrás ya es la confirmación; un
                     // aviso encima diría lo mismo tapándolo.
-                    _state.update { it.copy(saving = false, pendingCreate = null, formInitialValues = emptyMap()) }
+                    _state.update {
+                        it.copy(
+                            saving = false, pendingCreate = null, formInitialValues = emptyMap(),
+                            // Creado de verdad: ya no hay nada a medias que
+                            // guardar. Si no se tirase aquí, la próxima alta de
+                            // este tipo volvería con lo que acaba de guardarse.
+                            drafts = it.drafts - resource,
+                            // Y se pide llevar al usuario a donde vive lo que
+                            // acaba de crear: confirmarlo sin enseñarlo le
+                            // obligaría a ir a buscarlo.
+                            goTo = destinoDe(resource),
+                        )
+                    }
+                    celebrar(CelebrationTier.CONFIRM, nombreDe(resource) + " creado")
                     // Se recarga en vez de insertar a mano: el servidor puede
                     // haber derivado cosas (avisos, estado) que el cliente no
                     // sabe calcular, y adivinarlas dejaría la pantalla mintiendo.
@@ -698,10 +809,46 @@ class AppViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Abrir un alta. Si quedó un borrador de ESE mismo recurso, vuelve con él.
+     *
+     * Antes lo escrito vivía en un `remember` atado a la hoja, así que cerrarla
+     * —o tocar fuera sin querer— lo borraba sin preguntar. Eso es lo que
+     * convierte «me sale un imprevisto» en «mejor no lo creo», que es
+     * literalmente lo que el usuario describió.
+     *
+     * El borrador es por recurso: empezar una tarea y luego abrir una garantía
+     * no debe mezclar los dos, ni hacer que abrir la garantía tire la tarea.
+     */
     fun requestCreate(resource: CreatableResource) {
         _state.update {
-            it.copy(pendingCreate = resource, editing = null, formInitialValues = emptyMap(), error = null)
+            it.copy(
+                pendingCreate = resource,
+                editing = null,
+                formInitialValues = it.drafts[resource] ?: emptyMap(),
+                error = null,
+            )
         }
+    }
+
+    /**
+     * Guardar lo tecleado, tecla a tecla, para que sobreviva al cierre.
+     *
+     * SOLO al crear. Editando, el borrador sería una trampa: al reabrir la
+     * misma garantía se vería lo que el usuario dejó a medias en vez de lo que
+     * hay guardado de verdad, y no habría forma de saber cuál es cuál.
+     */
+    fun rememberDraft(resource: CreatableResource, values: Map<String, String>) {
+        if (_state.value.editing != null) return
+        val limpio = values.filterValues { it.isNotBlank() }
+        _state.update {
+            it.copy(drafts = if (limpio.isEmpty()) it.drafts - resource else it.drafts + (resource to limpio))
+        }
+    }
+
+    /** «Empezar de cero»: tira el borrador y deja la hoja en blanco. */
+    fun discardDraft(resource: CreatableResource) {
+        _state.update { it.copy(drafts = it.drafts - resource, formInitialValues = emptyMap()) }
     }
 
     /**
@@ -902,49 +1049,202 @@ class AppViewModel @Inject constructor(
      * Completar / resolver / registrar pago. Cada recurso usa el verbo que su
      * propio backend define; no hay un «completar» genérico inventado.
      */
+    /**
+     * DAR UN RECURSO POR HECHO, actualizando SOLO ESE RECURSO.
+     *
+     * ANTES cada acción terminaba en `refresh()`: veinte peticiones para
+     * cambiar una fila. Sobre una conexión real eso son segundos de pantalla
+     * muda —el usuario pulsaba, no pasaba nada, y volvía a pulsar— y cuando por
+     * fin llegaba se redibujaba todo.
+     *
+     * Y no hacía falta: los seis endpoints YA devolvían el recurso actualizado,
+     * con su versión nueva. El repositorio lo tiraba con un `; Unit`. Ahora se
+     * usa lo que el servidor devuelve para sustituir esa única pieza de la
+     * lista, y el resto del estado se queda intacto — ni se vuelve a pedir ni
+     * se vuelve a dibujar.
+     */
     fun completeResource(resource: CreatableResource, id: String) {
         val data = _state.value.data
-        viewModelScope.launch {
-            val result = when (resource) {
-                CreatableResource.TASK -> { toggleTask(id); return@launch }
-                CreatableResource.WARRANTY ->
-                    data.warranties.firstOrNull { it.id == id }?.let { repository.completeWarranty(id, it.version) }
-                CreatableResource.MAINTENANCE ->
-                    data.maintenance.firstOrNull { it.id == id }?.let { repository.completeMaintenance(id, it.version) }
-                CreatableResource.PAYMENT ->
-                    data.payments.firstOrNull { it.id == id }?.let { repository.registerPayment(id, it.version) }
-                CreatableResource.COMMITMENT ->
-                    data.commitments.firstOrNull { it.id == id }?.let { repository.resolveCommitment(id, it.version) }
-                // Objetivos es el ÚNICO que cambia de estado con un PATCH: su
-                // backend no expone `/complete`. Y es el único que ALTERNA —
-                // cumplir y reabrir son la misma llamada con distinto valor—,
-                // por eso lee `completed` en vez de mandar `true` fijo.
-                CreatableResource.OBJECTIVE ->
-                    data.objectives.firstOrNull { it.id == id }
-                        ?.let { repository.setObjectiveCompleted(id, !it.completed, it.version) }
-                // «Hecha» de una rutina NO es "completar": registra UNA
-                // ocurrencia y avanza la fecha. Endpoint propio, no un PATCH, y
-                // deliberadamente NADA parecido a la alternancia de Objetivos —
-                // una rutina no se cumple, siempre vuelve.
-                CreatableResource.ROUTINE ->
-                    data.routines.firstOrNull { it.id == id }
-                        ?.let { repository.executeRoutine(id, it.version) }
-                // Inventario, documentos, personas, proyectos, notas del Inbox,
-                // RECURSOS DE TRABAJO y LUGARES no tienen estado de completado
-                // en el backend: no se inventa.
-                //
-                // Que WORK_RESOURCE y PLACE caigan aquí es DELIBERADO, no un
-                // olvido: sus backends no exponen ninguna acción —ni complete,
-                // ni execute, ni resolve—, solo CRUD. Sus tarjetas pasan
-                // `onComplete = null` y por eso no muestran ningún botón que no
-                // llevaría a nada.
-                else -> null
-            } ?: return@launch
+        // La acción se marca EN EL ACTO sobre el registro pulsado, para que el
+        // control diga que está trabajando en vez de quedarse mudo hasta que
+        // vuelva la red. Y un segundo toque no la repite: registrar dos veces
+        // un pago adelantaría su fecha un mes de más.
+        if (id in _state.value.busy) return
 
-            result
-                .onSuccess { refresh() }
-                .onFailure { e -> _state.update { it.copy(error = e.message ?: "No se pudo actualizar") } }
+        // Sin acción para este tipo no se marca nada ocupado: inventario,
+        // documentos, personas, proyectos, notas, recursos de trabajo y lugares
+        // no tienen estado de completado en su backend, y sus tarjetas ya pasan
+        // `onComplete = null` por eso mismo.
+        val hasAction = when (resource) {
+            CreatableResource.TASK -> true
+            CreatableResource.WARRANTY -> data.warranties.any { it.id == id }
+            CreatableResource.MAINTENANCE -> data.maintenance.any { it.id == id }
+            CreatableResource.PAYMENT -> data.payments.any { it.id == id }
+            CreatableResource.COMMITMENT -> data.commitments.any { it.id == id }
+            CreatableResource.OBJECTIVE -> data.objectives.any { it.id == id }
+            CreatableResource.ROUTINE -> data.routines.any { it.id == id }
+            else -> false
         }
+        if (!hasAction) return
+        if (resource == CreatableResource.TASK) {
+            toggleTask(id)
+            return
+        }
+
+        _state.update { it.copy(busy = it.busy + id) }
+        viewModelScope.launch {
+            val outcome: Result<VidaData> = when (resource) {
+                CreatableResource.WARRANTY ->
+                    repository.completeWarranty(id, data.warranties.first { it.id == id }.version)
+                        .map { saved -> data.copy(warranties = data.warranties.replacing(saved) { w -> w.id }) }
+
+                // Sin versión: `/occurrences` es idempotente por fecha
+                // programada —completar dos veces la misma ocurrencia no la
+                // avanza dos veces—, así que no necesita bloqueo optimista.
+                CreatableResource.MAINTENANCE ->
+                    repository.completeMaintenance(id)
+                        .map { saved -> data.copy(maintenance = data.maintenance.replacing(saved) { m -> m.id }) }
+
+                // El pago devuelve su fecha nueva, y además se recogen los
+                // registros para saber que este ciclo ya está cubierto. Son DOS
+                // llamadas, no veinte, y las dos son de Pagos.
+                CreatableResource.PAYMENT ->
+                    repository.registerPayment(id, data.payments.first { it.id == id }.version)
+                        .map { (saved, records) ->
+                            data.copy(
+                                payments = data.payments.replacing(saved) { p -> p.id },
+                                paymentRecords = records,
+                            )
+                        }
+
+                CreatableResource.COMMITMENT ->
+                    repository.resolveCommitment(id, data.commitments.first { it.id == id }.version)
+                        .map { saved -> data.copy(commitments = data.commitments.replacing(saved) { c -> c.id }) }
+
+                // Objetivos es el ÚNICO que ALTERNA: cumplir y reabrir son la
+                // misma llamada con distinto valor, por eso lee `completed` en
+                // vez de mandar `true` fijo.
+                CreatableResource.OBJECTIVE ->
+                    data.objectives.first { it.id == id }.let { o ->
+                        repository.setObjectiveCompleted(id, !o.completed, o.version)
+                            .map { saved -> data.copy(objectives = data.objectives.replacing(saved) { x -> x.id }) }
+                    }
+
+                // «Hecha» de una rutina NO es completar: registra UNA ocurrencia
+                // y avanza la fecha. El servidor calcula esa fecha y la
+                // devuelve, así que tampoco hay que suponerla.
+                CreatableResource.ROUTINE ->
+                    repository.executeRoutine(id, data.routines.first { it.id == id }.version)
+                        .map { saved -> data.copy(routines = data.routines.replacing(saved) { r -> r.id }) }
+
+                else -> return@launch
+            }
+
+            outcome
+                .onSuccess { updated ->
+                    // Se sustituye SOLO la colección que cambió; las otras
+                    // dieciocho conservan su instancia, así que Compose no
+                    // recompone lo que no se ha movido.
+                    _state.update { it.copy(busy = it.busy - id, data = updated) }
+                    celebrarCumplimiento(resource, id, updated)
+                }
+                .onFailure { e ->
+                    _state.update { it.copy(busy = it.busy - id, error = friendly(e)) }
+                }
+        }
+    }
+
+    /**
+     * DESHACER: devolver un registro al estado anterior.
+     *
+     * Marcar algo por error es trivial y hasta ahora solo Objetivos tenía
+     * vuelta atrás. En el resto la única salida era borrar y volver a crear —y
+     * eso pierde la fecha, los adjuntos y el historial. Registrar un pago de
+     * más era lo peor de todo: adelanta la fecha de cobro un ciclo entero.
+     *
+     * Ninguna de estas llamadas es una invención del cliente: `complete` ya
+     * alterna en tarea y garantía, y mantenimiento y pago ya tenían su DELETE.
+     * El único que faltaba era el seguimiento, y se ha añadido al backend con
+     * la misma forma que los otros dos.
+     *
+     * Gemela de `completeResource` a propósito: mismo bloqueo por `busy`, misma
+     * sustitución de UNA colección, mismo tratamiento del error. Escribirla con
+     * otra forma habría garantizado que las dos direcciones se comportasen
+     * distinto ante la misma red.
+     */
+    fun revertResource(resource: CreatableResource, id: String) {
+        if (id in _state.value.busy) return
+        val data = _state.value.data
+        if (resource == CreatableResource.TASK) {
+            reopenTask(id)
+            return
+        }
+
+        _state.update { it.copy(busy = it.busy + id) }
+        viewModelScope.launch {
+            val outcome: Result<VidaData> = when (resource) {
+                // El mismo endpoint que la cerró la reabre.
+                CreatableResource.WARRANTY ->
+                    data.warranties.firstOrNull { it.id == id }?.let { w ->
+                        repository.completeWarranty(id, w.version)
+                            .map { saved -> data.copy(warranties = data.warranties.replacing(saved) { x -> x.id }) }
+                    } ?: return@launch
+
+                CreatableResource.MAINTENANCE ->
+                    repository.undoMaintenance(id)
+                        .map { saved -> data.copy(maintenance = data.maintenance.replacing(saved) { m -> m.id }) }
+
+                CreatableResource.PAYMENT ->
+                    repository.undoPayment(id)
+                        .map { (saved, records) ->
+                            data.copy(
+                                payments = data.payments.replacing(saved) { p -> p.id },
+                                paymentRecords = records,
+                            )
+                        }
+
+                CreatableResource.COMMITMENT ->
+                    repository.reopenCommitment(id)
+                        .map { saved -> data.copy(commitments = data.commitments.replacing(saved) { x -> x.id }) }
+
+                CreatableResource.OBJECTIVE ->
+                    data.objectives.firstOrNull { it.id == id }?.let { o ->
+                        repository.setObjectiveCompleted(id, !o.completed, o.version)
+                            .map { saved -> data.copy(objectives = data.objectives.replacing(saved) { x -> x.id }) }
+                    } ?: return@launch
+
+                // Rutinas no aparece: `execute` registra una ocurrencia y
+                // avanza la fecha, y el backend no expone forma de borrar la
+                // última. Ofrecer aquí un «deshacer» que no puede deshacer
+                // nada sería el botón mudo que estamos quitando.
+                else -> return@launch
+            }
+
+            outcome
+                .onSuccess { updated ->
+                    // SIN celebración. Volver atrás es una corrección, no un
+                    // logro: felicitarla sería premiar el arrepentimiento.
+                    _state.update { it.copy(busy = it.busy - id, data = updated) }
+                }
+                .onFailure { e ->
+                    _state.update { it.copy(busy = it.busy - id, error = friendly(e)) }
+                }
+        }
+    }
+
+    /**
+     * Qué registros pueden volver atrás. Lo pregunta la interfaz para no
+     * ofrecer el gesto donde no existe, y lo responde ESTE archivo, que es el
+     * que sabe qué llamada hay detrás de cada uno.
+     */
+    fun puedeVolverAtras(resource: CreatableResource): Boolean = when (resource) {
+        CreatableResource.TASK,
+        CreatableResource.WARRANTY,
+        CreatableResource.MAINTENANCE,
+        CreatableResource.PAYMENT,
+        CreatableResource.COMMITMENT,
+        CreatableResource.OBJECTIVE -> true
+        else -> false
     }
 
     /**
@@ -1264,7 +1564,19 @@ class AppViewModel @Inject constructor(
         viewModelScope.launch {
             val result = if (done) repository.undoPartDone(shareId) else repository.markPartDone(shareId)
             result
-                .onSuccess { refresh() }
+                .onSuccess {
+                    // ADR-025: esto registra que TÚ cumpliste lo tuyo; el estado
+                    // del recurso sigue siendo único y compartido. La línea lo
+                    // dice para que nadie crea que lo ha cerrado.
+                    if (!done) {
+                        celebrar(
+                            CelebrationTier.CELEBRATE,
+                            "Tu parte, hecha",
+                            "El recurso sigue abierto para quien lo comparte.",
+                        )
+                    }
+                    refresh()
+                }
                 .onFailure { e -> _state.update { it.copy(error = e.message) } }
         }
     }
@@ -1288,6 +1600,13 @@ class AppViewModel @Inject constructor(
                     meta = if (r.status == "COMPLETED") "Completada" else "Recordatorio",
                     done = r.status == "COMPLETED",
                     location = r.location?.ifBlank { null },
+                priority = r.priority,
+                // El porcentaje se DERIVA de los pasos, como en el detalle:
+                // sin pasos no hay anillo que pintar, y por eso es nulo y no
+                // cero — cero significaría «empezada y sin avanzar».
+                percent = r.stepCount?.takeIf { it > 0 }?.let { total ->
+                    ((r.stepsDone ?: 0) * 100) / total
+                },
                     date = date,
                 )
             }
@@ -1311,9 +1630,16 @@ class AppViewModel @Inject constructor(
                 id = r.id,
                 title = r.title,
                 time = due?.toLocalTime(),
-                meta = due?.toLocalDate()?.toString() ?: "Sin fecha",
+                meta = due?.toLocalDate()?.let { VidaDates.relative(it) } ?: "Sin fecha",
                 done = r.status == "COMPLETED",
                 location = r.location?.ifBlank { null },
+                priority = r.priority,
+                // El porcentaje se DERIVA de los pasos, como en el detalle:
+                // sin pasos no hay anillo que pintar, y por eso es nulo y no
+                // cero — cero significaría «empezada y sin avanzar».
+                percent = r.stepCount?.takeIf { it > 0 }?.let { total ->
+                    ((r.stepsDone ?: 0) * 100) / total
+                },
                 date = due?.toLocalDate(),
             )
         }
@@ -1326,6 +1652,222 @@ class AppViewModel @Inject constructor(
         // hay que volver a pedirlos, o se vería lo del contexto anterior.
         refresh()
         loadNotes(_state.value.selectedDate)
+    }
+
+    /**
+     * Celebrar un hecho. La capa del armazón lo recoge y lo reproduce.
+     *
+     * No navega, no mueve nada y no bloquea: sólo publica QUÉ pasó. Cómo se ve
+     * lo decide `CelebrationLayer`, que es donde vive el artefacto.
+     */
+    private fun celebrar(tier: CelebrationTier, title: String, line: String? = null) {
+        _state.update { it.copy(celebration = Celebration(tier, title, line)) }
+    }
+
+    /**
+     * QUÉ SE DICE AL CUMPLIR CADA COSA.
+     *
+     * El mensaje NO es una plantilla: sale del registro que el servidor acaba
+     * de devolver. Un mantenimiento dice cuándo vuelve porque su `nextDueOn`
+     * nuevo lo dice; un pago, porque lo dice su `renewsOn`. Así la felicitación
+     * cierra el asunto en vez de limitarse a aplaudir.
+     *
+     * Y hay dos ausencias deliberadas: GARANTÍAS no celebra —usar una garantía
+     * es gastar una cobertura, no un logro, y felicitar por eso sería celebrar
+     * algo que el usuario preferiría no haber necesitado— y el ánimo del día
+     * tampoco, porque es un registro íntimo y festejarlo sería juzgarlo.
+     */
+    private fun celebrarCumplimiento(resource: CreatableResource, id: String, d: VidaData) {
+        when (resource) {
+            CreatableResource.MAINTENANCE -> d.maintenance.firstOrNull { it.id == id }?.let { m ->
+                celebrar(CelebrationTier.CELEBRATE, "Hecho · " + m.item, vuelveEl(m.nextDueOn))
+            }
+
+            CreatableResource.PAYMENT -> d.payments.firstOrNull { it.id == id }?.let { p ->
+                val pagados = d.paymentRecords.paidThisPeriod(LocalDate.now())
+                val cubierto = d.payments.none { it.id !in pagados }
+                if (cubierto) {
+                    celebrar(
+                        CelebrationTier.ACHIEVE,
+                        "Mes cubierto",
+                        "No queda ningún pago del periodo.",
+                    )
+                } else {
+                    celebrar(
+                        CelebrationTier.CELEBRATE,
+                        listOfNotNull("Pagado", p.amountLabel).joinToString(" · "),
+                        vuelveEl(p.renewsOn),
+                    )
+                }
+            }
+
+            // Una rutina NO se cumple para siempre: siempre vuelve, y eso es
+            // justo lo que dice su línea.
+            //
+            // La META DEL DÍA no cuelga de aquí, y es deliberado: ejecutar la
+            // rutina cierra la ocurrencia y mueve la fecha, mientras que sumar
+            // al hábito cuenta dentro del día. Celebrar la meta en esta acción
+            // felicitaría por adelantar la rutina a mañana, que es lo contrario
+            // de lo que el usuario hizo.
+            CreatableResource.ROUTINE -> d.routines.firstOrNull { it.id == id }?.let { r ->
+                celebrar(CelebrationTier.CELEBRATE, "Hecha · " + r.title, vuelveEl(r.nextExecutionDate))
+            }
+
+            // Un seguimiento se resuelve y se acabó: no vuelve. La línea dice
+            // con quién queda saldado, que es lo que cierra el asunto.
+            CreatableResource.COMMITMENT -> d.commitments.firstOrNull { it.id == id }?.let { cm ->
+                val quien = cm.personId?.let { pid -> d.people.firstOrNull { it.id == pid }?.name }
+                celebrar(
+                    CelebrationTier.CELEBRATE,
+                    "Resuelto",
+                    quien?.let { "Queda saldado con " + it + "." } ?: "«" + cm.description + "»",
+                )
+            }
+
+            // AC-018: cerrar el objetivo y alcanzar su meta son actos distintos.
+            // Éste es el cierre.
+            CreatableResource.OBJECTIVE -> d.objectives.firstOrNull { it.id == id }?.let { o ->
+                if (o.completed) {
+                    celebrar(CelebrationTier.ACHIEVE, "Objetivo cumplido", "«" + o.title + "» queda cerrado.")
+                }
+            }
+
+            // GARANTÍA: silencio deliberado. Ver el comentario de arriba.
+            else -> Unit
+        }
+    }
+
+    /**
+     * ¿Esta edición ACABA de llevar el objetivo a su meta?
+     *
+     * Devuelve «12 de 12» cuando el progreso cruza el listón en esta edición, y
+     * nulo en cualquier otro caso — incluido si ya estaba cumplido antes, que
+     * no es un umbral nuevo y celebrarlo otra vez sería animar por animar.
+     */
+    private fun cruzaLaMeta(editing: EditTarget, values: Map<String, String>): String? {
+        if (editing.resource != CreatableResource.OBJECTIVE) return null
+        val antes = _state.value.data.objectives.firstOrNull { it.id == editing.id } ?: return null
+        val meta = values["targetValue"]?.toIntOrNull() ?: antes.targetValue ?: return null
+        val ahora = values["currentValue"]?.toIntOrNull() ?: antes.currentValue
+        if (meta <= 0) return null
+        val yaEstaba = antes.targetValue != null && antes.currentValue >= antes.targetValue
+        return if (ahora >= meta && !yaEstaba) "$ahora de $meta" else null
+    }
+
+    /** Dónde vive cada recurso recién creado. Nulo = no hay a dónde llevar. */
+    private fun destinoDe(resource: CreatableResource): String? = when (resource) {
+        CreatableResource.TASK -> Routes.TASKS
+        CreatableResource.PAYMENT -> Routes.PAYMENTS
+        CreatableResource.WARRANTY -> Routes.WARRANTIES
+        CreatableResource.MAINTENANCE -> Routes.MAINTENANCE
+        CreatableResource.INVENTORY -> Routes.INVENTORY
+        CreatableResource.DOCUMENT -> Routes.DOCUMENTS
+        CreatableResource.OBJECTIVE -> Routes.OBJECTIVES
+        CreatableResource.ROUTINE -> Routes.ROUTINES
+        CreatableResource.PERSON -> Routes.PEOPLE
+        CreatableResource.PROJECT -> Routes.PROJECTS
+        CreatableResource.COMMITMENT -> Routes.COMMITMENTS
+        CreatableResource.WORK_RESOURCE -> Routes.WORK_RESOURCES
+        CreatableResource.PLACE -> Routes.PLACES
+        else -> null
+    }
+
+    private fun nombreDe(resource: CreatableResource): String = when (resource) {
+        CreatableResource.TASK -> "Tarea"
+        CreatableResource.PAYMENT -> "Pago"
+        CreatableResource.WARRANTY -> "Garantía"
+        CreatableResource.MAINTENANCE -> "Mantenimiento"
+        CreatableResource.INVENTORY -> "Artículo"
+        CreatableResource.DOCUMENT -> "Documento"
+        CreatableResource.OBJECTIVE -> "Objetivo"
+        CreatableResource.ROUTINE -> "Rutina"
+        CreatableResource.PERSON -> "Persona"
+        CreatableResource.PROJECT -> "Proyecto"
+        CreatableResource.COMMITMENT -> "Seguimiento"
+        CreatableResource.WORK_RESOURCE -> "Recurso"
+        CreatableResource.PLACE -> "Lugar"
+        else -> "Registro"
+    }
+
+    /** El grafo lo consume y lo limpia: una petición de navegación, no un destino fijo. */
+    fun goToConsumed() {
+        _state.update { it.copy(goTo = null) }
+    }
+
+    /** La retira: se llama al agotarse su tiempo y al tocar la pantalla. */
+    fun dismissCelebration() {
+        _state.update { it.copy(celebration = null) }
+    }
+
+    /* ══════════════════════════════════════════════════════════════════════
+       AVISOS — leído / sin leer
+       ══════════════════════════════════════════════════════════════════════ */
+
+    /**
+     * Cuántos avisos quedan sin leer.
+     *
+     * UNA sola definición, porque el punto rojo aparece en muchas barras y dos
+     * cuentas del mismo conjunto acaban discrepando — y la que se equivoca es
+     * siempre la que nadie mira. Sale del mismo `AttentionEngine` que pinta la
+     * pantalla de avisos, menos lo que ya está marcado.
+     */
+    fun avisosSinLeer(): Int {
+        val leidos = _state.value.readNotices
+        return com.vidacotidiana.app.core.attention.AttentionEngine
+            .scan(_state.value.data, allTasks())
+            .count { aviso -> aviso.noticeKey !in leidos }
+    }
+
+    /**
+     * Programar el aviso de una tarea, y pedir permiso SI HACE FALTA.
+     *
+     * Los cuatro sitios que programan una alarma —crear, editar, reprogramar y
+     * reabrir— pasan por aquí para que la pregunta se haga siempre en el mismo
+     * momento: cuando el usuario acaba de ponerle hora a algo. Preguntar al
+     * arrancar sería pedir permiso para algo que todavía no ha pedido nadie, y
+     * es la forma más rápida de que lo denieguen.
+     *
+     * Y hasta ahora no se preguntaba en ninguna parte: el permiso estaba en el
+     * manifiesto, el notificador lo comprobaba y callaba, y el aviso no llegaba
+     * a verse nunca en un teléfono con Android 13 o más.
+     */
+    private fun programarAviso(id: String, title: String, dueAtMillis: Long) {
+        alarmScheduler.schedule(id, title, dueAtMillis)
+        if (!alarmScheduler.avisosPermitidos()) {
+            _state.update { it.copy(pedirPermisoAvisos = true) }
+        }
+    }
+
+    /** La pregunta ya se hizo; no se repite hasta la próxima alarma. */
+    fun permisoAvisosPedido() {
+        _state.update { it.copy(pedirPermisoAvisos = false) }
+    }
+
+    fun markNoticeRead(key: String) {
+        prefs.markNoticeRead(key)
+        _state.update { it.copy(readNotices = prefs.readNotices.value) }
+    }
+
+    fun markNoticeUnread(key: String) {
+        prefs.markNoticeUnread(key)
+        _state.update { it.copy(readNotices = prefs.readNotices.value) }
+    }
+
+    fun markNoticesRead(keys: Collection<String>) {
+        prefs.markNoticesRead(keys)
+        _state.update { it.copy(readNotices = prefs.readNotices.value) }
+    }
+
+    /**
+     * Tira las claves de avisos que ya no existen. Lo llama la pantalla de
+     * avisos al abrirse, con la lista que acaba de calcular: es el único sitio
+     * que conoce el conjunto completo de claves vigentes.
+     */
+    fun pruneNotices(stillValid: Collection<String>) {
+        prefs.pruneNotices(stillValid)
+        if (prefs.readNotices.value != _state.value.readNotices) {
+            _state.update { it.copy(readNotices = prefs.readNotices.value) }
+        }
     }
 
     fun setTheme(theme: VisualTheme) {
@@ -1402,16 +1944,187 @@ class AppViewModel @Inject constructor(
     }
 
     /** Completa o reabre una tarea contra el endpoint real, con su alarma. */
+    /**
+     * DAR UNA TAREA POR HECHA, con la fila cambiando EN EL ACTO.
+     *
+     * ANTES: se llamaba al servidor y, al volver, se hacía un `refresh()`
+     * completo. Sobre una conexión real eso son segundos en los que la
+     * palomilla no hacía nada visible — el usuario pulsaba, no pasaba nada, y
+     * volvía a pulsar. Y cuando por fin llegaba, se redibujaba la pantalla
+     * entera para cambiar una fila.
+     *
+     * AHORA la fila cambia primero y la petición va detrás. Si el servidor
+     * falla, se deshace y se dice: una actualización optimista que no sabe
+     * retroceder deja al usuario creyendo que guardó algo que no se guardó.
+     *
+     * NO hay `refresh()`: completar una tarea no cambia ninguna otra cosa que
+     * esta pantalla muestre, así que pedir las veinte colecciones otra vez solo
+     * servía para tardar.
+     */
+    /**
+     * MOVER UNA TAREA A OTRA HORA DEL MISMO DÍA, arrastrándola.
+     *
+     * Solo cambia la HORA: el día se conserva tal cual estaba. Arrastrar dentro
+     * de la línea del día es decir «esto, más tarde», no «esto, otro día» — y
+     * mover la fecha sin que nadie lo pidiera sería inventar una intención.
+     *
+     * La fila se coloca en su hora nueva ANTES de salir la petición, para que
+     * soltar tenga efecto inmediato; si el servidor falla, vuelve a donde
+     * estaba y se dice. Y la alarma se reprograma con ella: si el aviso se
+     * quedara en la hora vieja sonaría a destiempo.
+     */
+    fun rescheduleTask(taskId: String, newTime: java.time.LocalTime) {
+        val reminder = _state.value.reminders.firstOrNull { it.id == taskId } ?: return
+        if (taskId in _state.value.busy) return
+
+        val zone = ZoneId.systemDefault()
+        val current = reminder.dueAt?.let { runCatching { Instant.parse(it).atZone(zone) }.getOrNull() } ?: return
+        val moved = current.with(newTime.withSecond(0).withNano(0))
+        if (moved.toInstant() == current.toInstant()) return
+
+        val previous = _state.value.reminders
+        val optimistic = reminder.copy(dueAt = moved.toInstant().toString())
+        _state.update { st ->
+            st.copy(
+                busy = st.busy + taskId,
+                reminders = st.reminders.map { if (it.id == taskId) optimistic else it },
+            )
+        }
+
+        viewModelScope.launch {
+            runCatching {
+                reminderApi.updateReminder(
+                    taskId,
+                    com.vidacotidiana.app.core.network.UpdateReminderRequest(
+                        dueAt = moved.toInstant().toString(),
+                        // Se devuelven tal cual para no perderlos: el backend
+                        // aplica icono y pegatina SIEMPRE como llegan, así que
+                        // omitirlos los borraría.
+                        iconId = reminder.iconId,
+                        stickerId = reminder.stickerId,
+                        version = reminder.version,
+                    ),
+                )
+            }
+                .onSuccess { saved ->
+                    alarmScheduler.cancel(taskId)
+                    saved.dueAt
+                        ?.let { runCatching { Instant.parse(it).toEpochMilli() }.getOrNull() }
+                        ?.let { millis -> runCatching { programarAviso(saved.id, saved.title, millis) } }
+                    _state.update { st ->
+                        st.copy(
+                            busy = st.busy - taskId,
+                            reminders = st.reminders.map { if (it.id == taskId) saved else it },
+                        )
+                    }
+                }
+                .onFailure { e ->
+                    _state.update {
+                        it.copy(busy = it.busy - taskId, reminders = previous, error = friendly(e))
+                    }
+                }
+        }
+    }
+
     fun toggleTask(taskId: String) {
         val reminder = _state.value.reminders.firstOrNull { it.id == taskId } ?: return
         if (reminder.status == "COMPLETED") return
+        if (taskId in _state.value.busy) return
+
+        val previous = _state.value.reminders
+        _state.update { st ->
+            st.copy(
+                busy = st.busy + taskId,
+                reminders = st.reminders.map {
+                    if (it.id == taskId) it.copy(status = "COMPLETED") else it
+                },
+            )
+        }
         viewModelScope.launch {
             runCatching { reminderApi.completeReminder(reminder.id, CompleteReminderRequest(reminder.version)) }
-                .onSuccess {
+                .onSuccess { saved ->
                     alarmScheduler.cancel(reminder.id)
-                    refresh()
+                    // Lo que devuelve el servidor manda sobre la suposición:
+                    // trae la versión nueva, sin la cual el siguiente cambio
+                    // chocaría contra el bloqueo optimista.
+                    _state.update { st ->
+                        st.copy(
+                            busy = st.busy - taskId,
+                            reminders = st.reminders.map { if (it.id == taskId) saved else it },
+                        )
+                    }
+                    // UNA TAREA NO VUELVE, así que no se le inventa un regreso.
+                    // Lo que sí cierra su contexto es si era la última: quedarse
+                    // sin nada pendiente hoy es un umbral, no una tarea más.
+                    val quedanHoy = allTasks().count { !it.done && it.date == LocalDate.now() }
+                    if (quedanHoy == 0) {
+                        celebrar(
+                            CelebrationTier.ACHIEVE,
+                            "Día limpio",
+                            "No te queda nada pendiente hoy.",
+                        )
+                    } else {
+                        celebrar(CelebrationTier.CELEBRATE, "Hecha", "«" + saved.title + "»")
+                    }
                 }
-                .onFailure { e -> _state.update { it.copy(error = e.message) } }
+                .onFailure { e ->
+                    _state.update {
+                        it.copy(busy = it.busy - taskId, reminders = previous, error = friendly(e))
+                    }
+                }
+        }
+    }
+
+    /**
+     * Devolver una tarea a pendiente.
+     *
+     * Es el MISMO endpoint que la cierra: `POST /reminders/{id}/complete`
+     * alterna PENDING↔COMPLETED desde siempre. Lo que faltaba no era backend,
+     * era que `toggleTask` se plantaba —`if (status == "COMPLETED") return`— y
+     * dejaba una palomilla equivocada sin ninguna salida.
+     *
+     * No se funde con `toggleTask` a propósito: en el camino de ida hay una
+     * alarma que cancelar y una celebración que disparar, y en el de vuelta hay
+     * una alarma que REPROGRAMAR. Un solo método con dos mitades condicionales
+     * habría escondido justo eso.
+     */
+    fun reopenTask(taskId: String) {
+        val reminder = _state.value.reminders.firstOrNull { it.id == taskId } ?: return
+        if (reminder.status != "COMPLETED") return
+        if (taskId in _state.value.busy) return
+
+        val previous = _state.value.reminders
+        _state.update { st ->
+            st.copy(
+                busy = st.busy + taskId,
+                reminders = st.reminders.map {
+                    if (it.id == taskId) it.copy(status = "PENDING") else it
+                },
+            )
+        }
+        viewModelScope.launch {
+            runCatching { reminderApi.completeReminder(reminder.id, CompleteReminderRequest(reminder.version)) }
+                .onSuccess { saved ->
+                    // La tarea vuelve a estar pendiente, así que su aviso vuelve
+                    // a tener sentido. Sin esto, reabrir una tarea la dejaría
+                    // pendiente y muda. Solo si su hora no ha pasado ya: la
+                    // misma condición que usa reprogramar.
+                    saved.dueAt
+                        ?.let { runCatching { Instant.parse(it).toEpochMilli() }.getOrNull() }
+                        ?.takeIf { it > System.currentTimeMillis() }
+                        ?.let { millis -> runCatching { programarAviso(saved.id, saved.title, millis) } }
+                    _state.update { st ->
+                        st.copy(
+                            busy = st.busy - taskId,
+                            reminders = st.reminders.map { if (it.id == taskId) saved else it },
+                        )
+                    }
+                }
+                .onFailure { e ->
+                    _state.update {
+                        it.copy(busy = it.busy - taskId, reminders = previous, error = friendly(e))
+                    }
+                }
         }
     }
 
@@ -1578,7 +2291,22 @@ class AppViewModel @Inject constructor(
     fun addHabitProgress(routineId: String, delta: Int = 1) {
         viewModelScope.launch {
             wellbeing.addProgress(routineId, delta)
-                .onSuccess { p -> _state.update { it.copy(habitToday = it.habitToday + (routineId to p.count)) } }
+                .onSuccess { p ->
+                    _state.update { it.copy(habitToday = it.habitToday + (routineId to p.count)) }
+                    // AQUÍ sí está la meta del día: es el contador que la
+                    // alcanza. Y su línea dice que mañana vuelve a cero, porque
+                    // un hábito no se cumple una vez — se cumple cada día.
+                    val r = _state.value.data.routines.firstOrNull { it.id == routineId }
+                    val meta = r?.targetCount
+                    if (r != null && meta != null && p.count >= meta) {
+                        celebrar(
+                            CelebrationTier.ACHIEVE,
+                            "Meta del día",
+                            r.title + " · " + meta + (r.unit?.let { u -> " " + u } ?: "") +
+                                ". Mañana vuelve a empezar.",
+                        )
+                    }
+                }
                 .onFailure { e -> _state.update { it.copy(error = friendly(e)) } }
         }
     }

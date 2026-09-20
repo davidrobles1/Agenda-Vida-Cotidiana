@@ -47,7 +47,17 @@ import javax.inject.Singleton
  */
 
 enum class WarrantyStatus { VIGENTE, POR_VENCER, VENCIDA }
-enum class MaintenanceStatus { AL_DIA, PROXIMO, VENCIDO }
+/**
+ * HECHO existe porque sin él un mantenimiento PUNTUAL —sin intervalo— no tenía
+ * forma de decir que había terminado: el backend lo deja en COMPLETED y aquí se
+ * traducía a AL_DIA, indistinguible de uno que simplemente no toca todavía. El
+ * usuario marcaba «Hecho» y la fila se quedaba igual.
+ *
+ * Un mantenimiento REPETIBLE nunca llega a HECHO: al completarlo, el backend
+ * avanza su fecha y vuelve a ACTIVE. Esa es la diferencia entre los dos, y es
+ * la que el estado tenía que reflejar.
+ */
+enum class MaintenanceStatus { AL_DIA, PROXIMO, VENCIDO, HECHO }
 
 data class Warranty(
     val id: String,
@@ -918,10 +928,9 @@ class VidaRepository @Inject constructor(
      * atrasada varios periodos sigue atrasada tras un clic — es el contrato, no
      * un fallo, y este cliente no lo compensa con más llamadas.
      */
-    suspend fun executeRoutine(id: String, version: Int): Result<Unit> =
+    suspend fun executeRoutine(id: String, version: Int): Result<Routine> =
         runCatching {
-            laboralApi.executeRoutine(id, com.vidacotidiana.app.core.network.VersionRequest(version))
-            Unit
+            laboralApi.executeRoutine(id, com.vidacotidiana.app.core.network.VersionRequest(version)).toDomain()
         }
 
     /** Pausar y reanudar: el PATCH de edición admite `active` (verificado). */
@@ -942,7 +951,7 @@ class VidaRepository @Inject constructor(
      * defecto y `encodeDefaults = false` no lo serializa—, así que el título, la
      * meta, el progreso y la fecha quedan exactamente como estaban.
      */
-    suspend fun setObjectiveCompleted(id: String, completed: Boolean, version: Int): Result<Unit> =
+    suspend fun setObjectiveCompleted(id: String, completed: Boolean, version: Int): Result<Objective> =
         runCatching {
             laboralApi.updateObjective(
                 id,
@@ -950,22 +959,63 @@ class VidaRepository @Inject constructor(
                     completed = completed,
                     version = version,
                 ),
-            )
-            Unit
+            ).toDomain()
         }
 
-    suspend fun completeWarranty(id: String, version: Int): Result<Unit> =
-        runCatching { warrantyApi.complete(id, com.vidacotidiana.app.core.network.VersionRequest(version)); Unit }
+    suspend fun completeWarranty(id: String, version: Int): Result<Warranty> =
+        runCatching { warrantyApi.complete(id, com.vidacotidiana.app.core.network.VersionRequest(version)).toDomain() }
 
     /** ADR-021: en mantenimiento, completar AVANZA la ocurrencia. */
-    suspend fun completeMaintenance(id: String, version: Int): Result<Unit> =
-        runCatching { maintenanceApi.complete(id, com.vidacotidiana.app.core.network.VersionRequest(version)); Unit }
+    suspend fun completeMaintenance(id: String): Result<MaintenanceRecord> =
+        runCatching { maintenanceApi.completeOccurrence(id).toDomain() }
 
-    suspend fun registerPayment(id: String, version: Int): Result<Unit> =
-        runCatching { subscriptionApi.registerPayment(id, com.vidacotidiana.app.core.network.VersionRequest(version)); Unit }
+    /* ------------------------------------------------------------------
+       VOLVER ATRÁS.
+       Marcar algo por error es trivial y hasta ahora solo Objetivos tenía
+       vuelta: el resto obligaba a borrar y volver a crear, perdiendo fecha e
+       historial. Ninguno de estos endpoints es nuevo salvo el del seguimiento
+       —el backend ya los tenía y nadie los llamaba.
+       ------------------------------------------------------------------ */
 
-    suspend fun resolveCommitment(id: String, version: Int): Result<Unit> =
-        runCatching { laboralApi.resolveCommitment(id, com.vidacotidiana.app.core.network.VersionRequest(version)); Unit }
+    // La tarea y la garantía NO aparecen aquí: su `complete` YA es un toggle
+    // en el backend (PENDING↔COMPLETED, ACTIVE↔COMPLETED), así que reabrir es
+    // literalmente la misma llamada. Darles un método propio habría sido
+    // duplicar `completeWarranty` bajo otro nombre.
+
+    /** Borra la última ejecución y devuelve la fecha que tenía antes. */
+    suspend fun undoMaintenance(id: String): Result<MaintenanceRecord> =
+        runCatching { maintenanceApi.undoLastOccurrence(id).toDomain() }
+
+    /**
+     * Borra el último pago registrado. Devuelve además los registros, por la
+     * misma razón que `registerPayment`: sin ellos la pantalla seguiría
+     * creyendo que este ciclo está cubierto.
+     */
+    suspend fun undoPayment(id: String): Result<Pair<Payment, List<PaymentRecord>>> =
+        runCatching {
+            val payment = subscriptionApi.undoLastPayment(id).toDomain()
+            payment to subscriptionApi.paymentRecords().map { it.toDomain() }
+        }
+
+    suspend fun reopenCommitment(id: String): Result<Commitment> =
+        runCatching { laboralApi.reopenCommitment(id).toDomain() }
+
+    /**
+     * Registrar el pago del ciclo devuelve el compromiso con su FECHA NUEVA…
+     * pero no el registro que acaba de crearse, y sin él la pantalla no sabría
+     * que este periodo ya está cubierto. Se piden los registros —UNA llamada—
+     * en vez de recargar las veinte colecciones.
+     */
+    suspend fun registerPayment(id: String, version: Int): Result<Pair<Payment, List<PaymentRecord>>> =
+        runCatching {
+            val payment = subscriptionApi
+                .registerPayment(id, com.vidacotidiana.app.core.network.VersionRequest(version))
+                .toDomain()
+            payment to subscriptionApi.paymentRecords().map { it.toDomain() }
+        }
+
+    suspend fun resolveCommitment(id: String, version: Int): Result<Commitment> =
+        runCatching { laboralApi.resolveCommitment(id, com.vidacotidiana.app.core.network.VersionRequest(version)).toDomain() }
 
     // --- Documentos: lo que la Web ya permitía y Android no ---
 
@@ -1093,9 +1143,11 @@ private fun MaintenanceDto.toDomain(): MaintenanceRecord {
         nextDueOn = date,
         intervalMonths = intervalMonths,
         // ADR-018: 7 días de antelación, los mismos de sus avisos.
-        // `MaintenanceStatus` en el backend es ACTIVE/COMPLETED.
+        // `MaintenanceStatus` en el backend es ACTIVE/COMPLETED, y COMPLETED
+        // solo ocurre en los puntuales: los repetibles vuelven a ACTIVE con la
+        // fecha ya avanzada.
         status = when {
-            status == "COMPLETED" -> MaintenanceStatus.AL_DIA
+            status == "COMPLETED" -> MaintenanceStatus.HECHO
             days < 0 -> MaintenanceStatus.VENCIDO
             days <= 7 -> MaintenanceStatus.PROXIMO
             else -> MaintenanceStatus.AL_DIA
@@ -1305,3 +1357,17 @@ private fun NoteDto.toDomain() = InboxNote(
     classified = personId != null || projectId != null,
     version = version,
 )
+
+/**
+ * Sustituir UN elemento de una lista por su versión nueva, dejando el resto
+ * exactamente como estaba — misma instancia, mismo orden.
+ *
+ * Es la pieza que permite que dar algo por hecho actualice esa fila y nada más.
+ * Antes cualquier acción terminaba en una recarga completa porque no había
+ * forma de decir «solo este cambió»; con esto, las demás colecciones conservan
+ * su instancia y Compose no vuelve a dibujar lo que no se ha movido.
+ */
+fun <T> List<T>.replacing(updated: T, idOf: (T) -> String): List<T> {
+    val id = idOf(updated)
+    return map { if (idOf(it) == id) updated else it }
+}

@@ -24,6 +24,11 @@ import java.time.YearMonth
 import java.util.Locale
 import com.vidacotidiana.app.core.data.DataSlice
 import com.vidacotidiana.app.core.app.sliceError
+import com.vidacotidiana.app.core.ui.VidaTones
+import androidx.compose.ui.graphics.Brush
+import com.vidacotidiana.app.core.ui.components.ResourceShape
+import com.vidacotidiana.app.core.ui.VidaDates
+import com.vidacotidiana.app.core.ui.VidaVocabulary
 
 /**
  * Pagos (ADR-020). Es destino prioritario de la barra inferior en Personal, así
@@ -55,10 +60,33 @@ fun PaymentsScreen(
         ResourceEntry(
             id = it.id,
             title = it.name,
-            subtitle = "${it.category} · toca el ${it.renewsLabel}",
-            typeTag = it.category,
+            // El antetítulo es el TIPO de compromiso, como en el artefacto
+            // («SERVICIO», «TARJETA», «CRÉDITO»), y el subtítulo dice cuándo.
+            // Antes los dos mostraban `category` —el ciclo— así que la fila
+            // repetía «Mensual» dos veces y el subtítulo se cortaba.
+            // El ciclo, como en el artefacto («Servicio · mensual»). El
+            // CUÁNDO ya lo dice el dato del antetítulo, así que repetir la
+            // fecha aquí solo servía para que se cortara.
+            subtitle = it.billingCycle?.let(VidaVocabulary::human) ?: it.category,
+            typeTag = kindLabel(it.kind),
+            busy = it.id in state.busy,
+            // A la derecha del antetítulo, cuánto falta o cuánto lleva
+            // esperando, en el tono de la fila. Es el `p.day` del artefacto.
+            highlight = VidaDates.relative(it.renewsOn, today).lowercase(),
             amount = it.amountLabel,
             icon = Icons.Outlined.Autorenew,
+            // EL TONO SALE DEL TIPO DE COMPROMISO, como en el artefacto: un
+            // servicio, una tarjeta y un crédito se reconocen por su color
+            // antes de leerlos. Antes las seis filas compartían el mismo, y la
+            // lista perdía justo esa lectura de un vistazo.
+            // …salvo cuando ya venció: en el artefacto el pago atrasado va en
+            // rosa aunque su categoría sea otra. La urgencia manda sobre la
+            // categoría, porque es lo único que exige actuar hoy.
+            tone = when {
+                isPaid -> VidaTheme.colors.successText
+                it.renewsOn.isBefore(today) -> VidaTheme.colors.error
+                else -> VidaTones.payment(it.kind).accent
+            },
             // Lo ya pagado deja de pedir acción: se marca y pierde el botón.
             pill = if (isPaid) "Pagado" to PillTone.OK else null,
             // Un pago se organiza por proximidad: lo vencido primero, porque
@@ -78,6 +106,14 @@ fun PaymentsScreen(
                 { viewModel.completeResource(CreatableResource.PAYMENT, it.id) }
             },
             completeLabel = "Ya lo pagué",
+            // Justo lo que faltaba: registrar un pago adelanta la fecha un
+            // ciclo entero, así que un toque de más dejaba el pago perdido un
+            // mes en el futuro sin forma de traerlo. `DELETE .../payments/last`
+            // borra el registro Y devuelve la fecha.
+            onRevert = if (isPaid) {
+                { viewModel.revertResource(CreatableResource.PAYMENT, it.id) }
+            } else null,
+            revertLabel = "No lo pagué",
             onDelete = { viewModel.deleteResource(CreatableResource.PAYMENT, it.id) },
         )
     }
@@ -145,13 +181,19 @@ fun PaymentsScreen(
                 ?.let { (currency, total) -> formatTotal(total, currency) } ?: "—"
             VidaTileRow(
                 listOf(
+                    // La pieza principal del artefacto va en DEGRADADO índigo
+                    // con texto blanco, no en relleno pálido: es la cifra que
+                    // manda en la pantalla y su peso visual lo dice.
                     VidaTileSpec(
                         "Este mes", totalLabel,
                         plural(entries.size, "compromiso", "compromisos"),
-                        VidaTheme.colors.primaryContainer,
                         VidaTheme.colors.primary,
-                        VidaTheme.colors.primaryDeep,
+                        VidaTheme.colors.onPrimary,
+                        VidaTheme.colors.onPrimary,
                         weight = 1.32f,
+                        backgroundBrush = Brush.linearGradient(
+                            listOf(VidaTheme.colors.primary, VidaTheme.colors.primaryDeep),
+                        ),
                     ),
                     VidaTileSpec(
                         "Sin pagar", pending.size.toString(),
@@ -163,6 +205,10 @@ fun PaymentsScreen(
                 ),
             )
         },
+        // FILA, como el artefacto: el nombre manda y el importe se alinea a la
+        // derecha para poder compararlo entre filas. Con la forma deducida, el
+        // importe se convertía en el titular y el nombre pasaba a segunda línea.
+        shape = ResourceShape.LIST,
         addLabel = "Agregar pago",
         emptyBody = "Registra un pago para saber cuándo toca y cuánto representa.",
         loading = state.loading,
@@ -191,7 +237,10 @@ fun PaymentsScreen(
         scope = scope,
         showBack = false,
         onBack = {},
-        onNotifications = {},
+        // La campana lleva de verdad a los avisos, y el punto sale de
+        // cuántos quedan sin leer. Antes era `{}` con `badge = true`.
+        onNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
+        notificationsBadge = viewModel.avisosSinLeer(),
     )
 }
 
@@ -203,4 +252,14 @@ private fun formatTotal(total: Double, currency: String): String {
         String.format(Locale.US, "%,.2f", total)
     }
     return "$" + figure + " " + currency
+}
+
+/** El TIPO de compromiso, escrito como lo rotula el artefacto. */
+private fun kindLabel(kind: String?): String = when (kind?.trim()?.uppercase()) {
+    "SERVICE" -> "SERVICIO"
+    "SUBSCRIPTION" -> "DIGITAL"   // la palabra del artefacto para lo que se renueva solo
+    "MEMBERSHIP" -> "SOCIO"
+    "CARD" -> "TARJETA"
+    "CREDIT" -> "CRÉDITO"
+    else -> "PAGO"
 }

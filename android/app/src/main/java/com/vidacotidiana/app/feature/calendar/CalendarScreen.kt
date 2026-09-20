@@ -114,7 +114,14 @@ fun CalendarScreen(
         onContextSelect = viewModel::setContext,
         actions = {
             VidaIconButton(Icons.Filled.Add, "Nueva tarea") { onNavigate(Routes.TASKS) }
-            VidaIconButton(Icons.Outlined.Notifications, "Notificaciones", badge = true) { onNavigate(Routes.NOTIFICATIONS) }
+            // Mismo recuento real que en Inicio, y UNA sola definición de él:
+            // dos cuentas del mismo conjunto acaban discrepando.
+            val sinLeer = viewModel.avisosSinLeer()
+            VidaIconButton(
+                Icons.Outlined.Notifications,
+                if (sinLeer == 0) "Avisos" else "Avisos · $sinLeer sin leer",
+                badge = sinLeer > 0,
+            ) { onNavigate(Routes.NOTIFICATIONS) }
         },
     ) {
         StaggeredAppear(0) {

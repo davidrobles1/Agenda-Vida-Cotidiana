@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
+import com.vidacotidiana.app.navigation.Routes
 import com.vidacotidiana.app.core.app.AppViewModel
 import com.vidacotidiana.app.core.app.CreatableResource
 import com.vidacotidiana.app.core.data.Objective
@@ -61,25 +62,25 @@ fun ObjectivesScreen(
             // que es el único estado que un objetivo tiene.
             pill = if (objective.completed) "Cumplido" to PillTone.OK else null,
             onEdit = { viewModel.requestEdit(CreatableResource.OBJECTIVE, objective.id) },
-            // El check DESAPARECE al cumplirse: ofrecer "cumplir" sobre algo ya
-            // cumplido sería un botón que no dice la verdad. Reabrir vive en la
-            // hoja de detalle, que es donde van las acciones secundarias — la
-            // tarjeta nunca tiene dos acciones rápidas.
+            // El check no ofrece "cumplir" sobre algo ya cumplido: sería un
+            // botón que no dice la verdad. La tarjeta sigue sin tener dos
+            // acciones rápidas — es la MISMA marca la que cambia de sentido.
             onComplete = if (objective.completed) {
                 null
             } else {
                 { viewModel.completeResource(CreatableResource.OBJECTIVE, objective.id) }
             },
             completeLabel = "Cumplido",
-            extraActions = if (objective.completed) {
-                listOf(
-                    "Volver a ponerlo en curso" to {
-                        viewModel.completeResource(CreatableResource.OBJECTIVE, objective.id)
-                    },
-                )
-            } else {
-                emptyList()
-            },
+            // Reabrir pasa de `extraActions` a `onRevert`, que es el campo que
+            // ahora tienen todos los recursos reversibles. Objetivos fue el
+            // primero en tener vuelta atrás y se la había dado por su cuenta;
+            // dejarla aparte habría significado que el único gesto que ya
+            // funcionaba fuese el único distinto.
+            onRevert = if (objective.completed) {
+                { viewModel.revertResource(CreatableResource.OBJECTIVE, objective.id) }
+            } else null,
+            revertLabel = "Volver a ponerlo en curso",
+            busy = objective.id in state.busy,
             onDelete = { viewModel.deleteResource(CreatableResource.OBJECTIVE, objective.id) },
         )
     }
@@ -112,7 +113,10 @@ fun ObjectivesScreen(
         scope = scope,
         showBack = true,
         onBack = { navController.popBackStack() },
-        onNotifications = {},
+        // La campana lleva de verdad a los avisos, y el punto sale de
+        // cuántos quedan sin leer. Antes era `{}` con `badge = true`.
+        onNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
+        notificationsBadge = viewModel.avisosSinLeer(),
     )
 }
 

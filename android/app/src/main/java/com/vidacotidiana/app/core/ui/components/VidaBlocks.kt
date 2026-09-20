@@ -55,6 +55,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -351,7 +352,7 @@ fun NotebookNotes(
         notes.forEach { note ->
             val isEditing = editing == note.id
             Row(
-                Modifier.fillMaxWidth().height(lineHeight),
+                Modifier.fillMaxWidth().height(lineHeight).subeSobreElTeclado(),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 if (isEditing) {
@@ -361,7 +362,11 @@ fun NotebookNotes(
                         textStyle = style.copy(color = c.text),
                         cursorBrush = SolidColor(c.primary),
                         singleLine = true,
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                        keyboardOptions = KeyboardOptions(
+    imeAction = ImeAction.Done,
+    // La misma regla que `VidaTextField`: una nota es una frase.
+    capitalization = KeyboardCapitalization.Sentences,
+),
                         // Guardar con vacío borra la nota: es lo que significa
                         // dejar una línea en blanco en una libreta.
                         keyboardActions = KeyboardActions(onDone = {
@@ -399,14 +404,18 @@ fun NotebookNotes(
 
         // El compositor está SIEMPRE listo, como en la Web: escribir una nota
         // no exige abrir nada antes.
-        Row(Modifier.fillMaxWidth().height(lineHeight), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().height(lineHeight).subeSobreElTeclado(), verticalAlignment = Alignment.CenterVertically) {
             BasicTextField(
                 value = composing,
                 onValueChange = { composing = it },
                 textStyle = style.copy(color = c.text),
                 cursorBrush = SolidColor(c.primary),
                 singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardOptions = KeyboardOptions(
+    imeAction = ImeAction.Done,
+    // La misma regla que `VidaTextField`: una nota es una frase.
+    capitalization = KeyboardCapitalization.Sentences,
+),
                 keyboardActions = KeyboardActions(onDone = {
                     onAdd(composing)
                     composing = ""

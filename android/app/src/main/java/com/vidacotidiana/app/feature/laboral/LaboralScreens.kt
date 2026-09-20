@@ -439,6 +439,11 @@ fun LaboralTasksScreen(viewModel: AppViewModel, drawerState: DrawerState, scope:
                 { viewModel.completeResource(CreatableResource.TASK, it.id) }
             } else null,
             completeLabel = "Hecha",
+            onRevert = if (it.done) {
+                { viewModel.revertResource(CreatableResource.TASK, it.id) }
+            } else null,
+            revertLabel = "Volver a pendiente",
+            busy = it.id in state.busy,
             pill = if (it.done) "Hecha" to PillTone.OK else null,
             extraActions = it.location?.let { place ->
                 listOf("Cómo llegar" to { viewModel.openDirections(context, place) })
@@ -471,7 +476,10 @@ fun LaboralTasksScreen(viewModel: AppViewModel, drawerState: DrawerState, scope:
         scope = scope,
         showBack = true,
         onBack = { navController.popBackStack() },
-        onNotifications = {},
+        // La campana lleva de verdad a los avisos, y el punto sale de
+        // cuántos quedan sin leer. Antes era `{}` con `badge = true`.
+        onNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
+        notificationsBadge = viewModel.avisosSinLeer(),
     )
 }
 
@@ -571,7 +579,10 @@ fun PeopleScreen(viewModel: AppViewModel, drawerState: DrawerState, scope: Corou
         scope = scope,
         showBack = true,
         onBack = { navController.popBackStack() },
-        onNotifications = {},
+        // La campana lleva de verdad a los avisos, y el punto sale de
+        // cuántos quedan sin leer. Antes era `{}` con `badge = true`.
+        onNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
+        notificationsBadge = viewModel.avisosSinLeer(),
     )
 }
 
@@ -663,7 +674,10 @@ fun ProjectsScreen(viewModel: AppViewModel, drawerState: DrawerState, scope: Cor
         scope = scope,
         showBack = false,
         onBack = {},
-        onNotifications = {},
+        // La campana lleva de verdad a los avisos, y el punto sale de
+        // cuántos quedan sin leer. Antes era `{}` con `badge = true`.
+        onNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
+        notificationsBadge = viewModel.avisosSinLeer(),
     )
 }
 
@@ -694,6 +708,15 @@ fun CommitmentsScreen(viewModel: AppViewModel, drawerState: DrawerState, scope: 
                 { viewModel.completeResource(CreatableResource.COMMITMENT, it.id) }
             } else null,
             completeLabel = "Cerrar",
+            // Era el ÚNICO recurso con estado sin marcha atrás en el backend:
+            // `resolve()` fijaba DONE y no existía la inversa, así que cerrar
+            // por error obligaba a borrar y volver a crear —perdiendo fecha,
+            // dirección y persona. Ahora `DELETE /commitments/{id}/resolve`.
+            onRevert = if (it.status == "DONE") {
+                { viewModel.revertResource(CreatableResource.COMMITMENT, it.id) }
+            } else null,
+            revertLabel = "Volver a abrirlo",
+            busy = it.id in state.busy,
             onDelete = { viewModel.deleteResource(CreatableResource.COMMITMENT, it.id) },
             pill = it.tone(),
         )
@@ -750,7 +773,10 @@ fun CommitmentsScreen(viewModel: AppViewModel, drawerState: DrawerState, scope: 
         scope = scope,
         showBack = true,
         onBack = { navController.popBackStack() },
-        onNotifications = {},
+        // La campana lleva de verdad a los avisos, y el punto sale de
+        // cuántos quedan sin leer. Antes era `{}` con `badge = true`.
+        onNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
+        notificationsBadge = viewModel.avisosSinLeer(),
     )
 }
 

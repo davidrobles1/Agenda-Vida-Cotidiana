@@ -1,5 +1,7 @@
 package com.vidacotidiana.app.navigation
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -8,6 +10,8 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -83,6 +87,7 @@ import com.vidacotidiana.app.feature.warranties.WarrantiesScreen
 import kotlinx.coroutines.launch
 import com.vidacotidiana.app.core.attention.AttentionUrgency
 import com.vidacotidiana.app.feature.attention.AtencionScreen
+import com.vidacotidiana.app.core.ui.components.CelebrationLayer
 
 /**
  * El armazón de la aplicación: tema, cajón, barra inferior por contexto,
@@ -108,6 +113,13 @@ fun AppNavGraph(
     val state by appViewModel.state.collectAsStateWithLifecycle()
 
     VidaCotidianaTheme(theme = state.theme) {
+      // UN CONTENEDOR QUE SUPERPONE, EXPLÍCITAMENTE.
+      //
+      // La capa de celebración es el último hijo de este bloque, y sólo queda
+      // POR ENCIMA si el contenedor apila en profundidad. Dejarlo al criterio
+      // del contenedor implícito de la raíz funcionaría hoy y podría cambiar
+      // con una versión de Compose; un `Box` lo fija por contrato.
+      Box(Modifier.fillMaxSize()) {
         val navController: NavHostController = rememberNavController()
         // UX-006, error real encontrado en dispositivo: esto debe calcularse
         // UNA sola vez. Un `val` corriente se reevalúa en cada recomposición
@@ -120,6 +132,32 @@ fun AppNavGraph(
 
         val backStackEntry by navController.currentBackStackEntryAsState()
         val currentRoute = backStackEntry?.destination?.route
+
+        /*
+         * PEDIR PERMISO PARA AVISAR, cuando toca.
+         *
+         * Desde Android 13 una notificación no se dibuja sin
+         * `POST_NOTIFICATIONS`, y esta aplicación lo declaraba en el manifiesto,
+         * lo comprobaba antes de notificar… y no lo pedía en ninguna parte. Así
+         * que los avisos de tarea llevaban existiendo sin poder verse nunca.
+         *
+         * Se pregunta al programar la alarma de una tarea, no al arrancar: en
+         * ese momento el usuario acaba de ponerle hora a algo y la pregunta se
+         * explica sola. Si dice que no, el sistema no vuelve a mostrar el
+         * diálogo y no se insiste — todo lo demás sigue funcionando igual.
+         */
+        val permisoAvisos = rememberLauncherForActivityResult(
+            ActivityResultContracts.RequestPermission(),
+        ) { appViewModel.permisoAvisosPedido() }
+        LaunchedEffect(state.pedirPermisoAvisos) {
+            if (state.pedirPermisoAvisos) {
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                    permisoAvisos.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                } else {
+                    appViewModel.permisoAvisosPedido()
+                }
+            }
+        }
 
         val drawerState = rememberDrawerState(DrawerValue.Closed)
         val scope = rememberCoroutineScope()
@@ -151,6 +189,8 @@ fun AppNavGraph(
         // Portal no tiene barra inferior: su navegación es una sola sección y
         // una barra de un solo destino no es navegación, es un adorno.
         val showBottomNav = showChrome && state.context != AppContext.PORTAL
+        @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+        val tecladoAbierto = androidx.compose.foundation.layout.WindowInsets.isImeVisible
 
         /**
          * Saltar a un destino principal del módulo.
@@ -216,12 +256,23 @@ fun AppNavGraph(
                 }
                 appViewModel.requestCreate(CreatableResource.TASK)
             } else {
-                navController.navigate(target) {
-                    // Se apila sobre la raíz del módulo, no sobre lo que
-                    // hubiera: «atrás» desde una notificación debe dejar al
-                    // usuario en un sitio con sentido, no en su navegación previa.
-                    popUpTo(rootRouteFor(state.context)) { inclusive = false }
-                    launchSingleTop = true
+                // Un destino que no existe LANZA, y eso convertiría un enlace
+                // mal formado —o de una versión anterior— en un cierre de la
+                // aplicación al tocar una notificación. Se cae con elegancia a
+                // la raíz del módulo, que siempre existe.
+                runCatching {
+                    navController.navigate(target) {
+                        // Se apila sobre la raíz del módulo, no sobre lo que
+                        // hubiera: «atrás» desde una notificación debe dejar al
+                        // usuario en un sitio con sentido, no en su navegación previa.
+                        popUpTo(rootRouteFor(state.context)) { inclusive = false }
+                        launchSingleTop = true
+                    }
+                }.onFailure {
+                    navController.navigate(rootRouteFor(state.context)) {
+                        popUpTo(0) { inclusive = true }
+                        launchSingleTop = true
+                    }
                 }
             }
             onRouteConsumed()
@@ -238,6 +289,22 @@ fun AppNavGraph(
                     }
                 }
             }
+        }
+
+        // LLEVAR A VER LO RECIÉN CREADO.
+        //
+        // Es la ÚNICA navegación que provoca una acción de este tipo, y sólo al
+        // crear: confirmar que algo se creó sin enseñarlo obligaría a ir a
+        // buscarlo. Ninguna celebración navega.
+        LaunchedEffect(state.goTo) {
+            val destino = state.goTo ?: return@LaunchedEffect
+            if (currentRoute != destino) {
+                navController.navigate(destino) {
+                    popUpTo(moduleRoot) { inclusive = false }
+                    launchSingleTop = true
+                }
+            }
+            appViewModel.goToConsumed()
         }
 
         ModalNavigationDrawer(
@@ -282,7 +349,22 @@ fun AppNavGraph(
                 }
             },
         ) {
-            Column(Modifier.fillMaxSize()) {
+            /*
+             * EL HUECO PARA EL TECLADO SE HACE AQUÍ, NO DENTRO DE LA PANTALLA.
+             *
+             * Estaba en `VidaScreen`, y desde ahí no podía estar bien: esta
+             * columna ya había reservado su trozo de abajo para la barra de
+             * secciones, así que la pantalla recortaba la altura del teclado
+             * sobre un espacio del que YA se había descontado la barra. El
+             * resultado era la franja en blanco entre el contenido cortado y el
+             * teclado — medía exactamente lo que mide la barra, escondida
+             * detrás del propio teclado.
+             *
+             * Puesto en la columna entera, el recorte se hace una sola vez y
+             * sobre la ventana completa, que es la única altura que el inset
+             * del teclado describe.
+             */
+            Column(Modifier.fillMaxSize().imePadding()) {
                 Box(Modifier.weight(1f)) {
                     NavHost(
                         navController = navController,
@@ -375,13 +457,19 @@ fun AppNavGraph(
                         composable(Routes.INBOX) { InboxScreen(appViewModel, drawerState, scope) }
 
                         // ---- Cuenta ----
-                        composable(Routes.NOTIFICATIONS) { NotificationsScreen(navController) }
+                        composable(Routes.NOTIFICATIONS) { NotificationsScreen(appViewModel, navController) }
                         composable(Routes.SETTINGS) { SettingsScreen(appViewModel, navController) }
                         composable(Routes.APPEARANCE) { AppearanceScreen(appViewModel, navController) }
                     }
                 }
 
-                if (showBottomNav) {
+                // Y CON EL TECLADO ABIERTO, LA BARRA SE VA.
+                //
+                // Antes seguía ocupando su sitio debajo del teclado: invisible,
+                // inalcanzable y robando casi noventa puntos de alto a lo único
+                // que importa en ese momento, que es ver lo que estás
+                // escribiendo. Vuelve sola al cerrarse el teclado.
+                if (showBottomNav && !tecladoAbierto) {
                     VidaBottomNav(
                         destinations = bottom,
                         currentRoute = currentRoute,
@@ -426,6 +514,16 @@ fun AppNavGraph(
                     onSubmit = { values, file -> appViewModel.create(resource, values, file) },
                     onPickFile = appViewModel::readFile,
                     onQuickCreate = appViewModel::quickCreate,
+                    // El borrador solo al CREAR. Editando sería una trampa: al
+                    // reabrir la misma garantía se vería lo que quedó a medias
+                    // en vez de lo que hay guardado de verdad.
+                    onDraft = if (state.editing == null) {
+                        { values -> appViewModel.rememberDraft(resource, values) }
+                    } else null,
+                    // Y la salida solo aparece cuando de verdad se retomó algo.
+                    onDiscardDraft = if (state.editing == null && state.drafts[resource] != null) {
+                        { appViewModel.discardDraft(resource) }
+                    } else null,
                     onCancel = appViewModel::cancelCreate,
                 )
             }
@@ -447,6 +545,23 @@ fun AppNavGraph(
                 )
             }
         }
+
+        /*
+         * LA CAPA DE CELEBRACIÓN — la última, encima de todo.
+         *
+         * Se monta AQUÍ, en el armazón, y no dentro de ninguna pantalla. Es lo
+         * que permite que dar algo por hecho —que provoca un redibujo de esa
+         * pantalla— no destruya la animación a media reproducción. También la
+         * deja por encima del cajón y de la barra inferior.
+         *
+         * No mueve nada de debajo y no lleva a ninguna parte: sólo se
+         * superpone, y cualquier toque la retira.
+         */
+        CelebrationLayer(
+            celebration = state.celebration,
+            onDismiss = appViewModel::dismissCelebration,
+        )
+      }
     }
 }
 

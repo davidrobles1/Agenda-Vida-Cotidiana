@@ -87,6 +87,17 @@ public class CommitmentController {
         return CommitmentResponse.from(commitment);
     }
 
+    /**
+     * Deshace la resolución. Es un DELETE sobre el mismo recurso que el POST
+     * crea —la resolución—, igual que `DELETE /maintenance-records/{id}/occurrences/last`
+     * y `DELETE /subscriptions/{id}/payments/last`, en vez de inventar un
+     * verbo nuevo para lo mismo.
+     */
+    @DeleteMapping("/{id}/resolve")
+    public CommitmentResponse reopen(@PathVariable UUID id) {
+        return CommitmentResponse.from(commitmentService.reopen(id, currentUser.userId(), null));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
         commitmentService.delete(id, currentUser.userId());

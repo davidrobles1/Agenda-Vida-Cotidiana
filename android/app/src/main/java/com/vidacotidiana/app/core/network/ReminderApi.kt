@@ -29,6 +29,30 @@ data class Reminder(
      */
     val location: String? = null,
     /**
+     * V33: `LOW` | `NORMAL` | `URGENT`, nunca nulo en el backend.
+     *
+     * El artefacto pone la prioridad como ANTETÍTULO de cada tarea —«ALTA»,
+     * «MEDIA», «BAJA»— y le da su color, que es lo que permite ojear la lista
+     * sin leerla. El backend lo devuelve desde V33; este cliente no lo
+     * declaraba, así que `ignoreUnknownKeys` lo descartaba en silencio y la
+     * lista salía toda del mismo color.
+     */
+    val priority: String? = null,
+    /**
+     * EL AVANCE DE SUS PASOS — de dónde sale el anillo del artefacto.
+     *
+     * El diseño aprobado pone un anillo con el porcentaje en CADA fila de
+     * Tareas. Derivarlo exigía pedir los pasos de cada tarea, una petición por
+     * fila, así que la lista no lo tenía. El backend los resuelve ahora con una
+     * agregación por página.
+     *
+     * NULO no es cero: `null` es «no se consultó» y cero es «no tiene pasos».
+     * Sin esa distinción, una tarea sin pasos y una tarea sin mirar pintarían
+     * el mismo anillo vacío.
+     */
+    val stepCount: Int? = null,
+    val stepsDone: Int? = null,
+    /**
      * SE LEEN PARA PODER DEVOLVERLOS, no para mostrarlos.
      *
      * `Reminder#applyEdit` en el backend los aplica SIEMPRE tal como llegan

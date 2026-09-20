@@ -155,6 +155,10 @@ object VidaThemes {
         line: Long, border: Long,
         /** `--indigo-dd`: solo lo declaran las agendas del artefacto. */
         primaryDeep: Long? = null,
+        /** `--coral` / `--violet2`: los dos tonos de módulo del artefacto que
+            no tenían token. Sin declarar, el tema cae en ámbar y violeta. */
+        coral: Long? = null, coralContainer: Long? = null,
+        violet2: Long? = null, violet2Container: Long? = null,
     ) = VidaColors(
         primary = hex(primary), onPrimary = hex(onPrimary), primaryContainer = hex(primaryContainer),
         success = hex(success), successText = hex(success), successContainer = hex(successContainer),
@@ -168,6 +172,10 @@ object VidaThemes {
         second = hex(second), secondContainer = hex(secondContainer),
         line = hex(line),
         primaryDeep = if (primaryDeep == null) hex(primary) else hex(primaryDeep),
+        coral = if (coral == null) hex(warning) else hex(coral),
+        coralContainer = if (coralContainer == null) hex(warningContainer) else hex(coralContainer),
+        violet2 = if (violet2 == null) hex(second) else hex(violet2),
+        violet2Container = if (violet2Container == null) hex(secondContainer) else hex(violet2Container),
     )
 
     /**
@@ -193,6 +201,9 @@ object VidaThemes {
             success = 0xFF10A37F, successContainer = 0xFFE7F7F1,
             warning = 0xFFC2670A, warningContainer = 0xFFFFF4E0,
             error = 0xFFE11D48, errorContainer = 0xFFFFF0F3,
+            // --coral #E2734A / --coral-c #FDEDE6 · --violet2 #7C6BD6 / --violet2-c #F0EDFC
+            coral = 0xFFE2734A, coralContainer = 0xFFFDEDE6,
+            violet2 = 0xFF7C6BD6, violet2Container = 0xFFF0EDFC,
             line = 0xFFECEEF2, border = 0xFFE2E5EA,
             // --indigo-dd del artefacto: el tono con el que se ESCRIBE sobre
             // primaryContainer. Noche no lo declara porque allí escribir en
@@ -224,6 +235,11 @@ object VidaThemes {
             success = 0xFF2FC79F, successContainer = 0xFF10291F,
             warning = 0xFFE08A2E, warningContainer = 0xFF2A1E0E,
             error = 0xFFFF5C7A, errorContainer = 0xFF2C141C,
+            // Noche reescribe solo los contenedores (--coral-c #2C1B13,
+            // --violet2-c #1F1A2E); el tono vivo identifica el módulo y por eso
+            // es el mismo en los dos temas.
+            coral = 0xFFE2734A, coralContainer = 0xFF2C1B13,
+            violet2 = 0xFF7C6BD6, violet2Container = 0xFF1F1A2E,
             line = 0xFF232830, border = 0xFF2C323C,
         ),
         fonts = VidaFontSet(

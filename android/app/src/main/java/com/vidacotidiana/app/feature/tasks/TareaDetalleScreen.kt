@@ -98,6 +98,22 @@ fun TareaDetalleScreen(
 
     var newStep by remember(taskId) { mutableStateOf("") }
 
+    /**
+     * Añadir el paso, escrito UNA vez.
+     *
+     * Lo piden dos sitios —el «+» de al lado y el «Realizado» del teclado— y
+     * tienen que hacer exactamente lo mismo. Duplicar el cuerpo es cómo se
+     * acaba con dos botones que dicen añadir y añaden cosas distintas: uno que
+     * limpia el campo y otro que no, por ejemplo.
+     */
+    fun anadirPaso() {
+        val texto = newStep.trim()
+        if (texto.isNotBlank()) {
+            viewModel.addStep(taskId, texto)
+            newStep = ""
+        }
+    }
+
     // El tono del héroe sale del estado real de la tarea, no de un color fijo:
     // una tarea atrasada y una hecha no pueden presentarse igual.
     val tone = when {
@@ -188,12 +204,21 @@ fun TareaDetalleScreen(
         /* ── PROPIEDADES ─────────────────────────────────────────────────── */
         StaggeredAppear(1) {
             Column(verticalArrangement = Arrangement.spacedBy(VidaSpacing_sm)) {
+                // EL ESTADO SE CAMBIA EN LOS DOS SENTIDOS.
+                //
+                // Esta propiedad ya se podía tocar, pero siempre llamaba a
+                // `toggleTask`, que se plantaba sobre una tarea hecha
+                // (`if (status == "COMPLETED") return`). Es decir: sobre la
+                // tarea cerrada el gesto existía, invitaba a pulsarlo y no
+                // hacía absolutamente nada.
                 VidaProp(
                     name = "Estado",
                     value = if (task.done) "Hecha" else "Pendiente",
                     valueBackground = if (task.done) c.successContainer else c.primaryContainer,
                     valueForeground = if (task.done) c.successText else c.primaryDeep,
-                    onClick = { viewModel.toggleTask(task.id) },
+                    onClick = {
+                        if (task.done) viewModel.reopenTask(task.id) else viewModel.toggleTask(task.id)
+                    },
                 )
                 VidaProp(
                     name = "Cuándo",
@@ -293,7 +318,13 @@ fun TareaDetalleScreen(
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
                         Box(Modifier.weight(1f)) {
-                            VidaTextField(newStep, { newStep = it }, "Añadir paso")
+                            VidaTextField(
+                                newStep, { newStep = it }, "Añadir paso",
+                                // «Realizado» hace lo MISMO que el «+» de al
+                                // lado, no algo parecido: una sola definición
+                                // de qué significa añadir un paso.
+                                onDone = { anadirPaso() },
+                            )
                         }
                         Box(
                             modifier = Modifier
@@ -303,12 +334,7 @@ fun TareaDetalleScreen(
                                     RoundedCornerShape(spec.radii.control),
                                 )
                                 .vidaClickable(
-                                    onClick = {
-                                        if (newStep.isNotBlank()) {
-                                            viewModel.addStep(taskId, newStep)
-                                            newStep = ""
-                                        }
-                                    },
+                                    onClick = { anadirPaso() },
                                 ),
                             contentAlignment = Alignment.Center,
                         ) {

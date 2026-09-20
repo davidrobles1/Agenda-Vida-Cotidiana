@@ -141,13 +141,38 @@ interface MaintenanceApi {
     @PATCH("maintenance-records/{id}")
     suspend fun update(@Path("id") id: String, @Body request: UpdateMaintenanceRequest): MaintenanceDto
 
-    /** ADR-021: completar AVANZA la ocurrencia, no cierra el registro. */
-    @POST("maintenance-records/{id}/complete")
-    suspend fun complete(@Path("id") id: String, @Body request: VersionRequest): MaintenanceDto
+    /**
+     * ADR-021: completar AVANZA la ocurrencia, no cierra el registro.
+     *
+     * OJO CON LA RUTA. Esto apuntaba a `POST /{id}/complete`, que es el
+     * contrato ANTIGUO y solo invierte un booleano ACTIVE/COMPLETED: la fecha
+     * no se movía, no se escribía historial, y como el cliente traduce
+     * COMPLETED a «Al día» el usuario marcaba «Hecho» y la pantalla se quedaba
+     * exactamente igual. El comentario ya decía «avanza la ocurrencia» — la
+     * ruta no.
+     *
+     * `/occurrences` es el endpoint de ADR-021: avanza `nextDueAt` según el
+     * intervalo, escribe la entrada de historial y es idempotente por fecha
+     * programada. La nota es opcional; aquí no se manda ninguna porque la
+     * pantalla no la pide todavía.
+     */
+    @POST("maintenance-records/{id}/occurrences")
+    suspend fun completeOccurrence(
+        @Path("id") id: String,
+        @Body request: CompleteOccurrenceRequest = CompleteOccurrenceRequest(),
+    ): MaintenanceDto
+
+    /** Deshace la última ejecución y devuelve el registro a su fecha anterior. */
+    @DELETE("maintenance-records/{id}/occurrences/last")
+    suspend fun undoLastOccurrence(@Path("id") id: String): MaintenanceDto
 
     @DELETE("maintenance-records/{id}")
     suspend fun delete(@Path("id") id: String)
 }
+
+/** El cuerpo de `/occurrences`. La nota es opcional (`@Size(max = 500)`). */
+@Serializable
+data class CompleteOccurrenceRequest(val note: String? = null)
 
 @Serializable
 data class UpdateMaintenanceRequest(
@@ -236,6 +261,15 @@ interface SubscriptionApi {
     /** Registrar el pago del ciclo: el «ya lo pagué» que ya existe. */
     @POST("subscriptions/{id}/payments")
     suspend fun registerPayment(@Path("id") id: String, @Body request: VersionRequest): SubscriptionDto
+
+    /**
+     * Deshacer el último pago registrado: borra su `PaymentRecord` y devuelve
+     * la fecha de cobro al ciclo anterior. Registrar un pago por error adelanta
+     * la fecha un mes entero, así que sin esto la única salida era editar la
+     * fecha a mano — y eso deja el registro del pago inventado en el historial.
+     */
+    @DELETE("subscriptions/{id}/payments/last")
+    suspend fun undoLastPayment(@Path("id") id: String): SubscriptionDto
 
     /**
      * ADR-020(f): todos los ciclos ya pagados. EN BLOQUE y no por compromiso —
@@ -926,6 +960,10 @@ interface LaboralApi {
     /** Cerrar un seguimiento. El backend lo llama `resolve`, no `complete`. */
     @POST("commitments/{id}/resolve")
     suspend fun resolveCommitment(@Path("id") id: String, @Body request: VersionRequest): CommitmentDto
+
+    /** Reabrirlo: se borra la resolución, que es el recurso que creó el POST. */
+    @DELETE("commitments/{id}/resolve")
+    suspend fun reopenCommitment(@Path("id") id: String): CommitmentDto
 
     @PATCH("notes/{id}")
     suspend fun updateNote(@Path("id") id: String, @Body request: UpdateNoteRequest): NoteDto

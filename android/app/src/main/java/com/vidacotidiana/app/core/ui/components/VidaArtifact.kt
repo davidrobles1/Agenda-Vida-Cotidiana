@@ -269,6 +269,11 @@ fun VidaTile(
                     style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold, fontSize = 12.sp),
                     color = kickerColor,
                     modifier = Modifier.weight(1f),
+                    // Una sola línea: cuando el antetítulo se partía en dos
+                    // («Con garantía»), empujaba cifra y leyenda 16 dp hacia
+                    // abajo y la leyenda se salía de la caja.
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
                 if (chevron) {
                     Icon(
@@ -291,11 +296,19 @@ fun VidaTile(
                     maxLines = 1,
                 )
                 Spacer(Modifier.height(3.dp))
+                // UNA línea, que es lo que la caja sostiene de verdad.
+                //
+                // La cuenta es la que es: 120 dp menos 32 de relleno dejan 88;
+                // el antetítulo pide 16, la cifra su tamaño y la leyenda 15 por
+                // línea. Con dos líneas no cabe ninguna combinación, y por eso
+                // la leyenda desaparecía. Admitir dos líneas y confiar en que
+                // quepan era justamente el error: lo que no cabe no se recorta
+                // solo, se sale y lo corta el redondeo de la tarjeta.
                 Text(
                     caption,
                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp, lineHeight = 15.sp),
                     color = captionColor,
-                    maxLines = 2,
+                    maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
             }

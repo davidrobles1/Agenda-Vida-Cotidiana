@@ -79,6 +79,26 @@ public class CommitmentService {
      */
     @Transactional
     public Commitment resolve(UUID commitmentId, UUID callerUserId, Integer expectedVersion) {
+        return changeStatus(commitmentId, callerUserId, expectedVersion, Commitment::resolve);
+    }
+
+    /**
+     * Devuelve el seguimiento a OPEN. Mismo contrato de versión opcional que
+     * `resolve`, porque es la operación inversa y no tendría sentido que una
+     * exigiera lo que la otra no.
+     */
+    @Transactional
+    public Commitment reopen(UUID commitmentId, UUID callerUserId, Integer expectedVersion) {
+        return changeStatus(commitmentId, callerUserId, expectedVersion, Commitment::reopen);
+    }
+
+    /**
+     * La comprobación de propiedad, la de versión y el guardado, una sola vez.
+     * Escribirlas dos veces habría garantizado que resolver y reabrir
+     * acabasen con contratos de concurrencia distintos.
+     */
+    private Commitment changeStatus(UUID commitmentId, UUID callerUserId, Integer expectedVersion,
+                                     java.util.function.Consumer<Commitment> change) {
         Commitment commitment = getOwnedOrThrow(commitmentId, callerUserId);
 
         if (expectedVersion != null && expectedVersion != commitment.getVersion()) {
@@ -87,7 +107,7 @@ public class CommitmentService {
                             + expectedVersion + ", current version " + commitment.getVersion() + ").");
         }
 
-        commitment.resolve();
+        change.accept(commitment);
         try {
             return commitmentRepository.save(commitment);
         } catch (ObjectOptimisticLockingFailureException raceLostToConcurrentUpdate) {
