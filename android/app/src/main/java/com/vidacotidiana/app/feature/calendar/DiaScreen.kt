@@ -28,6 +28,7 @@ import com.vidacotidiana.app.core.app.AppViewModel
 import com.vidacotidiana.app.core.attention.AttentionEngine
 import com.vidacotidiana.app.core.attention.AttentionUrgency
 import com.vidacotidiana.app.core.ui.VidaLayout
+import com.vidacotidiana.app.core.ui.VidaSections
 import com.vidacotidiana.app.core.ui.VidaTheme
 import com.vidacotidiana.app.core.ui.components.EmptyState
 import com.vidacotidiana.app.core.ui.components.StaggeredAppear
@@ -229,6 +230,7 @@ fun DiaScreen(viewModel: AppViewModel, navController: NavHostController) {
                     body = "Lo que tiene hora aparece aquí colocado en su sitio. " +
                         "Lo demás está abajo, sin hora inventada.",
                     action = "Crear algo" to { navController.navigate(Routes.CREATE) },
+                    section = VidaSections.Calendario,
                 )
             } else {
                 val now = LocalTime.now()

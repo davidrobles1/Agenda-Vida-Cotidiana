@@ -1,17 +1,21 @@
 package com.vidacotidiana.app.core.network
 
+import android.content.Context
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
 import com.vidacotidiana.app.BuildConfig
 import com.vidacotidiana.app.feature.auth.AuthManager
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import kotlinx.serialization.json.Json
+import okhttp3.Cache
 import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
+import java.io.File
 import javax.inject.Singleton
 
 @Module
@@ -30,12 +34,37 @@ object NetworkModule {
         chain.proceed(request)
     }
 
+    /**
+     * CACHÉ DE DISCO — lo que faltaba para que el servidor y el cliente
+     * estuvieran de acuerdo.
+     *
+     * El backend lleva desde el principio mandando `Cache-Control: private,
+     * max-age=365 días` en las imágenes del Vision Board (son inmutables: una
+     * subida nueva siempre estrena id, nunca pisa la anterior). OkHttp, SIN
+     * UNA CACHÉ CONFIGURADA, ignora esa cabecera por completo: cada vez que
+     * se abría el tablero se volvían a bajar las mismas diecinueve fotos.
+     *
+     * 96 MB en el directorio de caché de la aplicación, que es el que el
+     * sistema puede vaciar solo si le hace falta espacio. Las respuestas con
+     * `Authorization` se cachean igualmente: es una caché privada, en el
+     * dispositivo del dueño de esas imágenes.
+     */
     @Provides
     @Singleton
-    fun provideOkHttpClient(authInterceptor: Interceptor, tokenAuthenticator: TokenAuthenticator): OkHttpClient =
+    fun provideHttpCache(@ApplicationContext context: Context): Cache =
+        Cache(File(context.cacheDir, "http"), 96L * 1024 * 1024)
+
+    @Provides
+    @Singleton
+    fun provideOkHttpClient(
+        authInterceptor: Interceptor,
+        tokenAuthenticator: TokenAuthenticator,
+        cache: Cache,
+    ): OkHttpClient =
         OkHttpClient.Builder()
             .addInterceptor(authInterceptor)
             .authenticator(tokenAuthenticator)
+            .cache(cache)
             .build()
 
     @Provides

@@ -224,6 +224,31 @@ public class Document {
         applyEdit(name, category, null, null);
     }
 
+    /**
+     * SUSTITUIR EL ARCHIVO conservando el registro.
+     *
+     * EL HUECO QUE CIERRA: no había forma de cambiar el contenido de un
+     * documento. {@code PATCH /documents/{id}} solo toca nombre, categoría y
+     * vínculos, así que un cliente que subía un archivo nuevo al editar lo
+     * perdía sin enterarse — el servidor guardaba el nombre y tiraba los
+     * bytes.
+     *
+     * SE CONSERVA EL ID, y con él todo lo que cuelga de él: las
+     * comparticiones, el vínculo a un recurso y la visibilidad. Es la
+     * diferencia con borrar y volver a subir, que rompe las tres cosas. Quien
+     * tenía acceso al documento sigue teniéndolo, y ahora ve la versión nueva
+     * — que es justo lo que significa «actualizar» un documento y no
+     * «reemplazarlo por otro».
+     *
+     * El tamaño se recalcula aquí y no lo manda el cliente: es una propiedad
+     * de los bytes, no un dato que nadie pueda afirmar por su cuenta.
+     */
+    public void replaceContent(String contentType, byte[] data) {
+        this.contentType = contentType;
+        this.data = data;
+        this.sizeBytes = data.length;
+    }
+
     /** ADR-016 Fase 3b/FR-030: personId/projectId follow the same null-means-unchanged partial contract as name/category. */
     public void applyEdit(String name, DocumentCategory category, UUID personId, UUID projectId) {
         if (name != null) {

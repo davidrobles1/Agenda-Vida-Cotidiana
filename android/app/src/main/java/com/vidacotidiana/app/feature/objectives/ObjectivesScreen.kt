@@ -8,6 +8,7 @@ import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import com.vidacotidiana.app.navigation.Routes
+import com.vidacotidiana.app.core.ui.VidaSections
 import com.vidacotidiana.app.core.app.AppViewModel
 import com.vidacotidiana.app.core.app.CreatableResource
 import com.vidacotidiana.app.core.data.Objective
@@ -86,6 +87,9 @@ fun ObjectivesScreen(
     }
 
     ResourceListScreen(
+        // La ficha del recurso, en su ventana. Antes esto caía en la
+        // hoja deslizante que ya no existe.
+        onOpenRoute = { navController.navigate(Routes.resourceRoute("OBJECTIVE", it.id)) },
         title = "Objetivos",
         subtitle = "Lo que quieres lograr, y por dónde vas.",
         eyebrow = plural(objectives.count { !it.completed }, "en curso", "en curso"),
@@ -93,6 +97,7 @@ fun ObjectivesScreen(
         filters = listOf("Todos", "En curso", "Cumplidos"),
         addLabel = "Nuevo objetivo",
         emptyBody = "Anota lo que quieres lograr y podrás seguir su avance.",
+        section = VidaSections.Objetivos,
         loading = state.loading,
         error = state.sliceError(DataSlice.OBJECTIVES),
         onRetry = viewModel::refresh,

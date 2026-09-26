@@ -109,6 +109,7 @@ import java.time.LocalDate
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import androidx.compose.foundation.layout.statusBarsPadding
 
 /* ══════════════════════════════════════════════════════════════════════════
    MEDIDAS. Una sola vez, arriba, porque son las que hacen que nada se salga
@@ -202,17 +203,52 @@ fun CreateResourceSheet(
     onDraft: ((Map<String, String>) -> Unit)? = null,
     /** Tirar el borrador y empezar en blanco. Nulo si no hay ninguno. */
     onDiscardDraft: (() -> Unit)? = null,
+    /**
+     * EL RECUADRO DEL DOCUMENTO, en medio de la ficha.
+     *
+     * Va entre el campo principal y las filas de propiedades a propósito: es lo
+     * que se mira primero de un recurso que tiene papel detrás —una garantía ES
+     * su factura— y ponerlo al final lo habría dejado debajo de ocho filas
+     * plegadas. Vacío cuando el recurso no puede llevar documento, y entonces
+     * no ocupa nada: no se dibuja un hueco para algo que no existe.
+     */
+    documentSlot: @Composable () -> Unit = {},
+    /**
+     * Las acciones del recurso YA CREADO —acceso, completar, deshacer,
+     * eliminar—, al pie y antes del botón de guardar. Vacío al crear, porque
+     * todavía no hay nada sobre lo que actuar.
+     */
+    actionsSlot: @Composable () -> Unit = {},
+    /** Rótulo de la cabecera. Nulo = el que corresponda a crear o editar. */
+    headline: String? = null,
+    /**
+     * QUÉ REGISTRO CONCRETO se está rellenando.
+     *
+     * EL FALLO QUE ARREGLA, y era grave: el estado interno del formulario
+     * —sobre todo EL ARCHIVO ELEGIDO— se recordaba con `remember(resource)`,
+     * es decir por TIPO de recurso, no por registro. Cuando esto era una hoja
+     * que se abría y se destruía en cada uso daba igual. Desde que es una
+     * pantalla reutilizable, ir de la ficha de un documento a la de otro NO
+     * reinicia nada: el archivo que se eligió en el primero sigue cargado en
+     * el segundo, y al guardar se escribe ahí.
+     *
+     * Eso fue exactamente lo que pasó — tres documentos distintos acabaron con
+     * el mismo archivo dentro, comprobado comparando sus huellas en el
+     * servidor. Con la identidad del registro como clave, pasar de uno a otro
+     * descarta lo elegido y hay que volver a escogerlo a propósito.
+     */
+    formKey: Any = resource,
     onCancel: () -> Unit,
 ) {
     val c = VidaTheme.colors
     val spec = VidaTheme.spec
-    val values = remember(resource, initialValues) {
+    val values = remember(formKey, initialValues) {
         mutableStateMapOf<String, String>().apply { putAll(initialValues) }
     }
-    var file by remember(resource) { mutableStateOf<FilePayload?>(null) }
-    var readingFile by remember(resource) { mutableStateOf(false) }
+    var file by remember(formKey) { mutableStateOf<FilePayload?>(null) }
+    var readingFile by remember(formKey) { mutableStateOf(false) }
     /** Qué fila está abierta, por clave. Solo una: dos abiertas serían dos formularios. */
-    var openKey by remember(resource) { mutableStateOf<String?>(null) }
+    var openKey by remember(formKey) { mutableStateOf<String?>(null) }
     var datePickerFor by remember { mutableStateOf<String?>(null) }
     var timePickerFor by remember { mutableStateOf<String?>(null) }
     var pickFileFor by remember { mutableStateOf<String?>(null) }
@@ -252,7 +288,12 @@ fun CreateResourceSheet(
     // mapa de textos: si no se comprobara aparte, "Crear" quedaría activo sin
     // nada que subir.
     fun respondido(f: FormField): Boolean = when (f) {
-        is FormField.File -> file != null
+        // AL EDITAR, EL ARCHIVO YA ESTÁ PUESTO. Exigirlo otra vez convertía
+        // «cambiarle el nombre a un documento» en «volver a subirlo»: el botón
+        // decía «Falta: archivo» y no dejaba guardar hasta elegir uno, aunque
+        // no se quisiera tocar el contenido. Elegirlo sigue siendo posible —y
+        // ahora sí lo sustituye de verdad—, solo que ya no es obligatorio.
+        is FormField.File -> file != null || editing
         // Una fecha sin hora NO es válida en un campo de fecha y hora, aunque el
         // campo entero sea opcional: media selección produciría un registro que
         // aparece en el calendario a una hora que el usuario nunca eligió. Con
@@ -272,11 +313,16 @@ fun CreateResourceSheet(
     Column(
         Modifier
             .fillMaxWidth()
-            // La hoja vive en SU PROPIA ventana, así que no hereda el hueco que
-            // `VidaScreen` hace para el teclado: tiene que pedirlo ella. Va
-            // ANTES del scroll para que el hueco lo haga el contenedor y la
-            // zona desplazable se encoja — que es lo que permite al campo
-            // enfocado subir hasta quedar a la vista.
+            // EL FORMULARIO OCUPA LA PANTALLA ENTERA, así que tiene que
+            // apartarse del reloj por arriba: antes era una hoja que subía
+            // desde abajo y nunca llegaba a esa zona, de modo que nadie había
+            // pedido el hueco. Sin esto el título queda bajo la barra de
+            // estado.
+            .statusBarsPadding()
+            // Y el hueco del teclado también lo pide él, porque no hereda el
+            // que hace `VidaScreen`. Va ANTES del scroll para que lo haga el
+            // contenedor y la zona desplazable se encoja — que es lo que
+            // permite al campo enfocado subir hasta quedar a la vista.
             .imePadding(),
     ) {
         Column(
@@ -288,7 +334,7 @@ fun CreateResourceSheet(
                 .verticalScroll(rememberScrollState()),
         ) {
             SheetHeader(
-                title = if (editing) "Editar" else resource.title,
+                title = headline ?: if (editing) "Editar" else resource.title,
                 // LA HOJA SE DESVANECE AL ABRIR UNA FILA. Mientras se responde
                 // algo, el adorno deja paso; al cerrar, vuelve. No desaparece
                 // del todo —seguiría estando, apagada— porque un adorno que
@@ -312,6 +358,8 @@ fun CreateResourceSheet(
                         focusRequester = heroFocus,
                     )
                 }
+
+                documentSlot()
 
                 resource.rowFields.forEach { field ->
                     FieldRow(
@@ -398,6 +446,11 @@ fun CreateResourceSheet(
                         OptionChip("Empezar de cero", escape = true, onClick = descartar)
                     }
                 }
+                // Las acciones del recurso ya creado, al final del contenido y
+                // no en el pie fijo: el pie es para guardar, y meter ahí
+                // «Eliminar» lo pondría a un dedo de distancia del gesto que
+                // más se repite.
+                actionsSlot()
                 Spacer(Modifier.height(VidaSpacing.md))
             }
         }

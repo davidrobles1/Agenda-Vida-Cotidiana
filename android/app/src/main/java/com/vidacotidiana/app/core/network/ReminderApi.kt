@@ -2,6 +2,7 @@ package com.vidacotidiana.app.core.network
 
 import kotlinx.serialization.Serializable
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.PATCH
 import retrofit2.http.POST
@@ -103,6 +104,17 @@ data class CreateReminderRequest(
     val context: String? = null,
     /** ADR-016/FR-024: dónde es. Texto libre y opcional, máximo 500. */
     val location: String? = null,
+    /**
+     * A QUIÉN Y A QUÉ pertenece la tarea.
+     *
+     * El backend los acepta desde su primera versión y la Web los usa; este
+     * cliente simplemente no los mandaba, así que una tarea creada en el
+     * móvil nunca aparecía bajo su persona ni bajo su proyecto.
+     */
+    val personId: String? = null,
+    val projectId: String? = null,
+    /** LOW · NORMAL · URGENT. Nulo = NORMAL, que es lo que hacía el backend. */
+    val priority: String? = null,
 )
 
 @Serializable
@@ -126,6 +138,9 @@ interface ReminderApi {
 
     @POST("reminders")
     suspend fun createReminder(@Body request: CreateReminderRequest): Reminder
+
+    @DELETE("reminders/{id}")
+    suspend fun deleteReminder(@Path("id") id: String)
 
     @POST("reminders/{id}/complete")
     suspend fun completeReminder(@Path("id") id: String, @Body request: CompleteReminderRequest): Reminder
@@ -157,5 +172,9 @@ data class UpdateReminderRequest(
     val location: String? = null,
     val iconId: String? = null,
     val stickerId: String? = null,
+    /** Los mismos tres del alta: el backend ya los aceptaba al editar. */
+    val personId: String? = null,
+    val projectId: String? = null,
+    val priority: String? = null,
     val version: Int,
 )

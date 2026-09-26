@@ -19,6 +19,7 @@ import com.vidacotidiana.app.navigation.Routes
 import com.vidacotidiana.app.core.app.AppViewModel
 import com.vidacotidiana.app.core.app.CreatableResource
 import com.vidacotidiana.app.core.ui.VidaSpacing
+import com.vidacotidiana.app.core.ui.VidaSections
 import com.vidacotidiana.app.core.ui.VidaTheme
 import com.vidacotidiana.app.core.ui.components.EmptyState
 import com.vidacotidiana.app.core.ui.components.Eyebrow
@@ -150,6 +151,7 @@ fun TasksScreen(
                     title = "No pudimos cargar tus tareas",
                     body = "Revisa tu conexión e inténtalo de nuevo.",
                     action = "Reintentar" to viewModel::refresh,
+                    section = VidaSections.Tareas,
                 )
             }
         } else if (groups.isEmpty() && !state.loading) {
@@ -162,6 +164,7 @@ fun TasksScreen(
                     title = "Aún no hay tareas",
                     body = "Anota lo que tienes que hacer y aparecerá agrupado por cuándo toca.",
                     action = "Nueva tarea" to { viewModel.requestCreate(CreatableResource.TASK) },
+                    section = VidaSections.Tareas,
                 )
             }
         }

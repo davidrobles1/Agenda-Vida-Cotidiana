@@ -44,6 +44,21 @@ public class VisionBoardImage {
     @Column(nullable = false)
     private byte[] data;
 
+    /**
+     * La rendición reducida para el lienzo — ver el comentario de la
+     * migración V39. {@code null} cuando no se pudo hacer (formato que el
+     * servidor no reescribe) o cuando la fila es anterior a la V39; en los
+     * dos casos se sirve el original, que es lo que ya se hacía.
+     */
+    @Column(name = "thumb_data")
+    private byte[] thumbData;
+
+    @Column(name = "thumb_content_type")
+    private String thumbContentType;
+
+    @Column(name = "thumb_size_bytes")
+    private Long thumbSizeBytes;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -77,6 +92,25 @@ public class VisionBoardImage {
 
     public byte[] getData() {
         return data;
+    }
+
+    public byte[] getThumbData() {
+        return thumbData;
+    }
+
+    public String getThumbContentType() {
+        return thumbContentType;
+    }
+
+    public boolean hasThumb() {
+        return thumbData != null && thumbData.length > 0;
+    }
+
+    /** La miniatura se calcula una vez, al subir, o al primer GET que la pida. */
+    public void attachThumb(byte[] data, String contentType) {
+        this.thumbData = data;
+        this.thumbContentType = contentType;
+        this.thumbSizeBytes = data == null ? null : (long) data.length;
     }
 
     public boolean isOwnedBy(UUID userId) {

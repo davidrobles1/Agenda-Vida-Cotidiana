@@ -13,6 +13,7 @@ import com.vidacotidiana.app.core.app.CreatableResource
 import com.vidacotidiana.app.core.data.WarrantyStatus
 import com.vidacotidiana.app.core.ui.components.PillTone
 import com.vidacotidiana.app.core.ui.components.ResourceEntry
+import com.vidacotidiana.app.core.ui.VidaSections
 import com.vidacotidiana.app.core.ui.VidaTheme
 import com.vidacotidiana.app.core.ui.components.VidaTileRow
 import com.vidacotidiana.app.core.ui.components.VidaTileSpec
@@ -21,6 +22,9 @@ import com.vidacotidiana.app.core.ui.components.plural
 import kotlinx.coroutines.CoroutineScope
 import com.vidacotidiana.app.core.data.DataSlice
 import com.vidacotidiana.app.core.app.sliceError
+import com.vidacotidiana.app.core.data.ShareableKind
+import com.vidacotidiana.app.core.app.rememberResourceAccess
+import com.vidacotidiana.app.core.app.Dialogo
 
 /** Garantías. De aquí salen los avisos de 30/15/0 días que pinta el calendario. */
 @Composable
@@ -43,9 +47,17 @@ fun WarrantiesScreen(
             else -> "${n / 30} ${if (n / 30 == 1L) "mes" else "meses"}"
         }
     }
+    // QUIÉN TIENE ACCESO: el diálogo lo monta el controlador, y la
+    // sección solo dice sobre qué recurso se abre.
+    val acceso = rememberResourceAccess(viewModel)
+    val compartidos = state.data.sharedByMe
+        .filter { it.kind == ShareableKind.WARRANTY }
+        .groupingBy { it.resourceId }.eachCount()
     val entries = warranties.map {
         ResourceEntry(
             id = it.id,
+            onAccess = { acceso.abrir(ShareableKind.WARRANTY, it.id, it.product) },
+            sharedWith = compartidos[it.id] ?: 0,
             title = it.product,
             subtitle = it.expiresLabel,
             highlight = quedan(it.expiresOn),
@@ -75,6 +87,9 @@ fun WarrantiesScreen(
         )
     }
     ResourceListScreen(
+        // La ficha del recurso, en su ventana. Antes esto caía en la
+        // hoja deslizante que ya no existe.
+        onOpenRoute = { navController.navigate(Routes.resourceRoute("WARRANTY", it.id)) },
         // La composición del artefacto: las severidades de ADR-018 como piezas,
         // no como una tira que se desplaza y deja la tercera fuera de pantalla.
         // UNA SOLA CLASIFICACIÓN, la que ya calcula `WarrantyDto.toDomain`.
@@ -115,6 +130,7 @@ fun WarrantiesScreen(
         filters = listOf("Todas", "Vigentes", "Por vencer", "Vencidas"),
         addLabel = "Nueva garantía",
         emptyBody = "Registra una garantía y te avisaremos 30, 15 y 0 días antes.",
+        section = VidaSections.Garantias,
         loading = state.loading,
         error = state.sliceError(DataSlice.WARRANTIES),
         onRetry = viewModel::refresh,
@@ -128,4 +144,8 @@ fun WarrantiesScreen(
         onNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
         notificationsBadge = viewModel.avisosSinLeer(),
     )
+
+    // Se pinta al final y no compone nada mientras no haya un
+    // recurso abierto.
+    acceso.Dialogo(viewModel)
 }

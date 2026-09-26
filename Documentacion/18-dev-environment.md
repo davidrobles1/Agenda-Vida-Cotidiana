@@ -43,8 +43,10 @@ OIDC_ISSUER=
 
 ASSUMPTION: esta sección cubre necesidades puntuales de acceso desde otras
 redes durante desarrollo (no reemplaza el despliegue real en el servidor
-rentado — ver DEC-008/ADR-014, `22-decision-log.md`). El stack sigue siendo
-`start-dev` de Keycloak sin backups: no usar para datos que deban persistir.
+rentado — ver DEC-008/ADR-014, `22-decision-log.md`). Desde 2026-09-23 los datos
+del demo **sí persisten entre arranques**, pero el stack sigue siendo `start-dev`
+de Keycloak **sin backups**: persistencia no equivale a durabilidad (ver "RIESGO
+ABIERTO" más abajo).
 
 La causa raíz de por qué "simplemente cambiar la IP" no basta: Keycloak
 valida `redirectUris`/`webOrigins` del cliente `web-spa` contra una lista
@@ -63,7 +65,8 @@ del backend, `VITE_OIDC_ISSUER`/`VITE_API_BASE_URL` del frontend).
 
 ### Caso 2 — demo público controlado (usuarios reales, sin dominio propio)
 
-RECOMMENDATION: un solo hostname público (dominio aleatorio gratis de ngrok)
+RECOMMENDATION: un solo hostname público (dominio gratis de ngrok, asignado
+automáticamente y estable entre arranques — ver OBSERVATION más abajo)
 al frente de un reverse proxy local (Caddy) que enruta por path a los 3
 servicios (`infra/caddy/Caddyfile.demo`), para no necesitar comprar dominio ni
 levantar 3 túneles. Bloquea `/auth/admin/*` a propósito — la consola admin de
@@ -80,10 +83,14 @@ encontrar y corregir en la práctica:
 - `VITE_OIDC_REDIRECT_URI` es obligatorio en el build — sin él cae al default
   `http://localhost:5173/callback` y Keycloak redirige ahí en vez de a la URL
   pública.
-- Keycloak (modo `start-dev`, sin volumen propio) y la base de datos del demo
-  deben resetearse **juntos** en cada arranque: si Keycloak nace vacío pero la
-  tabla `users` conserva filas de una sesión anterior, el mismo email con un
-  `sub` distinto choca contra `uq_users_email` y tira 500 en el primer login.
+- Keycloak y la base del demo deben mantenerse **sincronizados**: si uno se
+  resetea y el otro no, el mismo email con un `sub` distinto choca contra
+  `uq_users_email` y tira 500 en el primer login. La primera versión los
+  reseteaba juntos; desde 2026-09-23 se resuelve al revés — ambos **persisten**
+  (ver DECISION abajo), que también los mantiene sincronizados.
+- El volumen nombrado de Keycloak nace propiedad de `root`, pero el proceso
+  corre como uid 1000: sin un `chown -R 1000:0` previo, el arranque muere con
+  `AccessDeniedException` sobre `keycloakdb.mv.db`. El script ya lo hace.
 
 Requisitos (una sola vez):
 ```bash
@@ -97,12 +104,43 @@ Uso:
 ./infra/demo/stop-demo.sh    # apaga todo; tu entorno normal (8080/5173/8081) no se toca
 ```
 
-`start-demo.sh` es idempotente y se puede correr las veces que haga falta
-(cada arranque = URL pública nueva de ngrok, ya que el plan gratis no permite
-dominio fijo — hay que reavisar la nueva URL a los testers cada vez que se
-reinicia). Cada arranque también borra y recrea vacías las cuentas del demo
-(Keycloak + `vidacotidiana_demo`) — aceptable para un demo de factibilidad de
-corta duración, no pensado para acumular usuarios reales entre sesiones.
+`start-demo.sh` es idempotente y se puede correr las veces que haga falta.
+
+OBSERVATION (2026-09-23): la URL pública **se mantiene estable entre arranques**
+sin pasar `--domain`. Verificado empíricamente: tras apagar todo el stack y
+volver a levantarlo semanas después, ngrok reasignó exactamente el mismo
+hostname (`exchange-affirm-variable.ngrok-free.dev`). El plan gratis asigna hoy
+un dominio persistente por cuenta, no uno aleatorio por sesión — lo que sigue
+siendo de pago es *elegir* el nombre (`ERR_NGROK_313`, ver historial). Esto
+significa que el link se puede compartir una vez y sobrevive reinicios; no hay
+que reavisar a los testers en cada arranque. ASSUMPTION: es política vigente de
+ngrok, no un contrato — si algún día arranca con otro hostname, hay que repetir
+los 3 puntos de configuración (el script ya lo hace solo).
+
+DECISION (Product Owner, 2026-09-23): **los datos del demo no se borran**. El
+demo dejó de ser "de corta duración" — los usuarios invitados acumulan uso
+entre sesiones, así que:
+
+- `start-demo.sh` **reutiliza** el contenedor `vc-demo-keycloak` (`docker start`),
+  nunca lo recrea, y se niega a continuar si encuentra un contenedor sin volumen
+  persistente en vez de recrearlo silenciosamente.
+- Las cuentas de Keycloak viven en el volumen nombrado `vc-demo-keycloak-data`
+  (montado en `/opt/keycloak/data/h2`), así que sobreviven incluso a un borrado
+  del contenedor.
+- La base `vidacotidiana_demo` se crea solo si no existe; nunca se hace `DROP`.
+- `stop-demo.sh` hace `docker stop`, no `docker rm`.
+
+Verificado el 2026-09-23 con un ciclo completo stop/start: el usuario conservó
+el mismo `sub` (`15cd2b46-…`), volvió a iniciar sesión por la URL pública y vio
+intactos los recordatorios y notas creados antes del reinicio.
+
+RIESGO ABIERTO: persistencia **no es respaldo**. Keycloak sigue en `start-dev`
+con H2 (no apto para producción — ver DEC-008/ADR-014) y no hay backup de ese
+volumen ni de `vidacotidiana_demo`; el volumen de Postgres además es anónimo,
+así que un `docker compose down -v` o un borrado del contenedor `vc-dev-postgres`
+se llevaría los datos del demo junto con los de desarrollo. Si el demo va a
+sostener usuarios reales durante semanas, hace falta decidir respaldo y
+migración a un despliegue real.
 
 DOCUMENTATION_CONFLICT: el realm (`realm-vida-cotidiana.json`) tiene
 `resetPasswordAllowed: false` y no hay servidor de correo configurado

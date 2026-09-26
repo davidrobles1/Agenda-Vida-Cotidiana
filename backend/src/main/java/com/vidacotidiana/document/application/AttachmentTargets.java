@@ -46,7 +46,20 @@ public class AttachmentTargets {
                 "REMINDER", reminders::existsByIdAndOwnerUserId,
                 "WARRANTY", warranties::existsByIdAndOwnerUserId,
                 "MAINTENANCE", maintenance::existsByIdAndOwnerUserId,
-                "INVENTORY", inventory::existsByIdAndOwnerUserId,
+                // «INVENTORY_ITEM», no «INVENTORY».
+                //
+                // Este registro decía «INVENTORY» mientras `LinkDocumentRequest`
+                // solo admite «INVENTORY_ITEM» en su `@Pattern`, así que el
+                // inventario era INALCANZABLE por las dos puntas: la grafía que
+                // pasaba la validación del DTO moría aquí, y la que este mapa
+                // esperaba ni llegaba. Nunca se pudo colgar un documento de un
+                // artículo. Comprobado contra la API.
+                //
+                // Se unifica en «INVENTORY_ITEM» porque es la que ya usan el
+                // DTO y `SharedResourceType`. No hace falta migrar nada:
+                // `documents.resource_type` está a nulo en todas las filas,
+                // precisamente porque esto nunca funcionó.
+                "INVENTORY_ITEM", inventory::existsByIdAndOwnerUserId,
                 "SUBSCRIPTION", subscriptions::existsByIdAndOwnerUserId);
     }
 

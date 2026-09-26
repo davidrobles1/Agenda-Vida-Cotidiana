@@ -113,4 +113,45 @@ object VidaFonts {
         Font(R.font.courier_prime_400, FontWeight.Normal),
         Font(R.font.courier_prime_700, FontWeight.Bold),
     )
+
+    /*
+     * LAS OCHO DEL VISION BOARD.
+     *
+     * No son del sistema visual de la aplicación: son el catálogo de
+     * caligrafías que el usuario elige POR ELEMENTO en el Vision Board
+     * (`data.font`), y la Web ya ofrece las catorce. Las otras seis de ese
+     * catálogo —Inter, Fraunces, Manrope, Alex Brush, Caveat y Courier
+     * Prime— ya estaban aquí arriba por otros motivos y se reutilizan tal
+     * cual, así que solo faltaban estas.
+     *
+     * Convertidas de los MISMOS woff2 de `@fontsource` que sirve la Web,
+     * igual que las de arriba: un texto escrito en el móvil y abierto en el
+     * navegador se ve con la misma letra, no con una parecida. Un solo peso
+     * (400) porque en un tablero se usan como letra de display, no como
+     * cuerpo con jerarquía de pesos: los ocho ficheros suman ~456 KB.
+     */
+
+    /** «Elegante» del catálogo del Vision Board. */
+    val CormorantGaramond = FontFamily(Font(R.font.cormorant_garamond_400, FontWeight.Normal))
+
+    /** «Editorial». */
+    val PlayfairDisplay = FontFamily(Font(R.font.playfair_display_400, FontWeight.Normal))
+
+    /** «Clásica». */
+    val LibreBaskerville = FontFamily(Font(R.font.libre_baskerville_400, FontWeight.Normal))
+
+    /** «Fashion». */
+    val BodoniModa = FontFamily(Font(R.font.bodoni_moda_400, FontWeight.Normal))
+
+    /** «Parisienne». */
+    val Parisienne = FontFamily(Font(R.font.parisienne_400, FontWeight.Normal))
+
+    /** «Extravagante». */
+    val Lobster = FontFamily(Font(R.font.lobster_400, FontWeight.Normal))
+
+    /** «Divertida». */
+    val Pacifico = FontFamily(Font(R.font.pacifico_400, FontWeight.Normal))
+
+    /** «Máquina». */
+    val IbmPlexMono = FontFamily(Font(R.font.ibm_plex_mono_400, FontWeight.Normal))
 }

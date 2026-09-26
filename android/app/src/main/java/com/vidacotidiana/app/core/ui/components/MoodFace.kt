@@ -1,11 +1,18 @@
 package com.vidacotidiana.app.core.ui.components
 
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.Spring
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -313,5 +320,93 @@ fun moodSkyStrong(value: Int): Color {
         MoodScale.accentOf(value).copy(alpha = 0.46f).compositeOver(c.surface)
     } else {
         MoodScale.skyOf(value)
+    }
+}
+
+/**
+ * EL DISCO DE UNA CARITA.
+ *
+ * SE COMPONE SIEMPRE SOBRE LA SUPERFICIE, nunca es el crema de [MoodScale.SKY]
+ * tal cual, y esa diferencia arregla un fallo que se veía a simple vista: la
+ * tarjeta de Bienestar YA lleva el cielo del ánimo marcado de fondo, así que
+ * el selector elegido —que usaba ese mismo crema— desaparecía dentro de ella.
+ * El resultado era el contrario del buscado: los cuatro NO elegidos se veían
+ * como pastillas y el elegido como un hueco.
+ *
+ * Aquí el disco es el acento del ánimo diluido, y el elegido lleva MÁS acento
+ * más un aro. Sobre cualquier fondo —claro, oscuro o ya teñido— el elegido es
+ * el más saturado de los cinco, que es la única lectura que no se invierte.
+ */
+@Composable
+fun moodDisc(value: Int, selected: Boolean): Color {
+    val c = VidaTheme.colors
+    val alpha = when {
+        selected -> if (VidaTheme.spec.isDark) 0.46f else 0.26f
+        else -> if (VidaTheme.spec.isDark) 0.16f else 0.11f
+    }
+    return MoodScale.accentOf(value).copy(alpha = alpha).compositeOver(c.surface)
+}
+
+/**
+ * LA CARITA EN SU DISCO, CON SU RÓTULO — «EMOJIS / ESTADOS DE ÁNIMO».
+ *
+ * Es la pieza que la lámina 1 dibuja para el ánimo, y se parece poco a lo que
+ * había: allí cada estado es un CÍRCULO teñido de su color con la carita
+ * dentro y el nombre debajo; aquí eran cuadrados blancos con una carita
+ * diminuta y sin nombre. Sobre un inicio que ya usa baldosas ilustradas, esos
+ * cuadrados blancos eran lo único que seguía hablando el idioma anterior.
+ *
+ * EL RÓTULO NO ES ADORNO. Cinco caritas de trazo a 30 dp se distinguen mal
+ * —«normal» y «regular» comparten casi toda la geometría—, y sin nombre hay
+ * que adivinar cuál se está tocando. La lámina los pone, y por eso están.
+ *
+ * El elegido SUBE. Los otros cuatro llevan 4 dp de aire encima que el elegido
+ * no tiene, así que al tocar otro la fila entera se reacomoda con un muelle.
+ * Es el mismo gesto que ya hacía Bienestar, ahora en los dos sitios.
+ */
+@Composable
+fun MoodChip(
+    value: Int,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    size: Dp = 52.dp,
+    showLabel: Boolean = true,
+) {
+    val lift by animateDpAsState(if (selected) 0.dp else 4.dp, label = "moodLift")
+    Column(
+        modifier.vidaClickable(onClick = onClick),
+        horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+        verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(5.dp),
+    ) {
+        Box(
+            Modifier
+                .padding(top = lift)
+                .size(size)
+                .background(moodDisc(value, selected), CircleShape)
+                .then(
+                    if (selected) {
+                        Modifier.border(2.dp, MoodScale.accentOf(value), CircleShape)
+                    } else {
+                        Modifier
+                    },
+                ),
+            contentAlignment = androidx.compose.ui.Alignment.Center,
+        ) {
+            // La cara se pinta SIN cabeza —fondo transparente— porque el disco
+            // ya hace de cabeza. Con la suya propia saldría un círculo dentro
+            // de otro.
+            Canvas(Modifier.size(size * 0.58f)) {
+                drawMoodFace(value.toFloat(), 1f, 3f, Color.Transparent)
+            }
+        }
+        if (showLabel) {
+            Text(
+                MoodScale.LABELS[value],
+                style = VidaTheme.type.micro,
+                color = if (selected) moodInk(value) else VidaTheme.colors.textTertiary,
+                maxLines = 1,
+            )
+        }
     }
 }

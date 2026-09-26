@@ -5,6 +5,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 /** Owner-only, mismo motivo que warranty.domain.WarrantyRepository. */
@@ -28,4 +30,8 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, UUID
      * consulta del nombre, así que no hay implementación que mantener.
      */
     boolean existsByIdAndOwnerUserId(UUID id, UUID ownerUserId);
+
+    /** Los que vencen en una ventana: lo que necesita el aviso por push. */
+    List<Subscription> findByNextPaymentDateBetween(Instant from, Instant to);
+
 }

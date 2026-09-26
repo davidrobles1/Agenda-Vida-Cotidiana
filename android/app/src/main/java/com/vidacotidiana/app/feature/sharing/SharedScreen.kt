@@ -18,6 +18,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import com.vidacotidiana.app.core.app.AppViewModel
 import com.vidacotidiana.app.core.ui.VidaSpacing
+import com.vidacotidiana.app.core.ui.VidaSections
 import com.vidacotidiana.app.core.ui.VidaTheme
 import com.vidacotidiana.app.core.ui.components.EmptyState
 import com.vidacotidiana.app.core.ui.components.LoadingRows
@@ -32,6 +33,7 @@ import com.vidacotidiana.app.core.ui.components.VidaSegmented
 import com.vidacotidiana.app.core.ui.components.VidaTileRow
 import com.vidacotidiana.app.core.ui.components.VidaTileSpec
 import kotlinx.coroutines.CoroutineScope
+import com.vidacotidiana.app.core.data.ShareableKind
 
 /**
  * Compartidos (ADR-025 §3/§4) — las dos direcciones separadas por pestaña,
@@ -109,6 +111,7 @@ fun SharedScreen(
                     "No pudimos cargar lo compartido",
                     "Revisa tu conexión e inténtalo de nuevo.",
                     action = "Reintentar" to viewModel::refresh,
+                    section = VidaSections.Compartidos,
                 )
             }
             // TRES SITUACIONES QUE ANTES COMPARTÍAN UN SOLO TEXTO.
@@ -125,24 +128,27 @@ fun SharedScreen(
                 // con quién.
                 EmptyState(
                     title = "Todavía no tienes a nadie en tu familia",
-                    body = "Compartir empieza por ahí. Después podrás elegir con quién va cada cosa al crearla o editarla.",
+                    body = "Compartir empieza por ahí. Después podrás elegir con quién va cada cosa desde el propio recurso.",
                     action = "Ir a Familia" to { navController.navigate(Routes.FAMILY) },
+                    section = VidaSections.Compartidos,
                 )
             }
             // Con familia, las dos pestañas significan cosas distintas y por eso
             // se dicen distinto. Ninguna lleva acción: lo que falta no se hace
-            // desde aquí —se elige al crear o editar el recurso— y un botón
+            // desde aquí —se hace desde la tarea, con su botón «Compartir»— y un botón
             // llevaría a otra pantalla a hacer otra cosa.
             list.isEmpty() -> StaggeredAppear(2) {
                 if (receiving) {
                     EmptyState(
                         title = "Nadie te ha compartido nada",
                         body = "Cuando alguien de tu familia comparta algo contigo, aparecerá aquí.",
+                        section = VidaSections.Compartidos,
                     )
                 } else {
                     EmptyState(
                         title = "Aún no has compartido nada",
-                        body = "Al crear o editar un recurso puedes elegir con quién compartirlo.",
+                        body = "Abre cualquier tarea, pago, documento, garantía, mantenimiento o artículo y pulsa «Compartir».",
+                        section = VidaSections.Compartidos,
                     )
                 }
             }
@@ -173,6 +179,34 @@ fun SharedScreen(
                                 { viewModel.togglePartDone(share.id, false) }
                             } else null,
                             completeLabel = "Ya hice mi parte",
+                            /*
+                             * ABRIR LO QUE A UNO LE COMPARTEN.
+                             *
+                             * Esto NO EXISTÍA: el detalle de esta pantalla era
+                             * `onOpenDetail = {}` y tocar un recurso recibido
+                             * no hacía nada, así que un documento compartido se
+                             * veía en la lista y no había forma de leerlo. El
+                             * backend sí lo permitía desde el principio —
+                             * `DocumentService.getVisibleOrThrow` autoriza al
+                             * colaborador además del dueño.
+                             *
+                             * Solo para documentos, y a propósito: los otros
+                             * cinco tipos son registros que viven en la sección
+                             * de su dueño, y llevar ahí a quien no es el dueño
+                             * le enseñaría una pantalla donde no puede tocar
+                             * nada. Un documento, en cambio, ES su contenido.
+                             */
+                            onOpen = if (share.kind == ShareableKind.DOCUMENT && share.resourceId != null) {
+                                { navController.navigate(Routes.documentRoute(share.resourceId)) }
+                            } else null,
+                            openLabel = "Ver documento",
+                            // QUIEN LO COMPARTIÓ PUEDE RETIRARLO desde aquí.
+                            // Antes había que ir al recurso —y tampoco estaba
+                            // allí—, así que un acceso dado por error no se
+                            // podía deshacer desde el móvil.
+                            onDelete = if (!receiving && share.kind != null && share.resourceId != null) {
+                                { viewModel.revokeResourceShare(share.kind, share.resourceId, share.id) }
+                            } else null,
                         )
                     },
                     onOpenDetail = {},
@@ -184,7 +218,7 @@ fun SharedScreen(
         if (list.isNotEmpty()) {
             StaggeredAppear(2 + list.size) {
                 Text(
-                    "Compartir se elige al crear o editar el recurso: con quién, y si se compromete con su parte.",
+                    "Se comparte desde el propio recurso: ábrelo y pulsa «Compartir» para elegir con quién.",
                     style = MaterialTheme.typography.bodySmall,
                     color = c.textSecondary,
                 )

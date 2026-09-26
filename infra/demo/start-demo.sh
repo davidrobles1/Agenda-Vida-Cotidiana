@@ -21,6 +21,7 @@ KC_PORT=8091
 BACKEND_PORT=8082
 CADDY_PORT=8888
 DEMO_DB="vidacotidiana_demo"
+KC_DATA_VOLUME="vc-demo-keycloak-data"
 PG_CONTAINER="vc-dev-postgres"   # el Postgres que tu backend local ya usa (localhost:5433)
 KC_ADMIN_USER=admin
 KC_ADMIN_PASS=admin
@@ -38,16 +39,45 @@ for p in $KC_PORT $BACKEND_PORT $CADDY_PORT; do
 done
 
 log "1/7 — Keycloak del demo (puerto $KC_PORT, con tema propio y ruta /auth)"
-docker rm -f vc-demo-keycloak >/dev/null 2>&1 || true
-docker run -d --name vc-demo-keycloak \
-  -e KEYCLOAK_ADMIN="$KC_ADMIN_USER" \
-  -e KEYCLOAK_ADMIN_PASSWORD="$KC_ADMIN_PASS" \
-  -e KC_HTTP_RELATIVE_PATH=/auth \
-  -e KC_PROXY_HEADERS=xforwarded \
-  -p "$KC_PORT":8080 \
-  -v "$REPO_ROOT/infra/keycloak:/opt/keycloak/data/import" \
-  -v "$REPO_ROOT/infra/keycloak/themes:/opt/keycloak/themes" \
-  quay.io/keycloak/keycloak:25.0 start-dev --import-realm >/dev/null
+# PERSISTENCIA (requisito del Product Owner, 2026-09-23): las cuentas del demo
+# NO se borran. Dos medidas:
+#   1. El contenedor se reutiliza (docker start), nunca se elimina ni recrea.
+#   2. La base H2 de Keycloak vive en un volumen nombrado, no en la capa
+#      efímera del contenedor, así que sobrevive incluso si alguien lo borra.
+# Se monta en /opt/keycloak/data/h2 y no en /opt/keycloak/data para no chocar
+# con el bind mount de importación del realm (/opt/keycloak/data/import).
+# `--import-realm` no sobrescribe un realm ya existente (lo omite), así que en
+# arranques posteriores los usuarios registrados se conservan.
+docker volume create "$KC_DATA_VOLUME" >/dev/null
+# Un volumen nombrado nace propiedad de root:root, pero Keycloak corre como
+# uid 1000 (gid 0) y no puede escribir su H2 ahí: sin este chown el arranque
+# muere con AccessDeniedException sobre keycloakdb.mv.db. Idempotente: se
+# ejecuta con la misma imagen (no agrega dependencias) y no toca los datos.
+docker run --rm --user root --entrypoint chown \
+  -v "$KC_DATA_VOLUME":/opt/keycloak/data/h2 \
+  quay.io/keycloak/keycloak:25.0 -R 1000:0 /opt/keycloak/data/h2 >/dev/null
+if docker inspect vc-demo-keycloak >/dev/null 2>&1; then
+  if ! docker inspect -f '{{range .Mounts}}{{.Name}} {{end}}' vc-demo-keycloak | grep -q "$KC_DATA_VOLUME"; then
+    echo "   el contenedor vc-demo-keycloak existe SIN volumen persistente."
+    echo "   Recrearlo perdería sus usuarios. Respaldá/exportá primero, o borralo a mano:"
+    echo "     docker rm -f vc-demo-keycloak   # solo si aceptás perder esas cuentas"
+    exit 1
+  fi
+  log "   reutilizando el contenedor existente (no se recrea, no se pierde nada)"
+  docker start vc-demo-keycloak >/dev/null
+else
+  log "   creando el contenedor por primera vez, con volumen persistente"
+  docker run -d --name vc-demo-keycloak \
+    -e KEYCLOAK_ADMIN="$KC_ADMIN_USER" \
+    -e KEYCLOAK_ADMIN_PASSWORD="$KC_ADMIN_PASS" \
+    -e KC_HTTP_RELATIVE_PATH=/auth \
+    -e KC_PROXY_HEADERS=xforwarded \
+    -p "$KC_PORT":8080 \
+    -v "$KC_DATA_VOLUME":/opt/keycloak/data/h2 \
+    -v "$REPO_ROOT/infra/keycloak:/opt/keycloak/data/import" \
+    -v "$REPO_ROOT/infra/keycloak/themes:/opt/keycloak/themes" \
+    quay.io/keycloak/keycloak:25.0 start-dev --import-realm >/dev/null
+fi
 
 for i in $(seq 1 30); do
   code=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:$KC_PORT/auth/realms/vida-cotidiana/.well-known/openid-configuration" || true)
@@ -57,17 +87,26 @@ done
 [ "$code" = "200" ] || { echo "Keycloak no levantó a tiempo"; exit 1; }
 
 log "2/7 — base de datos aislada del demo ($DEMO_DB, no toca tus datos locales)"
-# Se recrea vacía en cada arranque a propósito: Keycloak arriba también nace
-# vacío en cada arranque (no tiene almacenamiento persistente propio), así
-# que dejar la tabla users con filas de una sesión anterior (sub distinto,
-# mismo email) provoca un choque de restricción única y un 500 al primer
-# login. Mantener ambos sincronizados evita ese bug — el costo es que cada
-# arranque del demo empieza con cero cuentas registradas, aceptable para un
-# demo de factibilidad de corta duración.
-docker exec "$PG_CONTAINER" psql -U vidacotidiana -d postgres -c "DROP DATABASE IF EXISTS $DEMO_DB;" >/dev/null
-docker exec "$PG_CONTAINER" psql -U vidacotidiana -d postgres -c "CREATE DATABASE $DEMO_DB;" >/dev/null
+# NO se borra: se crea solo si no existe y se conserva entre arranques
+# (requisito del Product Owner, 2026-09-23). Antes se recreaba vacía en cada
+# arranque porque Keycloak nacía vacío también, y dejar filas viejas en `users`
+# (mismo email, `sub` distinto) chocaba contra `uq_users_email` y tiraba 500 en
+# el primer login. Ahora que Keycloak persiste en un volumen, el `sub` de cada
+# usuario se mantiene estable entre arranques y ese choque no puede ocurrir —
+# ambos lados quedan sincronizados conservando, no borrando.
+if docker exec "$PG_CONTAINER" psql -U vidacotidiana -d postgres -tAc \
+     "SELECT 1 FROM pg_database WHERE datname='$DEMO_DB';" | grep -q 1; then
+  log "   la base $DEMO_DB ya existe — se conserva tal cual"
+else
+  log "   creando la base $DEMO_DB por primera vez"
+  docker exec "$PG_CONTAINER" psql -U vidacotidiana -d postgres -c "CREATE DATABASE $DEMO_DB;" >/dev/null
+fi
 
-log "3/7 — túnel ngrok (dominio aleatorio gratis)"
+# El plan gratis asigna un dominio persistente por cuenta (verificado: el mismo
+# hostname vuelve tras semanas y un teardown completo), así que no se pasa
+# --domain. Aun así la URL se lee del API del agente en vez de asumirse, y los 3
+# puntos de configuración se rederivan de ella en cada arranque.
+log "3/7 — túnel ngrok (dominio gratis asignado por la cuenta)"
 nohup ngrok http "$CADDY_PORT" --log=stdout --log-format=logfmt > "$SCRATCH/ngrok.log" 2>&1 &
 disown
 for i in $(seq 1 20); do

@@ -5,6 +5,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -33,4 +35,8 @@ public interface WarrantyRepository extends JpaRepository<Warranty, UUID> {
      * consulta del nombre, así que no hay implementación que mantener.
      */
     boolean existsByIdAndOwnerUserId(UUID id, UUID ownerUserId);
+
+    /** Las que caducan en una ventana: lo que necesita el aviso por push. */
+    List<Warranty> findByExpiresAtBetween(Instant from, Instant to);
+
 }

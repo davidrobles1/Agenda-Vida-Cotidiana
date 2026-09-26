@@ -36,6 +36,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vidacotidiana.app.core.ui.VidaSections
 import com.vidacotidiana.app.core.ui.VidaTheme
 import com.vidacotidiana.app.navigation.Destination
 
@@ -102,9 +103,16 @@ private fun NavTab(
     val c = VidaTheme.colors
     val spec = VidaTheme.spec
     val interaction = remember { MutableInteractionSource() }
-    val tint by animateColorAsState(if (selected) c.primary else c.textTertiary, label = "tabTint")
+    // CADA SECCIÓN CON SU COLOR, como en la lámina de navegación: la pestaña
+    // activa se tiñe del color de SU sección, no del acento genérico. Es lo
+    // que hace que la barra diga dónde estás con el color antes que con el
+    // rótulo. Una ruta sin identidad declarada cae al acento de siempre.
+    val section = VidaSections.forRoute(destination.route)
+    val accent = section?.tint ?: c.primary
+    val accentContainer = section?.container ?: c.primaryContainer
+    val tint by animateColorAsState(if (selected) accent else c.textTertiary, label = "tabTint")
     val pillBg by animateColorAsState(
-        if (selected) c.primaryContainer else Color.Transparent,
+        if (selected) accentContainer else Color.Transparent,
         label = "tabPill",
     )
     val pillShape = RoundedCornerShape(spec.radii.pill)
@@ -113,7 +121,7 @@ private fun NavTab(
         modifier = modifier
             .clickable(
                 interactionSource = interaction,
-                indication = ripple(color = c.primary, bounded = false),
+                indication = ripple(color = accent, bounded = false),
                 role = Role.Tab,
                 onClick = onClick,
             )

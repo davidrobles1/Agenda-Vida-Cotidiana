@@ -13,6 +13,7 @@ import com.vidacotidiana.app.core.app.CreatableResource
 import com.vidacotidiana.app.core.data.MaintenanceStatus
 import com.vidacotidiana.app.core.ui.components.PillTone
 import com.vidacotidiana.app.core.ui.components.ResourceEntry
+import com.vidacotidiana.app.core.ui.VidaSections
 import com.vidacotidiana.app.core.ui.VidaTheme
 import com.vidacotidiana.app.core.ui.components.VidaTileRow
 import com.vidacotidiana.app.core.ui.components.VidaTileSpec
@@ -22,6 +23,9 @@ import kotlinx.coroutines.CoroutineScope
 import com.vidacotidiana.app.core.ui.VidaVocabulary
 import com.vidacotidiana.app.core.data.DataSlice
 import com.vidacotidiana.app.core.app.sliceError
+import com.vidacotidiana.app.core.data.ShareableKind
+import com.vidacotidiana.app.core.app.rememberResourceAccess
+import com.vidacotidiana.app.core.app.Dialogo
 
 /**
  * Inventario. ADR-022 y V31: un artículo lleva su garantía Y su mantenimiento,
@@ -51,10 +55,24 @@ fun InventoryScreen(
         .groupBy { it.inventoryItemId!! }
         .mapValues { (_, records) -> records.minBy { it.nextDueOn } }
 
+    // QUIÉN TIENE ACCESO: el diálogo lo monta el controlador, y la
+
+    // sección solo dice sobre qué recurso se abre.
+
+    val acceso = rememberResourceAccess(viewModel)
+
+    val compartidos = state.data.sharedByMe
+
+        .filter { it.kind == ShareableKind.INVENTORY_ITEM }
+
+        .groupingBy { it.resourceId }.eachCount()
+
     val entries = items.map {
         val due = dueByItem[it.id]
         ResourceEntry(
             id = it.id,
+            onAccess = { acceso.abrir(ShareableKind.INVENTORY_ITEM, it.id, it.name) },
+            sharedWith = compartidos[it.id] ?: 0,
             title = it.name,
             subtitle = listOfNotNull(
                 // El valor interno (`ELECTRONICOS`) no se le enseña a nadie.
@@ -92,6 +110,9 @@ fun InventoryScreen(
     val categories = listOf("Todos") + items.map { VidaVocabulary.human(it.category) }.distinct().sorted()
 
     ResourceListScreen(
+        // La ficha del recurso, en su ventana. Antes esto caía en la
+        // hoja deslizante que ya no existe.
+        onOpenRoute = { navController.navigate(Routes.resourceRoute("INVENTORY", it.id)) },
         // Retícula del artefacto: el inventario no reclama nada, así que sus
         // piezas dicen QUÉ HAY y cuánto de eso está cubierto.
         header = {
@@ -113,6 +134,7 @@ fun InventoryScreen(
         filters = categories,
         addLabel = "Nuevo artículo",
         emptyBody = "Registra lo que tienes para no perderle la pista.",
+        section = VidaSections.Inventario,
         loading = state.loading,
         error = state.sliceError(DataSlice.INVENTORY),
         onRetry = viewModel::refresh,
@@ -129,4 +151,8 @@ fun InventoryScreen(
         onNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
         notificationsBadge = viewModel.avisosSinLeer(),
     )
+
+    // Se pinta al final y no compone nada mientras no haya un
+    // recurso abierto.
+    acceso.Dialogo(viewModel)
 }

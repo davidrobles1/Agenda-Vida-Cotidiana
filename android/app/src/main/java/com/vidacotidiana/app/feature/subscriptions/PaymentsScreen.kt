@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
+import com.vidacotidiana.app.core.ui.VidaSections
 import com.vidacotidiana.app.core.ui.VidaTheme
 import com.vidacotidiana.app.core.ui.components.VidaTileRow
 import com.vidacotidiana.app.core.ui.components.VidaTileSpec
@@ -29,6 +30,9 @@ import androidx.compose.ui.graphics.Brush
 import com.vidacotidiana.app.core.ui.components.ResourceShape
 import com.vidacotidiana.app.core.ui.VidaDates
 import com.vidacotidiana.app.core.ui.VidaVocabulary
+import com.vidacotidiana.app.core.data.ShareableKind
+import com.vidacotidiana.app.core.app.rememberResourceAccess
+import com.vidacotidiana.app.core.app.Dialogo
 
 /**
  * Pagos (ADR-020). Es destino prioritario de la barra inferior en Personal, así
@@ -55,10 +59,24 @@ fun PaymentsScreen(
     // mes sumaba las dos cosas como si nada estuviera pagado.
     val paid = state.data.paymentRecords.paidThisPeriod(today)
 
+    // QUIÉN TIENE ACCESO: el diálogo lo monta el controlador, y la
+
+    // sección solo dice sobre qué recurso se abre.
+
+    val acceso = rememberResourceAccess(viewModel)
+
+    val compartidos = state.data.sharedByMe
+
+        .filter { it.kind == ShareableKind.SUBSCRIPTION }
+
+        .groupingBy { it.resourceId }.eachCount()
+
     val entries = payments.map {
         val isPaid = it.id in paid
         ResourceEntry(
             id = it.id,
+            onAccess = { acceso.abrir(ShareableKind.SUBSCRIPTION, it.id, it.name) },
+            sharedWith = compartidos[it.id] ?: 0,
             title = it.name,
             // El antetítulo es el TIPO de compromiso, como en el artefacto
             // («SERVICIO», «TARJETA», «CRÉDITO»), y el subtítulo dice cuándo.
@@ -211,6 +229,7 @@ fun PaymentsScreen(
         shape = ResourceShape.LIST,
         addLabel = "Agregar pago",
         emptyBody = "Registra un pago para saber cuándo toca y cuánto representa.",
+        section = VidaSections.Pagos,
         loading = state.loading,
         error = state.sliceError(DataSlice.PAYMENTS),
         onRetry = viewModel::refresh,
@@ -242,6 +261,10 @@ fun PaymentsScreen(
         onNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
         notificationsBadge = viewModel.avisosSinLeer(),
     )
+
+    // Se pinta al final y no compone nada mientras no haya un
+    // recurso abierto.
+    acceso.Dialogo(viewModel)
 }
 
 /** Sin decimales cuando no los hay: «$2,340 MXN» se lee mejor que «$2,340.00». */

@@ -31,6 +31,7 @@ import com.vidacotidiana.app.core.app.CreatableResource
 import com.vidacotidiana.app.core.data.Commitment
 import com.vidacotidiana.app.core.data.Project
 import com.vidacotidiana.app.core.ui.VidaSpacing
+import com.vidacotidiana.app.core.ui.VidaSections
 import com.vidacotidiana.app.core.ui.VidaTheme
 import com.vidacotidiana.app.core.ui.components.Eyebrow
 import com.vidacotidiana.app.core.ui.components.EmptyState
@@ -451,6 +452,7 @@ fun LaboralTasksScreen(viewModel: AppViewModel, drawerState: DrawerState, scope:
         )
     }
     ResourceListScreen(
+        onOpenRoute = { navController.navigate(Routes.resourceRoute("TASK", it.id)) },
         title = "Tareas",
         subtitle = "Lo que te toca en el trabajo.",
         eyebrow = plural(entries.count { it.pill == null }, "abierta", "abiertas"),
@@ -458,6 +460,7 @@ fun LaboralTasksScreen(viewModel: AppViewModel, drawerState: DrawerState, scope:
         filters = listOf("Todas", "Hoy", "Próximas", "Hechas"),
         addLabel = "Nueva tarea",
         emptyBody = "Crea una tarea para tu jornada.",
+        section = VidaSections.Tareas,
         loading = state.loading,
         error = state.tasksError,
         onRetry = viewModel::refresh,
@@ -570,6 +573,7 @@ fun PeopleScreen(viewModel: AppViewModel, drawerState: DrawerState, scope: Corou
         filters = roles,
         addLabel = "Nueva ${state.profile.person.lowercase()}",
         emptyBody = "Registra con quién trabajas.",
+        section = VidaSections.Personas,
         loading = state.loading,
         error = state.sliceError(DataSlice.PEOPLE),
         onRetry = viewModel::refresh,
@@ -666,6 +670,7 @@ fun ProjectsScreen(viewModel: AppViewModel, drawerState: DrawerState, scope: Cor
         filters = statuses,
         addLabel = "Nuevo ${state.profile.project.lowercase()}",
         emptyBody = "Abre un ${state.profile.project.lowercase()} para agrupar su trabajo.",
+        section = VidaSections.Proyectos,
         loading = state.loading,
         error = state.sliceError(DataSlice.PROJECTS),
         onRetry = viewModel::refresh,
@@ -722,6 +727,7 @@ fun CommitmentsScreen(viewModel: AppViewModel, drawerState: DrawerState, scope: 
         )
     }
     ResourceListScreen(
+        onOpenRoute = { navController.navigate(Routes.resourceRoute("COMMITMENT", it.id)) },
         title = "Seguimientos",
         subtitle = "Lo que debes y lo que esperas.",
         eyebrow = plural(commitments.count { it.status != "DONE" }, "abierto", "abiertos"),
@@ -763,6 +769,7 @@ fun CommitmentsScreen(viewModel: AppViewModel, drawerState: DrawerState, scope: 
         filters = listOf("Todos", "Mío", "Esperando", "Cerrado"),
         addLabel = "Nuevo seguimiento",
         emptyBody = "Anota un compromiso para no perderle la pista.",
+        section = VidaSections.Seguimientos,
         loading = state.loading,
         error = state.sliceError(DataSlice.COMMITMENTS),
         onRetry = viewModel::refresh,

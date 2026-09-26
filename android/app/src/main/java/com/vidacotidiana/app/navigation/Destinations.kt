@@ -81,6 +81,26 @@ object Routes {
     fun taskRoute(taskId: String) = "tarea/$taskId"
 
     /**
+     * EL VISOR INTERNO de un documento. Antes no había ruta porque no
+     * había visor: «ver documento» salía de la aplicación con un intent.
+     */
+    const val DOCUMENT_VIEWER = "documento/{documentId}"
+
+    fun documentRoute(documentId: String) = "documento/$documentId"
+
+    /**
+     * LA FICHA GENÉRICA de un recurso, con su tipo en la ruta.
+     *
+     * Una sola ruta para los catorce en vez de catorce rutas: lo que cambia
+     * entre un pago y una garantía son sus campos, y esos ya los declara
+     * `CreatableResource`. Catorce destinos habrían sido catorce sitios donde
+     * olvidarse de añadir el siguiente.
+     */
+    const val RESOURCE_DETAIL = "ficha/{tipo}/{id}"
+
+    fun resourceRoute(tipo: String, id: String) = "ficha/$tipo/$id"
+
+    /**
      * Las rutas que el artefacto define y que no existían.
      *
      * Todas quedan FUERA de las dos barras inferiores: la navegación aprobada

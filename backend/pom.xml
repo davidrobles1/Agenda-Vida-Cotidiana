@@ -27,6 +27,21 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
+        <!--
+            CORREO POR SMTP.
+
+            Es el starter oficial de Spring, no un cliente de un proveedor
+            concreto: DEC-009 (qué proveedor de correo) sigue SIN DECIDIR y no
+            se decide aquí. SMTP es el denominador común de todos ellos, así
+            que esto deja el adaptador listo sin comprometer la decisión: el
+            día que se elija proveedor, basta con apuntar `spring.mail.*` a su
+            servidor. Sin esa configuración no se activa nada y se sigue
+            usando el adaptador que solo registra (`NoOpEmailSender`).
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-mail</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>

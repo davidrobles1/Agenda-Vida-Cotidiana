@@ -101,9 +101,6 @@ fun CalendarScreen(
     val selectedContent = viewModel.contentFor(selected)
 
     val context = LocalContext.current
-    var alertSheet by remember { mutableStateOf<DateAlert?>(null) }
-    var taskSheet by remember { mutableStateOf<DayTask?>(null) }
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     VidaScreen(
         title = "Calendario",
@@ -144,9 +141,9 @@ fun CalendarScreen(
                 verticalArrangement = Arrangement.spacedBy(VidaSpacing.sm),
             ) {
                 when (state.calendarDensity) {
-                    "Mes" -> MonthDensity(viewModel, state.visibleMonth, selected, today, now, ::onTaskNoop, { alertSheet = it }, { taskSheet = it })
-                    "Semana" -> WeekDensity(viewModel, selected, today, now, { alertSheet = it }, { taskSheet = it })
-                    else -> DayDensity(viewModel, selected, today, now, { alertSheet = it }, { taskSheet = it })
+                    "Mes" -> MonthDensity(viewModel, state.visibleMonth, selected, today, now, ::onTaskNoop, { onNavigate(it.source.route) }, { onNavigate(Routes.taskRoute(it.id)) })
+                    "Semana" -> WeekDensity(viewModel, selected, today, now, { onNavigate(it.source.route) }, { onNavigate(Routes.taskRoute(it.id)) })
+                    else -> DayDensity(viewModel, selected, today, now, { onNavigate(it.source.route) }, { onNavigate(Routes.taskRoute(it.id)) })
                 }
             }
         }
@@ -174,87 +171,18 @@ fun CalendarScreen(
         }
     }
 
-    // Hoja de un aviso: explica que es derivado y lleva a su registro.
-    alertSheet?.let { alert ->
-        ModalBottomSheet(
-            onDismissRequest = { alertSheet = null },
-            sheetState = sheetState,
-            containerColor = c.surfaceVariant,
-        ) {
-            SheetSurface(onClose = { alertSheet = null }, title = alert.label) {
-                Text(
-                    "${alert.source.label} · ${alert.message}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = c.textSecondary,
-                )
-                VidaCard {
-                    Text(
-                        "Este aviso no es un registro propio: se deriva de tu ${alert.source.label.lowercase()}. " +
-                            "Si cambias su fecha, el aviso se mueve solo.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = c.textSecondary,
-                    )
-                }
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(VidaSpacing.sm)) {
-
-                    VidaSmallButton("Ver en ${alert.source.label}", {
-                        val route = alert.source.route
-                        alertSheet = null
-                        onNavigate(route)
-                    })
-                }
-            }
-        }
-    }
-
-    // Hoja de una tarea: su estado y la acción real de completarla.
-    taskSheet?.let { task ->
-        ModalBottomSheet(
-            onDismissRequest = { taskSheet = null },
-            sheetState = sheetState,
-            containerColor = c.surfaceVariant,
-        ) {
-            SheetSurface(onClose = { taskSheet = null }, title = task.title) {
-                Text(
-                    listOfNotNull(task.meta, task.location).joinToString(" · "),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = c.textSecondary,
-                )
-                ResourceRow(
-                    title = "Compartido con",
-                    subtitle = "Nadie todavía",
-                    pill = "Solo yo" to PillTone.QUIET,
-                )
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(VidaSpacing.sm)) {
-
-                    // FR-024: «Cómo llegar» solo cuando la tarea tiene sitio.
-                    // Delega en la aplicación de mapas del teléfono; no se pide
-                    // ningún permiso ni se construye mapa propio.
-                    task.location?.let { place ->
-                        VidaSmallButton("Cómo llegar", {
-                            viewModel.openDirections(context, place)
-                            taskSheet = null
-                        }, ghost = true)
-                    }
-
-                    // Editar abre el MISMO formulario de la tarea, ya relleno,
-                    // contra `PATCH /reminders/{id}`. Ni editor genérico ni
-                    // pantalla aparte: la hoja del calendario lleva al recurso.
-                    VidaSmallButton("Editar", {
-                        val id = task.id
-                        taskSheet = null
-                        viewModel.requestEditTask(id)
-                    }, ghost = true)
-                    if (!task.done) {
-                        VidaSmallButton("Marcar hecha", {
-                            viewModel.toggleTask(task.id)
-                            taskSheet = null
-                        })
-                    }
-                }
-            }
-        }
-    }
+    /*
+     * AQUÍ HABÍA DOS HOJAS DESLIZANTES y ya no hay ninguna.
+     *
+     * Tocar una tarea abría una hoja con su título, sus datos y un botón
+     * «Editar» que llevaba a OTRA hoja. Tocar un aviso abría otra que explicaba
+     * que el aviso es derivado y ofrecía un botón para ir a su sección.
+     *
+     * Las dos eran un peldaño de más. Ahora tocar una tarea abre su ficha —la
+     * misma que desde cualquier listado, donde además se edita en el sitio— y
+     * tocar un aviso lleva directo al registro del que se deriva, que es lo que
+     * su único botón hacía.
+     */
 }
 
 private fun onTaskNoop(task: DayTask) = Unit

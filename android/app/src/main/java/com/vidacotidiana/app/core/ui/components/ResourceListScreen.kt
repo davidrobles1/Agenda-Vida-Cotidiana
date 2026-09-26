@@ -25,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.vidacotidiana.app.core.ui.VidaSpacing
+import com.vidacotidiana.app.core.ui.SectionVisual
 import com.vidacotidiana.app.core.ui.VidaTheme
 import kotlinx.coroutines.CoroutineScope
 
@@ -87,6 +88,17 @@ data class ResourceEntry(
     val onRevert: (() -> Unit)? = null,
     val revertLabel: String = "Deshacer",
     val onDelete: (() -> Unit)? = null,
+    /**
+     * QUIÉN TIENE ACCESO a este registro.
+     *
+     * Nula en los tipos que el dominio no sabe compartir —notas, objetivos,
+     * lugares, rutinas, personas, proyectos—; ahí el botón no se dibuja en vez
+     * de dibujarse y fallar. Los seis que sí lo admiten son los de
+     * `ShareableKind`, que es copia del enum del backend.
+     */
+    val onAccess: (() -> Unit)? = null,
+    /** Con cuánta gente está compartido ya. Cero no se dibuja. */
+    val sharedWith: Int = 0,
     /** Acciones propias de una sección concreta, como las de Documentos. */
     val extraActions: List<Pair<String, () -> Unit>> = emptyList(),
     /**
@@ -156,16 +168,32 @@ fun ResourceListScreen(
      */
     header: @Composable () -> Unit = {},
     /**
-     * Abrir el registro en SU PANTALLA en vez de en la hoja interna.
+     * ABRIR EL REGISTRO EN SU PANTALLA. Ya no es opcional en la práctica.
      *
-     * El artefacto le da pantalla propia a pago, mantenimiento, persona y
-     * proyecto, con héroe, propiedades y secciones — eso no cabe en una hoja.
-     * Cuando se pasa, la lista navega; cuando no, se conserva exactamente el
-     * comportamiento anterior, así que ninguna sección existente cambia.
+     * Antes, cuando no se pasaba, la lista abría una hoja deslizante con el
+     * título, el subtítulo y una pila de botones. Esa hoja ya no existe: era
+     * una tercera forma de ver un recurso —ni la lista ni la ficha— que
+     * obligaba a un toque extra para llegar a cualquier sitio y no dejaba
+     * espacio ni para editar ni para enseñar el documento adjunto.
+     *
+     * Si una sección no pasa ruta, tocar una fila no hace nada en vez de
+     * abrir algo a medias.
      */
     onOpenRoute: ((ResourceEntry) -> Unit)? = null,
     addLabel: String,
     emptyBody: String,
+    /**
+     * LA IDENTIDAD VISUAL DE ESTA SECCIÓN.
+     *
+     * Con ella, el estado vacío de la sección se dibuja ilustrado —icono
+     * grande sobre su halo, con su color y su botón— en vez de como texto
+     * suelto. Nula, se comporta como siempre: ninguna sección que no la pase
+     * cambia de aspecto.
+     *
+     * Se deduce sola de la ruta, así que una sección no tiene que declararla
+     * dos veces; sólo hay que pasarla donde la ruta no lo diga.
+     */
+    section: SectionVisual? = null,
     drawerState: DrawerState,
     scope: CoroutineScope,
     showBack: Boolean,
@@ -206,10 +234,8 @@ fun ResourceListScreen(
     val c = VidaTheme.colors
     var query by remember { mutableStateOf("") }
     var filter by remember { mutableStateOf(filters.firstOrNull() ?: "") }
-    var detail by remember { mutableStateOf<ResourceEntry?>(null) }
     var selecting by remember { mutableStateOf(false) }
     var selected by remember { mutableStateOf(emptySet<String>()) }
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     val visible = entries.filter {
         (query.isBlank() || it.title.contains(query, ignoreCase = true) || it.subtitle.contains(query, ignoreCase = true)) &&
@@ -343,6 +369,10 @@ fun ResourceListScreen(
                     title = if (query.isBlank()) "Aún no hay nada en ${title.lowercase()}" else "Nada coincide con «$query»",
                     body = if (query.isBlank()) emptyBody else "Prueba con otro término.",
                     action = if (query.isBlank()) addLabel to onAdd else null,
+                    // Ilustrado solo en el vacío de PRIMERA VEZ. Una búsqueda
+                    // sin resultados no es una sección vacía: dibujarle la
+                    // ilustración de «no tienes nada» diría algo falso.
+                    section = section.takeIf { query.isBlank() },
                 )
             }
         } else {
@@ -350,57 +380,13 @@ fun ResourceListScreen(
                 ResourceBoard(
                     shape = shape,
                     entries = visible,
-                    onOpenDetail = { entry -> onOpenRoute?.invoke(entry) ?: run { detail = entry } },
+                    onOpenDetail = { entry -> onOpenRoute?.invoke(entry) },
                     selecting = selecting,
                     selectedIds = selected,
                     onToggleSelect = { entry ->
                         selected = if (entry.id in selected) selected - entry.id else selected + entry.id
                     },
                 )
-            }
-        }
-    }
-
-    detail?.let { entry ->
-        ModalBottomSheet(
-            onDismissRequest = { detail = null },
-            sheetState = sheetState,
-            containerColor = c.surfaceVariant,
-        ) {
-            SheetSurface(onClose = { detail = null }, title = entry.title) {
-                Text(entry.subtitle, style = MaterialTheme.typography.bodyMedium, color = c.textSecondary)
-                detailExtra(entry)
-
-                // VER EL CONTENIDO, arriba y sin compartir fila con nada.
-                // Es la acción principal de un documento —para eso se guardó—
-                // y hasta ahora no estaba en ningún sitio: el campo existía y
-                // nadie lo pintaba.
-                entry.onOpen?.let { open ->
-                    VidaSmallButton(entry.openLabel, { open(); detail = null })
-                }
-
-                entry.extraActions.forEach { (label, action) ->
-                    VidaSmallButton(label, { action(); detail = null }, ghost = true)
-                }
-
-                // Deshacer en su propia línea: es la salida a un error, y
-                // ponerla al lado de «Hecho» invitaba justo al toque
-                // equivocado que viene a reparar.
-                entry.onRevert?.let { revert ->
-                    VidaSmallButton(entry.revertLabel, { revert(); detail = null }, ghost = true)
-                }
-
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(VidaSpacing.sm)) {
-                    entry.onDelete?.let { del ->
-                        VidaSmallButton("Eliminar", { del(); detail = null }, ghost = true)
-                    }
-                    entry.onComplete?.let { done ->
-                        VidaSmallButton(entry.completeLabel, { done(); detail = null }, ghost = true)
-                    }
-                    entry.onEdit?.let { edit ->
-                        VidaSmallButton("Editar", { edit(); detail = null })
-                    }
-                }
             }
         }
     }

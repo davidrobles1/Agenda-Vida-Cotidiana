@@ -27,6 +27,12 @@ import com.vidacotidiana.app.core.ui.components.VidaCard
 import com.vidacotidiana.app.core.ui.components.VidaChipRow
 import com.vidacotidiana.app.core.ui.components.VidaScreen
 import com.vidacotidiana.app.core.ui.components.VidaSmallButton
+import androidx.compose.material.icons.outlined.DeleteForever
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import com.vidacotidiana.app.navigation.Routes
 
 /**
@@ -40,6 +46,29 @@ import com.vidacotidiana.app.navigation.Routes
 fun SettingsScreen(viewModel: AppViewModel, navController: NavHostController) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val c = VidaTheme.colors
+    var confirmarBaja by remember { mutableStateOf(false) }
+    var bajaSolicitada by remember { mutableStateOf(false) }
+
+    if (confirmarBaja) {
+        AlertDialog(
+            onDismissRequest = { confirmarBaja = false },
+            title = { Text("Eliminar la cuenta") },
+            text = {
+                Text(
+                    "Se solicitará la baja de tu cuenta y de todo lo que guardas en Cotidiana: tareas, " +
+                        "documentos, garantías, tableros y lo compartido contigo. No se puede deshacer.",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmarBaja = false
+                    viewModel.deleteAccount { ok -> bajaSolicitada = ok }
+                }) { Text("Eliminar mi cuenta", color = c.error) }
+            },
+            dismissButton = { TextButton(onClick = { confirmarBaja = false }) { Text("Cancelar") } },
+            containerColor = c.surfaceVariant,
+        )
+    }
 
     VidaScreen(
         title = "Ajustes",
@@ -101,8 +130,35 @@ fun SettingsScreen(viewModel: AppViewModel, navController: NavHostController) {
             )
         }
 
-        StaggeredAppear(6) { Eyebrow("Apariencia") }
+        /*
+         * LA BAJA DE LA CUENTA, donde Perfil dice que está.
+         *
+         * El backend la soporta desde BE-027 y ningún cliente la ofrecía;
+         * Perfil, además, mandaba al usuario aquí a buscar algo que no
+         * existía. Va la última y separada del resto: es lo más grave que se
+         * puede hacer desde esta pantalla.
+         */
+        StaggeredAppear(6) { Eyebrow("Tu cuenta") }
         StaggeredAppear(7) {
+            if (bajaSolicitada) {
+                ResourceRow(
+                    "Baja solicitada",
+                    "Estamos procesando la eliminación de tu cuenta.",
+                    tone = c.warning, pill = "En curso" to PillTone.WARN,
+                )
+            } else {
+                ResourceRow(
+                    "Eliminar mi cuenta",
+                    "Da de baja la cuenta y todo lo que guardas en Cotidiana",
+                    icon = Icons.Outlined.DeleteForever,
+                    tone = c.error,
+                    onClick = { confirmarBaja = true },
+                )
+            }
+        }
+
+        StaggeredAppear(8) { Eyebrow("Apariencia") }
+        StaggeredAppear(9) {
             ResourceRow(
                 "Tema", "${state.theme.label} · ${state.theme.tagline}",
                 icon = Icons.Outlined.Palette,

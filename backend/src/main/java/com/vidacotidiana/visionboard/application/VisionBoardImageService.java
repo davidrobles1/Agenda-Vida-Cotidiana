@@ -9,6 +9,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 import java.io.UncheckedIOException;
 import java.util.Set;
 import java.util.UUID;
@@ -52,9 +55,11 @@ public class VisionBoardImageService {
     private static final long MAX_SIZE_BYTES = 23L * 1024 * 1024;
 
     private final VisionBoardImageRepository repository;
+    private final ImageThumbnailer thumbnailer;
 
-    public VisionBoardImageService(VisionBoardImageRepository repository) {
+    public VisionBoardImageService(VisionBoardImageRepository repository, ImageThumbnailer thumbnailer) {
         this.repository = repository;
+        this.thumbnailer = thumbnailer;
     }
 
     @Transactional
@@ -72,7 +77,15 @@ public class VisionBoardImageService {
             throw new ValidationException("Image exceeds the " + (MAX_SIZE_BYTES / (1024 * 1024)) + "MB limit.");
         }
         try {
-            VisionBoardImage image = new VisionBoardImage(ownerUserId, contentType, file.getBytes());
+            byte[] bytes = file.getBytes();
+            VisionBoardImage image = new VisionBoardImage(ownerUserId, contentType, bytes);
+            // La miniatura se calcula AQUÍ, una sola vez. Escalar en cada GET
+            // gastaría CPU una y otra vez por la misma imagen; subir pasa una
+            // vez y servir, muchas.
+            ImageThumbnailer.Thumbnail thumb = thumbnailer.shrink(bytes, contentType);
+            if (thumb != null) {
+                image.attachThumb(thumb.data(), thumb.contentType());
+            }
             return repository.save(image);
         } catch (IOException e) {
             throw new UncheckedIOException("Failed to read the uploaded image.", e);
@@ -92,5 +105,55 @@ public class VisionBoardImageService {
                     "Vision Board image " + imageId + " was not found.");
         }
         return image;
+    }
+
+    /**
+     * Las imágenes de un tablero, de una tacada.
+     *
+     * Recibe los ids que los elementos referencian y devuelve solo los que
+     * existen y son del usuario — los demás se omiten en silencio, que es
+     * exactamente lo que vería quien los pidiera uno a uno: un 404 por cada
+     * uno. Un elemento con una imagen borrada seguirá mostrando su hueco,
+     * como ahora.
+     *
+     * Genera la miniatura que falte, igual que el GET suelto, así que la
+     * primera vez que se pide un tablero antiguo se ponen todas al día.
+     */
+    @Transactional
+    public List<VisionBoardImage> bundleFor(Collection<UUID> imageIds, UUID callerUserId, boolean thumbs) {
+        List<VisionBoardImage> result = new ArrayList<>();
+        for (UUID id : imageIds) {
+            VisionBoardImage image = repository.findById(id).orElse(null);
+            if (image == null || !image.isOwnedBy(callerUserId)) {
+                continue;
+            }
+            if (thumbs && !image.hasThumb()) {
+                image = ensureThumb(image);
+            }
+            result.add(image);
+        }
+        return result;
+    }
+
+    /**
+     * La miniatura de una imagen que ya estaba guardada antes de que
+     * existieran las miniaturas.
+     *
+     * Se genera al primer GET que la pida y se guarda, así que el coste lo
+     * paga una sola petición y las demás ya la encuentran hecha. Devuelve la
+     * imagen tal cual si su formato no se reescribe: el que llama sabe
+     * entonces que debe servir el original.
+     */
+    @Transactional
+    public VisionBoardImage ensureThumb(VisionBoardImage image) {
+        if (image.hasThumb()) {
+            return image;
+        }
+        ImageThumbnailer.Thumbnail thumb = thumbnailer.shrink(image.getData(), image.getContentType());
+        if (thumb == null) {
+            return image;
+        }
+        image.attachThumb(thumb.data(), thumb.contentType());
+        return repository.save(image);
     }
 }

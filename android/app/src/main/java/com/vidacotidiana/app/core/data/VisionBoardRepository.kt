@@ -5,20 +5,26 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
+import android.util.Base64
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import com.vidacotidiana.app.core.network.BoardElementDto
 import com.vidacotidiana.app.core.network.CreateBoardElementRequest
 import com.vidacotidiana.app.core.network.CreateVisionBoardRequest
+import com.vidacotidiana.app.core.network.ReorderElementRequest
 import com.vidacotidiana.app.core.network.UpdateBoardElementRequest
+import com.vidacotidiana.app.core.network.UpdateVisionBoardRequest
 import com.vidacotidiana.app.core.network.VisionBoardApi
 import com.vidacotidiana.app.core.network.VisionBoardDto
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.floatOrNull
+import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -38,6 +44,13 @@ import javax.inject.Singleton
  * `BitmapFactory` y una caché en memoria; añadir una librería de red de
  * imágenes solo para eso habría traído su propio cliente HTTP sin nuestro
  * `Authorization`, que es justo el problema que no queremos.
+ *
+ * EL `data` VIAJA ENTERO, sin desmontarlo en campos sueltos. Antes esta capa
+ * extraía tres cadenas (`text`, `shape`, `imageId`) y tiraba el resto, así
+ * que un elemento creado en la Web con caligrafía, color o marco perdía todo
+ * eso en cuanto el móvil lo guardaba de nuevo: el backend reemplaza el
+ * `data` completo en cada edición. Ahora se conserva el objeto y se leen sus
+ * claves cuando hacen falta.
  */
 
 data class BoardElement(
@@ -47,24 +60,50 @@ data class BoardElement(
     val y: Float,
     val width: Float,
     val height: Float,
+    val rotation: Float = 0f,
+    val zIndex: Int = 0,
+    val locked: Boolean = false,
+    val visible: Boolean = true,
     val version: Int,
-    val text: String? = null,
-    val shape: String? = null,
-    val imageId: String? = null,
-)
+    /** El JSON libre del elemento, tal cual lo guarda el servidor. */
+    val data: JsonObject = JsonObject(emptyMap()),
+) {
+    fun str(key: String): String? = data[key]?.jsonPrimitive?.contentOrNull
+    fun int(key: String): Int? = data[key]?.jsonPrimitive?.intOrNull
+    fun num(key: String): Float? = data[key]?.jsonPrimitive?.floatOrNull
+    fun bool(key: String): Boolean? = data[key]?.jsonPrimitive?.booleanOrNull
+
+    val text: String? get() = str("text")
+    val shape: String? get() = str("shape")
+    val imageId: String? get() = str("imageId")
+}
 
 data class Board(
     val id: String,
     val name: String,
     val width: Int,
     val height: Int,
+    val theme: String,
     val version: Int,
     val elements: List<BoardElement> = emptyList(),
+)
+
+/** Lo que cambia de un elemento en una edición. `null` = no se toca. */
+data class ElementPatch(
+    val x: Float? = null,
+    val y: Float? = null,
+    val width: Float? = null,
+    val height: Float? = null,
+    val rotation: Float? = null,
+    val locked: Boolean? = null,
+    val visible: Boolean? = null,
+    val data: JsonObject? = null,
 )
 
 @Singleton
 class VisionBoardRepository @Inject constructor(
     private val api: VisionBoardApi,
+    private val snapshot: VisionBoardSnapshot,
     @ApplicationContext private val context: Context,
 ) {
 
@@ -78,108 +117,305 @@ class VisionBoardRepository @Inject constructor(
         const val MAX_UPLOAD_EDGE = 1600
         const val JPEG_QUALITY = 88
 
-        /** Tamaño con el que entra una imagen nueva al lienzo. */
-        const val DEFAULT_IMAGE_SIZE = 180f
+        /**
+         * A cuánto se reduce una imagen AL DECODIFICARLA para el lienzo.
+         *
+         * Medido en el teléfono: con 1280 px, un tablero de diecinueve fotos
+         * dejaba 155 MB en el heap nativo —cada bitmap son ancho×alto×4
+         * bytes— cuando en pantalla ninguna de esas fotos pasa de unos 450 px
+         * con el tablero encuadrado.
+         *
+         * 640 px deja cada bitmap en ~1,6 MB, así que un tablero de veinte
+         * fotos cabe ENTERO en la caché sin que ninguna tenga que expulsar a
+         * otra — que era el problema de verdad: con el techo justo, abrir el
+         * tablero decodificaba, expulsaba y volvía a decodificar las mismas
+         * imágenes una y otra vez. Sigue por encima de lo que el lienzo
+         * dibuja, con margen para acercarse.
+         */
+        const val MAX_DECODE_EDGE = 640
+
+        /**
+         * Techo de la caché de imágenes, en bytes.
+         *
+         * Sin techo, un usuario que abre cuatro tableros con fotos acumula
+         * las de los cuatro hasta que el sistema mata el proceso. Se sueltan
+         * las menos usadas, que es justo lo que no se está mirando.
+         *
+         * El techo tiene que dar para UN tablero completo con holgura: si no,
+         * las imágenes de la misma composición se expulsan entre ellas y cada
+         * repintado vuelve a decodificar. 80 MB son unas cincuenta fotos al
+         * tamaño al que se decodifican.
+         */
+        const val IMAGE_CACHE_BUDGET = 80L * 1024 * 1024
     }
 
-    /** Las imágenes ya decodificadas, para no volver a pedirlas al desplazar. */
-    private val imageCache = mutableMapOf<String, ImageBitmap>()
+    /**
+     * Las imágenes ya decodificadas, para no volver a pedirlas al desplazar.
+     *
+     * `LinkedHashMap` en modo acceso: la más antigua SIN USAR queda la
+     * primera, y es la que se suelta cuando se pasa del presupuesto.
+     */
+    private val imageCache = object : LinkedHashMap<String, ImageBitmap>(16, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, ImageBitmap>): Boolean {
+            if (bytesOf() <= IMAGE_CACHE_BUDGET) return false
+            return size > 1
+        }
+
+        private fun bytesOf(): Long = values.sumOf { it.width.toLong() * it.height.toLong() * 4L }
+    }
+
+    /* ---------------- tableros ---------------- */
+
+    /** Todos los tableros del usuario. El listado NO trae los elementos. */
+    suspend fun boards(): Result<List<Board>> = runCatching {
+        api.list().items.map { it.toDomain() }
+    }
+
+    suspend fun board(id: String): Result<Board> = runCatching {
+        val dto = api.get(id)
+        snapshot.save(dto)
+        dto.toDomain()
+    }
 
     /**
-     * Devuelve el tablero del usuario, creándolo la primera vez.
+     * Devuelve el tablero con el que abrir, creándolo la primera vez.
      *
-     * El producto no tiene todavía una pantalla de gestión de tableros, así que
-     * aquí hay UNO: si no existe se crea, en vez de dejar la sección inservible
-     * hasta que alguien cree uno desde la Web.
+     * Se conserva la red de seguridad de siempre —si no hay ninguno se crea
+     * uno— porque una sección de tablero sin tablero no tiene nada que
+     * enseñar. Lo que cambia es que ya no se queda con el primero para
+     * siempre: ahora hay una lista y se puede cambiar.
      */
-    suspend fun loadBoard(): Result<Board> = runCatching {
-        val existing = api.list().items.firstOrNull()
-        val full = if (existing != null) {
-            api.get(existing.id)
-        } else {
-            val created = api.create(
-                CreateVisionBoardRequest(name = "Mi tablero", width = 1200, height = 800, theme = "LIGHT"),
-            )
-            api.get(created.id)
+    /** Lo último que se vio, leído del disco. Pinta antes que la red. */
+    suspend fun lastKnownBoard(): Board? = snapshot.read()?.toDomain()
+
+    /**
+     * Devuelve el tablero con el que abrir, creándolo la primera vez.
+     *
+     * UN SOLO VIAJE cuando ya se ha abierto antes: si hay copia local se va
+     * derecho a `GET /vision-boards/{id}` con ese id, sin pedir la lista
+     * primero. Pedirla era un viaje entero de red para acabar eligiendo el
+     * mismo tablero de siempre. Si ese id ya no existe —borrado desde otro
+     * sitio— se cae con elegancia a la lista, que es el camino de antes.
+     */
+    suspend fun openingBoard(): Result<Board> = runCatching {
+        val remembered = snapshot.read()?.id
+        if (remembered != null) {
+            val direct = runCatching { api.get(remembered) }.getOrNull()
+            if (direct != null) {
+                snapshot.save(direct)
+                return@runCatching direct.toDomain()
+            }
+            snapshot.clear()
         }
+        val existing = api.list().items.firstOrNull()
+        val id = existing?.id ?: api.create(
+            CreateVisionBoardRequest(name = "Mi tablero", width = 1200, height = 800, theme = "LIGHT"),
+        ).id
+        val full = api.get(id)
+        snapshot.save(full)
         full.toDomain()
     }
 
+    suspend fun createBoard(name: String, theme: String): Result<Board> = runCatching {
+        val created = api.create(CreateVisionBoardRequest(name = name, width = 1200, height = 800, theme = theme))
+        api.get(created.id).toDomain()
+    }
+
+    suspend fun updateBoardTheme(board: Board, theme: String): Result<Board> = runCatching {
+        api.updateBoard(board.id, UpdateVisionBoardRequest(theme = theme, version = board.version)).toDomain()
+    }
+
+    suspend fun renameBoard(board: Board, name: String): Result<Board> = runCatching {
+        api.updateBoard(board.id, UpdateVisionBoardRequest(name = name, version = board.version)).toDomain()
+    }
+
+    suspend fun deleteBoard(board: Board): Result<Unit> = runCatching {
+        api.deleteBoard(board.id)
+        // La copia local apunta a algo que ya no existe: se tira, o la
+        // siguiente apertura intentaría abrir un tablero borrado.
+        snapshot.clear()
+    }
+
+    /* ---------------- elementos ---------------- */
+
+    suspend fun addElement(
+        boardId: String,
+        type: String,
+        x: Float,
+        y: Float,
+        width: Float,
+        height: Float,
+        data: JsonObject,
+    ): Result<BoardElement> = runCatching {
+        api.addElement(
+            boardId,
+            CreateBoardElementRequest(
+                type = type,
+                x = x.toDouble(), y = y.toDouble(),
+                width = width.toDouble(), height = height.toDouble(),
+                data = data,
+            ),
+        ).toDomain()
+    }
+
     /**
-     * Sube una imagen del dispositivo y la coloca en el lienzo.
+     * Sube una imagen del dispositivo y devuelve su id en el almacén.
      *
      * `uri` puede venir del portapapeles (una imagen copiada en Chrome) o del
      * selector de fotos: en ambos casos es un `content://` que el
      * `ContentResolver` sabe abrir, sin permisos de almacenamiento.
      */
-    suspend fun addImage(boardId: String, uri: Uri, x: Float, y: Float): Result<BoardElement> = runCatching {
+    suspend fun uploadImage(uri: Uri): Result<String> = runCatching {
         val (bytes, mime) = withContext(Dispatchers.IO) { readAndShrink(uri) }
         val part = MultipartBody.Part.createFormData(
             "file",
             "board-image.${if (mime == "image/png") "png" else "jpg"}",
             bytes.toRequestBody(mime.toMediaTypeOrNull()),
         )
-        val uploaded = api.uploadImage(part)
-        val element = api.addElement(
-            boardId,
-            CreateBoardElementRequest(
-                type = "IMAGE",
-                x = x.toDouble(),
-                y = y.toDouble(),
-                width = DEFAULT_IMAGE_SIZE.toDouble(),
-                height = DEFAULT_IMAGE_SIZE.toDouble(),
-                // El mismo contrato que la Web: el elemento apunta al id de la
-                // imagen subida, nunca al archivo ni a la URL original.
-                data = buildJsonObject { put("imageId", uploaded.id) },
-            ),
+        api.uploadImage(part).id
+    }
+
+    /**
+     * Sube una de las fotografías que vienen empaquetadas con la aplicación
+     * (las de las plantillas del portal, en `assets/board-templates`).
+     *
+     * Van por el MISMO endpoint que una foto de la galería: la plantilla no
+     * reparte imágenes ajenas, le da a cada usuario su propia copia. Por eso
+     * la plantilla sigue funcionando aunque se borre el tablero del que
+     * salió.
+     */
+    suspend fun uploadTemplateAsset(fileName: String): Result<String> = runCatching {
+        val bytes = withContext(Dispatchers.IO) {
+            context.assets.open("board-templates/$fileName").use { it.readBytes() }
+        }
+        val mime = if (fileName.endsWith(".png", ignoreCase = true)) "image/png" else "image/jpeg"
+        val part = MultipartBody.Part.createFormData(
+            "file", fileName, bytes.toRequestBody(mime.toMediaTypeOrNull()),
         )
-        element.toDomain()
+        val id = api.uploadImage(part).id
+        // LOS BYTES YA ESTÁN AQUÍ: se decodifican y se siembran en la caché en
+        // vez de volver a pedirle al servidor la misma imagen que le acabamos
+        // de mandar. Eran DIECINUEVE descargas por plantilla, todas de algo que
+        // ya teníamos en la mano.
+        withContext(Dispatchers.IO) { decodeSampled(bytes) }?.let { imageCache[id] = it }
+        id
     }
 
-    suspend fun addText(boardId: String, text: String, x: Float, y: Float): Result<BoardElement> = runCatching {
-        api.addElement(
-            boardId,
-            CreateBoardElementRequest(
-                type = "TEXT",
-                x = x.toDouble(), y = y.toDouble(), width = 150.0, height = 60.0,
-                data = buildJsonObject { put("text", text) },
-            ),
-        ).toDomain()
+    /**
+     * Decodifica reduciendo de entrada.
+     *
+     * Una plantilla son hasta diecinueve fotos a la vez: a resolución completa
+     * son decenas de MB de bitmaps vivos, y el lienzo no las enseña ni a la
+     * mitad de eso. `inSampleSize` hace el recorte al decodificar, que es
+     * donde no cuesta nada.
+     */
+    private fun decodeSampled(bytes: ByteArray, maxEdge: Int = MAX_DECODE_EDGE): ImageBitmap? {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+        var sample = 1
+        while (maxOf(bounds.outWidth, bounds.outHeight) / sample > maxEdge) sample *= 2
+        val options = BitmapFactory.Options().apply { inSampleSize = sample }
+        return BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)?.asImageBitmap()
     }
 
-    suspend fun addShape(boardId: String, shape: String, x: Float, y: Float): Result<BoardElement> = runCatching {
-        api.addElement(
-            boardId,
-            CreateBoardElementRequest(
-                type = "SHAPE",
-                x = x.toDouble(), y = y.toDouble(), width = 120.0, height = 100.0,
-                data = buildJsonObject { put("shape", shape) },
-            ),
-        ).toDomain()
+    /** La proporción real de la imagen, para que el elemento entre con su forma. */
+    fun imageAspect(uri: Uri): Float? {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+        return bounds.outWidth.toFloat() / bounds.outHeight.toFloat()
     }
 
-    /** Guarda dónde quedó un elemento tras arrastrarlo. */
-    suspend fun move(boardId: String, element: BoardElement, x: Float, y: Float): Result<BoardElement> = runCatching {
-        api.updateElement(
-            boardId,
-            element.id,
-            UpdateBoardElementRequest(x = x.toDouble(), y = y.toDouble(), version = element.version),
-        ).toDomain()
-    }
+    suspend fun updateElement(boardId: String, element: BoardElement, patch: ElementPatch): Result<BoardElement> =
+        runCatching {
+            api.updateElement(
+                boardId,
+                element.id,
+                UpdateBoardElementRequest(
+                    x = patch.x?.toDouble(),
+                    y = patch.y?.toDouble(),
+                    width = patch.width?.toDouble(),
+                    height = patch.height?.toDouble(),
+                    rotation = patch.rotation?.toDouble(),
+                    locked = patch.locked,
+                    visible = patch.visible,
+                    data = patch.data,
+                    version = element.version,
+                ),
+            ).toDomain()
+        }
 
-    suspend fun delete(boardId: String, element: BoardElement): Result<Unit> = runCatching {
+    /** Capas: devuelve TODOS los elementos renumerados por el servidor. */
+    suspend fun reorder(boardId: String, element: BoardElement, direction: String): Result<List<BoardElement>> =
+        runCatching {
+            api.reorderElement(boardId, element.id, ReorderElementRequest(direction, element.version))
+                .map { it.toDomain() }
+        }
+
+    suspend fun deleteElement(boardId: String, element: BoardElement): Result<Unit> = runCatching {
         api.deleteElement(boardId, element.id)
     }
 
-    /** Los bytes del servidor, decodificados una sola vez por imagen. */
-    suspend fun image(imageId: String): ImageBitmap? {
-        imageCache[imageId]?.let { return it }
+    /** Un elemento recién pedido al servidor, para reconciliar tras un conflicto. */
+    suspend fun refreshElement(boardId: String, elementId: String): BoardElement? =
+        runCatching { api.get(boardId).elements.firstOrNull { it.id == elementId }?.toDomain() }.getOrNull()
+
+    /* ---------------- imágenes ---------------- */
+
+    /**
+     * Todas las imágenes del tablero, en UN viaje.
+     *
+     * Antes se pedía una por una: veinte fotos eran veinte idas y vueltas, y
+     * con 300 ms de latencia eso son seis segundos que no bajan por mucho que
+     * se encojan las imágenes. Ahora el servidor las manda juntas y aquí solo
+     * queda decodificarlas, que se hace en paralelo y sin red de por medio.
+     *
+     * Devuelve `null` si el servidor no conoce el endpoint todavía —una
+     * versión anterior a este cambio— y entonces el que llama usa el camino
+     * de siempre, imagen a imagen. Nada se rompe por desplegar el móvil
+     * antes que el backend.
+     */
+    suspend fun allImages(boardId: String, sizes: Map<String, Float>): Map<String, ImageBitmap>? {
+        val bundle = runCatching { api.boardImages(boardId) }.getOrNull() ?: return null
+        return withContext(Dispatchers.IO) {
+            bundle.items.mapNotNull { item ->
+                val bytes = runCatching { Base64.decode(item.dataBase64, Base64.DEFAULT) }.getOrNull()
+                    ?: return@mapNotNull null
+                val edge = sizes[item.id]?.let { (it * 2f).toInt().coerceIn(120, MAX_DECODE_EDGE) } ?: MAX_DECODE_EDGE
+                decodeSampled(bytes, edge)?.let { bitmap ->
+                    imageCache[item.id] = bitmap
+                    item.id to bitmap
+                }
+            }.toMap()
+        }
+    }
+
+    /** Lo que ya está decodificado, sin ir a la red. */
+    fun cached(imageId: String): ImageBitmap? = imageCache[imageId]
+
+    /**
+     * Los bytes del servidor, decodificados a LO QUE ESE ELEMENTO MIDE.
+     *
+     * `targetEdge` es el borde mayor del elemento en puntos del tablero. Con
+     * el tablero encuadrado en un teléfono, un punto del tablero es más o
+     * menos un píxel de pantalla, así que decodificar por encima de eso es
+     * gastar memoria en detalle que nadie ve. Se dobla para que acercarse un
+     * paso siga viéndose nítido, y se topa en `MAX_DECODE_EDGE`.
+     *
+     * Antes todas se decodificaban al mismo tamaño, la grande y la pequeña:
+     * una foto de 175 puntos ocupaba en memoria lo mismo que una de 1600.
+     *
+     * Si la misma imagen se pide luego más grande —está en dos elementos de
+     * distinto tamaño— se vuelve a decodificar y se queda la mayor.
+     */
+    suspend fun image(imageId: String, targetEdge: Float? = null): ImageBitmap? {
+        val wanted = targetEdge?.let { (it * 2f).toInt().coerceIn(120, MAX_DECODE_EDGE) } ?: MAX_DECODE_EDGE
+        imageCache[imageId]?.let { cached ->
+            if (maxOf(cached.width, cached.height) >= wanted * 0.75f) return cached
+        }
         return runCatching {
             withContext(Dispatchers.IO) {
-                api.imageBytes(imageId).use { body ->
-                    val bytes = body.bytes()
-                    BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
-                }
+                api.imageBytes(imageId).use { body -> decodeSampled(body.bytes(), wanted) }
             }
         }.getOrNull()?.also { imageCache[imageId] = it }
     }
@@ -239,11 +475,15 @@ class VisionBoardRepository @Inject constructor(
     }
 }
 
+/** Atajo para construir un `data` de una sola clave de texto. */
+fun jsonOf(key: String, value: String): JsonObject = buildJsonObject { put(key, value) }
+
 private fun VisionBoardDto.toDomain() = Board(
     id = id,
     name = name,
     width = width,
     height = height,
+    theme = theme,
     version = version,
     elements = elements.filter { it.visible }.sortedBy { it.zIndex }.map { it.toDomain() },
 )
@@ -255,10 +495,10 @@ private fun BoardElementDto.toDomain() = BoardElement(
     y = y.toFloat(),
     width = width.toFloat(),
     height = height.toFloat(),
+    rotation = rotation.toFloat(),
+    zIndex = zIndex,
+    locked = locked,
+    visible = visible,
     version = version,
-    text = data.string("text"),
-    shape = data.string("shape"),
-    imageId = data.string("imageId"),
+    data = data,
 )
-
-private fun JsonObject.string(key: String): String? = this[key]?.jsonPrimitive?.contentOrNull

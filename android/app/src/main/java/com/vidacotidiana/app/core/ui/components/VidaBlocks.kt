@@ -63,6 +63,7 @@ import androidx.compose.ui.unit.sp
 import com.vidacotidiana.app.core.data.DayNote
 import com.vidacotidiana.app.core.ui.VidaLayout
 import com.vidacotidiana.app.core.ui.VidaSpacing
+import com.vidacotidiana.app.core.ui.SectionVisual
 import com.vidacotidiana.app.core.ui.VidaTheme
 import kotlin.math.roundToInt
 
@@ -227,9 +228,40 @@ fun EmptyState(
     body: String,
     modifier: Modifier = Modifier,
     action: Pair<String, () -> Unit>? = null,
+    /**
+     * DE QUÉ SECCIÓN ESTÁ VACÍA ESTA PANTALLA.
+     *
+     * Con ella, el vacío se dibuja como la lámina de «Ilustraciones para
+     * estados vacíos»: el icono grande de esa sección sobre su halo, con su
+     * color y con el botón relleno de ese mismo color. Sin ella se mantiene
+     * el vacío de texto de siempre, así que las llamadas que no saben de qué
+     * sección son —un buscador sin resultados, una lista filtrada— siguen
+     * funcionando igual.
+     *
+     * Es el punto donde este lenguaje visual alcanza a las diecisiete
+     * secciones de una vez: hay veintiún estados vacíos en la aplicación y
+     * todos pasan por aquí. Hacerlo pantalla por pantalla habría dejado unas
+     * con la ilustración nueva y otras sin ella, que es justo lo que no se
+     * quiere.
+     */
+    section: SectionVisual? = null,
 ) {
     val c = VidaTheme.colors
     val t = VidaTheme.type
+
+    if (section != null) {
+        Box(modifier.fillMaxWidth().padding(top = VidaLayout.blockGap, bottom = VidaLayout.sectionGap)) {
+            SectionEmptyState(
+                section = section,
+                title = title,
+                body = body,
+                actionLabel = action?.first,
+                onAction = action?.second,
+            )
+        }
+        return
+    }
+
     Column(
         modifier = modifier.fillMaxWidth().padding(top = VidaLayout.blockGap, bottom = VidaLayout.sectionGap),
         verticalArrangement = Arrangement.spacedBy(VidaLayout.textGap),

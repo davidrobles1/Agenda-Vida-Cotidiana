@@ -13,11 +13,15 @@ import com.vidacotidiana.app.core.app.CreatableResource
 import com.vidacotidiana.app.core.data.MaintenanceStatus
 import com.vidacotidiana.app.core.ui.components.PillTone
 import com.vidacotidiana.app.core.ui.components.ResourceEntry
+import com.vidacotidiana.app.core.ui.VidaSections
 import com.vidacotidiana.app.core.ui.components.ResourceListScreen
 import com.vidacotidiana.app.core.ui.components.plural
 import kotlinx.coroutines.CoroutineScope
 import com.vidacotidiana.app.core.data.DataSlice
 import com.vidacotidiana.app.core.app.sliceError
+import com.vidacotidiana.app.core.data.ShareableKind
+import com.vidacotidiana.app.core.app.rememberResourceAccess
+import com.vidacotidiana.app.core.app.Dialogo
 
 /** Mantenimiento. Origen de los avisos de 7/3/0 días del calendario. */
 @Composable
@@ -40,10 +44,18 @@ fun MaintenanceScreen(
             else -> "${n / 30} ${if (n / 30 == 1L) "mes" else "meses"}"
         }
     }
+    // QUIÉN TIENE ACCESO: el diálogo lo monta el controlador, y la
+    // sección solo dice sobre qué recurso se abre.
+    val acceso = rememberResourceAccess(viewModel)
+    val compartidos = state.data.sharedByMe
+        .filter { it.kind == ShareableKind.MAINTENANCE }
+        .groupingBy { it.resourceId }.eachCount()
     val entries = records.map {
         val hecho = it.status == MaintenanceStatus.HECHO
         ResourceEntry(
             id = it.id,
+            onAccess = { acceso.abrir(ShareableKind.MAINTENANCE, it.id, it.task) },
+            sharedWith = compartidos[it.id] ?: 0,
             title = it.task,
             // Un puntual terminado no tiene «próxima vez» que anunciar: su
             // fecha ya pasó y repetirla sonaría a que sigue pendiente.
@@ -93,6 +105,7 @@ fun MaintenanceScreen(
         ),
         addLabel = "Nuevo mantenimiento",
         emptyBody = "Programa un mantenimiento y el calendario avisará solo.",
+        section = VidaSections.Mantenimiento,
         loading = state.loading,
         error = state.sliceError(DataSlice.MAINTENANCE),
         onRetry = viewModel::refresh,
@@ -106,4 +119,8 @@ fun MaintenanceScreen(
         onNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
         notificationsBadge = viewModel.avisosSinLeer(),
     )
+
+    // Se pinta al final y no compone nada mientras no haya un
+    // recurso abierto.
+    acceso.Dialogo(viewModel)
 }

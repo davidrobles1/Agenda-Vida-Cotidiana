@@ -246,6 +246,42 @@ public class DocumentService {
         return saveOrConflict(document);
     }
 
+    /**
+     * REEMPLAZA EL ARCHIVO de un documento que ya existe.
+     *
+     * Valida exactamente igual que {@link #upload}: mismo catálogo de tipos y
+     * mismo límite de tamaño. No se relajan aquí porque el archivo entra por
+     * otra puerta — un PDF de 30MB sigue sin caber, y un ejecutable sigue sin
+     * ser un documento.
+     *
+     * Solo el DUEÑO. {@code getOwnedOrThrow} y no {@code getVisibleOrThrow}:
+     * compartir un documento da derecho a verlo y nada más (ADR-025 §6), así
+     * que quien lo recibe no puede cambiarle el contenido por debajo.
+     */
+    @Transactional
+    public Document replaceContent(UUID documentId, UUID callerUserId, MultipartFile file, int expectedVersion) {
+        Document document = getOwnedOrThrow(documentId, callerUserId);
+        if (file == null || file.isEmpty()) {
+            throw new ValidationException("file must not be empty.");
+        }
+        String contentType = file.getContentType();
+        if (contentType == null || !ALLOWED_CONTENT_TYPES.contains(contentType)) {
+            throw new ValidationException(
+                    "Unsupported document type" + (contentType != null ? ": " + contentType : "")
+                            + ". Allowed: " + String.join(", ", ALLOWED_CONTENT_TYPES) + ".");
+        }
+        if (file.getSize() > MAX_SIZE_BYTES) {
+            throw new ValidationException("Document exceeds the " + (MAX_SIZE_BYTES / (1024 * 1024)) + "MB limit.");
+        }
+        checkVersion(document, expectedVersion);
+        try {
+            document.replaceContent(contentType, file.getBytes());
+        } catch (IOException e) {
+            throw new UncheckedIOException("Failed to read the uploaded document.", e);
+        }
+        return saveOrConflict(document);
+    }
+
     /** Comparte con un correo específico — siempre "tiene éxito" desde la
         perspectiva de la respuesta, coincida o no con una cuenta real (ver
         Document#shareWith y V12__documents.sql, SEC-001 no-enumeration). Si

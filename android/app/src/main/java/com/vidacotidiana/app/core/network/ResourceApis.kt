@@ -15,6 +15,7 @@ import retrofit2.http.Path
 import retrofit2.http.Query
 import retrofit2.http.Streaming
 import okhttp3.ResponseBody
+import retrofit2.http.Headers
 
 /**
  * Los servicios REALES que ya expone el backend y que la Web consume desde
@@ -412,6 +413,25 @@ interface DocumentApi {
     @POST("documents/{id}/link")
     suspend fun link(@Path("id") id: String, @Body request: LinkDocumentRequest): DocumentDto
 
+    /**
+     * CAMBIAR EL ARCHIVO conservando el documento.
+     *
+     * No existía, y su ausencia era invisible: el formulario de edición pedía
+     * un archivo, lo aceptaba, y al guardar solo se mandaban nombre y
+     * categoría. Los bytes elegidos se quedaban en el teléfono y el documento
+     * seguía teniendo el contenido viejo, sin ningún aviso.
+     *
+     * Conserva el id, así que quien ya tenía acceso lo sigue teniendo y pasa a
+     * ver la versión nueva.
+     */
+    @Multipart
+    @PUT("documents/{id}/content")
+    suspend fun replaceContent(
+        @Path("id") id: String,
+        @Part file: MultipartBody.Part,
+        @Query("version") version: Int,
+    ): DocumentDto
+
     /** Multipart, como garantías: un documento ES su archivo. */
     @Multipart
     @POST("documents")
@@ -425,8 +445,23 @@ interface DocumentApi {
     @PATCH("documents/{id}")
     suspend fun update(@Path("id") id: String, @Body request: UpdateDocumentRequest): DocumentDto
 
-    /** Los bytes del documento, para abrirlo o compartirlo con otra app. */
+    /**
+     * Los bytes del documento, para verlo, compartirlo o adjuntarlo.
+     *
+     * `Cache-Control: no-cache` EN LA PETICIÓN, y es imprescindible aunque el
+     * servidor ya mande la cabecera correcta. Las respuestas que este teléfono
+     * guardó ANTES llevaban un año de vigencia, y OkHttp las seguiría sirviendo
+     * todo ese año sin preguntar: cambiar la cabecera del servidor solo afecta
+     * a lo que se descargue a partir de ahora, no a lo que ya está en disco.
+     * Pedirlo desde aquí fuerza la revalidación también de lo viejo, así que
+     * nadie tiene que borrar los datos de la aplicación para dejar de ver el
+     * archivo anterior.
+     *
+     * No cuesta ancho de banda: si nada cambió, el servidor contesta 304 sin
+     * cuerpo gracias al ETag y OkHttp sirve lo que ya tenía.
+     */
     @Streaming
+    @Headers("Cache-Control: no-cache")
     @GET("documents/{id}/content")
     suspend fun content(@Path("id") id: String): ResponseBody
 
@@ -499,6 +534,21 @@ data class ResourceShareDto(
 @Serializable
 data class CreateFamilyInvitationRequest(val userId: String)
 
+/**
+ * Compartir un recurso con alguien de la familia.
+ *
+ * `responsibility` es «se compromete a hacer su parte», no un nivel de
+ * permiso. Hay tipos que no la admiten —inventario y documentos— porque un
+ * artículo se POSEE y un documento es de solo ver (ADR-025 §5 y §6, y la base
+ * lo impone con `ck_resource_shares_responsibility`). Mandarla en `true` para
+ * esos tipos lo rechaza el backend, así que el diálogo ni la ofrece.
+ */
+@Serializable
+data class CreateResourceShareRequest(val collaboratorUserId: String, val responsibility: Boolean = false)
+
+@Serializable
+data class UpdateResourceShareRequest(val responsibility: Boolean)
+
 interface FamilyApi {
     /** ADR-025 §1: el backend exige 5 caracteres; la UI no consulta antes. */
     @GET("users/search")
@@ -527,6 +577,42 @@ interface FamilyApi {
 
     @GET("shared-resources/sent")
     suspend fun sharedByMe(): List<ResourceShareDto>
+
+    /*
+     * LAS CUATRO QUE FALTABAN.
+     *
+     * El backend las publica desde que existe el módulo de compartición
+     * (`ResourceShareController`), y este cliente declaraba solo las dos de
+     * lectura. El efecto era que desde el móvil NO SE PODÍA compartir un
+     * recurso ni retirar el acceso a nadie: lo único disponible era el flujo
+     * antiguo de invitar por correo a una tarea (`SharingApi`), que es otra
+     * mecánica distinta y solo sirve para tareas.
+     */
+
+    /** Con quién está compartido ESTE recurso. Lo consulta el diálogo de acceso. */
+    @GET("shared-resources/{type}/{resourceId}")
+    suspend fun sharesForResource(
+        @Path("type") type: String,
+        @Path("resourceId") resourceId: String,
+    ): List<ResourceShareDto>
+
+    @POST("shared-resources/{type}/{resourceId}")
+    suspend fun shareResource(
+        @Path("type") type: String,
+        @Path("resourceId") resourceId: String,
+        @Body request: CreateResourceShareRequest,
+    ): ResourceShareDto
+
+    /** Cambiar si esa persona se compromete a hacer su parte, sin volver a compartir. */
+    @PATCH("shared-resources/shares/{shareId}")
+    suspend fun updateShareResponsibility(
+        @Path("shareId") shareId: String,
+        @Body request: UpdateResourceShareRequest,
+    ): ResourceShareDto
+
+    /** Retirar el acceso. Solo puede hacerlo el dueño del recurso. */
+    @DELETE("shared-resources/shares/{shareId}")
+    suspend fun revokeResourceShare(@Path("shareId") shareId: String)
 
     /** «Ya hice mi parte» — DEC-001: vive en la fila de compartición. */
     @POST("shared-resources/shares/{shareId}/part-done")

@@ -63,9 +63,14 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import com.vidacotidiana.app.core.ui.components.moodSky
 import com.vidacotidiana.app.core.ui.components.moodInk
-import com.vidacotidiana.app.core.ui.components.moodSkyStrong
 import com.vidacotidiana.app.core.ui.components.vidaHalo
 import com.vidacotidiana.app.core.ui.components.vidaFloat
+import com.vidacotidiana.app.core.ui.components.moodDisc
+import com.vidacotidiana.app.core.ui.components.VidaMetricRing
+import com.vidacotidiana.app.core.ui.components.MoodChip
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.IntrinsicSize
 
 /**
  * BIENESTAR — «¿Cómo te sientes hoy?».
@@ -210,34 +215,31 @@ fun BienestarScreen(viewModel: AppViewModel, navController: NavHostController) {
                             )
                         }
 
-                        /* Los cinco selectores: 56 dp, radio 20, y el elegido
-                           sube 5 dp y crece un 7 %. */
-                        Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                        /* LOS CINCO SELECTORES, en el formato de «EMOJIS /
+                           ESTADOS DE ÁNIMO» de la lámina: disco teñido del
+                           color del ánimo, aro en el elegido y el nombre
+                           debajo.
+
+                           ESTO ARREGLA ADEMÁS UNA INVERSIÓN QUE SE VEÍA. El
+                           elegido se pintaba con el cielo del ánimo, que es
+                           EXACTAMENTE el fondo de esta tarjeta, así que
+                           desaparecía dentro de ella mientras los cuatro no
+                           elegidos —sobre `sunken`, más claro— parecían las
+                           pastillas activas. `moodDisc` compone siempre sobre
+                           la superficie, de modo que el elegido es el más
+                           saturado de los cinco se mire desde donde se mire. */
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
                             (0..4).forEach { k ->
-                                val on = marked == k
-                                Box(
-                                    modifier = Modifier
-                                        .size(56.dp)
-                                        .padding(top = if (on) 0.dp else 5.dp)
-                                        .background(
-                                            // El elegido lleva el tinte del
-                                            // ánimo EN ESTE TEMA; en Noche el
-                                            // crema fijo invertía la lectura y
-                                            // los no elegidos parecían activos.
-                                            // El elegido usa el tinte FUERTE:
-                                            // con el suave se confundía con
-                                            // la tarjeta, que lleva ese mismo
-                                            // tinte de fondo.
-                                            if (on) moodSkyStrong(k) else c.sunken,
-                                            RoundedCornerShape(20.dp),
-                                        )
-                                        .vidaClickable(onClick = { viewModel.setMood(k, null, tags.toList()) }),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    Canvas(Modifier.size(if (on) 32.dp else 30.dp)) {
-                                        drawMoodFace(k.toFloat(), 1f, 1.9f, Color.Transparent)
-                                    }
-                                }
+                                MoodChip(
+                                    value = k,
+                                    selected = marked == k,
+                                    onClick = { viewModel.setMood(k, null, tags.toList()) },
+                                    modifier = Modifier.weight(1f),
+                                    size = 54.dp,
+                                )
                             }
                         }
                     }
@@ -403,25 +405,28 @@ fun BienestarScreen(viewModel: AppViewModel, navController: NavHostController) {
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.spacedBy(7.dp),
                             ) {
+                                // CÍRCULO, no cuadrado redondeado: en la lámina
+                                // el ánimo SIEMPRE es un disco. Que la semana
+                                // usara otra forma rompía la única pista que
+                                // dice «esto de aquí y aquello de arriba son lo
+                                // mismo».
                                 Box(
                                     modifier = Modifier
                                         .size(36.dp)
                                         .background(
-                                            if (mood != null) moodSky(mood) else c.sunken,
-                                            RoundedCornerShape(13.dp),
+                                            if (mood != null) moodDisc(mood, isToday) else c.sunken,
+                                            CircleShape,
                                         )
                                         .then(
                                             if (isToday && mood != null) {
-                                                Modifier.border(
-                                                    2.dp, MoodScale.accentOf(mood), RoundedCornerShape(13.dp),
-                                                )
+                                                Modifier.border(2.dp, MoodScale.accentOf(mood), CircleShape)
                                             } else if (mood == null) {
                                                 // `line` es el filete de una
                                                 // separación, casi invisible
                                                 // sobre fondo oscuro; un hueco
                                                 // que hay que poder contar pide
                                                 // el borde de un control.
-                                                Modifier.border(1.5.dp, c.border, RoundedCornerShape(13.dp))
+                                                Modifier.border(1.5.dp, c.border, CircleShape)
                                             } else {
                                                 Modifier
                                             },
@@ -450,47 +455,76 @@ fun BienestarScreen(viewModel: AppViewModel, navController: NavHostController) {
                 /* ── EL MES, EN CIFRAS ───────────────────────────────────── */
                 StaggeredAppear(6) {
                     val good = state.moodWeek.count { it.value <= MoodScale.BIEN }
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Column(
+                    // LAS DOS TARJETAS, A LA MISMA ALTURA. Con alturas
+                    // naturales la de la derecha quedaba más alta y el par se
+                    // leía como dos piezas sueltas en vez de como una fila.
+                    Row(
+                        Modifier.height(IntrinsicSize.Min),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        /* «INDICADORES Y GRÁFICAS» de la lámina: la cifra va
+                           DENTRO de un anillo que enseña la proporción, sobre
+                           tarjeta clara.
+
+                           Era un bloque verde macizo con un 0 enorme en
+                           blanco. Decía menos —un número suelto no dice si 3
+                           de 7 es mucho— y además era la única superficie de
+                           color pleno que quedaba en la aplicación después de
+                           pasar todo lo demás al lenguaje de las láminas. */
+                        val verde = Color(0xFF10A37F)
+                        Row(
                             modifier = Modifier
                                 .weight(1f)
-                                .background(Color(0xFF10A37F), RoundedCornerShape(VidaTheme.spec.radii.card))
-                                .padding(18.dp),
-                        ) {
-                            Text(
-                                "Días buenos",
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontWeight = FontWeight.Bold, fontSize = 11.sp,
-                                ),
-                                color = Color.White.copy(alpha = 0.82f),
-                            )
-                            Spacer(Modifier.height(6.dp))
-                            Text(
-                                good.toString(),
-                                style = t.heroFigure.copy(fontSize = 42.sp, lineHeight = 46.sp),
-                                color = Color.White,
-                            )
-                            Text(
-                                "de ${state.moodWeek.size} marcados",
-                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                                color = Color.White.copy(alpha = 0.78f),
-                            )
-                        }
-                        Column(
-                            modifier = Modifier
-                                .weight(1f)
+                                .fillMaxHeight()
                                 .background(c.surfaceVariant, RoundedCornerShape(VidaTheme.spec.radii.card))
                                 .border(
                                     VidaTheme.spec.borderWidth, c.line,
                                     RoundedCornerShape(VidaTheme.spec.radii.card),
                                 )
-                                .padding(18.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                                .padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            VidaMetricRing(
+                                // Sin nada marcado el anillo se queda vacío en
+                                // vez de completo: cero de cero no es un pleno.
+                                progress = if (state.moodWeek.isEmpty()) 0f else good.toFloat() / state.moodWeek.size,
+                                figure = good.toString(),
+                                tint = verde,
+                                size = 48.dp,
+                                stroke = 5.dp,
+                            )
+                            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                Text(
+                                    "Días buenos",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = FontWeight.Bold, fontSize = 11.sp,
+                                    ),
+                                    color = c.text,
+                                )
+                                Text(
+                                    "de ${state.moodWeek.size} marcados",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                                    color = c.textTertiary,
+                                )
+                            }
+                        }
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                                .background(c.surfaceVariant, RoundedCornerShape(VidaTheme.spec.radii.card))
+                                .border(
+                                    VidaTheme.spec.borderWidth, c.line,
+                                    RoundedCornerShape(VidaTheme.spec.radii.card),
+                                )
+                                .padding(14.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
                             Text("ESTA SEMANA", style = t.eyebrow, color = c.textTertiary)
                             Text(
                                 state.moodWeek.size.toString(),
-                                style = t.heroFigure.copy(fontSize = 34.sp, lineHeight = 38.sp),
+                                style = t.heroFigure.copy(fontSize = 30.sp, lineHeight = 34.sp),
                                 color = c.text,
                             )
                             Text(

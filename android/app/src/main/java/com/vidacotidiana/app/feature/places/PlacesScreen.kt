@@ -9,6 +9,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import com.vidacotidiana.app.navigation.Routes
+import com.vidacotidiana.app.core.ui.VidaSections
 import com.vidacotidiana.app.core.app.AppViewModel
 import com.vidacotidiana.app.core.app.CreatableResource
 import com.vidacotidiana.app.core.data.Place
@@ -72,6 +73,9 @@ fun PlacesScreen(
     }
 
     ResourceListScreen(
+        // La ficha del recurso, en su ventana. Antes esto caía en la
+        // hoja deslizante que ya no existe.
+        onOpenRoute = { navController.navigate(Routes.resourceRoute("PLACE", it.id)) },
         title = "Lugares",
         subtitle = "Las direcciones que repites, guardadas.",
         eyebrow = plural(places.size, "lugar", "lugares"),
@@ -80,6 +84,7 @@ fun PlacesScreen(
         filters = emptyList(),
         addLabel = "Nuevo lugar",
         emptyBody = "Guarda una dirección a la que vuelvas para no volver a escribirla.",
+        section = VidaSections.Lugares,
         loading = state.loading,
         error = state.sliceError(DataSlice.PLACES),
         onRetry = viewModel::refresh,

@@ -2,6 +2,7 @@ package com.vidacotidiana.visionboard.api;
 
 import com.vidacotidiana.identity.infrastructure.CurrentUser;
 import com.vidacotidiana.shared.api.PageResponse;
+import com.vidacotidiana.visionboard.api.dto.BoardImageBundleResponse;
 import com.vidacotidiana.visionboard.api.dto.CreateElementRequest;
 import com.vidacotidiana.visionboard.api.dto.CreateVisionBoardRequest;
 import com.vidacotidiana.visionboard.api.dto.ElementResponse;
@@ -9,6 +10,7 @@ import com.vidacotidiana.visionboard.api.dto.ReorderElementRequest;
 import com.vidacotidiana.visionboard.api.dto.UpdateElementRequest;
 import com.vidacotidiana.visionboard.api.dto.UpdateVisionBoardRequest;
 import com.vidacotidiana.visionboard.api.dto.VisionBoardResponse;
+import com.vidacotidiana.visionboard.application.VisionBoardImageService;
 import com.vidacotidiana.visionboard.application.VisionBoardService;
 import com.vidacotidiana.visionboard.domain.VisionBoard;
 import com.vidacotidiana.visionboard.domain.VisionBoardElement;
@@ -31,6 +33,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Base64;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -52,10 +56,14 @@ import java.util.stream.Collectors;
 public class VisionBoardController {
 
     private final VisionBoardService visionBoardService;
+    private final VisionBoardImageService imageService;
     private final CurrentUser currentUser;
 
-    public VisionBoardController(VisionBoardService visionBoardService, CurrentUser currentUser) {
+    public VisionBoardController(VisionBoardService visionBoardService,
+                                 VisionBoardImageService imageService,
+                                 CurrentUser currentUser) {
         this.visionBoardService = visionBoardService;
+        this.imageService = imageService;
         this.currentUser = currentUser;
     }
 
@@ -100,6 +108,55 @@ public class VisionBoardController {
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
         visionBoardService.delete(id, currentUser.userId());
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * TODAS las imágenes del tablero, en una respuesta.
+     *
+     * Pintar un tablero con veinte fotos costaba veinte peticiones. Sobre una
+     * conexión con 300 ms de ida y vuelta eso son segundos que no dependen
+     * del peso de las fotos sino de cuántas veces se pregunta — y era lo que
+     * hacía que las imágenes fueran apareciendo de una en una.
+     *
+     * {@code variant=thumb} (el que usa el móvil) devuelve las miniaturas;
+     * sin él, los originales. Las imágenes que no existen o no son del
+     * usuario simplemente no vienen, igual que darían 404 una a una.
+     */
+    @GetMapping("/{id}/images")
+    public BoardImageBundleResponse images(
+            @PathVariable UUID id,
+            @RequestParam(name = "variant", required = false) String variant) {
+
+        UUID userId = currentUser.userId();
+        // Pasa por el servicio del tablero: comprueba que es tuyo antes de
+        // mirar siquiera qué imágenes referencia.
+        List<VisionBoardElement> elements = visionBoardService.listElements(id, userId);
+        List<UUID> imageIds = elements.stream()
+                .map(element -> element.getData() == null ? null : element.getData().get("imageId"))
+                .filter(value -> value instanceof String)
+                .map(value -> {
+                    try {
+                        return UUID.fromString((String) value);
+                    } catch (IllegalArgumentException ignored) {
+                        return null;
+                    }
+                })
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
+
+        boolean thumbs = "thumb".equalsIgnoreCase(variant);
+        List<BoardImageBundleResponse.Item> items = imageService.bundleFor(imageIds, userId, thumbs).stream()
+                .map(image -> {
+                    boolean useThumb = thumbs && image.hasThumb();
+                    byte[] bytes = useThumb ? image.getThumbData() : image.getData();
+                    String type = useThumb ? image.getThumbContentType() : image.getContentType();
+                    return new BoardImageBundleResponse.Item(
+                            image.getId().toString(), type, Base64.getEncoder().encodeToString(bytes));
+                })
+                .collect(Collectors.toList());
+
+        return new BoardImageBundleResponse(items);
     }
 
     @PostMapping("/{id}/elements")

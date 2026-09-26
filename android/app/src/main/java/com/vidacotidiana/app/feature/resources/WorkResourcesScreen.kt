@@ -11,6 +11,7 @@ import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import com.vidacotidiana.app.navigation.Routes
+import com.vidacotidiana.app.core.ui.VidaSections
 import com.vidacotidiana.app.core.app.AppViewModel
 import com.vidacotidiana.app.core.app.CreatableResource
 import com.vidacotidiana.app.core.data.WorkResource
@@ -87,6 +88,9 @@ fun WorkResourcesScreen(
     }
 
     ResourceListScreen(
+        // La ficha del recurso, en su ventana. Antes esto caía en la
+        // hoja deslizante que ya no existe.
+        onOpenRoute = { navController.navigate(Routes.resourceRoute("WORK_RESOURCE", it.id)) },
         title = "Recursos",
         subtitle = "Enlaces, plantillas y manuales de tu trabajo.",
         eyebrow = plural(resources.size, "recurso", "recursos"),
@@ -94,6 +98,7 @@ fun WorkResourcesScreen(
         filters = listOf("Todos") + TYPES.map { it.second },
         addLabel = "Nuevo recurso",
         emptyBody = "Guarda un enlace, una plantilla o un manual para tenerlo a mano.",
+        section = VidaSections.Recursos,
         loading = state.loading,
         error = state.sliceError(DataSlice.WORK_RESOURCES),
         onRetry = viewModel::refresh,

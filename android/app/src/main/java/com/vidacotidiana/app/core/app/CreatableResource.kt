@@ -202,6 +202,31 @@ enum class CreatableResource(
                 example = "Llevar la cartilla de revisiones",
                 icon = FieldIcon.DOC, tone = FieldTone.TEXT,
             ),
+            /*
+             * PRIORIDAD Y VÍNCULOS.
+             *
+             * Los tres los acepta el backend desde su primera versión
+             * (`CreateReminderRequest`: `priority`, `personId`, `projectId`) y
+             * la Web los usa; este formulario simplemente no los ofrecía, así
+             * que una tarea creada en el móvil no aparecía bajo su persona ni
+             * bajo su proyecto y nacía siempre en prioridad normal.
+             *
+             * Opcionales los tres: una tarea suelta sigue siendo una tarea.
+             */
+            FormField.Choice(
+                "priority", "Prioridad",
+                listOf("LOW" to "Baja", "NORMAL" to "Normal", "URGENT" to "Urgente"),
+                required = false,
+                icon = FieldIcon.TAG, tone = FieldTone.DATA,
+            ),
+            FormField.Reference(
+                "personId", "Persona", ReferenceSource.PEOPLE, required = false,
+                icon = FieldIcon.BOX, tone = FieldTone.PLACE,
+            ),
+            FormField.Reference(
+                "projectId", "Proyecto", ReferenceSource.PROJECTS, required = false,
+                icon = FieldIcon.BOX, tone = FieldTone.PLACE,
+            ),
         ),
     ),
 
@@ -558,4 +583,46 @@ enum class CreatableResource(
 
     /** Todo lo demás, que vive en filas. */
     val rowFields: List<FormField> get() = if (headField != null) fields.drop(1) else fields
+
+    /**
+     * QUÉ TIPO COMPARTIBLE ES, si lo es.
+     *
+     * Solo seis de los catorce se pueden compartir, y son los que el backend
+     * enumera en `SharedResourceType`. Los otros ocho devuelven `null` y su
+     * ficha no dibuja el botón, en vez de dibujarlo y chocar contra un 400.
+     */
+    val shareableKind: com.vidacotidiana.app.core.data.ShareableKind?
+        get() = when (this) {
+            TASK -> com.vidacotidiana.app.core.data.ShareableKind.REMINDER
+            PAYMENT -> com.vidacotidiana.app.core.data.ShareableKind.SUBSCRIPTION
+            MAINTENANCE -> com.vidacotidiana.app.core.data.ShareableKind.MAINTENANCE
+            WARRANTY -> com.vidacotidiana.app.core.data.ShareableKind.WARRANTY
+            INVENTORY -> com.vidacotidiana.app.core.data.ShareableKind.INVENTORY_ITEM
+            DOCUMENT -> com.vidacotidiana.app.core.data.ShareableKind.DOCUMENT
+            else -> null
+        }
+
+    /**
+     * SI PUEDE LLEVAR UN DOCUMENTO DETRÁS.
+     *
+     * Los CINCO que `LinkDocumentRequest` admite, ni uno más: su `@Pattern`
+     * acepta exactamente `REMINDER|MAINTENANCE|WARRANTY|INVENTORY_ITEM|
+     * SUBSCRIPTION`. Tenía aquí también proyecto y seguimiento, y era un
+     * error mío: la ficha ofrecía adjuntar y el servidor devolvía 400 al
+     * intentarlo. Comprobado contra la API.
+     *
+     * Un documento no se adjunta a sí mismo, y una nota, un lugar o un
+     * objetivo no tienen papel que guardar: en esos, el recuadro no aparece.
+     */
+    val admiteDocumento: Boolean
+        get() = this in setOf(TASK, PAYMENT, MAINTENANCE, WARRANTY, INVENTORY)
+
+    /**
+     * El nombre con el que el backend cuelga un archivo de ESTE recurso.
+     *
+     * Coincide con el de la compartición porque las dos mecánicas usan el
+     * mismo vocabulario, y por eso se deriva de él en vez de escribirse otra
+     * vez: dos listas idénticas mantenidas a mano acaban divergiendo.
+     */
+    val attachWire: String? get() = shareableKind?.wire?.takeIf { admiteDocumento }
 }

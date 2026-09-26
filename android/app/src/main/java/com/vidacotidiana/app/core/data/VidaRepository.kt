@@ -137,6 +137,7 @@ data class FamilyInvitation(val id: String, val username: String, val status: St
 data class UserSearchResult(val userId: String, val username: String, val relation: String)
 
 data class SharedResource(
+    /** El id de la COMPARTICIÓN, no el del recurso. Es lo que se retira. */
     val id: String,
     val type: String,
     val label: String,
@@ -144,6 +145,18 @@ data class SharedResource(
     val responsibility: Boolean,
     val partDone: Boolean,
     val dateLabel: String?,
+    /**
+     * Los dos identificadores que faltaban.
+     *
+     * Sin `counterpartUserId` el selector de personas no puede saber a quién
+     * NO volver a ofrecer, y sin `resourceId` no se puede abrir el recurso
+     * recibido — que es justo por lo que la pantalla «Compartidos» tenía el
+     * detalle vacío. Los dos venían ya en el DTO y se estaban tirando.
+     */
+    val counterpartUserId: String? = null,
+    val resourceId: String? = null,
+    /** El tipo tal cual lo nombra el backend, para poder volver a llamarlo. */
+    val kind: ShareableKind? = null,
 )
 
 data class Person(val id: String, val name: String, val role: String?, val organization: String?, val version: Int)
@@ -600,11 +613,35 @@ class VidaRepository @Inject constructor(
             Unit
         }
 
-    suspend fun uploadDocument(name: String, category: String, file: FilePayload, context: String?): Result<Unit> =
-        runCatching {
-            documentApi.upload(file.toPart(), name, category, context)
-            Unit
+    /**
+     * Sube el archivo y, si se pide, lo CUELGA de un recurso.
+     *
+     * El enganche va aquí y no en dos pasos del que llama porque son un solo
+     * acto desde fuera: «adjuntar este papel a esta garantía». Separarlos dejó
+     * durante un tiempo documentos sueltos que el usuario creía adjuntos.
+     *
+     * Si el enganche falla, el documento YA está subido y no se pierde: se
+     * queda suelto en Documentos, que es preferible a tirarlo. Por eso el
+     * fallo del enlace no hace fracasar la subida.
+     */
+    suspend fun uploadDocument(
+        name: String,
+        category: String,
+        file: FilePayload,
+        context: String?,
+        linkTo: Pair<String, String>? = null,
+    ): Result<Unit> = runCatching {
+        val creado = documentApi.upload(file.toPart(), name, category, context)
+        if (linkTo != null) {
+            runCatching {
+                documentApi.link(
+                    creado.id,
+                    com.vidacotidiana.app.core.network.LinkDocumentRequest(linkTo.first, linkTo.second),
+                )
+            }
         }
+        Unit
+    }
 
     /** Devuelve el id por el mismo motivo que `createInventoryItem`. */
     suspend fun createPerson(name: String, role: String?, organization: String?): Result<String> = runCatching {
@@ -828,11 +865,32 @@ class VidaRepository @Inject constructor(
             Unit
         }
 
-    suspend fun editDocument(id: String, name: String, category: String, version: Int): Result<Unit> =
-        runCatching {
-            documentApi.update(id, com.vidacotidiana.app.core.network.UpdateDocumentRequest(name, category, version))
-            Unit
+    /**
+     * Editar un documento, con o sin archivo nuevo.
+     *
+     * DOS LLAMADAS Y EN ESTE ORDEN. Primero el contenido, porque es lo que el
+     * usuario ve y lo que más le importa; después el nombre y la categoría,
+     * con la versión que devolvió la primera. Al revés, la segunda chocaría
+     * contra el bloqueo optimista con un 409 después de haber guardado ya la
+     * mitad.
+     *
+     * Sin archivo se comporta como siempre: una sola llamada de metadatos.
+     */
+    suspend fun editDocument(
+        id: String,
+        name: String,
+        category: String,
+        version: Int,
+        file: FilePayload? = null,
+    ): Result<Unit> = runCatching {
+        val vigente = if (file != null) {
+            documentApi.replaceContent(id, file.toPart(), version).version
+        } else {
+            version
         }
+        documentApi.update(id, com.vidacotidiana.app.core.network.UpdateDocumentRequest(name, category, vigente))
+        Unit
+    }
 
     suspend fun editPerson(id: String, name: String, role: String?, org: String?, version: Int): Result<Unit> =
         runCatching {
@@ -1086,6 +1144,70 @@ class VidaRepository @Inject constructor(
     suspend fun markPartDone(shareId: String): Result<Unit> = runCatching { familyApi.markPartDone(shareId); Unit }
 
     suspend fun undoPartDone(shareId: String): Result<Unit> = runCatching { familyApi.undoPartDone(shareId); Unit }
+
+    /* ── QUIÉN TIENE ACCESO A UN RECURSO ─────────────────────────────────
+       Las cuatro operaciones que el backend publica y este cliente no usaba.
+       Sin ellas el móvil podía LEER lo compartido pero no compartir ni
+       retirar el acceso a nadie. */
+
+    suspend fun sharesForResource(type: ShareableKind, resourceId: String): Result<List<SharedResource>> =
+        runCatching { familyApi.sharesForResource(type.wire, resourceId).map { it.toDomain() } }
+
+    suspend fun shareResource(
+        type: ShareableKind,
+        resourceId: String,
+        collaboratorUserId: String,
+        responsibility: Boolean,
+    ): Result<SharedResource> = runCatching {
+        familyApi.shareResource(
+            type.wire,
+            resourceId,
+            com.vidacotidiana.app.core.network.CreateResourceShareRequest(
+                collaboratorUserId = collaboratorUserId,
+                // El tipo manda: pedirla donde no se admite es un 400 seguro.
+                responsibility = responsibility && type.supportsResponsibility,
+            ),
+        ).toDomain()
+    }
+
+    suspend fun setShareResponsibility(shareId: String, responsibility: Boolean): Result<Unit> = runCatching {
+        familyApi.updateShareResponsibility(
+            shareId,
+            com.vidacotidiana.app.core.network.UpdateResourceShareRequest(responsibility),
+        )
+        Unit
+    }
+
+    suspend fun revokeResourceShare(shareId: String): Result<Unit> =
+        runCatching { familyApi.revokeResourceShare(shareId) }
+}
+
+/**
+ * LOS SEIS TIPOS QUE SE PUEDEN COMPARTIR, y cuáles admiten «hacer su parte».
+ *
+ * Es la copia fiel de `SharedResourceType` del backend, incluidas sus dos
+ * ausencias deliberadas: una ALERTA se deriva y no tiene fila propia, y un
+ * EVENTO es un recordatorio con fecha, no otra entidad. Existe aquí para que
+ * una pantalla no pueda pedir una compartición de algo que el dominio no sabe
+ * compartir — el compilador lo impide antes de llegar a la red.
+ */
+enum class ShareableKind(val wire: String, val label: String) {
+    REMINDER("REMINDER", "tarea"),
+    MAINTENANCE("MAINTENANCE", "mantenimiento"),
+    SUBSCRIPTION("SUBSCRIPTION", "pago"),
+    WARRANTY("WARRANTY", "garantía"),
+    INVENTORY_ITEM("INVENTORY_ITEM", "artículo"),
+    DOCUMENT("DOCUMENT", "documento");
+
+    /**
+     * Un artículo de inventario se POSEE y un documento es de solo ver: no
+     * existe «ya hice mi parte» de una silla ni de un PDF. La base lo impone
+     * con `ck_resource_shares_responsibility`, así que esto no es una decisión
+     * de la interfaz sino el mismo contrato, escrito donde la interfaz lo
+     * necesita para no ofrecer un interruptor que el servidor va a rechazar.
+     */
+    val supportsResponsibility: Boolean
+        get() = this != INVENTORY_ITEM && this != DOCUMENT
 }
 
 /* --------------------------------------------------------------------------
@@ -1320,13 +1442,19 @@ private fun ResourceShareDto.toDomain() = SharedResource(
     responsibility = responsibility,
     partDone = partDoneAt != null,
     dateLabel = parseDate(resourceDate)?.label(),
+    counterpartUserId = counterpartUserId,
+    resourceId = resourceId,
+    kind = ShareableKind.entries.firstOrNull { it.wire == resourceType },
 )
 
 /** Los nombres que ADR-025 fijó para el catálogo compartible. */
 private fun resourceTypeLabel(type: String): String = when (type) {
     "REMINDER" -> "Tarea"
     "SUBSCRIPTION" -> "Pago"
-    "MAINTENANCE_RECORD" -> "Mantenimiento"
+    // El backend lo llama MAINTENANCE a secas (`SharedResourceType`). Con
+    // «MAINTENANCE_RECORD» ninguna fila casaba y un mantenimiento compartido
+    // se rotulaba «Maintenance», en inglés, por el `else` de abajo.
+    "MAINTENANCE", "MAINTENANCE_RECORD" -> "Mantenimiento"
     "WARRANTY" -> "Garantía"
     "INVENTORY_ITEM" -> "Inventario"
     "DOCUMENT" -> "Documento"

@@ -88,6 +88,10 @@ import kotlinx.coroutines.launch
 import com.vidacotidiana.app.core.attention.AttentionUrgency
 import com.vidacotidiana.app.feature.attention.AtencionScreen
 import com.vidacotidiana.app.core.ui.components.CelebrationLayer
+import com.vidacotidiana.app.feature.documents.DocumentViewerScreen
+import com.vidacotidiana.app.feature.resources.ResourceDetailScreen
+import androidx.compose.material3.Surface
+import androidx.activity.compose.BackHandler
 
 /**
  * El armazón de la aplicación: tema, cajón, barra inferior por contexto,
@@ -178,7 +182,6 @@ fun AppNavGraph(
          * pueden solaparse un fotograma necesitan dos.
          */
         val pickerSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-        val formSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
         val bottom = bottomDestinations(state.context, state.profile)
         val showChrome = currentRoute != null && currentRoute != Routes.INTRO
@@ -188,7 +191,16 @@ fun AppNavGraph(
 
         // Portal no tiene barra inferior: su navegación es una sola sección y
         // una barra de un solo destino no es navegación, es un adorno.
-        val showBottomNav = showChrome && state.context != AppContext.PORTAL
+        //
+        // EL VISION BOARD TAMPOCO, y por un motivo distinto: es un EDITOR, no
+        // una sección de consulta. Se abre como ventana propia —igual que
+        // cualquier editor de lienzo del mercado— porque su barra de abajo ya
+        // está ocupada por las herramientas y por las propiedades de lo que
+        // haya seleccionado, y dos barras apiladas dejarían el lienzo sin
+        // sitio. La vuelta no se pierde: su cabecera tiene el botón de casa.
+        val showBottomNav = showChrome &&
+            state.context != AppContext.PORTAL &&
+            currentRoute != Routes.BOARD
         @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
         val tecladoAbierto = androidx.compose.foundation.layout.WindowInsets.isImeVisible
 
@@ -393,7 +405,9 @@ fun AppNavGraph(
                         // ---- Personal ----
                         composable(Routes.HOME) { HomeScreen(appViewModel, navController::navigateSafely, drawerState, scope) }
                         composable(Routes.CALENDAR) { CalendarScreen(appViewModel, navController::navigateSafely, drawerState, scope) }
-                        composable(Routes.BOARD) { VisionBoardScreen(appViewModel, drawerState, scope) }
+                        // Ventana propia: sin barra de secciones y con casa
+                        // en su cabecera. Ver `showBottomNav` más arriba.
+                        composable(Routes.BOARD) { VisionBoardScreen(navController) }
                         composable(Routes.PAYMENTS) { PaymentsScreen(appViewModel, drawerState, scope, navController) }
                         composable(Routes.SHARED) { SharedScreen(appViewModel, drawerState, scope, navController) }
                         composable(Routes.DOCUMENTS) { DocumentsScreen(appViewModel, drawerState, scope, navController) }
@@ -443,6 +457,33 @@ fun AppNavGraph(
                             )
                         }
 
+                        // El visor propio de un documento. Es pantalla y no
+                        // hoja porque un contrato de ocho páginas necesita
+                        // toda la altura, y porque hay que poder volver con el
+                        // gesto de siempre.
+                        // La ficha de cualquier recurso. Sustituye a la
+                        // hoja deslizante que abría el listado.
+                        composable(Routes.RESOURCE_DETAIL) { entry ->
+                            val tipo = entry.arguments?.getString("tipo").orEmpty()
+                            val recurso = runCatching { CreatableResource.valueOf(tipo) }.getOrNull()
+                            if (recurso != null) {
+                                ResourceDetailScreen(
+                                    viewModel = appViewModel,
+                                    navController = navController,
+                                    resource = recurso,
+                                    resourceId = entry.arguments?.getString("id").orEmpty(),
+                                )
+                            }
+                        }
+
+                        composable(Routes.DOCUMENT_VIEWER) { entry ->
+                            DocumentViewerScreen(
+                                viewModel = appViewModel,
+                                navController = navController,
+                                documentId = entry.arguments?.getString("documentId").orEmpty(),
+                            )
+                        }
+
                         // ---- Laboral ----
                         composable(Routes.HOY) { HoyScreen(appViewModel, drawerState, scope, navController) }
                         composable(Routes.AGENDA) { AgendaScreen(appViewModel, drawerState, scope) }
@@ -489,14 +530,19 @@ fun AppNavGraph(
             }
         }
 
-        // El formulario de alta vive AQUI, uno solo. Las dos entradas —el «+»
-        // de la barra y el «+» de cada seccion— piden lo mismo al ViewModel y
-        // acaban en esta hoja, asi que no pueden divergir.
+        // EL FORMULARIO VIVE AQUI, uno solo. Las dos entradas —el «+» de la
+        // barra y el «+» de cada seccion— piden lo mismo al ViewModel, asi que
+        // no pueden divergir.
+        //
+        // YA NO ES UNA HOJA QUE SUBE. Era un `ModalBottomSheet`, y eso dejaba
+        // el formulario en una caja de media pantalla con el teclado comiendose
+        // la otra media. Ahora es una VENTANA: ocupa todo, aparece sin
+        // deslizarse y se cierra con «Cancelar» o con el gesto de atras.
         state.pendingCreate?.let { resource ->
-            ModalBottomSheet(
-                onDismissRequest = appViewModel::cancelCreate,
-                sheetState = formSheetState,
-                containerColor = com.vidacotidiana.app.core.ui.VidaTheme.colors.surfaceVariant,
+            BackHandler(onBack = appViewModel::cancelCreate)
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = com.vidacotidiana.app.core.ui.VidaTheme.colors.surfaceVariant,
             ) {
                 CreateResourceSheet(
                     resource = resource,

@@ -28,9 +28,11 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
@@ -93,12 +95,36 @@ public class DocumentController {
         return DocumentResponse.from(document);
     }
 
+    /**
+     * Los bytes del documento.
+     *
+     * ESTA URL DEJÓ DE SER INMUTABLE. Antes se servía con un año de caché
+     * porque el contenido de un documento no podía cambiar: se subía una vez y
+     * ahí se quedaba. Desde que existe {@code PUT /{id}/content} eso ya no es
+     * cierto, y un año de caché sobre algo mutable significa que quien
+     * actualiza su archivo sigue viendo el anterior — durante un año.
+     *
+     * {@code no-cache} NO quiere decir «no lo guardes»: quiere decir «guárdalo,
+     * pero pregunta antes de usarlo». Con el ETag esa pregunta se responde con
+     * un 304 sin cuerpo cuando nada ha cambiado, así que se conserva el ahorro
+     * de no bajar megas repetidos y se pierde solo la posibilidad de servir
+     * algo viejo.
+     *
+     * El ETag sale de la VERSIÓN, que el bloqueo optimista ya incrementa en
+     * cada escritura — incluida la sustitución del archivo. No hace falta
+     * calcular un hash de los bytes para saber que cambiaron.
+     */
     @GetMapping("/{id}/content")
-    public ResponseEntity<byte[]> getContent(@PathVariable UUID id) {
+    public ResponseEntity<byte[]> getContent(@PathVariable UUID id, WebRequest request) {
         Document document = documentService.getVisibleOrThrow(id, currentUser.userId());
+        String etag = "\"" + document.getId() + "-" + document.getVersion() + "\"";
+        if (request.checkNotModified(etag)) {
+            return null; // Spring ya ha escrito el 304.
+        }
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(document.getContentType()))
-                .cacheControl(CacheControl.maxAge(365, TimeUnit.DAYS).cachePrivate())
+                .cacheControl(CacheControl.noCache().cachePrivate())
+                .eTag(etag)
                 .body(document.getData());
     }
 
@@ -128,6 +154,22 @@ public class DocumentController {
                 id, currentUser.userId(), request.name(), request.category(),
                 request.personId(), request.projectId(), request.version());
         return DocumentResponse.from(document);
+    }
+
+    /**
+     * Sustituir el archivo sin perder el documento.
+     *
+     * `PUT` y no `PATCH` porque el contenido se reemplaza entero: no hay
+     * fusión posible entre dos archivos. La versión viaja como parámetro y no
+     * en un cuerpo JSON porque la petición YA es multipart — meter un segundo
+     * cuerpo solo para llevar un entero complicaría al cliente sin ganar nada.
+     */
+    @PutMapping(value = "/{id}/content", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public DocumentResponse replaceContent(
+            @PathVariable UUID id,
+            @RequestPart("file") MultipartFile file,
+            @RequestParam("version") int version) {
+        return DocumentResponse.from(documentService.replaceContent(id, currentUser.userId(), file, version));
     }
 
     @PostMapping("/{id}/share")

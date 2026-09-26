@@ -47,6 +47,10 @@ import com.vidacotidiana.app.core.ui.components.VidaError
 import com.vidacotidiana.app.core.ui.components.VidaMark
 import com.vidacotidiana.app.core.ui.components.VidaPill
 import com.vidacotidiana.app.core.ui.components.VidaProp
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import com.vidacotidiana.app.core.ui.VidaSpacing
 import com.vidacotidiana.app.core.ui.components.VidaScreen
 import com.vidacotidiana.app.core.ui.components.VidaSmallButton
 import com.vidacotidiana.app.core.ui.components.VidaTextField
@@ -56,6 +60,9 @@ import com.vidacotidiana.app.core.ui.components.VidaTick
 import com.vidacotidiana.app.core.ui.components.vidaClickable
 import com.vidacotidiana.app.core.ui.components.vidaSoftShadow
 import com.vidacotidiana.app.core.ui.VidaDates
+import com.vidacotidiana.app.core.data.ShareableKind
+import com.vidacotidiana.app.core.app.rememberResourceAccess
+import com.vidacotidiana.app.core.app.Dialogo
 
 /**
  * DETALLE DE UNA TAREA — la pantalla del artefacto maestro.
@@ -122,12 +129,111 @@ fun TareaDetalleScreen(
         else -> c.second
     }
 
+    var confirmarBorrado by remember { mutableStateOf(false) }
+    val acceso = rememberResourceAccess(viewModel)
+    var compartirAbierto by remember { mutableStateOf(false) }
+    var destinatario by remember { mutableStateOf("") }
+
+    // Las comparticiones de ESTA tarea se piden al abrir el diálogo, no al
+    // entrar en la pantalla: casi ninguna tarea está compartida y no merece
+    // una petición por cada tarea que se abre.
+    LaunchedEffect(compartirAbierto) { if (compartirAbierto) viewModel.loadShares(taskId) }
+
+    if (compartirAbierto) {
+        AlertDialog(
+            onDismissRequest = { compartirAbierto = false },
+            title = { Text("Compartir la tarea") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(VidaSpacing.sm)) {
+                    Text(
+                        "Escribe el correo o el nombre de usuario de quien quieras. Le llegará una " +
+                            "invitación y podrá ver la tarea cuando la acepte.",
+                        style = MaterialTheme.typography.bodySmall, color = c.textSecondary,
+                    )
+                    VidaTextField(destinatario, { destinatario = it }, "correo@ejemplo.com o usuario")
+
+                    if (state.invitations.isNotEmpty()) {
+                        Text("Invitaciones pendientes", style = MaterialTheme.typography.labelMedium, color = c.textSecondary)
+                        state.invitations.forEach { inv ->
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    inv.invitedEmail ?: "Invitación",
+                                    style = MaterialTheme.typography.bodySmall, color = c.text,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                TextButton(onClick = { viewModel.cancelInvitation(taskId, inv.id) }) { Text("Cancelar") }
+                            }
+                        }
+                    }
+                    if (state.shares.isNotEmpty()) {
+                        Text("Compartida con", style = MaterialTheme.typography.labelMedium, color = c.textSecondary)
+                        state.shares.forEach { sh ->
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    sh.status, style = MaterialTheme.typography.bodySmall, color = c.text,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                TextButton(onClick = { viewModel.revokeShare(taskId, sh.id) }) { Text("Quitar") }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = destinatario.isNotBlank(),
+                    onClick = { viewModel.shareTask(taskId, destinatario) { ok -> if (ok) destinatario = "" } },
+                ) { Text("Invitar") }
+            },
+            dismissButton = { TextButton(onClick = { compartirAbierto = false }) { Text("Cerrar") } },
+            containerColor = c.surfaceVariant,
+        )
+    }
+
+    if (confirmarBorrado) {
+        AlertDialog(
+            onDismissRequest = { confirmarBorrado = false },
+            title = { Text("Eliminar la tarea") },
+            text = { Text("«${task?.title.orEmpty()}» se borrará para siempre, con sus pasos. No se puede deshacer.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmarBorrado = false
+                    viewModel.deleteResource(CreatableResource.TASK, taskId)
+                    navController.popBackStack()
+                }) { Text("Eliminar", color = c.error) }
+            },
+            dismissButton = { TextButton(onClick = { confirmarBorrado = false }) { Text("Cancelar") } },
+            containerColor = c.surfaceVariant,
+        )
+    }
+
     VidaScreen(
         title = "Tarea",
         showBack = true,
         onNavigationClick = { navController.popBackStack() },
         actions = {
+            // DOS MECÁNICAS DISTINTAS, y por eso dos botones y no uno:
+            //
+            //  · «Acceso» es la compartición general de ADR-025 — se elige a
+            //    alguien que YA está en la plataforma y se le da o se le
+            //    retira acceso al instante. Es la que sirve para los seis
+            //    tipos de recurso y la que faltaba entera en el móvil.
+            //  · «Invitar» manda una invitación por correo a alguien que
+            //    todavía no tiene cuenta. Solo existe para tareas.
+            //
+            // Fundirlas en un botón obligaría a adivinar cuál quiere el
+            // usuario a partir de lo que escriba, que es justo lo que hacía el
+            // diálogo anterior mirando si el texto llevaba arroba.
+            VidaSmallButton("Acceso", { acceso.abrir(ShareableKind.REMINDER, taskId, task?.title.orEmpty()) }, ghost = true)
+            Spacer(Modifier.width(VidaSpacing.xs))
+            VidaSmallButton("Invitar", { compartirAbierto = true }, ghost = true)
+            Spacer(Modifier.width(VidaSpacing.xs))
             VidaSmallButton("Editar", { viewModel.requestEdit(CreatableResource.TASK, taskId) }, ghost = true)
+            Spacer(Modifier.width(VidaSpacing.xs))
+            // BORRAR UNA TAREA no existía en el móvil: el backend lo permite
+            // desde siempre y la Web lo ofrece, así que una tarea creada por
+            // error solo se podía quitar desde el navegador.
+            VidaSmallButton("Eliminar", { confirmarBorrado = true }, ghost = true)
         },
     ) {
         if (task == null) {
@@ -396,6 +502,8 @@ fun TareaDetalleScreen(
 
         Spacer(Modifier.height(VidaLayout.sectionGap))
     }
+
+    acceso.Dialogo(viewModel)
 }
 
 /** Alias local: el hueco entre piezas hermanas del artefacto. */

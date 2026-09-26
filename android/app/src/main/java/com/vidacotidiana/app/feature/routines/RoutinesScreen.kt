@@ -27,9 +27,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.vidacotidiana.app.core.ui.VidaLayout
+import com.vidacotidiana.app.core.ui.VidaSections
 import com.vidacotidiana.app.core.ui.VidaTheme
 import com.vidacotidiana.app.core.ui.components.VidaRing
 import com.vidacotidiana.app.core.ui.components.vidaClickable
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import com.vidacotidiana.app.core.ui.VidaSpacing
+import com.vidacotidiana.app.core.ui.components.VidaChipRow
+import com.vidacotidiana.app.core.ui.components.VidaTextField
+import com.vidacotidiana.app.core.ui.components.VidaSmallButton
 import com.vidacotidiana.app.core.ui.components.ResourceListScreen
 import com.vidacotidiana.app.core.ui.components.plural
 import kotlinx.coroutines.CoroutineScope
@@ -123,8 +133,95 @@ fun RoutinesScreen(
     val counted = routines.filter { it.targetCount != null && it.active }
     LaunchedEffect(counted.size) { if (counted.isNotEmpty()) viewModel.loadHabitsToday() }
 
+    /*
+     * PONER META A UN HÁBITO.
+     *
+     * `AppViewModel.setHabitTarget` y el endpoint (`PUT /routines/{id}/target`)
+     * existían los dos, y NADIE los llamaba: no había forma de declarar la meta
+     * diaria desde el móvil, así que la tira de «Hábitos de hoy» —que solo
+     * aparece con rutinas que tengan meta— no podía llegar a verse nunca a
+     * menos que la meta se pusiera desde la Web.
+     */
+    var metaAbierta by remember { mutableStateOf(false) }
+    var metaRutina by remember { mutableStateOf<String?>(null) }
+    var metaCuenta by remember { mutableStateOf("8") }
+    var metaUnidad by remember { mutableStateOf("") }
+
+    if (metaAbierta) {
+        val activas = routines.filter { it.active }
+        val elegida = activas.firstOrNull { it.id == metaRutina }
+        AlertDialog(
+            onDismissRequest = { metaAbierta = false },
+            title = { Text("Meta diaria") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(VidaSpacing.sm)) {
+                    Text(
+                        "Un hábito con meta se cuenta durante el día — «Agua, 4 de 8» — en vez de marcarse " +
+                            "una sola vez. Aparecerá arriba, en «Hábitos de hoy».",
+                        style = VidaTheme.type.caption, color = VidaTheme.colors.textSecondary,
+                    )
+                    VidaChipRow(
+                        options = activas.map { it.title },
+                        selected = elegida?.title.orEmpty(),
+                        onSelect = { titulo ->
+                            activas.firstOrNull { it.title == titulo }?.let { r ->
+                                metaRutina = r.id
+                                metaCuenta = (r.targetCount ?: 8).toString()
+                                metaUnidad = r.unit.orEmpty()
+                            }
+                        },
+                    )
+                    VidaTextField(metaCuenta, { metaCuenta = it }, "Cuántas veces al día", numeric = true)
+                    VidaTextField(metaUnidad, { metaUnidad = it }, "Unidad (opcional): vasos, páginas…")
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = metaRutina != null && metaCuenta.toIntOrNull() != null,
+                    onClick = {
+                        metaRutina?.let { id ->
+                            viewModel.setHabitTarget(id, metaCuenta.toIntOrNull(), metaUnidad.ifBlank { null })
+                        }
+                        metaAbierta = false
+                    },
+                ) { Text("Guardar") }
+            },
+            dismissButton = {
+                Row {
+                    // Quitar la meta devuelve la rutina a sí/no sin borrar lo
+                    // ya contado, que es lo que hace el backend con `null`.
+                    if (elegida?.targetCount != null) {
+                        TextButton(onClick = {
+                            viewModel.setHabitTarget(elegida.id, null, null)
+                            metaAbierta = false
+                        }) { Text("Quitar meta") }
+                    }
+                    TextButton(onClick = { metaAbierta = false }) { Text("Cancelar") }
+                }
+            },
+            containerColor = VidaTheme.colors.surfaceVariant,
+        )
+    }
+
     ResourceListScreen(
+        // La ficha del recurso, en su ventana. Antes esto caía en la
+        // hoja deslizante que ya no existe.
+        onOpenRoute = { navController.navigate(Routes.resourceRoute("ROUTINE", it.id)) },
         header = {
+            // El acceso va SIEMPRE, también sin hábitos con meta: es
+            // justamente cuando hace falta para poder crear el primero.
+            Row(
+                Modifier.fillMaxWidth().padding(bottom = VidaLayout.blockGap),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    "Convierte una rutina en un hábito que se cuenta",
+                    style = VidaTheme.type.caption,
+                    color = VidaTheme.colors.textSecondary,
+                    modifier = Modifier.weight(1f),
+                )
+                VidaSmallButton("Meta diaria", { metaAbierta = true }, ghost = true)
+            }
             if (counted.isNotEmpty()) {
                 Column(verticalArrangement = Arrangement.spacedBy(VidaLayout.blockGap)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -179,6 +276,7 @@ fun RoutinesScreen(
         filters = listOf("Todas", "Próximas", "Atrasadas", "En pausa"),
         addLabel = "Nueva rutina",
         emptyBody = "Anota algo que repitas y sabrás cuándo te toca otra vez.",
+        section = VidaSections.Calendario,
         loading = state.loading,
         error = state.sliceError(DataSlice.ROUTINES),
         onRetry = viewModel::refresh,

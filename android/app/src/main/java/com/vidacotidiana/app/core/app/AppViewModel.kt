@@ -15,6 +15,11 @@ import com.vidacotidiana.app.core.data.AttachTo
 import com.vidacotidiana.app.core.data.Attachment
 import com.vidacotidiana.app.core.data.Mood
 import com.vidacotidiana.app.core.network.CurrentUser
+import com.vidacotidiana.app.core.network.EnableModeRequest
+import com.vidacotidiana.app.core.network.SharingApi
+import com.vidacotidiana.app.core.network.CreateInvitationRequest
+import com.vidacotidiana.app.core.network.ReminderShare
+import com.vidacotidiana.app.core.network.Invitation
 import com.vidacotidiana.app.core.network.UserApi
 import com.vidacotidiana.app.core.data.TaskStep
 import com.vidacotidiana.app.core.data.WellbeingRepository
@@ -51,6 +56,8 @@ import com.vidacotidiana.app.core.ui.components.Celebration
 import com.vidacotidiana.app.core.ui.components.CelebrationTier
 import com.vidacotidiana.app.navigation.Routes
 import com.vidacotidiana.app.core.data.paidThisPeriod
+import com.vidacotidiana.app.core.data.SharedResource
+import com.vidacotidiana.app.core.data.ShareableKind
 
 /**
  * Estado transversal de la aplicación: contexto activo, tema, perfil, fecha
@@ -108,6 +115,27 @@ data class AppUiState(
      * decida: para eso está [sliceError], que sólo mira lo suyo.
      */
     val error: String? = null,
+    /** Con quién está compartida la tarea abierta, y a quién se ha invitado. */
+    val shares: List<ReminderShare> = emptyList(),
+    val invitations: List<Invitation> = emptyList(),
+    /**
+     * QUIÉN TIENE ACCESO al recurso cuyo diálogo está abierto.
+     *
+     * Vive en el estado y no dentro del diálogo porque quitar un acceso es una
+     * llamada de red: el diálogo tiene que poder repintarse con la lista que
+     * devolvió el servidor, no con la que él creía tener.
+     */
+    /**
+     * A QUÉ RECURSO se colgará el documento que se está subiendo.
+     *
+     * Vive en el estado porque la subida atraviesa dos pantallas: se pulsa en
+     * la ficha de una garantía y se completa en el formulario de Documentos.
+     * Sin esto, el archivo se subía suelto y la ficha seguía diciendo
+     * «adjuntar un documento» después de haberlo adjuntado.
+     */
+    val pendingAttach: Pair<String, String>? = null,
+    val resourceShares: List<SharedResource> = emptyList(),
+    val resourceSharesLoading: Boolean = false,
     /** Notas del día seleccionado, tal como las devuelve el servicio. */
     val notes: List<DayNote> = emptyList(),
     val notesLoading: Boolean = false,
@@ -268,6 +296,7 @@ class AppViewModel @Inject constructor(
     private val dayNotes: DayNotesRepository,
     private val wellbeing: WellbeingRepository,
     private val userApi: UserApi,
+    private val sharingApi: SharingApi,
     private val alarmScheduler: ReminderAlarmScheduler,
     private val authManager: AuthManager,
     private val fileReader: FileReader,
@@ -561,8 +590,14 @@ class AppViewModel @Inject constructor(
 
                     // El ARCHIVO no se reemplaza al editar: el backend solo
                     // acepta nombre y categoría en su PATCH, igual que la Web.
+                    // EL ARCHIVO VIAJA AHORA. Antes esta llamada ignoraba
+                    // `file`: quien elegía uno nuevo al editar lo perdía sin
+                    // enterarse —se guardaba el nombre y el documento seguía
+                    // teniendo el contenido viejo—. Ni el servidor sabía
+                    // sustituirlo ni el cliente lo mandaba.
                     CreatableResource.DOCUMENT -> repository.editDocument(
                         editing.id, text("name"), text("category").ifBlank { "OTROS" }, editing.version,
+                        file = file,
                     )
 
                     CreatableResource.PERSON -> repository.editPerson(
@@ -668,6 +703,10 @@ class AppViewModel @Inject constructor(
                             context = context,
                             // Texto tal cual, sin validar ni transformar.
                             location = values["location"]?.ifBlank { null },
+                            // Los tres que el backend aceptaba y nadie enviaba.
+                            personId = values["personId"]?.ifBlank { null },
+                            projectId = values["projectId"]?.ifBlank { null },
+                            priority = values["priority"]?.ifBlank { null },
                         ),
                     )
                     // Una tarea con fecha merece su aviso local: es la misma
@@ -721,7 +760,11 @@ class AppViewModel @Inject constructor(
                     if (file == null) {
                         Result.failure(IllegalStateException("Elige el archivo que quieres subir."))
                     } else {
-                        repository.uploadDocument(text("name"), text("category").ifBlank { "OTROS" }, file, context)
+                        val destino = _state.value.pendingAttach
+                        repository.uploadDocument(
+                            text("name"), text("category").ifBlank { "OTROS" }, file, context,
+                            linkTo = destino,
+                        ).also { if (it.isSuccess) _state.update { s -> s.copy(pendingAttach = null) } }
                     }
                 }
 
@@ -858,7 +901,7 @@ class AppViewModel @Inject constructor(
      * el formato con el que trabaja el campo de fecha y hora: así el usuario
      * ve la hora que puso, no una conversión.
      */
-    fun requestEditTask(taskId: String) {
+    fun requestEditTask(taskId: String, abrirFormulario: Boolean = true) {
         val reminder = _state.value.reminders.firstOrNull { it.id == taskId } ?: return
         val local = reminder.dueAt?.let {
             runCatching {
@@ -868,7 +911,7 @@ class AppViewModel @Inject constructor(
         }
         _state.update {
             it.copy(
-                pendingCreate = CreatableResource.TASK,
+                pendingCreate = if (abrirFormulario) CreatableResource.TASK else null,
                 editing = EditTarget(CreatableResource.TASK, reminder.id, reminder.version),
                 formInitialValues = buildMap {
                     put("title", reminder.title)
@@ -890,14 +933,22 @@ class AppViewModel @Inject constructor(
      * de edición por recurso habría acabado admitiendo cosas distintas de las
      * que admite su alta, que es justo el fallo que esto evita.
      */
-    fun requestEdit(resource: CreatableResource, id: String) {
+    /**
+     * Prepara los valores del formulario para ESE registro.
+     *
+     * `abrirFormulario = false` los deja listos SIN encender `pendingCreate`,
+     * que es lo que hace aparecer el formulario global. La ficha de un recurso
+     * ya ES el formulario, así que encenderlo desde ahí abría dos a la vez: la
+     * ventana debajo y la hoja deslizante encima.
+     */
+    fun requestEdit(resource: CreatableResource, id: String, abrirFormulario: Boolean = true) {
         val data = _state.value.data
         val values: Map<String, String>
         val version: Int
 
         when (resource) {
             CreatableResource.TASK -> {
-                requestEditTask(id)
+                requestEditTask(id, abrirFormulario)
                 return
             }
             CreatableResource.WARRANTY -> {
@@ -1037,7 +1088,7 @@ class AppViewModel @Inject constructor(
 
         _state.update {
             it.copy(
-                pendingCreate = resource,
+                pendingCreate = if (abrirFormulario) resource else null,
                 editing = EditTarget(resource, id, version),
                 formInitialValues = values,
                 error = null,
@@ -1317,6 +1368,16 @@ class AppViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Los bytes crudos, para el visor PROPIO.
+     *
+     * Se expone como `suspend` y no como algo que empuje al estado porque el
+     * visor es una pantalla de un solo documento: el dato no le sirve a nadie
+     * más y meterlo en el estado global lo mantendría vivo —con sus megas—
+     * después de salir de ahí.
+     */
+    suspend fun documentBytesFor(id: String): Result<ByteArray> = repository.documentBytes(id)
+
     /** Entregar el archivo al selector de Android. */
     fun shareDocumentFile(context: android.content.Context, id: String, name: String) {
         withDocumentFile(context, id, name) { uri, mime ->
@@ -1389,7 +1450,22 @@ class AppViewModel @Inject constructor(
 
     fun deleteResource(resource: CreatableResource, id: String) {
         viewModelScope.launch {
-            repository.delete(resource, id)
+            // LA TAREA NO PASA POR `VidaRepository`: su API vive aquí, en este
+            // ViewModel, igual que su alta. El backend la borra desde siempre
+            // (`DELETE /reminders/{id}`) y este cliente no tenía por dónde
+            // pedirlo — era la única de las diecisiete secciones sin borrado.
+            val result = if (resource == CreatableResource.TASK) {
+                runCatching {
+                    reminderApi.deleteReminder(id)
+                    // El aviso local se cancela con ella: dejarlo programado
+                    // haría sonar una alarma de algo que ya no existe.
+                    runCatching { alarmScheduler.cancel(id) }
+                    Unit
+                }
+            } else {
+                repository.delete(resource, id)
+            }
+            result
                 .onSuccess { refresh() }
                 .onFailure { e -> _state.update { it.copy(error = e.message ?: "No se pudo eliminar") } }
         }
@@ -1397,7 +1473,7 @@ class AppViewModel @Inject constructor(
 
     fun cancelCreate() {
         _state.update {
-            it.copy(pendingCreate = null, editing = null, formInitialValues = emptyMap(), error = null)
+            it.copy(pendingCreate = null, editing = null, formInitialValues = emptyMap(), pendingAttach = null, error = null)
         }
     }
 
@@ -1838,6 +1914,203 @@ class AppViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Da de baja la cuenta.
+     *
+     * El backend lo soporta desde BE-027 y ningún cliente lo ofrecía — con el
+     * agravante de que Perfil decía que se pedía «desde Configuración» y ahí
+     * no había nada. Responde 202: la baja se PROCESA, no es instantánea, así
+     * que aquí no se borra nada localmente; se avisa y se cierra la sesión,
+     * que es lo que corresponde a una petición aceptada.
+     */
+    fun deleteAccount(onDone: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            runCatching { userApi.deleteAccount() }
+                .onSuccess { onDone(true) }
+                .onFailure { e ->
+                    _state.update { it.copy(error = e.message ?: "No se pudo solicitar la baja") }
+                    onDone(false)
+                }
+        }
+    }
+
+    /* =====================================================
+       COMPARTIR UNA TAREA
+       =====================================================
+
+       `SharingApi` existía completo —invitar, listar, revocar, aceptar,
+       rechazar— y NO SE INYECTABA EN NINGÚN SITIO: no había forma de
+       compartir nada desde el móvil. La pantalla «Compartidos», además,
+       remitía a «al crear o editar el recurso», donde tampoco estaba.
+
+       Se comparte una TAREA, que es lo que el backend sabe compartir
+       (`/reminders/{id}/shares`). Por correo o por usuario. */
+
+    fun loadShares(reminderId: String) {
+        viewModelScope.launch {
+            runCatching { sharingApi.listSharesAndInvitations(reminderId) }
+                .onSuccess { r -> _state.update { it.copy(shares = r.shares, invitations = r.invitations) } }
+                .onFailure { e -> _state.update { it.copy(error = friendly(e)) } }
+        }
+    }
+
+    /** Invita por correo o por nombre de usuario; el backend acepta ambos. */
+    fun shareTask(reminderId: String, destinatario: String, onDone: (Boolean) -> Unit = {}) {
+        val valor = destinatario.trim()
+        if (valor.isBlank()) return
+        val porCorreo = valor.contains('@')
+        viewModelScope.launch {
+            runCatching {
+                sharingApi.createInvitation(
+                    reminderId,
+                    CreateInvitationRequest(
+                        email = valor.takeIf { porCorreo },
+                        username = valor.takeIf { !porCorreo },
+                    ),
+                )
+            }
+                .onSuccess {
+                    loadShares(reminderId)
+                    celebrar(CelebrationTier.CONFIRM, "Invitación enviada")
+                    onDone(true)
+                }
+                .onFailure { e ->
+                    _state.update { it.copy(error = friendly(e)) }
+                    onDone(false)
+                }
+        }
+    }
+
+    fun revokeShare(reminderId: String, shareId: String) {
+        viewModelScope.launch {
+            runCatching { sharingApi.revokeShare(reminderId, shareId) }
+                .onSuccess { loadShares(reminderId) }
+                .onFailure { e -> _state.update { it.copy(error = friendly(e)) } }
+        }
+    }
+
+    fun cancelInvitation(reminderId: String, invitationId: String) {
+        viewModelScope.launch {
+            runCatching { sharingApi.cancelInvitation(invitationId) }
+                .onSuccess { loadShares(reminderId) }
+                .onFailure { e -> _state.update { it.copy(error = friendly(e)) } }
+        }
+    }
+
+    /* ── QUIÉN TIENE ACCESO A UN RECURSO ─────────────────────────────────
+       El mecanismo GENERAL de compartición (ADR-025), que el móvil no usaba:
+       se comparte con una persona que ya existe en la plataforma y se elige
+       de una lista, no se escribe un correo a ciegas. Para tareas convive con
+       el flujo de invitación por correo de arriba, que sirve para alguien que
+       todavía no tiene cuenta. */
+
+    fun loadResourceShares(kind: ShareableKind, resourceId: String) {
+        viewModelScope.launch {
+            _state.update { it.copy(resourceSharesLoading = true) }
+            repository.sharesForResource(kind, resourceId)
+                .onSuccess { list -> _state.update { it.copy(resourceShares = list, resourceSharesLoading = false) } }
+                .onFailure { e ->
+                    _state.update { it.copy(resourceSharesLoading = false, error = friendly(e)) }
+                }
+        }
+    }
+
+    fun shareResourceWith(
+        kind: ShareableKind,
+        resourceId: String,
+        collaboratorUserId: String,
+        responsibility: Boolean,
+    ) {
+        viewModelScope.launch {
+            repository.shareResource(kind, resourceId, collaboratorUserId, responsibility)
+                .onSuccess {
+                    // Se relee del servidor en vez de añadir a mano lo que
+                    // creemos haber creado: es la lista real la que manda.
+                    loadResourceShares(kind, resourceId)
+                    celebrar(CelebrationTier.CONFIRM, "Compartido")
+                    refresh()
+                }
+                .onFailure { e -> _state.update { it.copy(error = friendly(e)) } }
+        }
+    }
+
+    fun setShareResponsibility(kind: ShareableKind, resourceId: String, shareId: String, responsibility: Boolean) {
+        viewModelScope.launch {
+            repository.setShareResponsibility(shareId, responsibility)
+                .onSuccess { loadResourceShares(kind, resourceId) }
+                .onFailure { e -> _state.update { it.copy(error = friendly(e)) } }
+        }
+    }
+
+    fun revokeResourceShare(kind: ShareableKind, resourceId: String, shareId: String) {
+        viewModelScope.launch {
+            repository.revokeResourceShare(shareId)
+                .onSuccess {
+                    loadResourceShares(kind, resourceId)
+                    refresh()
+                }
+                .onFailure { e -> _state.update { it.copy(error = friendly(e)) } }
+        }
+    }
+
+    /**
+     * CÓMO SE LLAMA ESE REGISTRO, para el encabezado de su ficha.
+     *
+     * Vive aquí y no en la pantalla porque cada tipo guarda su nombre en un
+     * campo distinto —una garantía tiene `product`, un mantenimiento `task`, un
+     * pago `name`— y la ficha es una sola para los catorce.
+     */
+    fun resourceTitle(resource: CreatableResource, id: String): String {
+        val d = _state.value.data
+        return when (resource) {
+            CreatableResource.TASK -> _state.value.reminders.firstOrNull { it.id == id }?.title
+            CreatableResource.PAYMENT -> d.payments.firstOrNull { it.id == id }?.name
+            CreatableResource.MAINTENANCE -> d.maintenance.firstOrNull { it.id == id }?.task
+            CreatableResource.WARRANTY -> d.warranties.firstOrNull { it.id == id }?.product
+            CreatableResource.INVENTORY -> d.inventory.firstOrNull { it.id == id }?.name
+            CreatableResource.DOCUMENT -> d.documents.firstOrNull { it.id == id }?.name
+            CreatableResource.PERSON -> d.people.firstOrNull { it.id == id }?.name
+            CreatableResource.PROJECT -> d.projects.firstOrNull { it.id == id }?.name
+            else -> null
+        }.orEmpty()
+    }
+
+    /**
+     * EL DOCUMENTO COLGADO DE ESE REGISTRO, si lo hay: id y nombre.
+     *
+     * Sale de `document.resourceId`, que es como el backend cuelga un archivo
+     * de otro registro (V37). Se busca entre los documentos ya cargados en vez
+     * de preguntar al servidor: la lista completa ya está en memoria —la usa
+     * la sección de Documentos— y una consulta por ficha abierta sería una
+     * petición por cada toque.
+     *
+     * Devuelve el PRIMERO. Hoy la mecánica es de uno por recurso, que es lo
+     * que el recuadro de la ficha representa.
+     */
+    fun attachedDocument(resource: CreatableResource, id: String): Pair<String, String>? {
+        if (resource == CreatableResource.DOCUMENT) return id to resourceTitle(resource, id)
+        return _state.value.data.documents
+            .firstOrNull { it.resourceId == id }
+            ?.let { it.id to it.name }
+    }
+
+    /**
+     * «Adjuntar un documento A ESTE recurso».
+     *
+     * Anota el destino y abre el formulario de subida. `resourceType` es el
+     * nombre que el backend guarda en `document.resource_type`, en mayúsculas
+     * como lo normaliza `Document#linkTo`.
+     */
+    fun attachDocumentTo(resourceType: String, resourceId: String) {
+        _state.update { it.copy(pendingAttach = resourceType to resourceId) }
+        requestCreate(CreatableResource.DOCUMENT)
+    }
+
+    /** Se cierra el diálogo: la lista deja de tener dueño y no debe sobrevivir. */
+    fun clearResourceShares() {
+        _state.update { it.copy(resourceShares = emptyList(), resourceSharesLoading = false) }
+    }
+
     /** La pregunta ya se hizo; no se repite hasta la próxima alarma. */
     fun permisoAvisosPedido() {
         _state.update { it.copy(pedirPermisoAvisos = false) }
@@ -1880,8 +2153,28 @@ class AppViewModel @Inject constructor(
         _state.update { it.copy(profile = profile) }
     }
 
+    /**
+     * Activa o desactiva el modo Laboral.
+     *
+     * AHORA TAMBIÉN EN EL SERVIDOR. Hasta aquí el modo vivía solo en las
+     * preferencias del teléfono: activarlo en uno no se notaba en otro ni en
+     * la Web, aunque el backend tuviera el endpoint (`POST /me/modes`) desde
+     * BE-038. La preferencia local se conserva —es la que hace que la
+     * interfaz responda al instante, sin esperar a la red— y el servidor se
+     * entera detrás.
+     *
+     * El endpoint es SOLO ADITIVO: activa un modo, no lo apaga. Así que
+     * apagarlo se queda, por ahora, en este dispositivo; es una limitación
+     * del contrato, no un olvido, y se anota aquí para que quien añada el
+     * «disable» al backend sepa que este cliente lo está esperando.
+     */
     fun setLaboralEnabled(enabled: Boolean) {
         prefs.setLaboralEnabled(enabled)
+        if (enabled) {
+            viewModelScope.launch {
+                runCatching { userApi.enableMode(EnableModeRequest("LABORAL")) }
+            }
+        }
         val next = _state.value.copy(laboralEnabled = enabled)
         // Si se apaga estando dentro, el contexto vuelve a Personal en vez de
         // dejar al usuario en una navegación que ya no existe.

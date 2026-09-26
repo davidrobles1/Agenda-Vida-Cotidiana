@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import com.vidacotidiana.app.core.app.AppViewModel
+import com.vidacotidiana.app.core.ui.VidaSections
 import com.vidacotidiana.app.core.ui.VidaTheme
 import com.vidacotidiana.app.core.ui.components.EmptyState
 import com.vidacotidiana.app.core.ui.components.LoadingRows
@@ -82,6 +83,7 @@ fun NotasDiaScreen(viewModel: AppViewModel, navController: NavHostController) {
                 title = "Sin notas este día",
                 body = "Lo que no quieras olvidar de hoy. Se queda pegado al día, no a una lista aparte.",
                 action = "Escribir una" to { viewModel.addNote("") },
+                section = VidaSections.Calendario,
             )
 
             else -> {
