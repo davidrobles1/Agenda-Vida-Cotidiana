@@ -47,4 +47,35 @@ object LoginTheme {
 
     /** Filete del pie y divisor del hero. */
     val hairline = Color(0x1F2C425B)
+
+    /*
+     * ADR-027 · Pantalla de inicio: los colores del artefacto aprobado
+     * «Mariposa Aprobada», que es su fuente de verdad. Sustituyen en ESTA
+     * pantalla la crema y el terracota del template; el Custom Tab de Keycloak
+     * no cambia.
+     */
+
+    /** `.intro{background}`. */
+    val introSurface = Color(0xFFFFFFFF)
+
+    /** `.jor` — «Jornada». */
+    val introWordmark = Color(0xFF2B2870)
+
+    /** `.quote`. */
+    val introQuote = Color(0xFF3C3E8B)
+
+    /** `.meraki`. */
+    val introScript = Color(0xFF3F5BB8)
+
+    /** `.hdiv` — `rgba(79,143,216,.38)`. */
+    val introDivider = Color(0x614F8FD8)
+
+    /** `.ffoot .hair` — `rgba(21,23,31,.1)`. */
+    val introHairline = Color(0x1A15171F)
+
+    /** `.ffoot .slo`. */
+    val introCaption = Color(0xFF566078)
+
+    /** `.cover` — el índigo en el que termina la transición antes del login. */
+    val introCover = Color(0xFF3A3C8A)
 }

@@ -5,9 +5,12 @@
   que no se generan PNG por densidad. Habría sido peso muerto y una segunda
   versión del icono que mantener sincronizada.
 
-  `ic_launcher` e `ic_launcher_round` apuntan a la misma composición: la marca
-  está centrada y cabe en el círculo garantizado, así que la variante redonda
-  no necesita un dibujo distinto — y tenerlo distinto sería tener dos logos.
+  `ic_launcher` e `ic_launcher_round` apuntan a la misma composición (ADR-027,
+  la mariposa del artefacto aprobado): tener un dibujo distinto para la
+  variante redonda sería tener dos logos. La mariposa ocupa la zona visible
+  como en la placa del artefacto; en lanzadores con máscara CIRCULAR las puntas
+  de las alas superiores quedan ~1.5 dp fuera del círculo y se recortan. Con la
+  squircle de Samsung (el dispositivo de referencia) caben enteras.
 -->
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
     <background android:drawable="@drawable/ic_launcher_background" />

@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vidacotidiana.app.core.ui.VidaSpacing
 import com.vidacotidiana.app.core.ui.VidaTheme
+import com.vidacotidiana.app.core.ui.brand.ButterflyMark
 import com.vidacotidiana.app.navigation.AppContext
 import com.vidacotidiana.app.navigation.Destination
 import com.vidacotidiana.app.core.ui.VidaLayout
@@ -235,24 +236,15 @@ fun VidaDrawerContent(
             .padding(horizontal = VidaSpacing.md, vertical = VidaSpacing.lg),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        // La marca «A · Tiempo»: el arco pesa más que el nombre, igual que en
-        // la Web. No cambia de forma entre temas; solo de color.
+        // ADR-027: la mariposa del artefacto aprobado sustituye al arco del
+        // día. Es el mismo dibujo del icono y de la pantalla de inicio, a todo
+        // color y sin placa; no cambia de forma ni de color entre temas.
         Row(
             Modifier.padding(start = 8.dp, bottom = VidaSpacing.md),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(VidaSpacing.sm),
         ) {
-            Box(
-                Modifier.size(width = 48.dp, height = 24.dp).drawBehind {
-                    drawArc(
-                        color = c.second, startAngle = 200f, sweepAngle = 120f, useCenter = false,
-                        topLeft = Offset(0f, 2f),
-                        size = Size(size.width * 0.92f, size.height * 1.9f),
-                        style = Stroke(width = 4.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round),
-                    )
-                    drawCircle(color = c.second, radius = 4.5.dp.toPx(), center = Offset(size.width * 0.87f, size.height * 0.62f))
-                },
-            )
+            ButterflyMark(size = 40.dp)
             Text(
                 "Cotidiana",
                 style = MaterialTheme.typography.headlineMedium.copy(

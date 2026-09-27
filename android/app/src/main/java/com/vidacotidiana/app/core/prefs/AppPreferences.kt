@@ -121,7 +121,33 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
         prefs.edit { putStringSet(KEY_READ_NOTICES, updated) }
     }
 
+    /* ══════════════════════════════════════════════════════════════════════
+       DOCUMENTOS FAVORITOS
+       ══════════════════════════════════════════════════════════════════════ */
+
+    private val _favoriteDocuments = MutableStateFlow(prefs.getStringSet(KEY_FAVORITE_DOCS, null).orEmpty())
+
+    /**
+     * Los documentos que el usuario marcó con estrella.
+     *
+     * EN EL DISPOSITIVO, como el tema y los avisos leídos: el backend no tiene
+     * columna de favorito en `documents` y la propuesta aprobada de Documentos
+     * (2026-09-26) sólo pide poder tenerlos «a la mano». Una marca personal de
+     * acceso rápido no justifica migración ni endpoint en V1; la limitación
+     * —no viaja a otros dispositivos ni a la Web— es la misma que ya se acepta
+     * para el tema (ADR-016(d)).
+     */
+    val favoriteDocuments: StateFlow<Set<String>> = _favoriteDocuments.asStateFlow()
+
+    fun setDocumentFavorite(id: String, favorite: Boolean) {
+        val updated = if (favorite) _favoriteDocuments.value + id else _favoriteDocuments.value - id
+        if (updated == _favoriteDocuments.value) return
+        _favoriteDocuments.value = updated
+        prefs.edit { putStringSet(KEY_FAVORITE_DOCS, updated) }
+    }
+
     private companion object {
+        const val KEY_FAVORITE_DOCS = "favorite_documents"
         const val KEY_THEME = "visual_theme"
         const val KEY_PROFILE = "professional_profile"
         const val KEY_LABORAL = "laboral_enabled"

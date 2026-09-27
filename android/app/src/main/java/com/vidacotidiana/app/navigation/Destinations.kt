@@ -88,6 +88,25 @@ object Routes {
 
     fun documentRoute(documentId: String) = "documento/$documentId"
 
+    /*
+     * DOCUMENTOS, propuesta aprobada 2026-09-26: la sección deja de ser una
+     * lista única y se reparte en cuatro vistas — resumen, una colección
+     * (categoría o acceso rápido), búsqueda global y detalle del documento.
+     */
+    const val DOCUMENT_DETAIL = "documentos/doc/{documentId}"
+
+    fun documentDetailRoute(documentId: String) = "documentos/doc/$documentId"
+
+    /** `key` es un código de categoría (`COMPROBANTES`) o un acceso rápido (`_RECIENTES`). */
+    const val DOCUMENT_COLLECTION = "documentos/col/{key}"
+
+    fun documentCollectionRoute(key: String) = "documentos/col/$key"
+
+    const val DOCUMENT_SEARCH = "documentos/buscar?q={q}"
+
+    fun documentSearchRoute(query: String = "") =
+        "documentos/buscar?q=" + android.net.Uri.encode(query)
+
     /**
      * LA FICHA GENÉRICA de un recurso, con su tipo en la ruta.
      *

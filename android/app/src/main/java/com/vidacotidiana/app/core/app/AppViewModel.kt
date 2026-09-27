@@ -1438,6 +1438,41 @@ class AppViewModel @Inject constructor(
         else -> "*/*"
     }
 
+    /** Favoritos de Documentos: marca local, ver `AppPreferences.favoriteDocuments`. */
+    val favoriteDocuments: kotlinx.coroutines.flow.StateFlow<Set<String>> get() = prefs.favoriteDocuments
+
+    fun toggleDocumentFavorite(id: String) {
+        prefs.setDocumentFavorite(id, id !in prefs.favoriteDocuments.value)
+    }
+
+    /**
+     * «Descargar»: guardar una copia donde el usuario elija.
+     *
+     * El destino lo da el selector del sistema (`ACTION_CREATE_DOCUMENT`), así
+     * que Cotidiana no pide permiso de almacenamiento ni monta un gestor de
+     * descargas propio: escribe en la `Uri` que Android le concede y nada más.
+     */
+    fun saveDocumentTo(context: android.content.Context, id: String, target: android.net.Uri) {
+        viewModelScope.launch {
+            _state.update { it.copy(saving = true) }
+            repository.documentBytes(id)
+                .mapCatching { bytes ->
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        context.contentResolver.openOutputStream(target)?.use { it.write(bytes) }
+                            ?: error("No se pudo escribir el archivo")
+                    }
+                }
+                .onSuccess {
+                    _state.update { it.copy(saving = false) }
+                    android.widget.Toast.makeText(context, "Documento guardado", android.widget.Toast.LENGTH_SHORT).show()
+                }
+                .onFailure { e -> _state.update { it.copy(saving = false, error = e.message ?: "No se pudo guardar") } }
+        }
+    }
+
+    /** El tipo MIME por extensión, para quien necesita anunciarlo antes de tener los bytes. */
+    fun documentMime(name: String): String = guessMime(name)
+
     /** Visible para toda la familia, o solo para mí (ADR-025). */
     fun setDocumentFamilyVisible(id: String, visible: Boolean) {
         val doc = _state.value.data.documents.firstOrNull { it.id == id } ?: return

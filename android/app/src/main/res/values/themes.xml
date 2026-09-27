@@ -6,5 +6,11 @@
       a physical device (Samsung Galaxy, Android 16) mid-login: the redirect
       back from Keycloak reached the app and then crashed here.
     -->
-    <style name="Theme.VidaCotidiana" parent="Theme.AppCompat.Light.NoActionBar" />
+    <style name="Theme.VidaCotidiana" parent="Theme.AppCompat.Light.NoActionBar">
+        <!-- ADR-027: la apertura del artefacto es blanca de principio a fin
+             (la placa que se expande desde el icono y la pantalla de inicio).
+             Sin esto, entre el lanzador y el primer cuadro de Compose asomaba
+             el gris claro del tema AppCompat. -->
+        <item name="android:windowBackground">@android:color/white</item>
+    </style>
 </resources>

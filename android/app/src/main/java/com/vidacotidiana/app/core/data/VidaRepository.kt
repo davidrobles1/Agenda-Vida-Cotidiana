@@ -110,6 +110,14 @@ data class Document(
     val resourceType: String? = null,
     val resourceId: String? = null,
     val version: Int,
+    /**
+     * Cuándo se subió, con hora, en la zona del teléfono.
+     *
+     * `dateLabel` ya pinta el día, pero no sirve para ORDENAR —«Recientes» y
+     * los criterios de orden de la sección— ni para decir «Ayer» o la hora
+     * exacta en el detalle. El DTO siempre lo trajo (`createdAt`).
+     */
+    val createdAt: java.time.LocalDateTime? = null,
 )
 
 data class Payment(
@@ -1356,7 +1364,18 @@ private fun DocumentDto.toDomain() = Document(
     resourceType = resourceType,
     resourceId = resourceId,
     version = version,
+    createdAt = parseDateTime(createdAt),
 )
+
+/** Instante ISO → fecha y hora locales. Una fecha sola cae a medianoche. */
+private fun parseDateTime(value: String?): java.time.LocalDateTime? {
+    if (value.isNullOrBlank()) return null
+    return runCatching { Instant.parse(value).atZone(ZoneId.systemDefault()).toLocalDateTime() }
+        .recoverCatching { java.time.OffsetDateTime.parse(value).atZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime() }
+        .recoverCatching { java.time.LocalDateTime.parse(value) }
+        .recoverCatching { LocalDate.parse(value.take(10)).atStartOfDay() }
+        .getOrNull()
+}
 
 /**
  * El tamaño con la unidad que le corresponde: B, KB o MB según la magnitud.

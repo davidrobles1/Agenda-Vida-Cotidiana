@@ -300,3 +300,45 @@ private fun renderPdf(bytes: ByteArray): List<ImageBitmap> {
         tmp.delete()
     }
 }
+
+/**
+ * La miniatura del detalle: la PRIMERA página de un PDF o la imagen reducida.
+ *
+ * Mismo camino que el visor —`PdfRenderer` y el decodificador del sistema, sin
+ * dependencias—, pero a 720 px de ancho: es un recuadro de previsualización, y
+ * rasterizar las veinte páginas de un contrato para enseñar la portada sería
+ * gastar memoria en balde.
+ */
+internal fun renderPreview(bytes: ByteArray): ImageBitmap? {
+    val esPdf = bytes.size > 4 && bytes[0] == '%'.code.toByte() && bytes[1] == 'P'.code.toByte() &&
+        bytes[2] == 'D'.code.toByte() && bytes[3] == 'F'.code.toByte()
+    if (!esPdf) {
+        val bounds = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+        var sample = 1
+        while (bounds.outWidth / (sample * 2) >= 720) sample *= 2
+        val opts = android.graphics.BitmapFactory.Options().apply { inSampleSize = sample }
+        return android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size, opts)?.asImageBitmap()
+    }
+    val tmp = File.createTempFile("previa", ".pdf")
+    return try {
+        tmp.writeBytes(bytes)
+        ParcelFileDescriptor.open(tmp, ParcelFileDescriptor.MODE_READ_ONLY).use { fd ->
+            PdfRenderer(fd).use { renderer ->
+                if (renderer.pageCount == 0) return null
+                renderer.openPage(0).use { page ->
+                    val ancho = minOf(720, page.width * 2)
+                    val alto = (ancho.toFloat() / page.width * page.height).toInt().coerceAtLeast(1)
+                    val bmp = Bitmap.createBitmap(ancho, alto, Bitmap.Config.ARGB_8888)
+                    bmp.eraseColor(android.graphics.Color.WHITE)
+                    page.render(bmp, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+                    bmp.asImageBitmap()
+                }
+            }
+        }
+    } catch (e: Exception) {
+        null
+    } finally {
+        tmp.delete()
+    }
+}

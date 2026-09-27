@@ -991,3 +991,150 @@ Fuera del alcance de estas dos fases, sin planificar:
   registro desde dentro de un proyecto.
 - **Gestión de participantes en Android.** Esta fase solo muestra el conteo; el
   alta y la baja viven en Web.
+
+---
+
+## ADR-027 Android: la mariposa sustituye al arco del día en el icono y la pantalla de inicio
+
+**Fecha:** 2026-09-26
+**Estado:** Aprobado (Product Owner, 2026-09-26)
+**Fuente de verdad visual:** artefacto aprobado «Mariposa Aprobada»
+(`https://claude.ai/artifact/ATLfUDy9UsR9aBo1BNCe76`). Ante cualquier duda de
+forma, color o tiempo, manda el artefacto.
+
+### Contexto
+
+El icono del lanzador Android mostraba el arco del día con el punto en el cenit
+(ADR-024) sobre crema, y la pantalla de inicio (`IntroScreen`) usaba el mismo
+logo sobre la crema y la foto `login_fondo.jpg` del template de Keycloak. El
+Product Owner aprobó un artefacto que cambia ambos.
+
+### Decisión
+
+(a) **Icono del lanzador:** la mariposa facetada del artefacto sobre su fondo
+degradado azul (`BG`). La geometría se GENERA desde el SVG del artefacto, no se
+redibuja (`ic_launcher_foreground.xml`, `ic_launcher_monochrome.xml`,
+`ic_launcher_bg.webp`). La caja de 215 del dibujo se ajusta a la zona visible
+de 72/108 dp del icono adaptativo.
+
+(b) **Pantalla de inicio:** fondo blanco `#FFFFFF`, sin foto. Mariposa de
+124 dp aleteando con el mismo giro 3D del CSS (`rotateY ±64°`, `perspective
+3.4×`, batida de 0,62 s), «Jornada» en Fraunces 300 `#2B2870`, cita y «Meraki»
+en índigo. Transición: desvanecido a 2,05 s, crecimiento de la mariposa
+(1,25 s) hasta cubrir la pantalla, velo `#3A3C8A` y, entonces, el Custom Tab de
+Keycloak (unos 3,6 s en total, espera aceptada por el Product Owner).
+
+(c) **Arranque del sistema (Android 12+):** blanco y sin icono, igual que la
+placa blanca que se expande en el artefacto; con icono la mariposa aparecería
+dos veces seguidas.
+
+(d) **Tipografía con tamaño óptico:** se empaquetan los mismos ficheros de
+Fraunces variable (`opsz`) que sirve Google Fonts al artefacto
+(`fraunces_vf.ttf`, `fraunces_italic_vf.ttf`, ~200 KB), para reproducir el
+`font-optical-sizing: auto` del navegador y la cursiva real de la cita.
+
+### Alcance: qué NO cambia
+
+- El login de Keycloak (tema `vida-cotidiana-mobile`) no cambia.
+- En Android, la mariposa sustituye al arco del día en TODAS las apariciones
+  del logo: icono, arranque, pantalla de inicio, cabecera del menú lateral
+  (`VidaDrawerContent`, que dibujaba el arco a mano sin pasar por `BrandMark`)
+  y la marca de agua de `HeroCard` (silueta). `BrandMark.kt` queda sin uso en
+  Android. Los nombres de contexto de ADR-024(a) (Jornada, Cotidiana, Oficio)
+  no cambian.
+- En la Web sigue vigente el arco del día de ADR-024.
+
+### Consecuencias y límites de plataforma
+
+- **El icono no aletea en el lanzador:** los iconos adaptativos de Android son
+  estáticos. Es un límite de la plataforma, no una desviación elegida. El icono
+  es el cuadro en reposo del artefacto.
+- En lanzadores con máscara **circular**, las puntas de las alas superiores
+  quedan unos 1,5 dp fuera y se recortan. Con la squircle de Samsung (el
+  dispositivo de referencia) caben enteras.
+- Única adición respecto al artefacto: si el usuario cierra el formulario sin
+  terminar, la pantalla vuelve al reposo (mariposa aleteando y textos visibles)
+  con el botón «Entrar», que repite la transición.
+- **DOCUMENTATION_CONFLICT resuelto:** la palabra «Meraki», que se había dado
+  por retirada, se conserva porque la muestra el artefacto aprobado.
+
+### TBD
+
+- iOS y Web: todavía no adoptan la mariposa. Hace falta una decisión del Product Owner.
+
+## ADR-028 Android: rediseño del módulo Documentos (resumen, categorías, búsqueda y detalle)
+
+**Fecha:** 2026-09-26
+**Estado:** Aprobado (Product Owner, 2026-09-26)
+**Fuente de verdad visual:** la propuesta de cuatro pantallas que compartió el
+Product Owner (resumen, categoría, búsqueda y detalle).
+**Plataforma:** Android. Web e iOS: TBD.
+
+### Contexto
+
+Documentos abría con la lista de todos los archivos. Con muchos documentos, la
+pantalla se volvía difícil de recorrer y no ofrecía accesos rápidos ni una
+búsqueda global.
+
+### Decisión
+
+La sección se divide en cuatro vistas:
+
+1. **Resumen**: tres cifras (documentos, espacio usado y categorías en uso),
+   un buscador con dictado por voz, accesos rápidos (Recientes, Favoritos y
+   Compartidos), «Mis categorías» y los tres documentos más recientes.
+2. **Colección**: sirve tanto para una categoría como para un acceso rápido.
+   Tiene buscador local, orden (recientes, antiguos, nombre o tamaño), chips
+   Todos/Recientes/Favoritos/Más (Compartidos, Solo yo, Adjuntos) y paginación
+   local de 8 en 8 con «Cargar más».
+3. **Búsqueda global**: busca por nombre, categoría o fecha, con los chips
+   Todo, Documentos, Categorías y Fechas.
+4. **Detalle**: muestra la identidad del documento, fecha, tamaño y quién lo
+   ve; las acciones Abrir, Descargar, Compartir y Favorito; la ficha de
+   información y la vista previa de la primera página.
+
+Cómo se implementa cada acción:
+
+- **Abrir:** usa el visor interno existente.
+- **Descargar:** usa `ACTION_CREATE_DOCUMENT`, sin permisos de almacenamiento.
+- **Compartir:** abre la compartición interna (ADR-025).
+- **⇪:** abre el selector de Android para mandar el archivo a otra app.
+- **Dictado por voz:** usa el `RecognizerIntent` del sistema, sin permiso de
+  micrófono.
+
+Todo esto aplica el criterio «coexistir con el teléfono».
+
+**Cabecera del detalle con lámina de fondo** (ajuste del Product Owner, 2026-09-26):
+
+- La cabecera lleva detrás una ilustración REPRESENTATIVA de la categoría:
+  hojas, gráfica, escudo, credencial, firma o carpeta.
+- No usa el documento real, para no exponer datos sensibles a quien mire la
+  pantalla. El contenido real sólo aparece en «Vista previa».
+- Se dibuja en `Canvas` (`DocumentHeroArt.kt`) y se funde hacia la izquierda y
+  hacia abajo para que el texto que va encima se lea.
+- La barra superior flota sobre la lámina y se vuelve opaca al desplazar.
+
+### Alcance: qué NO cambia
+
+- No hay cambios de backend, endpoints ni migraciones.
+- Las categorías siguen siendo las cinco del CHECK de V12.
+
+### Desviaciones respecto a la propuesta
+
+- **Categorías de la propuesta que no existen:** Casa, Auto y Salud no existen
+  en el backend y no se inventaron. Se muestran las cinco reales, con 4
+  visibles y «Ver todas».
+- **Búsqueda por contenido:** la propuesta la menciona, pero no se implementa
+  porque el backend no indexa el texto. → TBD.
+- **Favoritos:** son una marca local del dispositivo (`AppPreferences`). No se
+  sincronizan con otros dispositivos ni con la Web, la misma limitación
+  aceptada en ADR-016(d). ASSUMPTION: basta para V1.
+- **«Reciente»:** significa subido en los últimos 30 días. Es una
+  RECOMMENDATION, porque la propuesta no fija la ventana.
+
+### TBD
+
+- Añadir categorías nuevas (Casa, Auto, Salud): decisión de producto con migración.
+- Búsqueda en el contenido de los documentos.
+- Favoritos sincronizados en el servidor.
+- Adoptar este diseño en Web e iOS.

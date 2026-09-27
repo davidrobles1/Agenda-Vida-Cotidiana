@@ -1,166 +1,332 @@
 package com.vidacotidiana.app.feature.documents
 
+import android.content.Intent
+import android.speech.RecognizerIntent
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.outlined.AttachFile
 import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.Group
+import androidx.compose.material.icons.outlined.Mic
+import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.StarOutline
+import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material3.DrawerState
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
-import com.vidacotidiana.app.navigation.Routes
 import com.vidacotidiana.app.core.app.AppViewModel
 import com.vidacotidiana.app.core.app.CreatableResource
-import com.vidacotidiana.app.core.ui.components.BulkAction
-import com.vidacotidiana.app.core.ui.components.PillTone
-import com.vidacotidiana.app.core.ui.components.ResourceEntry
+import com.vidacotidiana.app.core.app.sliceError
+import com.vidacotidiana.app.core.data.DataSlice
+import com.vidacotidiana.app.core.data.ShareableKind
 import com.vidacotidiana.app.core.ui.VidaSections
 import com.vidacotidiana.app.core.ui.VidaTheme
-import com.vidacotidiana.app.core.ui.components.VidaTileRow
-import com.vidacotidiana.app.core.ui.components.VidaTileSpec
-import com.vidacotidiana.app.core.ui.components.ResourceListScreen
-import com.vidacotidiana.app.core.ui.components.plural
-import kotlinx.coroutines.CoroutineScope
 import com.vidacotidiana.app.core.ui.VidaVocabulary
-import com.vidacotidiana.app.core.data.DataSlice
-import com.vidacotidiana.app.core.app.sliceError
-import com.vidacotidiana.app.core.data.humanSizeParts
-import com.vidacotidiana.app.core.data.ShareableKind
-import com.vidacotidiana.app.core.app.rememberResourceAccess
-import com.vidacotidiana.app.core.app.Dialogo
+import com.vidacotidiana.app.core.ui.components.EmptyState
+import com.vidacotidiana.app.core.ui.components.LoadingRows
+import com.vidacotidiana.app.core.ui.components.VidaError
+import com.vidacotidiana.app.core.ui.components.VidaIconButton
+import com.vidacotidiana.app.core.ui.components.plural
+import com.vidacotidiana.app.navigation.Routes
+import kotlinx.coroutines.CoroutineScope
 
-/** Documentos. Sección secundaria: se llega desde el menú, con vuelta atrás. */
+/**
+ * DOCUMENTOS — «Pantalla principal · Resumen inteligente» de la propuesta
+ * aprobada el 2026-09-26.
+ *
+ * El cambio de fondo: la sección ya no abre con la lista de TODOS los
+ * archivos. Abre con un resumen —cuántos hay, cuánto ocupan, en cuántas
+ * categorías—, los accesos rápidos, las categorías y los tres últimos. La
+ * lista completa sigue existiendo, pero se llega a ella por categoría, por
+ * acceso rápido o buscando.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DocumentsScreen(
     viewModel: AppViewModel,
-    drawerState: DrawerState,
-    scope: CoroutineScope,
+    @Suppress("UNUSED_PARAMETER") drawerState: DrawerState,
+    @Suppress("UNUSED_PARAMETER") scope: CoroutineScope,
     navController: NavHostController,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val favorites by viewModel.favoriteDocuments.collectAsStateWithLifecycle()
+    val c = VidaTheme.colors
     val context = LocalContext.current
     val documents = state.data.documents
+    val actions = rememberDocumentActions(viewModel, navController)
+    val error = state.sliceError(DataSlice.DOCUMENTS)
 
-    // QUIÉN TIENE ACCESO: el diálogo lo monta el controlador, y la
-
-    // sección solo dice sobre qué recurso se abre.
-
-    val acceso = rememberResourceAccess(viewModel)
-
-    val compartidos = state.data.sharedByMe
-
+    val sharedCounts = state.data.sharedByMe
         .filter { it.kind == ShareableKind.DOCUMENT }
-
         .groupingBy { it.resourceId }.eachCount()
 
-    val entries = documents.map {
-        val familyVisible = it.visibility != "PRIVATE"
-        ResourceEntry(
-            id = it.id,
-            onAccess = { acceso.abrir(ShareableKind.DOCUMENT, it.id, it.name) },
-            sharedWith = compartidos[it.id] ?: 0,
-            title = it.name,
-            subtitle = "${VidaVocabulary.human(it.category)} · ${it.sizeLabel} · ${it.dateLabel}",
-            icon = Icons.Outlined.Description,
-            // El tamaño como cifra destacada: es lo que hace que la sección sea
-            // una RETÍCULA de piezas y no una lista, y de paso lo que más
-            // distingue un documento de otro al ojearlos.
-            highlight = it.sizeLabel,
-            group = VidaVocabulary.human(it.category),
-            // ADR-025: los documentos se comparten SOLO para verlos, así que la
-            // píldora dice quién los ve, no quién puede tocarlos.
-            pill = when (it.visibility) {
-                "PRIVATE" -> "Solo yo" to PillTone.QUIET
-                "FAMILY_PUBLIC" -> "Toda la familia" to PillTone.NEUTRAL
-                else -> "Compartido" to PillTone.NEUTRAL
-            },
-            // PARIDAD CON WEB: la Web permite editar, descargar, compartir,
-            // hacer visible u ocultar a la familia y eliminar. Android solo
-            // listaba y subía. Todos usan endpoints que ya existían.
-            onEdit = { viewModel.requestEdit(CreatableResource.DOCUMENT, it.id) },
-            // Un documento no se «completa»: no existe ese estado en su backend.
-            //
-            // VER ES AHORA DENTRO. Antes esto lanzaba un intent al lector del
-            // sistema, lo que significaba sacar de la aplicación un archivo
-            // que puede ser una identificación o un contrato. Salir a otra
-            // aplicación sigue disponible, pero como acción aparte y pedida.
-            onOpen = { navController.navigate(Routes.documentRoute(it.id)) },
-            openLabel = "Ver documento",
-            // QUÉ ES, en el antetítulo. El backend solo acepta cinco tipos
-            // —PDF, PNG, JPEG, WEBP y GIF (`ALLOWED_CONTENT_TYPES`)—, así que
-            // todo lo que hay aquí se puede abrir con lo que el teléfono ya
-            // trae. Decirlo en la tarjeta ahorra abrir para averiguarlo.
-            typeTag = it.name.substringAfterLast('.', "").uppercase().ifBlank { null },
-            onDelete = { viewModel.deleteResource(CreatableResource.DOCUMENT, it.id) },
-            extraActions = listOf(
-                // El nombre dice a dónde va. «Compartir archivo» se confundía
-                // con compartirlo dentro de Cotidiana, que es lo que hace el
-                // botón de acceso de arriba y lo que casi siempre se quiere.
-                "Abrir en otra app" to { viewModel.shareDocumentFile(context, it.id, it.name) },
-                (if (familyVisible) "Ocultar a la familia" else "Ver toda la familia") to {
-                    viewModel.setDocumentFamilyVisible(it.id, !familyVisible)
-                },
-            ),
-        )
+    // BUSCAR POR VOZ con el reconocedor del teléfono: Cotidiana no graba ni
+    // pide permiso de micrófono; el sistema escucha y devuelve el texto.
+    val voice = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val text = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
+        if (!text.isNullOrBlank()) navController.navigate(Routes.documentSearchRoute(text))
     }
-    val categories = listOf("Todas") + documents.map { VidaVocabulary.human(it.category) }.distinct().sorted()
+    val onMic = {
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+            .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            .putExtra(RecognizerIntent.EXTRA_PROMPT, "Buscar documentos")
+        runCatching { voice.launch(intent) }.onFailure {
+            Toast.makeText(context, "El dictado por voz no está disponible en este teléfono", Toast.LENGTH_SHORT).show()
+        }
+        Unit
+    }
 
-    ResourceListScreen(
-        // La ficha del recurso, en su ventana. Antes esto caía en la
-        // hoja deslizante que ya no existe.
-        onOpenRoute = { navController.navigate(Routes.resourceRoute("DOCUMENT", it.id)) },
-        // Retícula del artefacto. La tercera pieza es la que hace visible la
-        // mecánica genérica de V37: cuántos documentos cuelgan de un recurso.
-        header = {
-            // La unidad se escoge según el tamaño, con el mismo formateador que
-            // usa cada fila de la lista: antes esto dividía siempre entre megas
-            // y un archivo de 1 KB salía como «0.0 MB».
-            val (espacio, unidad) = humanSizeParts(documents.sumOf { it.sizeBytes })
-            val adjuntos = documents.count { it.resourceId != null }
-            VidaTileRow(
-                listOf(
-                    VidaTileSpec("Documentos", documents.size.toString(), "guardados",
-                        VidaTheme.colors.primaryContainer, VidaTheme.colors.primary, VidaTheme.colors.primaryDeep,
-                        weight = 1.32f),
-                    VidaTileSpec("Espacio", espacio, unidad,
-                        VidaTheme.colors.sunken, VidaTheme.colors.text, VidaTheme.colors.textSecondary),
-                    VidaTileSpec("Adjuntos", adjuntos.toString(), "a un recurso",
-                        VidaTheme.colors.secondContainer, VidaTheme.colors.second, VidaTheme.colors.second),
-                ),
+    var allCategories by rememberSaveable { mutableStateOf(false) }
+
+    PullToRefreshBox(
+        isRefreshing = state.loading && documents.isNotEmpty(),
+        onRefresh = viewModel::refresh,
+        modifier = Modifier.fillMaxSize().background(c.surface),
+    ) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .statusBarsPadding()
+                .padding(horizontal = 18.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            // ── Cabecera: título, «+» y campana ──────────────────────────────
+            Row(Modifier.fillMaxWidth().padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        "Documentos",
+                        style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold, fontSize = 28.sp),
+                        color = c.text,
+                    )
+                    Text("Todo lo importante, cuando lo necesitas.", style = MaterialTheme.typography.bodyMedium, color = c.textSecondary)
+                }
+                VidaIconButton(Icons.Filled.Add, "Subir documento", tint = c.text) {
+                    viewModel.requestCreate(CreatableResource.DOCUMENT)
+                }
+                VidaIconButton(
+                    Icons.Outlined.Notifications, "Avisos", tint = c.text,
+                    badge = viewModel.avisosSinLeer() > 0,
+                ) { navController.navigate(Routes.NOTIFICATIONS) }
+            }
+
+            when {
+                state.loading && documents.isEmpty() -> LoadingRows(4)
+                error != null && documents.isEmpty() -> VidaError(
+                    title = "No pudimos cargar tus documentos",
+                    body = error,
+                    onRetry = viewModel::refresh,
+                )
+                documents.isEmpty() -> EmptyState(
+                    title = "Aún no hay documentos",
+                    body = "Sube un documento para tenerlo siempre a mano.",
+                    action = "Subir documento" to { viewModel.requestCreate(CreatableResource.DOCUMENT) },
+                    section = VidaSections.Documentos,
+                )
+                else -> {
+                    // ── Resumen: tres cifras ─────────────────────────────────
+                    val (space, unit) = totalSizeParts(documents.sumOf { it.sizeBytes })
+                    val categoriesInUse = documents.map { it.category }.distinct().size
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        StatTile(Icons.Outlined.Description, documents.size.toString(),
+                            if (documents.size == 1) "documento" else "documentos", Modifier.weight(1f))
+                        StatTile(Icons.Outlined.Storage, "$space $unit", "usados", Modifier.weight(1f))
+                        StatTile(Icons.Outlined.AttachFile, categoriesInUse.toString(),
+                            if (categoriesInUse == 1) "categoría" else "categorías", Modifier.weight(1f))
+                    }
+
+                    // ── Buscador: atajo a la búsqueda global ─────────────────
+                    DocSearchBox(
+                        value = "",
+                        placeholder = "Buscar documentos…",
+                        onClick = { navController.navigate(Routes.documentSearchRoute()) },
+                        trailing = { VidaIconButton(Icons.Outlined.Mic, "Buscar por voz", onClick = onMic) },
+                    )
+
+                    // ── Accesos rápidos ──────────────────────────────────────
+                    DocSectionTitle("Accesos rápidos")
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        QuickTile(
+                            Icons.Outlined.Schedule, "Recientes", documents.count { it.isRecent() },
+                            DocTone(c.info, c.infoContainer), Modifier.weight(1f),
+                        ) { navController.navigate(Routes.documentCollectionRoute(DocCollections.RECENT)) }
+                        QuickTile(
+                            Icons.Outlined.StarOutline, "Favoritos", documents.count { it.id in favorites },
+                            DocTone(c.warning, c.warningContainer), Modifier.weight(1f),
+                        ) { navController.navigate(Routes.documentCollectionRoute(DocCollections.FAVORITES)) }
+                        QuickTile(
+                            Icons.Outlined.Group, "Compartidos", documents.count { it.isShared(sharedCounts[it.id] ?: 0) },
+                            DocTone(c.second, c.secondContainer), Modifier.weight(1f),
+                        ) { navController.navigate(Routes.documentCollectionRoute(DocCollections.SHARED)) }
+                    }
+
+                    // ── Mis categorías ───────────────────────────────────────
+                    // Las cinco del backend más cualquiera que llegue sin estar
+                    // en el vocabulario; la más usada primero.
+                    val known = VidaVocabulary.documentCategories.map { it.first }
+                    val keys = (known + documents.map { it.category }).distinct()
+                    val counts = documents.groupingBy { it.category }.eachCount()
+                    val ordered = keys.sortedByDescending { counts[it] ?: 0 }
+                    val visible = if (allCategories) ordered else ordered.take(4)
+                    DocSectionTitle(
+                        "Mis categorías",
+                        action = if (ordered.size > 4) (if (allCategories) "Ver menos" else "Ver todas") else null,
+                        onAction = { allCategories = !allCategories },
+                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        visible.chunked(2).forEach { pair ->
+                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                pair.forEach { key ->
+                                    CategoryCard(categoryVisual(key), counts[key] ?: 0, Modifier.weight(1f)) {
+                                        navController.navigate(Routes.documentCollectionRoute(key))
+                                    }
+                                }
+                                if (pair.size == 1) Spacer(Modifier.weight(1f))
+                            }
+                        }
+                    }
+
+                    // ── Recientes ────────────────────────────────────────────
+                    DocSectionTitle("Recientes", action = "Ver todos") {
+                        navController.navigate(Routes.documentCollectionRoute(DocCollections.ALL))
+                    }
+                    Column {
+                        documents.sortedWith(NewestFirst).take(3).forEach { doc ->
+                            val visual = categoryVisual(doc.category)
+                            DocumentRow(
+                                doc = doc,
+                                meta = "${visual.label} · ${doc.sizeLabel} · ${doc.relativeLabel()}",
+                                tone = visual.tone,
+                                favorite = doc.id in favorites,
+                                actions = actions,
+                                onClick = { actions.details(doc) },
+                            )
+                        }
+                    }
+                }
+            }
+            Spacer(Modifier.height(24.dp))
+        }
+    }
+
+    actions.Dialogs(viewModel)
+}
+
+/** Una cifra del resumen: icono, número y unidad. */
+@Composable
+private fun StatTile(icon: ImageVector, value: String, label: String, modifier: Modifier = Modifier) {
+    val c = VidaTheme.colors
+    Column(
+        modifier.docCard().padding(vertical = 14.dp, horizontal = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Icon(icon, contentDescription = null, tint = c.primary, modifier = Modifier.size(24.dp))
+        Text(
+            value,
+            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold, fontSize = 20.sp),
+            color = c.text,
+            maxLines = 1,
+        )
+        Text(label, style = MaterialTheme.typography.bodySmall, color = c.textSecondary, maxLines = 1)
+    }
+}
+
+/** Recientes · Favoritos · Compartidos. */
+@Composable
+private fun QuickTile(
+    icon: ImageVector,
+    label: String,
+    count: Int,
+    tone: DocTone,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    val c = VidaTheme.colors
+    Column(
+        modifier
+            .docCard(tone.bg.copy(alpha = 0.35f))
+            .clip(RoundedCornerShape(18.dp))
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Icon(icon, contentDescription = null, tint = tone.fg, modifier = Modifier.size(24.dp))
+        Column {
+            Text(
+                label,
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                color = c.text,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
-        },
-        title = "Documentos",
-        subtitle = "Lo importante, a mano y en su sitio.",
-        eyebrow = plural(entries.size, "archivo", "archivos"),
-        entries = entries,
-        filters = categories,
-        addLabel = "Subir documento",
-        emptyBody = "Sube un documento para tenerlo siempre a mano.",
-        section = VidaSections.Documentos,
-        loading = state.loading,
-        error = state.sliceError(DataSlice.DOCUMENTS),
-        onRetry = viewModel::refresh,
-        onAdd = { viewModel.requestCreate(CreatableResource.DOCUMENT) },
-        matchesFilter = { entry, f -> f == "Todas" || entry.subtitle.startsWith(f) },
-        // PARIDAD CON WEB: la Web permite bajarse varios documentos en un zip
-        // (`POST /documents/download`) y Android no lo ofrecía, pese a que el
-        // endpoint existía desde el principio.
-        bulkAction = BulkAction(
-            actionLabel = "Descargar zip",
-            allLabel = "Descargar todos",
-            onRun = { ids -> viewModel.downloadDocumentsZip(context, ids) },
-        ),
-        drawerState = drawerState,
-        scope = scope,
-        showBack = true,
-        onBack = { navController.popBackStack() },
-        // La campana lleva de verdad a los avisos, y el punto sale de
-        // cuántos quedan sin leer. Antes era `{}` con `badge = true`.
-        onNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
-        notificationsBadge = viewModel.avisosSinLeer(),
-    )
+            Text("($count)", style = MaterialTheme.typography.bodySmall, color = c.textSecondary)
+        }
+    }
+}
 
-    // Se pinta al final y no compone nada mientras no haya un
-    // recurso abierto.
-    acceso.Dialogo(viewModel)
+/** Tarjeta de categoría, en el color de su categoría. */
+@Composable
+private fun CategoryCard(visual: DocCategoryVisual, count: Int, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    val c = VidaTheme.colors
+    Column(
+        modifier
+            .clip(RoundedCornerShape(18.dp))
+            .background(visual.tone.bg.copy(alpha = 0.55f))
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        DocMark(visual.icon, DocTone(visual.tone.fg, c.surface.copy(alpha = 0.75f)), size = 38.dp, iconSize = 20.dp)
+        Column {
+            Text(
+                visual.label,
+                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
+                color = c.text,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(plural(count, "documento", "documentos"), style = MaterialTheme.typography.bodySmall, color = visual.tone.fg)
+        }
+    }
 }

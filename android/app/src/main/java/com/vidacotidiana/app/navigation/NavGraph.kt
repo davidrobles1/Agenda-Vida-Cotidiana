@@ -89,6 +89,9 @@ import com.vidacotidiana.app.core.attention.AttentionUrgency
 import com.vidacotidiana.app.feature.attention.AtencionScreen
 import com.vidacotidiana.app.core.ui.components.CelebrationLayer
 import com.vidacotidiana.app.feature.documents.DocumentViewerScreen
+import com.vidacotidiana.app.feature.documents.DocumentDetailScreen
+import com.vidacotidiana.app.feature.documents.DocumentCollectionScreen
+import com.vidacotidiana.app.feature.documents.DocumentSearchScreen
 import com.vidacotidiana.app.feature.resources.ResourceDetailScreen
 import androidx.compose.material3.Surface
 import androidx.activity.compose.BackHandler
@@ -476,6 +479,35 @@ fun AppNavGraph(
                             }
                         }
 
+                        composable(Routes.DOCUMENT_DETAIL) { entry ->
+                            DocumentDetailScreen(
+                                viewModel = appViewModel,
+                                navController = navController,
+                                documentId = entry.arguments?.getString("documentId").orEmpty(),
+                            )
+                        }
+                        composable(Routes.DOCUMENT_COLLECTION) { entry ->
+                            DocumentCollectionScreen(
+                                viewModel = appViewModel,
+                                navController = navController,
+                                key = entry.arguments?.getString("key").orEmpty(),
+                            )
+                        }
+                        composable(
+                            Routes.DOCUMENT_SEARCH,
+                            arguments = listOf(
+                                androidx.navigation.navArgument("q") {
+                                    type = androidx.navigation.NavType.StringType
+                                    defaultValue = ""
+                                },
+                            ),
+                        ) { entry ->
+                            DocumentSearchScreen(
+                                viewModel = appViewModel,
+                                navController = navController,
+                                initialQuery = entry.arguments?.getString("q").orEmpty(),
+                            )
+                        }
                         composable(Routes.DOCUMENT_VIEWER) { entry ->
                             DocumentViewerScreen(
                                 viewModel = appViewModel,

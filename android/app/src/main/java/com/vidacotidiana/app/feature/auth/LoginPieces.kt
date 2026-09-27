@@ -31,6 +31,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
@@ -99,80 +100,93 @@ const val PATH_ARROW = "M5 12H18 M13 7L18 12L13 17"
 const val PATH_USER_PLUS =
     "M9 4.5a3.5 3.5 0 1 1 0 7 3.5 3.5 0 0 1 0-7Z M3.5 20C4.2 16.6 6.1 14.5 9 14.5C11.9 14.5 13.8 16.6 14.5 20 M18 8V15 M14.5 11.5H21.5"
 
-/** Candado del pie. */
-const val PATH_LOCK = "M5 10h14a2 2 0 0 1 2 2v8H3v-8a2 2 0 0 1 2-2Z M8 10V7C8 4.79 9.79 3 12 3C14.21 3 16 4.79 16 7V10"
+/** Candado del pie, el de `.ffoot .slo` del artefacto (ADR-027). */
+const val PATH_LOCK = "M7 10h10a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-6a2 2 0 0 1 2-2Z M8 10V7a4 4 0 0 1 8 0v3"
 
 /* --------------------------------------------------------------------------
-   Bloques
+   Bloques de la pantalla de inicio
+   ADR-027: fuente de verdad, el artefacto aprobado «Mariposa Aprobada».
+   Cada medida y color de aquí es la regla CSS que se cita, sin ajustes.
    -------------------------------------------------------------------------- */
 
-/** `.vc-hero-divider`. */
+/** El interlineado de CSS reparte el sobrante arriba y abajo por igual. */
+private val CssLeading = LineHeightStyle(LineHeightStyle.Alignment.Center, LineHeightStyle.Trim.None)
+
+/** `.jor` — «Jornada»: Fraunces 300, 38 px, interlineado 1, −0.02 em. */
+@Composable
+fun IntroWordmark(modifier: Modifier = Modifier) {
+    Text(
+        "Jornada",
+        style = TextStyle(
+            fontFamily = VidaFonts.FrauncesWordmark,
+            fontWeight = FontWeight.Light,
+            fontSize = 38.sp,
+            lineHeight = 38.sp,
+            letterSpacing = TextUnit(-0.02f, TextUnitType.Em),
+            lineHeightStyle = CssLeading,
+        ),
+        color = LoginTheme.introWordmark,
+        modifier = modifier,
+    )
+}
+
+/** `.hdiv` — filete a todo el ancho del bloque. */
 @Composable
 fun HeroDivider(modifier: Modifier = Modifier) {
     Box(
         modifier
-            .width(150.dp)
+            .fillMaxWidth()
             .height(1.dp)
-            .background(LoginTheme.primary.copy(alpha = 0.40f)),
+            .background(LoginTheme.introDivider),
     )
 }
 
-/** `.vc-hero-quote` + `.vc-hero-script-word` + `.vc-hero-text`. */
+/** `.quote` + `.meraki`. */
 @Composable
-fun HeroText(modifier: Modifier = Modifier, compact: Boolean = false) {
+fun HeroText(modifier: Modifier = Modifier) {
     Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
             "“Cada día tiene su propia historia.”",
             style = TextStyle(
-                fontFamily = VidaFonts.Fraunces,
+                fontFamily = VidaFonts.FrauncesQuoteItalic,
                 fontStyle = FontStyle.Italic,
-                fontSize = if (compact) 17.sp else 19.sp,
-                lineHeight = if (compact) 25.sp else 28.sp,
+                fontSize = 19.sp,
+                lineHeight = 28.sp,
+                lineHeightStyle = CssLeading,
             ),
-            color = LoginTheme.terracotta,
+            color = LoginTheme.introQuote,
             textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth(),
         )
         Text(
             "Meraki",
             style = TextStyle(
                 fontFamily = VidaFonts.AlexBrush,
-                fontSize = if (compact) 38.sp else 44.sp,
-                lineHeight = if (compact) 40.sp else 46.sp,
+                fontSize = 44.sp,
+                lineHeight = 46.sp,
+                lineHeightStyle = CssLeading,
             ),
-            color = LoginTheme.terracotta,
-            modifier = Modifier.padding(top = if (compact) 10.dp else 14.dp),
-        )
-        Text(
-            "el acto de poner el alma, la creatividad,\n" +
-                "el amor y la pasión en todo lo que haces.\n" +
-                "Es dejar una huella de tu esencia en tu trabajo.",
-            style = TextStyle(
-                fontFamily = VidaFonts.Inter,
-                fontSize = 13.sp,
-                lineHeight = 19.5.sp,
-            ),
-            color = LoginTheme.textSecondary,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(top = 8.dp),
+            color = LoginTheme.introScript,
+            modifier = Modifier.padding(top = 14.dp),
         )
     }
 }
 
-/** `.vc-form-footer`: filete, candado y eslogan. */
+/** `.ffoot`: filete, candado y eslogan. */
 @Composable
 fun FormFooter(modifier: Modifier = Modifier) {
     Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(Modifier.fillMaxWidth().height(1.dp).background(LoginTheme.hairline))
+        Box(Modifier.fillMaxWidth().height(1.dp).background(LoginTheme.introHairline))
         Row(
             Modifier.padding(top = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            TemplateIcon(PATH_LOCK, LoginTheme.textSecondary, size = 13.dp, strokeWidth = 1.6f)
+            TemplateIcon(PATH_LOCK, LoginTheme.introCaption, size = 13.dp, strokeWidth = 1.8f)
             Text(
                 "Tu hogar, tus momentos, tu agenda.",
-                style = TextStyle(fontFamily = VidaFonts.Fraunces, fontSize = 13.sp),
-                color = LoginTheme.textSecondary,
+                style = TextStyle(fontFamily = VidaFonts.FrauncesCaption, fontSize = 13.sp),
+                color = LoginTheme.introCaption,
             )
         }
     }

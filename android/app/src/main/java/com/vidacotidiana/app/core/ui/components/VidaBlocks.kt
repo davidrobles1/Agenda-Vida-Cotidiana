@@ -65,6 +65,7 @@ import com.vidacotidiana.app.core.ui.VidaLayout
 import com.vidacotidiana.app.core.ui.VidaSpacing
 import com.vidacotidiana.app.core.ui.SectionVisual
 import com.vidacotidiana.app.core.ui.VidaTheme
+import com.vidacotidiana.app.core.ui.brand.Butterfly
 import kotlin.math.roundToInt
 
 /**
@@ -76,8 +77,8 @@ import kotlin.math.roundToInt
 /**
  * Héroe de Inicio: una sola cosa a la que atender, con salida clara.
  *
- * Lleva el arco de la marca al fondo, muy tenue, igual que en el artefacto —
- * no es decoración aleatoria: es la identidad «A · Tiempo» usada como textura.
+ * Lleva la marca al fondo, muy tenue —no es decoración aleatoria: es la
+ * identidad usada como textura—. Desde ADR-027 es la silueta de la mariposa.
  */
 @Composable
 fun HeroCard(
@@ -102,16 +103,16 @@ fun HeroCard(
             .background(c.primary, shape)
             .then(if (spec.borderWidth > 1.dp) Modifier.border(spec.borderWidth, c.text, shape) else Modifier)
             .drawBehind {
-                // El arco de la marca, al 15 %: la misma figura del logo.
-                val stroke = 14.dp.toPx()
-                val r = size.height * 1.1f
-                drawArc(
-                    color = c.onPrimary.copy(alpha = 0.14f),
-                    startAngle = 195f, sweepAngle = 110f, useCenter = false,
-                    topLeft = androidx.compose.ui.geometry.Offset(size.width - r * 0.9f, -r * 0.35f),
-                    size = androidx.compose.ui.geometry.Size(r, r),
-                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = stroke),
-                )
+                // La silueta de la mariposa (ADR-027), al 14 %: la misma figura
+                // del logo, asomando por la esquina superior derecha.
+                val side = size.height * 1.3f
+                with(Butterfly) {
+                    drawButterflySilhouette(
+                        topLeft = androidx.compose.ui.geometry.Offset(size.width - side * 0.62f, -side * 0.28f),
+                        side = side,
+                        color = c.onPrimary.copy(alpha = 0.14f),
+                    )
+                }
             }
             .padding(VidaSpacing.lg),
         verticalArrangement = Arrangement.spacedBy(5.dp),

@@ -1,0 +1,18 @@
+<resources>
+    <!--
+      Android 12+ impone su propia pantalla de arranque (SplashScreen API) y,
+      por defecto, pinta en ella el icono del lanzador centrado.
+
+      ADR-027: en el artefacto aprobado, al tocar el icono se expande una placa
+      BLANCA y lista, y la mariposa aparece después, ya en la pantalla de
+      inicio, entrando con su propia animación. Mostrar además el icono en el
+      arranque del sistema la duplicaría: dos mariposas seguidas, la segunda
+      apareciendo desde cero justo después de haber estado a la vista.
+      Por eso el arranque es blanco y sin icono.
+    -->
+    <style name="Theme.VidaCotidiana" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="android:windowBackground">@android:color/white</item>
+        <item name="android:windowSplashScreenBackground">@android:color/white</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_blank</item>
+    </style>
+</resources>

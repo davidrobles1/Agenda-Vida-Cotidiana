@@ -1,8 +1,10 @@
 package com.vidacotidiana.app.core.ui
 
+import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
 import com.vidacotidiana.app.R
 
@@ -50,6 +52,50 @@ object VidaFonts {
      * palabra que sostiene toda esa columna.
      */
     val AlexBrush = FontFamily(Font(R.font.alex_brush_400, FontWeight.Normal))
+
+    /**
+     * ADR-027 · Fraunces con TAMAÑO ÓPTICO, para la pantalla de inicio.
+     *
+     * El artefacto aprobado carga la Fraunces variable (`opsz 9..144`) y el
+     * navegador ajusta el eje `opsz` al cuerpo de cada texto
+     * (`font-optical-sizing: auto`): el «Jornada» de 38 px se dibuja con el
+     * diseño de titular —trazos más finos y contrastados— y el pie de 13 px con
+     * el de texto. Los TTF estáticos de arriba están fijados en un único
+     * tamaño óptico y no reproducen esa diferencia.
+     *
+     * `fraunces_vf` y `fraunces_italic_vf` son los MISMOS ficheros que sirve
+     * Google Fonts al artefacto (subconjunto latino, convertidos de WOFF2 a
+     * TTF sin tocar los contornos). Cada familia fija peso y `opsz` para un
+     * cuerpo concreto, igual que lo hace el navegador.
+     */
+    @OptIn(ExperimentalTextApi::class)
+    private fun frauncesAt(opticalSize: Float, weight: Int) = FontFamily(
+        Font(
+            R.font.fraunces_vf,
+            FontWeight(weight),
+            variationSettings = FontVariation.Settings(
+                FontVariation.weight(weight),
+                FontVariation.Setting("opsz", opticalSize),
+            ),
+        ),
+    )
+
+    /** «Jornada», 38 px, peso 300. */
+    val FrauncesWordmark = frauncesAt(38f, 300)
+
+    /** Eslogan del pie, 13 px, peso 400. */
+    val FrauncesCaption = frauncesAt(13f, 400)
+
+    /** La cita, 19 px, cursiva real (no oblicua sintetizada). */
+    @OptIn(ExperimentalTextApi::class)
+    val FrauncesQuoteItalic = FontFamily(
+        Font(
+            R.font.fraunces_italic_vf,
+            FontWeight.Normal,
+            FontStyle.Italic,
+            variationSettings = FontVariation.Settings(FontVariation.Setting("opsz", 19f)),
+        ),
+    )
 
     /**
      * La letra a mano de Papel. Se usa donde el artefacto escribe a mano —las
