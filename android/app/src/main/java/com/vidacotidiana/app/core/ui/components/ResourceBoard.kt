@@ -25,6 +25,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.clip
+import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.vidacotidiana.app.core.ui.VidaIconSize
@@ -121,7 +124,20 @@ fun ResourceBoard(
     onToggleSelect: (ResourceEntry) -> Unit = {},
     /** La forma del artefacto cuando la pantalla la fija. Nula: se deduce. */
     shape: ResourceShape? = null,
+    /**
+     * FILAS DE ADR-028 — la gramática de Documentos para todas las listas:
+     * sello de tono, nombre, una línea de datos, cifra o estado a la derecha
+     * y el menú «⋮» con las acciones reales del registro. Con `false` se
+     * conserva la retícula anterior (la usa sólo el resumen de Inicio).
+     */
+    rows: Boolean = true,
+    /** Cuántas filas antes de «Cargar más». Nulo = todas. */
+    pageSize: Int? = 8,
 ) {
+    if (rows) {
+        ResourceRowsBoard(entries, onOpenDetail, modifier, selecting, selectedIds, onToggleSelect, pageSize)
+        return
+    }
     // Se conserva el orden en que la pantalla los entregó: ya vienen ordenados
     // por lo que su dominio considera importante.
     val groups = LinkedHashMap<String, MutableList<ResourceEntry>>()
@@ -717,3 +733,196 @@ private fun ResourceRowItem(
         }
     }
 }
+
+
+/* ══════════════════════════════════════════════════════════════════════════
+   FILAS DE ADR-028
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * La lista con la gramática de Documentos.
+ *
+ * Mismo orden y mismos grupos que entrega la pantalla; lo que cambia es la
+ * pieza. La paginación es local —los datos ya están en memoria— y sólo evita
+ * pintar cien filas de golpe.
+ */
+@Composable
+private fun ResourceRowsBoard(
+    entries: List<ResourceEntry>,
+    onOpenDetail: (ResourceEntry) -> Unit,
+    modifier: Modifier,
+    selecting: Boolean,
+    selectedIds: Set<String>,
+    onToggleSelect: (ResourceEntry) -> Unit,
+    pageSize: Int?,
+) {
+    val c = VidaTheme.colors
+    var shown by androidx.compose.runtime.remember(entries.size) {
+        androidx.compose.runtime.mutableIntStateOf(pageSize ?: Int.MAX_VALUE)
+    }
+    var pendingDelete by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<ResourceEntry?>(null) }
+    val visible = entries.take(shown)
+    val totals = entries.groupingBy { it.group ?: "" }.eachCount()
+
+    Column(modifier.fillMaxWidth()) {
+        var lastGroup: String? = null
+        visible.forEach { entry ->
+            val group = entry.group ?: ""
+            if (group != lastGroup) {
+                if (group.isNotBlank()) {
+                    Box(Modifier.padding(top = if (lastGroup == null) 0.dp else 14.dp, bottom = 2.dp)) {
+                        ListSectionTitle("$group (${totals[group] ?: 0})")
+                    }
+                }
+                lastGroup = group
+            }
+            ResourceListRow(
+                entry = entry,
+                onOpen = { if (selecting) onToggleSelect(entry) else onOpenDetail(entry) },
+                selecting = selecting,
+                selected = entry.id in selectedIds,
+                onAskDelete = { pendingDelete = entry },
+            )
+        }
+        if (pageSize != null && entries.size > pageSize) {
+            Box(Modifier.padding(top = 10.dp)) {
+                LoadMoreFooter(minOf(shown, entries.size), entries.size) { shown += pageSize }
+            }
+        }
+    }
+
+    pendingDelete?.let { entry ->
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { pendingDelete = null },
+            title = { Text("¿Eliminar?") },
+            text = { Text("«${entry.title}» se eliminará para siempre. No se puede deshacer.") },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    pendingDelete = null
+                    entry.onDelete?.invoke()
+                }) { Text("Eliminar", color = c.error) }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { pendingDelete = null }) { Text("Cancelar") }
+            },
+        )
+    }
+}
+
+/** Una fila: sello (o anillo), nombre, datos, cifra/estado, «hecho» y «⋮». */
+@Composable
+private fun ResourceListRow(
+    entry: ResourceEntry,
+    onOpen: () -> Unit,
+    selecting: Boolean,
+    selected: Boolean,
+    onAskDelete: () -> Unit,
+) {
+    val c = VidaTheme.colors
+    val tone = entry.tone ?: c.primary
+    val shape = RoundedCornerShape(14.dp)
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .then(if (selected) Modifier.background(c.primaryContainer.copy(alpha = 0.5f), shape) else Modifier)
+            .clip(shape)
+            .vidaClickable(onOpen)
+            .padding(vertical = 8.dp, horizontal = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        val ring = entry.ring
+        if (ring != null) {
+            VidaRing(percent = ring, tone = tone, diameter = 44.dp, stroke = 4.dp)
+        } else {
+            ToneMark(entry.icon ?: Icons.Filled.Check, ToneColors(tone, tone.copy(alpha = 0.14f)))
+        }
+        Column(Modifier.weight(1f).padding(start = 14.dp)) {
+            Text(
+                entry.title,
+                style = androidx.compose.material3.MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                color = c.text,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            val meta = listOfNotNull(
+                entry.typeTag?.takeIf { it.isNotBlank() }?.let { com.vidacotidiana.app.core.ui.VidaVocabulary.human(it) },
+                entry.subtitle.takeIf { it.isNotBlank() },
+            ).joinToString(" · ")
+            if (meta.isNotBlank()) {
+                Text(
+                    meta,
+                    style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+                    color = c.textSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+        val figure = entry.amount ?: entry.highlight
+        if (figure != null || entry.pill != null) {
+            Column(horizontalAlignment = Alignment.End, modifier = Modifier.padding(start = 8.dp)) {
+                figure?.let {
+                    Text(
+                        it,
+                        style = androidx.compose.material3.MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                        color = if (entry.amount != null) c.text else tone,
+                        maxLines = 1,
+                    )
+                }
+                entry.pill?.let { (label, pillTone) -> VidaPill(label, pillTone) }
+            }
+        }
+        if (selecting) {
+            Box(Modifier.size(VidaLayout.touchTarget), contentAlignment = Alignment.Center) {
+                Box(
+                    Modifier
+                        .size(22.dp)
+                        .background(if (selected) c.primary else c.surface, RoundedCornerShape(6.dp))
+                        .border(1.5.dp, if (selected) c.primary else c.border, RoundedCornerShape(6.dp)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (selected) Icon(Icons.Filled.Check, "Seleccionado", tint = c.onPrimary, modifier = Modifier.size(14.dp))
+                }
+            }
+        } else {
+            CompleteControl(entry, androidx.compose.foundation.shape.CircleShape, 28.dp)
+            EntryMenu(entry, onOpenDetail = onOpen, onAskDelete = onAskDelete)
+        }
+    }
+}
+
+/**
+ * El «⋮» de una fila: las acciones REALES que la sección puso en la entrada.
+ * Una acción nula no se ofrece; si sólo queda «ver», el menú no se dibuja.
+ */
+@Composable
+private fun EntryMenu(entry: ResourceEntry, onOpenDetail: () -> Unit, onAskDelete: () -> Unit) {
+    val c = VidaTheme.colors
+    val items = buildList<Triple<String, Boolean, () -> Unit>> {
+        entry.onOpen?.let { add(Triple(entry.openLabel, false, it)) }
+        entry.onComplete?.let { add(Triple(entry.completeLabel, false, it)) }
+        entry.onRevert?.let { add(Triple(entry.revertLabel, false, it)) }
+        entry.onAccess?.let { add(Triple(if (entry.sharedWith > 0) "Compartido con ${entry.sharedWith}" else "Compartir", false, it)) }
+        entry.onEdit?.let { add(Triple("Editar", false, it)) }
+        entry.extraActions.forEach { (label, run) -> add(Triple(label, false, run)) }
+        if (entry.onDelete != null) add(Triple("Eliminar", true, onAskDelete))
+    }
+    if (items.isEmpty()) return
+    var open by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+    Box {
+        VidaIconButton(Icons.Outlined.MoreVert, "Más acciones de ${entry.title}", onClick = { open = true })
+        androidx.compose.material3.DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            androidx.compose.material3.DropdownMenuItem(
+                text = { Text("Ver detalles", color = c.text) },
+                onClick = { open = false; onOpenDetail() },
+            )
+            items.forEach { (label, danger, run) ->
+                androidx.compose.material3.DropdownMenuItem(
+                    text = { Text(label, color = if (danger) c.error else c.text) },
+                    onClick = { open = false; run() },
+                )
+            }
+        }
+    }
+}
+

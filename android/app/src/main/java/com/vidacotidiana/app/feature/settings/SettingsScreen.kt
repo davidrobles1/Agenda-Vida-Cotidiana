@@ -1,5 +1,6 @@
 package com.vidacotidiana.app.feature.settings
 
+import com.vidacotidiana.app.navigation.go
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -162,7 +163,7 @@ fun SettingsScreen(viewModel: AppViewModel, navController: NavHostController) {
             ResourceRow(
                 "Tema", "${state.theme.label} · ${state.theme.tagline}",
                 icon = Icons.Outlined.Palette,
-                onClick = { navController.navigate(Routes.APPEARANCE) },
+                onClick = { navController.go(Routes.APPEARANCE) },
             )
         }
 

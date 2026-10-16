@@ -1,5 +1,6 @@
 package com.vidacotidiana.app.feature.calendar
 
+import com.vidacotidiana.app.navigation.go
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -229,7 +230,7 @@ fun DiaScreen(viewModel: AppViewModel, navController: NavHostController) {
                     title = "Nada con hora hoy",
                     body = "Lo que tiene hora aparece aquí colocado en su sitio. " +
                         "Lo demás está abajo, sin hora inventada.",
-                    action = "Crear algo" to { navController.navigate(Routes.CREATE) },
+                    action = "Crear algo" to { navController.go(Routes.CREATE) },
                     section = VidaSections.Calendario,
                 )
             } else {
@@ -463,7 +464,7 @@ fun DiaScreen(viewModel: AppViewModel, navController: NavHostController) {
                                     if (task.done) c.successContainer else c.primaryContainer,
                                     RoundedCornerShape(18.dp),
                                 )
-                                .vidaClickable(onClick = { navController.navigate(Routes.taskRoute(task.id)) })
+                                .vidaClickable(onClick = { navController.go(Routes.taskRoute(task.id)) })
                                 // MEDIR DÓNDE ESTÁ, para que el lienzo sepa qué
                                 // tarjeta hay bajo el dedo. La posición de
                                 // layout no cambia al arrastrar —el
@@ -541,7 +542,7 @@ fun DiaScreen(viewModel: AppViewModel, navController: NavHostController) {
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .background(c.surfaceElevated, RoundedCornerShape(50))
-                                .vidaClickable(onClick = { navController.navigate(item.source.route) })
+                                .vidaClickable(onClick = { navController.go(Routes.detailRoute(item)) })
                                 .padding(horizontal = 14.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -573,7 +574,7 @@ fun DiaScreen(viewModel: AppViewModel, navController: NavHostController) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(c.surfaceElevated, RoundedCornerShape(50))
-                    .vidaClickable(onClick = { navController.navigate(Routes.DAY_NOTES) })
+                    .vidaClickable(onClick = { navController.go(Routes.DAY_NOTES) })
                     .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp),

@@ -56,6 +56,34 @@ import com.vidacotidiana.app.core.ui.VidaIconSize
  * Barra superior del artefacto: menú o atrás, título con la tipografía de
  * display del tema, y las acciones de la derecha.
  */
+/** Abre el menú lateral. Lo provee `NavGraph`; nulo fuera de la navegación (vistas previas). */
+val LocalOpenDrawer = androidx.compose.runtime.staticCompositionLocalOf<(() -> Unit)?> { null }
+
+/**
+ * HAMBURGUESA EN TODA SECCIÓN, ATRÁS EN TODO LO DEMÁS.
+ *
+ * Lo decide la RUTA DE LA PROPIA PANTALLA, no un parámetro que cada una tenía
+ * que acordarse de pasar: media docena de secciones llegaban con «atrás»
+ * porque se abrían desde otra y se habían escrito como subpantallas. Una
+ * sección (todo destino del menú, la barra y la cuenta) lleva siempre el menú;
+ * un detalle o una subpantalla, la flecha. Vision Board queda fuera: es un
+ * editor con su propio botón de casa.
+ */
+@Composable
+fun navButtonFor(showBack: Boolean, onClick: () -> Unit): Pair<Boolean, () -> Unit> {
+    // Dentro de `NavHost`, la entrada de la pila ES el dueño del ciclo de vida
+    // y del almacén de ViewModels de su pantalla: su ruta es la de ESTA
+    // pantalla, también durante la transición en la que se ven dos.
+    val entry = (androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner.current as? androidx.navigation.NavBackStackEntry)
+        ?: (androidx.lifecycle.compose.LocalLifecycleOwner.current as? androidx.navigation.NavBackStackEntry)
+    val route = entry?.destination?.route
+    val open = LocalOpenDrawer.current
+    val section = route != null &&
+        route in com.vidacotidiana.app.navigation.SECTION_ROUTES &&
+        route != com.vidacotidiana.app.navigation.Routes.BOARD
+    return if (open != null && section) false to open else showBack to onClick
+}
+
 @Composable
 fun VidaAppBar(
     title: String,
@@ -63,9 +91,12 @@ fun VidaAppBar(
     showBack: Boolean,
     onNavigationClick: () -> Unit,
     actions: @Composable () -> Unit = {},
+    /** La mariposa en lugar del título: solo Inicio, cuyo saludo vive en su héroe. */
+    brandMark: Boolean = false,
 ) {
     val c = VidaTheme.colors
     val spec = VidaTheme.spec
+    val (showBack, onNavigationClick) = navButtonFor(showBack, onNavigationClick)
     Column(Modifier.fillMaxWidth().statusBarsPadding()) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(start = 6.dp, end = 6.dp, top = 4.dp),
@@ -76,7 +107,9 @@ fun VidaAppBar(
                 contentDescription = if (showBack) "Atrás" else "Abrir navegación",
                 onClick = onNavigationClick,
             )
-            Text(
+            if (brandMark) {
+                Box(Modifier.weight(1f).padding(start = 4.dp)) { ButterflyMark(size = 28.dp) }
+            } else Text(
                 text = if (spec.fonts.displayUppercase) title.uppercase() else title,
                 style = MaterialTheme.typography.headlineMedium,
                 color = c.text,

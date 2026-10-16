@@ -1,5 +1,6 @@
 package com.vidacotidiana.app.feature.warranties
 
+import com.vidacotidiana.app.navigation.go
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.VerifiedUser
 import androidx.compose.material3.DrawerState
@@ -89,7 +90,7 @@ fun WarrantiesScreen(
     ResourceListScreen(
         // La ficha del recurso, en su ventana. Antes esto caía en la
         // hoja deslizante que ya no existe.
-        onOpenRoute = { navController.navigate(Routes.resourceRoute("WARRANTY", it.id)) },
+        onOpenRoute = { navController.go(Routes.resourceRoute("WARRANTY", it.id)) },
         // La composición del artefacto: las severidades de ADR-018 como piezas,
         // no como una tira que se desplaza y deja la tercera fuera de pantalla.
         // UNA SOLA CLASIFICACIÓN, la que ya calcula `WarrantyDto.toDomain`.
@@ -141,7 +142,7 @@ fun WarrantiesScreen(
         onBack = { navController.popBackStack() },
         // La campana lleva de verdad a los avisos, y el punto sale de
         // cuántos quedan sin leer. Antes era `{}` con `badge = true`.
-        onNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
+        onNotifications = { navController.go(Routes.NOTIFICATIONS) },
         notificationsBadge = viewModel.avisosSinLeer(),
     )
 

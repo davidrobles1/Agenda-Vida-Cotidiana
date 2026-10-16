@@ -1,5 +1,6 @@
 package com.vidacotidiana.app.feature.maintenance
 
+import com.vidacotidiana.app.navigation.go
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Build
 import androidx.compose.material3.DrawerState
@@ -93,7 +94,7 @@ fun MaintenanceScreen(
     }
     ResourceListScreen(
         // El artefacto le da pantalla propia a este registro.
-        onOpenRoute = { navController.navigate(Routes.maintenanceRoute(it.id)) },
+        onOpenRoute = { navController.go(Routes.maintenanceRoute(it.id)) },
         title = "Mantenimiento",
         subtitle = "Lo que toca revisar, y cuándo vuelve.",
         eyebrow = plural(entries.size, "programado", "programados"),
@@ -116,7 +117,7 @@ fun MaintenanceScreen(
         onBack = { navController.popBackStack() },
         // La campana lleva de verdad a los avisos, y el punto sale de
         // cuántos quedan sin leer. Antes era `{}` con `badge = true`.
-        onNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
+        onNotifications = { navController.go(Routes.NOTIFICATIONS) },
         notificationsBadge = viewModel.avisosSinLeer(),
     )
 

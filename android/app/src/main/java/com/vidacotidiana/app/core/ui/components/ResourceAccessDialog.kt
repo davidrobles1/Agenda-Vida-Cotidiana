@@ -204,7 +204,7 @@ fun ResourceAccessDialog(
 
                 if (candidatosFamilia.isEmpty() && yaTienen.isEmpty() && family.isEmpty()) {
                     Text(
-                        "Todavía no tienes a nadie en Familia. Puedes buscar a alguien por su usuario.",
+                        "Todavía no tienes a nadie en Familia. Invita a los tuyos desde Familia y podrás compartir con ellos.",
                         style = t.micro,
                         color = c.textTertiary,
                     )
@@ -219,24 +219,12 @@ fun ResourceAccessDialog(
                     )
                 }
 
-                VidaSearchField(query, { query = it; onSearch(it) }, "Buscar a alguien por su usuario…")
-                when {
-                    searching -> Text("Buscando…", style = t.micro, color = c.textTertiary)
-                    // El mínimo del backend, dicho antes de que parezca que no
-                    // encuentra a nadie.
-                    query.isNotBlank() && query.trim().length < 5 ->
-                        Text("Escribe al menos 5 caracteres.", style = t.micro, color = c.textTertiary)
-                    query.trim().length >= 5 && candidatosBusqueda.isEmpty() ->
-                        Text("Nadie coincide con «$query».", style = t.micro, color = c.textTertiary)
-                }
-                candidatosBusqueda.forEach { user ->
-                    CandidateRow(
-                        name = user.username,
-                        hint = if (user.relation == "FAMILY") "De tu familia" else "En la plataforma",
-                        icon = false,
-                        onClick = { onGrant(user.userId, conParte) },
-                    )
-                }
+                // SOLO FAMILIA (ADR-025). La búsqueda en el padrón ofrecía a
+                // cualquier cuenta, pero el servidor rechaza compartir con quien
+                // no es de tu familia («Solo puedes compartir con integrantes de
+                // tu familia»): era un camino que siempre terminaba en error, y
+                // mezclaba la regla de Personal con gente de fuera. A alguien
+                // nuevo se le invita primero a Familia.
             }
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text("Listo") } },

@@ -579,6 +579,21 @@ enum class CreatableResource(
      * futura que no empiece por texto caiga con elegancia en «todo en filas»
      * en lugar de reventar al abrirse.
      */
+    /**
+     * El sustantivo del registro, sacado del título del alta: «Agregar pago» →
+     * «pago», «Nueva tarea» → «tarea». Da «Crear pago» y «Editar pago» sin una
+     * segunda tabla de nombres que se desincronice.
+     */
+    val noun: String get() = title.substringAfter(' ')
+
+    /**
+     * ADR-016/ADR-019: Personas y Proyectos existen SOLO en Laboral. Una tarea
+     * de Personal no se vincula a una persona ni a un proyecto: esas filas no
+     * se ofrecen ni al crearla ni en su detalle.
+     */
+    fun fieldsFor(laboral: Boolean): List<FormField> =
+        if (laboral) fields else fields.filterNot { it.key in LABORAL_ONLY_KEYS }
+
     val headField: FormField.Text? get() = fields.firstOrNull() as? FormField.Text
 
     /** Todo lo demás, que vive en filas. */
@@ -626,3 +641,6 @@ enum class CreatableResource(
      */
     val attachWire: String? get() = shareableKind?.wire?.takeIf { admiteDocumento }
 }
+
+/** Los vínculos que solo tienen sentido en Laboral (ADR-016). */
+private val LABORAL_ONLY_KEYS = setOf("personId", "projectId")

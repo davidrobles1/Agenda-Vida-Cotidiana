@@ -1,5 +1,12 @@
 package com.vidacotidiana.app.feature.documents
 
+import com.vidacotidiana.app.navigation.go
+import com.vidacotidiana.app.core.ui.components.ToneColors
+import com.vidacotidiana.app.core.ui.components.softCard
+import com.vidacotidiana.app.core.ui.components.ToneMark
+import com.vidacotidiana.app.core.ui.components.ListSectionTitle
+import com.vidacotidiana.app.core.ui.components.ListSearchBox
+
 import android.content.Intent
 import android.speech.RecognizerIntent
 import android.widget.Toast
@@ -67,6 +74,9 @@ import com.vidacotidiana.app.core.ui.components.LoadingRows
 import com.vidacotidiana.app.core.ui.components.VidaError
 import com.vidacotidiana.app.core.ui.components.VidaIconButton
 import com.vidacotidiana.app.core.ui.components.plural
+import com.vidacotidiana.app.core.ui.components.SummaryStatTile
+import com.vidacotidiana.app.core.ui.components.QuickAccessTile
+import com.vidacotidiana.app.core.ui.components.CategoryTile
 import com.vidacotidiana.app.navigation.Routes
 import kotlinx.coroutines.CoroutineScope
 
@@ -104,7 +114,7 @@ fun DocumentsScreen(
     // pide permiso de micrófono; el sistema escucha y devuelve el texto.
     val voice = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         val text = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
-        if (!text.isNullOrBlank()) navController.navigate(Routes.documentSearchRoute(text))
+        if (!text.isNullOrBlank()) navController.go(Routes.documentSearchRoute(text))
     }
     val onMic = {
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
@@ -147,7 +157,7 @@ fun DocumentsScreen(
                 VidaIconButton(
                     Icons.Outlined.Notifications, "Avisos", tint = c.text,
                     badge = viewModel.avisosSinLeer() > 0,
-                ) { navController.navigate(Routes.NOTIFICATIONS) }
+                ) { navController.go(Routes.NOTIFICATIONS) }
             }
 
             when {
@@ -168,36 +178,36 @@ fun DocumentsScreen(
                     val (space, unit) = totalSizeParts(documents.sumOf { it.sizeBytes })
                     val categoriesInUse = documents.map { it.category }.distinct().size
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        StatTile(Icons.Outlined.Description, documents.size.toString(),
+                        SummaryStatTile(Icons.Outlined.Description, documents.size.toString(),
                             if (documents.size == 1) "documento" else "documentos", Modifier.weight(1f))
-                        StatTile(Icons.Outlined.Storage, "$space $unit", "usados", Modifier.weight(1f))
-                        StatTile(Icons.Outlined.AttachFile, categoriesInUse.toString(),
+                        SummaryStatTile(Icons.Outlined.Storage, "$space $unit", "usados", Modifier.weight(1f))
+                        SummaryStatTile(Icons.Outlined.AttachFile, categoriesInUse.toString(),
                             if (categoriesInUse == 1) "categoría" else "categorías", Modifier.weight(1f))
                     }
 
                     // ── Buscador: atajo a la búsqueda global ─────────────────
-                    DocSearchBox(
+                    ListSearchBox(
                         value = "",
                         placeholder = "Buscar documentos…",
-                        onClick = { navController.navigate(Routes.documentSearchRoute()) },
+                        onClick = { navController.go(Routes.documentSearchRoute()) },
                         trailing = { VidaIconButton(Icons.Outlined.Mic, "Buscar por voz", onClick = onMic) },
                     )
 
                     // ── Accesos rápidos ──────────────────────────────────────
-                    DocSectionTitle("Accesos rápidos")
+                    ListSectionTitle("Accesos rápidos")
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        QuickTile(
+                        QuickAccessTile(
                             Icons.Outlined.Schedule, "Recientes", documents.count { it.isRecent() },
-                            DocTone(c.info, c.infoContainer), Modifier.weight(1f),
-                        ) { navController.navigate(Routes.documentCollectionRoute(DocCollections.RECENT)) }
-                        QuickTile(
+                            ToneColors(c.info, c.infoContainer), Modifier.weight(1f),
+                        ) { navController.go(Routes.documentCollectionRoute(DocCollections.RECENT)) }
+                        QuickAccessTile(
                             Icons.Outlined.StarOutline, "Favoritos", documents.count { it.id in favorites },
-                            DocTone(c.warning, c.warningContainer), Modifier.weight(1f),
-                        ) { navController.navigate(Routes.documentCollectionRoute(DocCollections.FAVORITES)) }
-                        QuickTile(
+                            ToneColors(c.warning, c.warningContainer), Modifier.weight(1f),
+                        ) { navController.go(Routes.documentCollectionRoute(DocCollections.FAVORITES)) }
+                        QuickAccessTile(
                             Icons.Outlined.Group, "Compartidos", documents.count { it.isShared(sharedCounts[it.id] ?: 0) },
-                            DocTone(c.second, c.secondContainer), Modifier.weight(1f),
-                        ) { navController.navigate(Routes.documentCollectionRoute(DocCollections.SHARED)) }
+                            ToneColors(c.second, c.secondContainer), Modifier.weight(1f),
+                        ) { navController.go(Routes.documentCollectionRoute(DocCollections.SHARED)) }
                     }
 
                     // ── Mis categorías ───────────────────────────────────────
@@ -208,7 +218,7 @@ fun DocumentsScreen(
                     val counts = documents.groupingBy { it.category }.eachCount()
                     val ordered = keys.sortedByDescending { counts[it] ?: 0 }
                     val visible = if (allCategories) ordered else ordered.take(4)
-                    DocSectionTitle(
+                    ListSectionTitle(
                         "Mis categorías",
                         action = if (ordered.size > 4) (if (allCategories) "Ver menos" else "Ver todas") else null,
                         onAction = { allCategories = !allCategories },
@@ -217,8 +227,12 @@ fun DocumentsScreen(
                         visible.chunked(2).forEach { pair ->
                             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                 pair.forEach { key ->
-                                    CategoryCard(categoryVisual(key), counts[key] ?: 0, Modifier.weight(1f)) {
-                                        navController.navigate(Routes.documentCollectionRoute(key))
+                                    val visual = categoryVisual(key)
+                                    CategoryTile(
+                                        visual.icon, visual.label, plural(counts[key] ?: 0, "documento", "documentos"),
+                                        visual.tone, Modifier.weight(1f),
+                                    ) {
+                                        navController.go(Routes.documentCollectionRoute(key))
                                     }
                                 }
                                 if (pair.size == 1) Spacer(Modifier.weight(1f))
@@ -227,8 +241,8 @@ fun DocumentsScreen(
                     }
 
                     // ── Recientes ────────────────────────────────────────────
-                    DocSectionTitle("Recientes", action = "Ver todos") {
-                        navController.navigate(Routes.documentCollectionRoute(DocCollections.ALL))
+                    ListSectionTitle("Recientes", action = "Ver todos") {
+                        navController.go(Routes.documentCollectionRoute(DocCollections.ALL))
                     }
                     Column {
                         documents.sortedWith(NewestFirst).take(3).forEach { doc ->
@@ -252,81 +266,3 @@ fun DocumentsScreen(
     actions.Dialogs(viewModel)
 }
 
-/** Una cifra del resumen: icono, número y unidad. */
-@Composable
-private fun StatTile(icon: ImageVector, value: String, label: String, modifier: Modifier = Modifier) {
-    val c = VidaTheme.colors
-    Column(
-        modifier.docCard().padding(vertical = 14.dp, horizontal = 8.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        Icon(icon, contentDescription = null, tint = c.primary, modifier = Modifier.size(24.dp))
-        Text(
-            value,
-            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold, fontSize = 20.sp),
-            color = c.text,
-            maxLines = 1,
-        )
-        Text(label, style = MaterialTheme.typography.bodySmall, color = c.textSecondary, maxLines = 1)
-    }
-}
-
-/** Recientes · Favoritos · Compartidos. */
-@Composable
-private fun QuickTile(
-    icon: ImageVector,
-    label: String,
-    count: Int,
-    tone: DocTone,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit,
-) {
-    val c = VidaTheme.colors
-    Column(
-        modifier
-            .docCard(tone.bg.copy(alpha = 0.35f))
-            .clip(RoundedCornerShape(18.dp))
-            .clickable(role = Role.Button, onClick = onClick)
-            .padding(14.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Icon(icon, contentDescription = null, tint = tone.fg, modifier = Modifier.size(24.dp))
-        Column {
-            Text(
-                label,
-                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                color = c.text,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text("($count)", style = MaterialTheme.typography.bodySmall, color = c.textSecondary)
-        }
-    }
-}
-
-/** Tarjeta de categoría, en el color de su categoría. */
-@Composable
-private fun CategoryCard(visual: DocCategoryVisual, count: Int, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    val c = VidaTheme.colors
-    Column(
-        modifier
-            .clip(RoundedCornerShape(18.dp))
-            .background(visual.tone.bg.copy(alpha = 0.55f))
-            .clickable(role = Role.Button, onClick = onClick)
-            .padding(14.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        DocMark(visual.icon, DocTone(visual.tone.fg, c.surface.copy(alpha = 0.75f)), size = 38.dp, iconSize = 20.dp)
-        Column {
-            Text(
-                visual.label,
-                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
-                color = c.text,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(plural(count, "documento", "documentos"), style = MaterialTheme.typography.bodySmall, color = visual.tone.fg)
-        }
-    }
-}

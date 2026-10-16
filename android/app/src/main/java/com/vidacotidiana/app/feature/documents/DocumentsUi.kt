@@ -1,5 +1,9 @@
 package com.vidacotidiana.app.feature.documents
 
+import com.vidacotidiana.app.navigation.go
+import com.vidacotidiana.app.core.ui.components.ToneColors
+import com.vidacotidiana.app.core.ui.components.ToneMark
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -144,7 +148,7 @@ private val MONTHS = listOf("ene", "feb", "mar", "abr", "may", "jun", "jul", "ag
  * cambia según la versión de Android («sept.», «sep.»), y la propuesta los
  * quiere cortos y sin punto.
  */
-internal fun shortDate(d: LocalDate): String = "${d.dayOfMonth} ${MONTHS[d.monthValue - 1]} ${d.year}"
+internal fun shortDate(d: LocalDate): String = com.vidacotidiana.app.core.ui.components.shortDateEs(d)
 
 internal fun Document.dayLabel(): String = createdAt?.toLocalDate()?.let(::shortDate) ?: dateLabel
 
@@ -188,9 +192,7 @@ internal fun Document.isImage(): Boolean = extension() in setOf("png", "jpg", "j
    TONOS E ICONOS
    ══════════════════════════════════════════════════════════════════════════ */
 
-internal data class DocTone(val fg: Color, val bg: Color)
-
-internal data class DocCategoryVisual(val key: String, val label: String, val icon: ImageVector, val tone: DocTone)
+internal data class DocCategoryVisual(val key: String, val label: String, val icon: ImageVector, val tone: ToneColors)
 
 /**
  * Cada categoría con su color, como en «Mis categorías» de la propuesta.
@@ -204,12 +206,12 @@ internal fun categoryVisual(key: String): DocCategoryVisual {
     val c = VidaTheme.colors
     val label = VidaVocabulary.human(key)
     return when (key) {
-        "COMPROBANTES" -> DocCategoryVisual(key, label, Icons.AutoMirrored.Outlined.ReceiptLong, DocTone(c.info, c.infoContainer))
-        "SEGUROS" -> DocCategoryVisual(key, label, Icons.Outlined.Shield, DocTone(c.success, c.successContainer))
-        "IDENTIFICACION" -> DocCategoryVisual(key, label, Icons.Outlined.Badge, DocTone(c.primary, c.primaryContainer))
-        "CONTRATOS" -> DocCategoryVisual(key, label, Icons.Outlined.Handshake, DocTone(c.warning, c.warningContainer))
-        "OTROS" -> DocCategoryVisual(key, label, Icons.Outlined.MoreHoriz, DocTone(c.textSecondary, c.sunken))
-        else -> DocCategoryVisual(key, label, Icons.Outlined.Folder, DocTone(c.textSecondary, c.sunken))
+        "COMPROBANTES" -> DocCategoryVisual(key, label, Icons.AutoMirrored.Outlined.ReceiptLong, ToneColors(c.info, c.infoContainer))
+        "SEGUROS" -> DocCategoryVisual(key, label, Icons.Outlined.Shield, ToneColors(c.success, c.successContainer))
+        "IDENTIFICACION" -> DocCategoryVisual(key, label, Icons.Outlined.Badge, ToneColors(c.primary, c.primaryContainer))
+        "CONTRATOS" -> DocCategoryVisual(key, label, Icons.Outlined.Handshake, ToneColors(c.warning, c.warningContainer))
+        "OTROS" -> DocCategoryVisual(key, label, Icons.Outlined.MoreHoriz, ToneColors(c.textSecondary, c.sunken))
+        else -> DocCategoryVisual(key, label, Icons.Outlined.Folder, ToneColors(c.textSecondary, c.sunken))
     }
 }
 
@@ -220,206 +222,16 @@ internal fun categoryVisual(key: String): DocCategoryVisual {
  * categoría, que es lo que ayuda a ubicar el archivo.
  */
 @Composable
-internal fun typeTone(doc: Document): DocTone {
+internal fun typeTone(doc: Document): ToneColors {
     val c = VidaTheme.colors
     return when {
-        doc.extension() == "pdf" -> DocTone(c.error, c.errorContainer)
-        doc.isImage() -> DocTone(c.success, c.successContainer)
-        else -> DocTone(c.primary, c.primaryContainer)
+        doc.extension() == "pdf" -> ToneColors(c.error, c.errorContainer)
+        doc.isImage() -> ToneColors(c.success, c.successContainer)
+        else -> ToneColors(c.primary, c.primaryContainer)
     }
 }
 
 internal fun Document.glyph(): ImageVector = if (isImage()) Icons.Outlined.Image else Icons.Outlined.Description
-
-/* ══════════════════════════════════════════════════════════════════════════
-   SUPERFICIES
-   ══════════════════════════════════════════════════════════════════════════ */
-
-/** Tarjeta blanca con filete fino y sombra suave, la de todos los cuadros. */
-@Composable
-internal fun Modifier.docCard(background: Color = VidaTheme.colors.surface, corner: Dp = 18.dp): Modifier {
-    val c = VidaTheme.colors
-    val shape = RoundedCornerShape(corner)
-    return this
-        .vidaSoftShadow(corner = corner, keyBlur = 16.dp, keyOffsetY = 4.dp)
-        .background(background, shape)
-        .border(1.dp, c.border.copy(alpha = 0.18f), shape)
-}
-
-/** Cuadro de icono con su tono: el «sello» de cada fila y de cada mosaico. */
-@Composable
-internal fun DocMark(icon: ImageVector, tone: DocTone, size: Dp = 44.dp, iconSize: Dp = 22.dp, circle: Boolean = false) {
-    Box(
-        Modifier
-            .size(size)
-            .background(tone.bg, if (circle) CircleShape else RoundedCornerShape(size * 0.3f)),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(icon, contentDescription = null, tint = tone.fg, modifier = Modifier.size(iconSize))
-    }
-}
-
-/* ══════════════════════════════════════════════════════════════════════════
-   CABECERA
-   ══════════════════════════════════════════════════════════════════════════ */
-
-/**
- * Cabecera de las vistas interiores: atrás, título en negrita y, debajo, la
- * cifra de la colección. `trailing` deja sitio a la ilustración de categoría o
- * a las acciones del detalle.
- */
-@Composable
-internal fun DocTopBar(
-    title: String?,
-    subtitle: String? = null,
-    onBack: () -> Unit,
-    trailing: @Composable () -> Unit = {},
-) {
-    val c = VidaTheme.colors
-    Row(
-        Modifier.fillMaxWidth().statusBarsPadding().padding(start = 4.dp, end = 12.dp, top = 4.dp, bottom = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        VidaIconButton(Icons.AutoMirrored.Filled.ArrowBack, "Atrás", tint = c.text, onClick = onBack)
-        Column(Modifier.weight(1f).padding(start = 4.dp)) {
-            if (title != null) {
-                Text(
-                    title,
-                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold, fontSize = 21.sp),
-                    color = c.text,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            if (subtitle != null) {
-                Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = c.textSecondary, maxLines = 1)
-            }
-        }
-        trailing()
-    }
-}
-
-/** «Mis categorías · Ver todas ›». */
-@Composable
-internal fun DocSectionTitle(title: String, action: String? = null, onAction: () -> Unit = {}) {
-    val c = VidaTheme.colors
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(
-            title,
-            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-            color = c.text,
-            modifier = Modifier.weight(1f),
-        )
-        if (action != null) {
-            Row(
-                Modifier
-                    .clip(RoundedCornerShape(50))
-                    .clickable(role = Role.Button, onClick = onAction)
-                    .padding(horizontal = 6.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(action, style = MaterialTheme.typography.labelLarge, color = c.primary)
-                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = c.primary, modifier = Modifier.size(18.dp))
-            }
-        }
-    }
-}
-
-/* ══════════════════════════════════════════════════════════════════════════
-   BUSCADOR
-   ══════════════════════════════════════════════════════════════════════════ */
-
-/**
- * Caja de búsqueda. Editable o no: en el resumen es un ATAJO que abre la
- * búsqueda global (`onClick`), y dentro de una colección o de la búsqueda es
- * el campo de verdad.
- */
-@Composable
-internal fun DocSearchBox(
-    value: String,
-    placeholder: String,
-    modifier: Modifier = Modifier,
-    onValueChange: ((String) -> Unit)? = null,
-    onClick: (() -> Unit)? = null,
-    focusRequester: FocusRequester? = null,
-    trailing: @Composable (() -> Unit)? = null,
-) {
-    val c = VidaTheme.colors
-    val shape = RoundedCornerShape(16.dp)
-    Row(
-        modifier
-            .fillMaxWidth()
-            .background(c.sunken, shape)
-            .border(1.dp, c.border.copy(alpha = 0.14f), shape)
-            .then(if (onClick != null) Modifier.clip(shape).clickable(role = Role.Button, onClick = onClick) else Modifier)
-            .defaultMinSize(minHeight = 50.dp)
-            .padding(start = 14.dp, end = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(Icons.Filled.Search, contentDescription = null, tint = c.textSecondary, modifier = Modifier.size(20.dp))
-        Spacer(Modifier.width(10.dp))
-        Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
-            if (value.isEmpty()) {
-                Text(placeholder, style = MaterialTheme.typography.bodyLarge, color = c.textTertiary, maxLines = 1)
-            }
-            if (onValueChange != null) {
-                BasicTextField(
-                    value = value,
-                    onValueChange = onValueChange,
-                    singleLine = true,
-                    textStyle = LocalTextStyle.current.merge(MaterialTheme.typography.bodyLarge).copy(color = c.text),
-                    cursorBrush = SolidColor(c.primary),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier),
-                )
-            }
-        }
-        if (trailing != null) trailing() else Spacer(Modifier.width(10.dp))
-    }
-}
-
-@Composable
-internal fun ClearButton(onClick: () -> Unit) {
-    VidaIconButton(Icons.Outlined.Close, "Borrar búsqueda", tint = VidaTheme.colors.primary, onClick = onClick)
-}
-
-/* ══════════════════════════════════════════════════════════════════════════
-   CHIPS
-   ══════════════════════════════════════════════════════════════════════════ */
-
-/**
- * Chip de filtro de la propuesta: relleno índigo al elegirlo, filete fino en
- * reposo. `dropdown` añade la flecha del chip «Más».
- */
-@Composable
-internal fun DocChip(label: String, selected: Boolean, onClick: () -> Unit, dropdown: Boolean = false) {
-    val c = VidaTheme.colors
-    val shape = RoundedCornerShape(50)
-    Row(
-        Modifier
-            .clip(shape)
-            .background(if (selected) c.primary else c.surface, shape)
-            .border(1.dp, if (selected) c.primary else c.border.copy(alpha = 0.22f), shape)
-            .clickable(role = Role.RadioButton, onClick = onClick)
-            .defaultMinSize(minHeight = 38.dp)
-            .padding(horizontal = 16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            label,
-            style = MaterialTheme.typography.labelLarge.copy(fontSize = 13.sp),
-            color = if (selected) c.onPrimary else c.textSecondary,
-        )
-        if (dropdown) {
-            Icon(
-                Icons.Outlined.KeyboardArrowDown, null,
-                tint = if (selected) c.onPrimary else c.textSecondary,
-                modifier = Modifier.padding(start = 2.dp).size(16.dp),
-            )
-        }
-    }
-}
 
 /* ══════════════════════════════════════════════════════════════════════════
    FILA DE DOCUMENTO
@@ -434,7 +246,7 @@ internal fun DocChip(label: String, selected: Boolean, onClick: () -> Unit, drop
 internal fun DocumentRow(
     doc: Document,
     meta: String,
-    tone: DocTone,
+    tone: ToneColors,
     favorite: Boolean,
     actions: DocumentActions,
     onClick: () -> Unit,
@@ -448,7 +260,7 @@ internal fun DocumentRow(
             .padding(vertical = 8.dp, horizontal = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        DocMark(doc.glyph(), tone)
+        ToneMark(doc.glyph(), tone)
         Column(Modifier.weight(1f).padding(start = 14.dp)) {
             Text(
                 doc.name,
@@ -463,28 +275,6 @@ internal fun DocumentRow(
             Icon(Icons.Filled.Star, contentDescription = "Favorito", tint = c.warning, modifier = Modifier.size(18.dp))
         }
         DocumentMenu(doc, favorite, actions)
-    }
-}
-
-/** «Mostrando 8 de 42 · Cargar más ↓». */
-@Composable
-internal fun LoadMoreFooter(shown: Int, total: Int, onMore: () -> Unit) {
-    val c = VidaTheme.colors
-    Row(
-        Modifier.fillMaxWidth().docCard(c.sunken).padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text("Mostrando $shown de $total", style = MaterialTheme.typography.bodySmall, color = c.textSecondary, modifier = Modifier.weight(1f))
-        if (shown < total) {
-            androidx.compose.material3.OutlinedButton(
-                onClick = onMore,
-                border = BorderStroke(1.dp, c.primary.copy(alpha = 0.4f)),
-                shape = RoundedCornerShape(50),
-            ) {
-                Text("Cargar más", style = MaterialTheme.typography.labelLarge, color = c.primary)
-                Icon(Icons.Outlined.KeyboardArrowDown, null, tint = c.primary, modifier = Modifier.padding(start = 4.dp).size(16.dp))
-            }
-        }
     }
 }
 
@@ -507,8 +297,8 @@ internal class DocumentActions(
 ) {
     var pendingDelete by mutableStateOf<Document?>(null)
 
-    fun open(doc: Document) = navController.navigate(Routes.documentRoute(doc.id))
-    fun details(doc: Document) = navController.navigate(Routes.documentDetailRoute(doc.id))
+    fun open(doc: Document) = navController.go(Routes.documentRoute(doc.id))
+    fun details(doc: Document) = navController.go(Routes.documentDetailRoute(doc.id))
     fun toggleFavorite(doc: Document) = viewModel.toggleDocumentFavorite(doc.id)
     fun share(doc: Document) = access.abrir(ShareableKind.DOCUMENT, doc.id, doc.name)
     fun openExternal(doc: Document) = viewModel.shareDocumentFile(context, doc.id, doc.name)
@@ -587,7 +377,8 @@ internal fun DocumentMenuItems(
     if (includeView) item("Ver documento") { actions.open(doc) }()
     if (includeDetails) item("Detalles") { actions.details(doc) }()
     item(if (favorite) "Quitar de favoritos" else "Añadir a favoritos") { actions.toggleFavorite(doc) }()
-    item("Compartir") { actions.share(doc) }()
+    // Con «Toda la familia» ya lo ven todos: compartir no tiene a quién más.
+    if (doc.visibility != "FAMILY_PUBLIC") item("Compartir") { actions.share(doc) }()
     item("Abrir en otra app") { actions.openExternal(doc) }()
     item(if (familyVisible) "Ocultar a la familia" else "Ver toda la familia") { actions.setFamilyVisible(doc, !familyVisible) }()
     item("Editar") { actions.edit(doc) }()

@@ -499,7 +499,15 @@ class AppViewModel @Inject constructor(
      * vez de dejar en la interfaz un botón que no guarda nada — que es justo
      * el problema que esto viene a arreglar.
      */
-    fun create(resource: CreatableResource, values: Map<String, String>, file: FilePayload?) {
+    fun create(
+        resource: CreatableResource,
+        values: Map<String, String>,
+        file: FilePayload?,
+        /** Sin «Cambios guardados»: la edición en el sitio confirma con su propio aviso. */
+        quiet: Boolean = false,
+        /** Solo edición: `true` si se guardó. Lo usa la edición en el sitio para su aviso y su «Deshacer». */
+        onDone: ((Boolean) -> Unit)? = null,
+    ) {
         val context = contextParam() ?: "PERSONAL"
         fun text(key: String): String = values[key].orEmpty().trim()
         fun date(key: String): LocalDate? =
@@ -553,6 +561,11 @@ class AppViewModel @Inject constructor(
                                 // borra una ubicación guardada. Limitación
                                 // declarada del backend, no de esta pantalla.
                                 location = values["location"]?.ifBlank { null },
+                                // Nulo = "no tocar" también aquí: una tarea sin
+                                // persona no pierde la que ya tenía.
+                                priority = values["priority"]?.ifBlank { null },
+                                personId = values["personId"]?.ifBlank { null },
+                                projectId = values["projectId"]?.ifBlank { null },
                                 iconId = current?.iconId,
                                 stickerId = current?.stickerId,
                                 version = editing.version,
@@ -664,6 +677,11 @@ class AppViewModel @Inject constructor(
                 result
                     .onSuccess {
                         _state.update { it.copy(saving = false, pendingCreate = null, editing = null, formInitialValues = emptyMap()) }
+                        onDone?.invoke(true)
+                        if (quiet) {
+                            refresh()
+                            return@launch
+                        }
                         // CRUZAR LA META ES UN UMBRAL, no un cambio guardado.
                         //
                         // Y no cierra el objetivo: AC-018 dice que `completed` y
@@ -683,7 +701,8 @@ class AppViewModel @Inject constructor(
                         refresh()
                     }
                     .onFailure { e ->
-                        _state.update { it.copy(saving = false, error = e.message ?: "No se pudo guardar") }
+                        _state.update { it.copy(saving = false, error = if (quiet) null else e.message ?: "No se pudo guardar", editing = if (quiet) null else it.editing) }
+                        onDone?.invoke(false)
                     }
                 return@launch
             }
@@ -901,6 +920,25 @@ class AppViewModel @Inject constructor(
      * el formato con el que trabaja el campo de fecha y hora: así el usuario
      * ve la hora que puso, no una conversión.
      */
+    private fun taskSnapshot(taskId: String): Pair<Map<String, String>, Int>? {
+        val reminder = _state.value.reminders.firstOrNull { it.id == taskId } ?: return null
+        val local = reminder.dueAt?.let {
+            runCatching {
+                Instant.parse(it).atZone(ZoneId.systemDefault()).toLocalDateTime()
+                    .truncatedTo(java.time.temporal.ChronoUnit.MINUTES).toString()
+            }.getOrNull()
+        }
+        return buildMap {
+            put("title", reminder.title)
+            local?.let { value -> put("dueAt", value) }
+            reminder.location?.let { l -> put("location", l) }
+            reminder.description?.let { d -> put("description", d) }
+            reminder.priority?.let { v -> put("priority", v) }
+            reminder.personId?.let { v -> put("personId", v) }
+            reminder.projectId?.let { v -> put("projectId", v) }
+        } to reminder.version
+    }
+
     fun requestEditTask(taskId: String, abrirFormulario: Boolean = true) {
         val reminder = _state.value.reminders.firstOrNull { it.id == taskId } ?: return
         val local = reminder.dueAt?.let {
@@ -941,18 +979,20 @@ class AppViewModel @Inject constructor(
      * ya ES el formulario, así que encenderlo desde ahí abría dos a la vez: la
      * ventana debajo y la hoja deslizante encima.
      */
-    fun requestEdit(resource: CreatableResource, id: String, abrirFormulario: Boolean = true) {
+    /**
+     * Los valores REALES de un registro, en el formato del formulario, y su
+     * `version`. Puro: no toca el estado. Lo usan `requestEdit` y el detalle,
+     * que enseña todos los campos sin abrir ningún formulario.
+     */
+    fun editSnapshot(resource: CreatableResource, id: String): Pair<Map<String, String>, Int>? {
         val data = _state.value.data
         val values: Map<String, String>
         val version: Int
 
         when (resource) {
-            CreatableResource.TASK -> {
-                requestEditTask(id, abrirFormulario)
-                return
-            }
+            CreatableResource.TASK -> return taskSnapshot(id)
             CreatableResource.WARRANTY -> {
-                val w = data.warranties.firstOrNull { it.id == id } ?: return
+                val w = data.warranties.firstOrNull { it.id == id } ?: return null
                 values = buildMap {
                     put("item", w.product)
                     put("expiresAt", w.expiresOn.toString())
@@ -964,7 +1004,7 @@ class AppViewModel @Inject constructor(
                 version = w.version
             }
             CreatableResource.MAINTENANCE -> {
-                val m = data.maintenance.firstOrNull { it.id == id } ?: return
+                val m = data.maintenance.firstOrNull { it.id == id } ?: return null
                 values = buildMap {
                     put("item", m.item)
                     put("nextDueAt", m.nextDueOn.toString())
@@ -974,7 +1014,7 @@ class AppViewModel @Inject constructor(
                 version = m.version
             }
             CreatableResource.PAYMENT -> {
-                val p = data.payments.firstOrNull { it.id == id } ?: return
+                val p = data.payments.firstOrNull { it.id == id } ?: return null
                 values = buildMap {
                     put("service", p.name)
                     put("nextPaymentDate", p.renewsOn.toString())
@@ -990,7 +1030,7 @@ class AppViewModel @Inject constructor(
                 version = p.version
             }
             CreatableResource.INVENTORY -> {
-                val i = data.inventory.firstOrNull { it.id == id } ?: return
+                val i = data.inventory.firstOrNull { it.id == id } ?: return null
                 values = buildMap {
                     put("name", i.name)
                     put("category", i.category)
@@ -999,12 +1039,12 @@ class AppViewModel @Inject constructor(
                 version = i.version
             }
             CreatableResource.DOCUMENT -> {
-                val d = data.documents.firstOrNull { it.id == id } ?: return
+                val d = data.documents.firstOrNull { it.id == id } ?: return null
                 values = mapOf("name" to d.name, "category" to d.category)
                 version = d.version
             }
             CreatableResource.PERSON -> {
-                val p = data.people.firstOrNull { it.id == id } ?: return
+                val p = data.people.firstOrNull { it.id == id } ?: return null
                 values = buildMap {
                     put("name", p.name)
                     p.role?.let { put("role", it) }
@@ -1013,7 +1053,7 @@ class AppViewModel @Inject constructor(
                 version = p.version
             }
             CreatableResource.PROJECT -> {
-                val p = data.projects.firstOrNull { it.id == id } ?: return
+                val p = data.projects.firstOrNull { it.id == id } ?: return null
                 values = buildMap {
                     put("name", p.name)
                     // Sin estado no se pone la clave, igual que con la entrega:
@@ -1024,7 +1064,7 @@ class AppViewModel @Inject constructor(
                 version = p.version
             }
             CreatableResource.COMMITMENT -> {
-                val cmt = data.commitments.firstOrNull { it.id == id } ?: return
+                val cmt = data.commitments.firstOrNull { it.id == id } ?: return null
                 values = buildMap {
                     put("description", cmt.description)
                     put("direction", cmt.direction)
@@ -1034,7 +1074,7 @@ class AppViewModel @Inject constructor(
                 version = cmt.version
             }
             CreatableResource.NOTE -> {
-                val n = data.inbox.firstOrNull { it.id == id } ?: return
+                val n = data.inbox.firstOrNull { it.id == id } ?: return null
                 values = buildMap {
                     put("title", n.title)
                     n.description?.let { put("description", it) }
@@ -1042,7 +1082,7 @@ class AppViewModel @Inject constructor(
                 version = n.version
             }
             CreatableResource.OBJECTIVE -> {
-                val o = data.objectives.firstOrNull { it.id == id } ?: return
+                val o = data.objectives.firstOrNull { it.id == id } ?: return null
                 values = buildMap {
                     put("title", o.title)
                     o.targetValue?.let { put("targetValue", it.toString()) }
@@ -1054,7 +1094,7 @@ class AppViewModel @Inject constructor(
                 version = o.version
             }
             CreatableResource.ROUTINE -> {
-                val r = data.routines.firstOrNull { it.id == id } ?: return
+                val r = data.routines.firstOrNull { it.id == id } ?: return null
                 values = buildMap {
                     put("title", r.title)
                     put("frequency", r.frequency)
@@ -1064,7 +1104,7 @@ class AppViewModel @Inject constructor(
                 version = r.version
             }
             CreatableResource.WORK_RESOURCE -> {
-                val w = data.workResources.firstOrNull { it.id == id } ?: return
+                val w = data.workResources.firstOrNull { it.id == id } ?: return null
                 values = buildMap {
                     put("name", w.name)
                     put("type", w.type)
@@ -1076,7 +1116,7 @@ class AppViewModel @Inject constructor(
                 version = w.version
             }
             CreatableResource.PLACE -> {
-                val p = data.places.firstOrNull { it.id == id } ?: return
+                val p = data.places.firstOrNull { it.id == id } ?: return null
                 values = buildMap {
                     put("name", p.name)
                     p.address?.let { put("address", it) }
@@ -1086,6 +1126,15 @@ class AppViewModel @Inject constructor(
             }
         }
 
+        return values to version
+    }
+
+    fun requestEdit(resource: CreatableResource, id: String, abrirFormulario: Boolean = true) {
+        if (resource == CreatableResource.TASK) {
+            requestEditTask(id, abrirFormulario)
+            return
+        }
+        val (values, version) = editSnapshot(resource, id) ?: return
         _state.update {
             it.copy(
                 pendingCreate = if (abrirFormulario) resource else null,
@@ -1094,6 +1143,60 @@ class AppViewModel @Inject constructor(
                 error = null,
             )
         }
+    }
+
+    /**
+     * EL MÓDULO DE UN REGISTRO (ADR-019), para que su detalle siga las reglas
+     * de ESE módulo y no las del que está activo: en Portal se ven los dos.
+     *
+     *  · Personas, proyectos, seguimientos, notas, objetivos, rutinas,
+     *    recursos y lugares solo existen en Laboral.
+     *  · Tareas, pagos, mantenimientos, garantías, inventario y documentos
+     *    guardan su módulo; se lee del propio registro.
+     */
+    fun moduleOf(resource: CreatableResource, id: String): com.vidacotidiana.app.navigation.AppContext {
+        val d = _state.value.data
+        val raw: String? = when (resource) {
+            CreatableResource.PERSON, CreatableResource.PROJECT, CreatableResource.COMMITMENT,
+            CreatableResource.NOTE, CreatableResource.OBJECTIVE, CreatableResource.ROUTINE,
+            CreatableResource.WORK_RESOURCE, CreatableResource.PLACE -> "LABORAL"
+            CreatableResource.TASK -> _state.value.reminders.firstOrNull { it.id == id }?.context
+            CreatableResource.PAYMENT -> d.payments.firstOrNull { it.id == id }?.context
+            CreatableResource.MAINTENANCE -> d.maintenance.firstOrNull { it.id == id }?.context
+            CreatableResource.WARRANTY -> d.warranties.firstOrNull { it.id == id }?.context
+            CreatableResource.INVENTORY -> d.inventory.firstOrNull { it.id == id }?.context
+            CreatableResource.DOCUMENT -> d.documents.firstOrNull { it.id == id }?.context
+        }
+        return if (raw.equals("LABORAL", ignoreCase = true)) {
+            com.vidacotidiana.app.navigation.AppContext.LABORAL
+        } else {
+            com.vidacotidiana.app.navigation.AppContext.PERSONAL
+        }
+    }
+
+    /**
+     * EDICIÓN EN EL SITIO: cambia UN valor del registro y lo guarda.
+     *
+     * No hay endpoint nuevo ni reglas nuevas. Se toman los valores reales del
+     * registro —los mismos que `requestEdit` le daba al formulario—, se cambia
+     * solo `key` y se guarda por el camino de edición de siempre, con su
+     * `version`. Así el detalle edita exactamente lo que el formulario de alta
+     * admite, ni un campo más.
+     *
+     * `file` solo para sustituir el archivo de un documento.
+     */
+    fun saveField(
+        resource: CreatableResource,
+        id: String,
+        key: String,
+        value: String,
+        file: FilePayload? = null,
+        onDone: (Boolean) -> Unit = {},
+    ) {
+        if (_state.value.saving) { onDone(false); return }
+        val (current, version) = editSnapshot(resource, id) ?: run { onDone(false); return }
+        _state.update { it.copy(editing = EditTarget(resource, id, version), pendingCreate = null) }
+        create(resource, current + (key to value), file, quiet = true, onDone = onDone)
     }
 
     /**

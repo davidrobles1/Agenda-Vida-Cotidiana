@@ -40,14 +40,17 @@ import androidx.navigation.NavHostController
 import com.vidacotidiana.app.core.app.AppViewModel
 import com.vidacotidiana.app.core.ui.VidaLayout
 import com.vidacotidiana.app.core.ui.VidaTheme
+import com.vidacotidiana.app.core.ui.VidaFonts
+import com.vidacotidiana.app.core.ui.components.MoodFilledFace
+import com.vidacotidiana.app.core.ui.components.VidaMoodCard
+import com.vidacotidiana.app.core.ui.components.vidaBrandInk
+import androidx.compose.ui.unit.em
 import com.vidacotidiana.app.core.ui.components.subeSobreElTeclado
 import com.vidacotidiana.app.core.ui.components.LoadingRows
-import com.vidacotidiana.app.core.ui.components.MoodFace
 import com.vidacotidiana.app.core.ui.components.MoodScale
 import com.vidacotidiana.app.core.ui.components.StaggeredAppear
 import com.vidacotidiana.app.core.ui.components.VidaError
 import com.vidacotidiana.app.core.ui.components.VidaScreen
-import com.vidacotidiana.app.core.ui.components.drawMoodFace
 import com.vidacotidiana.app.core.ui.components.vidaClickable
 import androidx.compose.foundation.Canvas
 import java.time.LocalDate
@@ -61,31 +64,30 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
-import com.vidacotidiana.app.core.ui.components.moodSky
-import com.vidacotidiana.app.core.ui.components.moodInk
-import com.vidacotidiana.app.core.ui.components.vidaHalo
-import com.vidacotidiana.app.core.ui.components.vidaFloat
-import com.vidacotidiana.app.core.ui.components.moodDisc
 import com.vidacotidiana.app.core.ui.components.VidaMetricRing
-import com.vidacotidiana.app.core.ui.components.MoodChip
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.IntrinsicSize
 
 /**
- * BIENESTAR — «¿Cómo te sientes hoy?».
+ * BIENESTAR — la semana del ánimo, en el lenguaje de Ánimo v3 de Inicio.
  *
- * Composición transcrita del artefacto maestro: tarjeta de 32 dp de radio cuyo
- * FONDO ENTERO cambia con el ánimo, la cara a 140 dp flotando sobre un halo, y
- * los cinco selectores de 56 dp que se levantan al elegirse.
+ * Arriba va LA MISMA tarjeta que Inicio (`VidaMoodCard`) en su versión grande:
+ * la pregunta con tu nombre, la cara rellena flotando sobre su halo, las cinco
+ * caritas que respiran, la mariposa que se posa y la respuesta de la app. Así
+ * marcar el ánimo se siente igual en las dos pantallas y hay una sola pieza
+ * que mantener.
+ *
+ * El resto sigue la gramática de Inicio: títulos de zona en versalitas,
+ * tarjetas blancas de radio 24 con filete, azul tinta para lo seleccionado y
+ * las caritas rellenas —no las de trazo— en la semana.
  *
  * DATOS REALES. Todo sale de `/api/v1/moods` (V36) vía `WellbeingRepository`.
  * Cuando la API falla se enseña el error; no hay valor de reserva que aparente
  * un ánimo que el usuario nunca marcó.
  *
- * ESTO ES DATO DE SALUD (ver `37-clasificacion-datos.md`): la etiqueta «Solo
- * tú» de la cabecera y el aviso violeta del final no son decoración, son la
- * promesa hecha visible donde el usuario la necesita.
+ * ESTO ES DATO DE SALUD (ver `37-clasificacion-datos.md`): «Solo tú» en la
+ * cabecera y el aviso del final son la promesa hecha visible.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -95,14 +97,13 @@ fun BienestarScreen(viewModel: AppViewModel, navController: NavHostController) {
     val t = VidaTheme.type
 
     // La semana se pide solo aquí: en Inicio la cara es pequeña y le basta hoy.
-    LaunchedEffect(Unit) { viewModel.loadMood(includeWeek = true) }
+    LaunchedEffect(Unit) {
+        viewModel.loadMood(includeWeek = true)
+        viewModel.loadUser()
+    }
 
     val marked = state.moodToday?.value
-    val shown = marked ?: MoodScale.NORMAL
-    // Mismo criterio que Inicio: el tinte del ánimo se compone sobre la
-    // superficie del tema activo, así que funciona en los once temas.
-    val sky = moodSky(marked)
-    val deep = moodInk(marked)
+    val ink = vidaBrandInk()
 
     // Las etiquetas del «¿qué lo hizo así?» viven en la pantalla porque son
     // parte del gesto de marcar, no un estado que deba sobrevivir a salir.
@@ -152,108 +153,25 @@ fun BienestarScreen(viewModel: AppViewModel, navController: NavHostController) {
             }
 
             else -> {
-                /* ── LA CARA ─────────────────────────────────────────────── */
+                /* ── HOY: la misma tarjeta que Inicio, en grande ─────────── */
                 StaggeredAppear(0) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(sky, RoundedCornerShape(32.dp))
-                            .padding(start = 20.dp, end = 20.dp, top = 26.dp, bottom = 22.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        Text(
-                            "¿Cómo te sientes hoy?",
-                            style = t.sectionTitle.copy(fontSize = 22.sp, lineHeight = 28.sp),
-                            color = c.text,
-                            textAlign = TextAlign.Center,
-                        )
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            when {
-                                marked != null -> MoodScale.ECHOES[marked]
-                                state.moodError != null -> "No pudimos consultarlo"
-                                else -> "Toca una carita"
-                            },
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                fontWeight = FontWeight.SemiBold, fontSize = 13.sp, lineHeight = 18.sp,
-                            ),
-                            color = deep,
-                        )
-
-                        Box(
-                            modifier = Modifier.fillMaxWidth().height(168.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            // El halo: el acento del ánimo, muy desvaído y
-                            // desenfocado. Es lo que hace que la cara flote en
-                            // vez de estar pegada al fondo.
-                            if (marked != null) {
-                                Box(
-                                    Modifier
-                                        .size(154.dp)
-                                        // `.halo` del artefacto: 5,2 s, escala
-                                        // 1 → 1,08 y opacidad .5 → .85. Estaba
-                                        // dibujado pero quieto, y un halo que no
-                                        // respira es sólo una mancha.
-                                        .vidaHalo()
-                                        .blur(18.dp)
-                                        .background(
-                                            MoodScale.accentOf(marked).copy(alpha = 0.16f),
-                                            RoundedCornerShape(50),
-                                        ),
-                                )
-                            }
-                            MoodFace(
-                                // `.floatybig`: 5,2 s, ±7 px y ±1,2° de
-                                // balanceo. Es la pieza central de la pantalla
-                                // y la única que el artefacto mueve así.
-                                modifier = Modifier.vidaFloat(7.dp, 5200, rotation = 1.2f),
-                                value = marked,
-                                size = 140.dp,
-                                strokeWidth = 3.4f,
-                                surface = c.surfaceVariant,
-                            )
-                        }
-
-                        /* LOS CINCO SELECTORES, en el formato de «EMOJIS /
-                           ESTADOS DE ÁNIMO» de la lámina: disco teñido del
-                           color del ánimo, aro en el elegido y el nombre
-                           debajo.
-
-                           ESTO ARREGLA ADEMÁS UNA INVERSIÓN QUE SE VEÍA. El
-                           elegido se pintaba con el cielo del ánimo, que es
-                           EXACTAMENTE el fondo de esta tarjeta, así que
-                           desaparecía dentro de ella mientras los cuatro no
-                           elegidos —sobre `sunken`, más claro— parecían las
-                           pastillas activas. `moodDisc` compone siempre sobre
-                           la superficie, de modo que el elegido es el más
-                           saturado de los cinco se mire desde donde se mire. */
-                        Row(
-                            Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        ) {
-                            (0..4).forEach { k ->
-                                MoodChip(
-                                    value = k,
-                                    selected = marked == k,
-                                    onClick = { viewModel.setMood(k, null, tags.toList()) },
-                                    modifier = Modifier.weight(1f),
-                                    size = 54.dp,
-                                )
-                            }
-                        }
-                    }
+                    VidaMoodCard(
+                        name = state.user?.username?.takeIf { it.isNotBlank() },
+                        marked = marked,
+                        loading = state.moodLoading,
+                        failed = state.moodError != null,
+                        onMark = { viewModel.setMood(it, state.moodToday?.note, tags.toList()) },
+                        onOpenWellbeing = null,
+                        hero = true,
+                    )
                 }
 
                 /* ── ¿QUÉ LO HIZO ASÍ? ───────────────────────────────────── */
-                StaggeredAppear(1) {
-                    Text("¿QUÉ LO HIZO ASÍ? · OPCIONAL", style = t.eyebrow, color = c.textTertiary)
-                }
+                StaggeredAppear(1) { ZoneTitle("¿Qué lo hizo así?", "Opcional") }
                 StaggeredAppear(2) {
                     val options = listOf("Dormí bien", "Familia", "Trabajo", "Me moví", "Pendientes", "Nada en concreto")
-                    // Retícula fluida: los chips se reparten en las líneas que
-                    // hagan falta, como en el artefacto. No es una fila que se
-                    // desplaza — aquí caben todos y verlos todos es el punto.
+                    // Retícula fluida: caben todos y verlos todos es el punto.
+                    // Seleccionado = azul tinta, como la carita y el día de hoy.
                     FlowRow(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -261,17 +179,11 @@ fun BienestarScreen(viewModel: AppViewModel, navController: NavHostController) {
                     ) {
                         options.forEach { label ->
                             val on = label in tags
+                            val fill = if (VidaTheme.spec.isDark) Color(0xFF2B2870) else ink
                             Box(
                                 modifier = Modifier
-                                    .background(
-                                        if (on) c.primaryContainer else c.surfaceVariant,
-                                        RoundedCornerShape(50),
-                                    )
-                                    .border(
-                                        1.5.dp,
-                                        if (on) c.primary else c.line,
-                                        RoundedCornerShape(50),
-                                    )
+                                    .background(if (on) fill else c.surfaceVariant, RoundedCornerShape(50))
+                                    .border(1.dp, if (on) fill else c.line, RoundedCornerShape(50))
                                     .vidaClickable(
                                         onClick = {
                                             tags = if (on) tags - label else tags + label
@@ -282,8 +194,10 @@ fun BienestarScreen(viewModel: AppViewModel, navController: NavHostController) {
                             ) {
                                 Text(
                                     label,
-                                    style = MaterialTheme.typography.labelLarge.copy(fontSize = 13.sp),
-                                    color = if (on) c.primaryDeep else c.textSecondary,
+                                    style = androidx.compose.ui.text.TextStyle(
+                                        fontFamily = VidaFonts.Sora, fontWeight = FontWeight.SemiBold, fontSize = 12.5.sp,
+                                    ),
+                                    color = if (on) Color.White else c.textSecondary,
                                 )
                             }
                         }
@@ -295,8 +209,8 @@ fun BienestarScreen(viewModel: AppViewModel, navController: NavHostController) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(c.surfaceElevated, RoundedCornerShape(22.dp))
-                            .border(1.5.dp, c.line, RoundedCornerShape(22.dp))
+                            .background(c.surfaceVariant, RoundedCornerShape(24.dp))
+                            .border(1.dp, c.line, RoundedCornerShape(24.dp))
                             .padding(horizontal = 18.dp, vertical = 16.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
@@ -306,18 +220,6 @@ fun BienestarScreen(viewModel: AppViewModel, navController: NavHostController) {
                             tint = c.textTertiary,
                             modifier = Modifier.size(18.dp),
                         )
-                        // ESTO ERA UN CARTEL CON PINTA DE CAMPO.
-                        //
-                        // Tenía marco, lápiz y texto de sugerencia, pero era un
-                        // `Text`: al tocarlo no pasaba nada, el teclado no
-                        // aparecía y `mood_entry.note` se quedaba para siempre
-                        // en nulo. El backend aceptaba la nota desde el
-                        // principio y `setMood` ya la enviaba; lo único que no
-                        // existía era por dónde escribirla.
-                        //
-                        // Se guarda al terminar —con «Listo» o al salir del
-                        // campo— y no en cada tecla: una petición por letra
-                        // convertiría una frase en treinta escrituras.
                         val noteStyle = MaterialTheme.typography.bodyLarge.copy(
                             fontFamily = VidaTheme.spec.fonts.hand ?: VidaTheme.spec.fonts.body,
                             fontSize = 22.sp,
@@ -383,69 +285,49 @@ fun BienestarScreen(viewModel: AppViewModel, navController: NavHostController) {
                 }
 
                 /* ── TU SEMANA ───────────────────────────────────────────── */
-                StaggeredAppear(4) {
-                    Text("TU SEMANA", style = t.eyebrow, color = c.textTertiary)
-                }
+                StaggeredAppear(4) { ZoneTitle("Tu semana") }
                 StaggeredAppear(5) {
                     val today = LocalDate.now()
                     val days = (6 downTo 0).map { today.minusDays(it.toLong()) }
                     val byDate = state.moodWeek.associateBy { it.date }
+                    // Las caritas RELLENAS de la tarjeta de arriba, no las de
+                    // trazo: el ánimo tiene que verse igual en todas partes.
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(c.surfaceVariant, RoundedCornerShape(VidaTheme.spec.radii.card))
-                            .border(VidaTheme.spec.borderWidth, c.line, RoundedCornerShape(VidaTheme.spec.radii.card))
-                            .padding(horizontal = 14.dp, vertical = 18.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                            .background(c.surfaceVariant, RoundedCornerShape(24.dp))
+                            .border(1.dp, c.line, RoundedCornerShape(24.dp))
+                            .padding(horizontal = 10.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
                         days.forEach { day ->
                             val mood = byDate[day]?.value
                             val isToday = day == today
                             Column(
+                                Modifier
+                                    .weight(1f)
+                                    .background(
+                                        if (isToday) (if (VidaTheme.spec.isDark) Color(0xFF2B2870) else ink).copy(alpha = 0.08f) else Color.Transparent,
+                                        RoundedCornerShape(16.dp),
+                                    )
+                                    .padding(vertical = 8.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.spacedBy(7.dp),
                             ) {
-                                // CÍRCULO, no cuadrado redondeado: en la lámina
-                                // el ánimo SIEMPRE es un disco. Que la semana
-                                // usara otra forma rompía la única pista que
-                                // dice «esto de aquí y aquello de arriba son lo
-                                // mismo».
-                                Box(
-                                    modifier = Modifier
-                                        .size(36.dp)
-                                        .background(
-                                            if (mood != null) moodDisc(mood, isToday) else c.sunken,
-                                            CircleShape,
-                                        )
-                                        .then(
-                                            if (isToday && mood != null) {
-                                                Modifier.border(2.dp, MoodScale.accentOf(mood), CircleShape)
-                                            } else if (mood == null) {
-                                                // `line` es el filete de una
-                                                // separación, casi invisible
-                                                // sobre fondo oscuro; un hueco
-                                                // que hay que poder contar pide
-                                                // el borde de un control.
-                                                Modifier.border(1.5.dp, c.border, CircleShape)
-                                            } else {
-                                                Modifier
-                                            },
-                                        ),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    // Un día sin marcar queda VACÍO, no en gris
-                                    // neutro: no marcar no es sentirse normal.
-                                    if (mood != null) {
-                                        Canvas(Modifier.size(22.dp)) {
-                                            drawMoodFace(mood.toFloat(), 1f, 2f, Color.Transparent)
-                                        }
-                                    }
+                                // Un día sin marcar queda VACÍO: no marcar no es
+                                // sentirse normal.
+                                if (mood != null) {
+                                    MoodFilledFace(mood, Modifier.size(32.dp))
+                                } else {
+                                    Box(Modifier.size(32.dp).border(1.5.dp, c.border, CircleShape))
                                 }
                                 Text(
                                     if (isToday) "HOY" else day.dayOfWeek
                                         .getDisplayName(TextStyle.NARROW, Locale("es", "MX")).uppercase(),
-                                    style = t.micro,
-                                    color = if (isToday) deep else c.textTertiary,
+                                    style = androidx.compose.ui.text.TextStyle(
+                                        fontFamily = VidaFonts.Sora, fontWeight = FontWeight.SemiBold, fontSize = 10.sp,
+                                    ),
+                                    color = if (isToday) ink else c.textSecondary,
                                 )
                             }
                         }
@@ -471,15 +353,14 @@ fun BienestarScreen(viewModel: AppViewModel, navController: NavHostController) {
                            de 7 es mucho— y además era la única superficie de
                            color pleno que quedaba en la aplicación después de
                            pasar todo lo demás al lenguaje de las láminas. */
-                        val verde = Color(0xFF10A37F)
                         Row(
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxHeight()
-                                .background(c.surfaceVariant, RoundedCornerShape(VidaTheme.spec.radii.card))
+                                .background(c.surfaceVariant, RoundedCornerShape(24.dp))
                                 .border(
-                                    VidaTheme.spec.borderWidth, c.line,
-                                    RoundedCornerShape(VidaTheme.spec.radii.card),
+                                    1.dp, c.line,
+                                    RoundedCornerShape(24.dp),
                                 )
                                 .padding(14.dp),
                             verticalAlignment = Alignment.CenterVertically,
@@ -490,7 +371,7 @@ fun BienestarScreen(viewModel: AppViewModel, navController: NavHostController) {
                                 // vez de completo: cero de cero no es un pleno.
                                 progress = if (state.moodWeek.isEmpty()) 0f else good.toFloat() / state.moodWeek.size,
                                 figure = good.toString(),
-                                tint = verde,
+                                tint = ink,
                                 size = 48.dp,
                                 stroke = 5.dp,
                             )
@@ -513,15 +394,21 @@ fun BienestarScreen(viewModel: AppViewModel, navController: NavHostController) {
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxHeight()
-                                .background(c.surfaceVariant, RoundedCornerShape(VidaTheme.spec.radii.card))
+                                .background(c.surfaceVariant, RoundedCornerShape(24.dp))
                                 .border(
-                                    VidaTheme.spec.borderWidth, c.line,
-                                    RoundedCornerShape(VidaTheme.spec.radii.card),
+                                    1.dp, c.line,
+                                    RoundedCornerShape(24.dp),
                                 )
                                 .padding(14.dp),
                             verticalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
-                            Text("ESTA SEMANA", style = t.eyebrow, color = c.textTertiary)
+                            Text(
+                                "ESTA SEMANA",
+                                style = androidx.compose.ui.text.TextStyle(
+                                    fontFamily = VidaFonts.Sora, fontWeight = FontWeight.SemiBold, fontSize = 11.sp, letterSpacing = 0.14.em,
+                                ),
+                                color = c.textSecondary,
+                            )
                             Text(
                                 state.moodWeek.size.toString(),
                                 style = t.heroFigure.copy(fontSize = 30.sp, lineHeight = 34.sp),
@@ -541,21 +428,21 @@ fun BienestarScreen(viewModel: AppViewModel, navController: NavHostController) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(Color(0xFFF3EEFF), RoundedCornerShape(20.dp))
+                            .background(ink.copy(alpha = 0.08f), RoundedCornerShape(24.dp))
                             .padding(horizontal = 17.dp, vertical = 15.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         Icon(
                             Icons.Outlined.Lock,
                             contentDescription = null,
-                            tint = Color(0xFF7C3AED),
+                            tint = ink,
                             modifier = Modifier.size(18.dp),
                         )
                         Text(
                             "No se comparte con nadie, ni con quien comparte tareas contigo. " +
                                 "Se borra de golpe desde Ajustes.",
                             style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, lineHeight = 19.sp),
-                            color = Color(0xFF5B21B6),
+                            color = c.textSecondary,
                         )
                     }
                 }
@@ -571,5 +458,17 @@ fun BienestarScreen(viewModel: AppViewModel, navController: NavHostController) {
                 Spacer(Modifier.height(VidaLayout.sectionGap))
             }
         }
+    }
+}
+
+/** El título de zona de Inicio: Sora 600, 11 sp, versalitas con 0,14 em. */
+@Composable
+private fun ZoneTitle(title: String, trailing: String? = null) {
+    val style = androidx.compose.ui.text.TextStyle(
+        fontFamily = VidaFonts.Sora, fontWeight = FontWeight.SemiBold, fontSize = 11.sp, letterSpacing = 0.14.em,
+    )
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(title.uppercase(), style = style, color = VidaTheme.colors.textSecondary, modifier = Modifier.weight(1f))
+        if (trailing != null) Text(trailing, style = style.copy(letterSpacing = 0.sp), color = VidaTheme.colors.textTertiary)
     }
 }

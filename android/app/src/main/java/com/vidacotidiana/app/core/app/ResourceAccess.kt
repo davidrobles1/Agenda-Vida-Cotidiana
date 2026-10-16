@@ -39,6 +39,18 @@ class ResourceAccessController internal constructor(
     internal var title by mutableStateOf("")
 
     fun abrir(kind: ShareableKind, resourceId: String, title: String) {
+        // ADR-019 + ADR-025: compartir con Familia es de PERSONAL. Un registro
+        // de Laboral no abre este diálogo, venga de donde venga la llamada: en
+        // Laboral se vincula a Personas, no a la familia.
+        val resource = when (kind) {
+            ShareableKind.REMINDER -> CreatableResource.TASK
+            ShareableKind.SUBSCRIPTION -> CreatableResource.PAYMENT
+            ShareableKind.MAINTENANCE -> CreatableResource.MAINTENANCE
+            ShareableKind.WARRANTY -> CreatableResource.WARRANTY
+            ShareableKind.INVENTORY_ITEM -> CreatableResource.INVENTORY
+            ShareableKind.DOCUMENT -> CreatableResource.DOCUMENT
+        }
+        if (viewModel.moduleOf(resource, resourceId) == com.vidacotidiana.app.navigation.AppContext.LABORAL) return
         this.kind = kind
         this.resourceId = resourceId
         this.title = title

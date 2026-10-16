@@ -1,5 +1,16 @@
 package com.vidacotidiana.app.feature.laboral
 
+import com.vidacotidiana.app.navigation.go
+import com.vidacotidiana.app.core.ui.VidaSections
+import com.vidacotidiana.app.core.ui.components.InfoEdit
+import com.vidacotidiana.app.core.ui.components.InfoItem
+import com.vidacotidiana.app.core.ui.components.VidaDetailHeroCard
+import com.vidacotidiana.app.core.ui.components.VidaDetailPage
+import com.vidacotidiana.app.core.ui.components.VidaInfoSection
+import com.vidacotidiana.app.core.ui.components.infoItemsFor
+import com.vidacotidiana.app.core.ui.components.infoRefsOf
+import com.vidacotidiana.app.core.ui.components.rememberDetailSnack
+import com.vidacotidiana.app.core.ui.components.rememberInlineSaver
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.Text
@@ -52,19 +63,13 @@ fun PersonaDetalleScreen(
 
     val person = state.data.people.firstOrNull { it.id == personId }
 
-    VidaScreen(
+    val snack = rememberDetailSnack()
+    val saver = rememberInlineSaver(viewModel, CreatableResource.PERSON, personId, snack)
+
+    VidaDetailPage(
         title = "Persona",
-        showBack = true,
-        onNavigationClick = { navController.popBackStack() },
-        actions = {
-            if (person != null) {
-                VidaSmallButton(
-                    "Editar",
-                    { viewModel.requestEdit(CreatableResource.PERSON, personId) },
-                    ghost = true,
-                )
-            }
-        },
+        onBack = { navController.popBackStack() },
+        snack = snack,
     ) {
         if (person == null) {
             VidaError(
@@ -73,48 +78,30 @@ fun PersonaDetalleScreen(
                 onRetry = { navController.popBackStack() },
                 retryLabel = "Volver",
             )
-            return@VidaScreen
+            return@VidaDetailPage
         }
 
         val commitments = state.data.commitments.filter { it.personId == personId }
         val open = commitments.count { it.status != "DONE" }
         val projects = state.data.projects.filter { it.clientPersonId == personId }
 
-        StaggeredAppear(0) {
-            VidaDetailHero(
-                tone = c.primary,
-                eyebrow = person.role ?: "Persona",
-                title = person.name,
-                subtitle = listOfNotNull(
-                    person.organization,
-                    if (open > 0) "$open seguimiento${if (open == 1) "" else "s"} abierto${if (open == 1) "" else "s"}" else null,
-                ).joinToString(" · ").ifBlank { "Sin nada pendiente" },
-                figure = { VidaHeroFigure(person.name.firstOrNull()?.uppercase() ?: "·") },
-            )
-        }
-
-        StaggeredAppear(1) {
-            VidaPropertyBlock(
-                listOfNotNull(
-                    person.role?.let { VidaProperty("Rol", it, c.primaryContainer, c.primaryDeep) },
-                    // Una propiedad opcional se omite cuando NO tiene valor,
-                    // y vacío es tanto `null` como una cadena en blanco: con
-                    // sólo mirar el nulo, un campo guardado vacío pintaba la
-                    // fila con su píldora sin nada dentro. Misma regla que
-                    // usan las demás propiedades de este detalle.
-                    person.organization?.takeIf { it.isNotBlank() }?.let {
-                        VidaProperty("Organización", it, c.sunken, c.textSecondary)
-                    },
-                    VidaProperty(
-                        "Seguimientos",
-                        if (open == 0) "Ninguno abierto" else "$open abiertos",
-                        if (open == 0) c.successContainer else c.warningContainer,
-                        if (open == 0) c.successText else c.warningText,
-                        onClick = { navController.navigate(Routes.COMMITMENTS) },
-                    ),
-                ),
-            )
-        }
+        val values = viewModel.editSnapshot(CreatableResource.PERSON, personId)?.first.orEmpty()
+        val refs = infoRefsOf(state, viewModel)
+        VidaDetailHeroCard(
+            section = VidaSections.Familia,
+            eyebrow = listOfNotNull("Laboral", "Persona", person.organization?.takeIf { it.isNotBlank() }).joinToString(" · "),
+            title = person.name,
+            onRename = { saver.save("name", "Nombre", it, person.name, flashKey = "title") },
+            onEmptyTitle = { snack.show("El nombre no puede quedar vacío") },
+            figure = person.name.firstOrNull()?.uppercase(),
+            status = if (open > 0) "$open seguimiento${if (open == 1) "" else "s"} abierto${if (open == 1) "" else "s"}" else "Sin nada pendiente",
+            statusColor = if (open > 0) c.warning else c.success,
+        )
+        VidaInfoSection(
+            items = infoItemsFor(CreatableResource.PERSON, values, refs, saver),
+            refs = refs,
+            flash = saver.flash,
+        )
 
         /* ── SEGUIMIENTOS CON ESTA PERSONA ───────────────────────────────── */
         StaggeredAppear(2) {
@@ -136,7 +123,7 @@ fun PersonaDetalleScreen(
                             tone = if (cmt.status == "DONE") c.successText else c.warning,
                         )
                     },
-                    onOpenDetail = { navController.navigate(Routes.COMMITMENTS) },
+                    onOpenDetail = { navController.go(Routes.COMMITMENTS) },
                 )
             }
         }
@@ -157,7 +144,7 @@ fun PersonaDetalleScreen(
                             tone = c.primary,
                         )
                     },
-                    onOpenDetail = { navController.navigate(Routes.projectRoute(it.id)) },
+                    onOpenDetail = { navController.go(Routes.projectRoute(it.id)) },
                 )
             }
         }
@@ -171,7 +158,7 @@ fun PersonaDetalleScreen(
                     style = t.body,
                     color = c.textTertiary,
                 )
-                VidaSmallButton("Abrir Tareas", { navController.navigate(Routes.TASKS_LAB) }, ghost = true)
+                VidaSmallButton("Abrir Tareas", { navController.go(Routes.TASKS_LAB) }, ghost = true)
             }
         }
     }

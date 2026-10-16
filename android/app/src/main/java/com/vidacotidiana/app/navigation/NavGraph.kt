@@ -230,16 +230,10 @@ fun AppNavGraph(
          * duplicados, sin pilas inconsistentes y sin tocar el «atrás» del
          * sistema, que sigue recorriendo lo que quede.
          */
-        fun openTab(route: String) {
-            navController.navigate(route) {
-                popUpTo(moduleRoot) { inclusive = false }
-                launchSingleTop = true
-            }
-        }
+        fun openTab(route: String) = navController.go(route)
 
-        fun pushSection(route: String) {
-            navController.navigate(route) { launchSingleTop = true }
-        }
+        // El menú lateral lleva a SECCIONES: nunca se apilan (ver `go`).
+        fun pushSection(route: String) = navController.go(route)
 
         /**
          * Cambiar de módulo REINICIA la navegación en su raíz.
@@ -381,6 +375,9 @@ fun AppNavGraph(
              */
             Column(Modifier.fillMaxSize().imePadding()) {
                 Box(Modifier.weight(1f)) {
+                    androidx.compose.runtime.CompositionLocalProvider(
+                        com.vidacotidiana.app.core.ui.components.LocalOpenDrawer provides { scope.launch { drawerState.open() } },
+                    ) {
                     NavHost(
                         navController = navController,
                         startDestination = startDestination,
@@ -479,6 +476,21 @@ fun AppNavGraph(
                             }
                         }
 
+                        composable(Routes.SHARED_COLLECTION) { entry ->
+                            com.vidacotidiana.app.feature.sharing.SharedCollectionScreen(
+                                viewModel = appViewModel,
+                                navController = navController,
+                                receiving = entry.arguments?.getString("dir") != "enviados",
+                                key = entry.arguments?.getString("key").orEmpty(),
+                            )
+                        }
+                        composable(Routes.SHARED_DETAIL) { entry ->
+                            com.vidacotidiana.app.feature.sharing.SharedDetailScreen(
+                                viewModel = appViewModel,
+                                navController = navController,
+                                shareId = entry.arguments?.getString("shareId").orEmpty(),
+                            )
+                        }
                         composable(Routes.DOCUMENT_DETAIL) { entry ->
                             DocumentDetailScreen(
                                 viewModel = appViewModel,
@@ -533,6 +545,7 @@ fun AppNavGraph(
                         composable(Routes.NOTIFICATIONS) { NotificationsScreen(appViewModel, navController) }
                         composable(Routes.SETTINGS) { SettingsScreen(appViewModel, navController) }
                         composable(Routes.APPEARANCE) { AppearanceScreen(appViewModel, navController) }
+                    }
                     }
                 }
 
@@ -602,6 +615,7 @@ fun AppNavGraph(
                     onDiscardDraft = if (state.editing == null && state.drafts[resource] != null) {
                         { appViewModel.discardDraft(resource) }
                     } else null,
+                    laboral = state.context == AppContext.LABORAL,
                     onCancel = appViewModel::cancelCreate,
                 )
             }
@@ -644,6 +658,4 @@ fun AppNavGraph(
 }
 
 /** Navegación desde una pantalla: apila, para que "atrás" devuelva. */
-private fun NavHostController.navigateSafely(route: String) {
-    navigate(route) { launchSingleTop = true }
-}
+private fun NavHostController.navigateSafely(route: String) = go(route)

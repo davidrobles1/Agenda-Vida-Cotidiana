@@ -1,159 +1,132 @@
 package com.vidacotidiana.app.feature.home
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.outlined.Lock
-import androidx.compose.material3.Icon
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.unit.dp
-import com.vidacotidiana.app.core.ui.components.MoodFace
-import com.vidacotidiana.app.core.ui.components.MoodScale
-import com.vidacotidiana.app.core.ui.components.vidaClickable
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.SolidColor
-import com.vidacotidiana.app.core.ui.components.VidaTile
-import java.time.Instant
-import java.time.temporal.ChronoUnit
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
-import androidx.compose.material.icons.automirrored.outlined.Assignment
-import androidx.compose.material.icons.outlined.Autorenew
-import androidx.compose.material.icons.outlined.Build
-import androidx.compose.material.icons.outlined.Groups
-import androidx.compose.material.icons.outlined.Inventory2
+import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.Lightbulb
+import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Notifications
-import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material.icons.outlined.Share
-import androidx.compose.material.icons.outlined.VerifiedUser
 import androidx.compose.material3.DrawerState
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.vidacotidiana.app.core.app.AppViewModel
+import com.vidacotidiana.app.core.app.loadFailed
 import com.vidacotidiana.app.core.attention.AttentionEngine
 import com.vidacotidiana.app.core.attention.AttentionItem
 import com.vidacotidiana.app.core.attention.AttentionSource
 import com.vidacotidiana.app.core.attention.AttentionUrgency
-import com.vidacotidiana.app.core.data.WarrantyStatus
-import com.vidacotidiana.app.core.ui.VidaLayout
-import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.ChevronRight
-import androidx.compose.material.icons.outlined.Spa
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.sp
 import com.vidacotidiana.app.core.data.paidThisPeriod
 import com.vidacotidiana.app.core.ui.SectionVisual
+import com.vidacotidiana.app.core.ui.VidaFonts
 import com.vidacotidiana.app.core.ui.VidaSections
-import com.vidacotidiana.app.core.ui.components.DayChip
-import com.vidacotidiana.app.core.ui.components.LandscapeBanner
-import com.vidacotidiana.app.core.ui.components.VisionBoardBackdrop
-import com.vidacotidiana.app.core.ui.components.SectionEmptyState
-import com.vidacotidiana.app.core.ui.components.SectionQuickAccess
-import com.vidacotidiana.app.core.ui.components.SectionTile
-import com.vidacotidiana.app.core.ui.components.VidaMetricRing
-import com.vidacotidiana.app.core.ui.components.safeRatio
-import java.text.NumberFormat
-import java.time.format.DateTimeFormatter
-import androidx.compose.foundation.border
-import androidx.compose.foundation.shape.CircleShape
 import com.vidacotidiana.app.core.ui.VidaTheme
-import com.vidacotidiana.app.core.ui.components.DayRibbonItem
-import com.vidacotidiana.app.core.ui.components.Eyebrow
-import com.vidacotidiana.app.core.ui.components.HeroCard
-import com.vidacotidiana.app.core.ui.components.PillTone
-import com.vidacotidiana.app.core.ui.components.ResourceBoard
-import com.vidacotidiana.app.core.ui.components.ResourceEntry
+import com.vidacotidiana.app.core.ui.brand.ButterflyMark
+import com.vidacotidiana.app.core.ui.components.MoodScale
+import com.vidacotidiana.app.core.ui.components.SectionTile
 import com.vidacotidiana.app.core.ui.components.StaggeredAppear
-import com.vidacotidiana.app.core.ui.components.StripCard
 import com.vidacotidiana.app.core.ui.components.VidaCard
+import com.vidacotidiana.app.core.ui.components.VidaMoodCard
+import com.vidacotidiana.app.core.ui.components.vidaBrandInk
 import com.vidacotidiana.app.core.ui.components.VidaIconButton
-import com.vidacotidiana.app.core.ui.components.VidaProgress
 import com.vidacotidiana.app.core.ui.components.VidaScreen
-import com.vidacotidiana.app.core.ui.components.VidaSmallButton
+import com.vidacotidiana.app.core.ui.components.VidaTintedBar
+import com.vidacotidiana.app.core.ui.components.VisionBoardBackdrop
 import com.vidacotidiana.app.core.ui.components.openDrawerAction
 import com.vidacotidiana.app.core.ui.components.plural
+import com.vidacotidiana.app.core.ui.components.safeRatio
+import com.vidacotidiana.app.core.ui.components.vidaClickable
+import com.vidacotidiana.app.core.ui.components.vidaFloat
 import com.vidacotidiana.app.navigation.Routes
 import kotlinx.coroutines.CoroutineScope
+import java.text.NumberFormat
 import java.time.LocalDate
-import java.time.format.TextStyle
+import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
+import java.time.format.TextStyle as DateTextStyle
 import java.util.Locale
-import com.vidacotidiana.app.core.app.loadFailed
-import com.vidacotidiana.app.core.ui.components.AttentionList
-import com.vidacotidiana.app.core.ui.components.moodSky
-import com.vidacotidiana.app.core.ui.components.moodInk
-import com.vidacotidiana.app.core.ui.components.vidaFloat
-import com.vidacotidiana.app.core.ui.components.MoodChip
 
 /**
  * INICIO RESPONDE A UNA PREGUNTA: ¿qué necesita mi atención?
  *
- * ANTES ENUMERABA MÓDULOS. De sus cinco secciones, dos eran contadores en crudo
- * («Inventario · 4 artículos», que ni viene ni requiere nada) y otra eran dos
- * enlaces fijos rotulados como «actividad reciente». La única que intentaba
- * hablar de atención —el héroe— leía `contentFor(hoy).alerts`, es decir los
- * avisos derivados de ADR-018, que solo existen en las fechas exactas de
- * antelación. Una tarea vencida ayer, un pago cuyo día pasó sin pagarse o un
- * mantenimiento atrasado no llegaban aquí: había que ir módulo por módulo a
- * comprobarlo.
+ * PROPUESTA 2 · «INICIO EN CINCO ZONAS» (orden A, aprobada por el PO el
+ * 2026-09-27). La pantalla anterior apilaba ocho bloques del mismo peso, cada
+ * uno con su propio fondo —foto, cuatro tintes de sección, baldosas, paisaje—,
+ * repetía Pagos tres veces y abría Calendario desde cuatro sitios. Ahora se lee
+ * de arriba abajo en cinco zonas, cada una con UNA pregunta:
  *
- * AHORA LA PANTALLA LEE `AttentionEngine`, que mira el estado real de las siete
- * fuentes con fecha que ya existían y trae lo que reclama, con el motivo por el
- * que reclama. La diferencia de percepción no está en el diseño: está en que
- * «Garantías — 5» pasa a ser «La garantía del ipad vence en 3 días».
+ *  1. TU DÍA        — ¿cómo va mi día? El icono hecho pantalla: su degradado,
+ *                     sus facetas y su mariposa. Saludo, anillo de hechas y
+ *                     cuántas cosas reclaman.
+ *  2. ÁNIMO         — ¿cómo me siento? Sigue segundo: es petición expresa.
+ *  3. HOY           — ¿qué me reclama? Una lista; la baldosa dice el módulo y
+ *                     a la derecha el CUÁNDO. El rojo, solo lo atrasado.
+ *  4. ESTA SEMANA   — ¿qué viene? Días, pagos del mes y próximo mantenimiento
+ *                     en una sola tarjeta (antes: tres widgets y una tira).
+ *  5. TUS ESPACIOS  — ¿a dónde voy? Retícula 4 × 2 de baldosas iguales y
+ *                     Vision Board al cierre.
  *
- * EL ORDEN ES LA TESIS:
+ * DOS CONTENEDORES Y NADA MÁS: el héroe del icono y `VidaCard`. El color de
+ * sección vive solo dentro de su baldosa.
  *
- *  1. HÉROE     — cuántas cosas te reclaman y de dónde salen. Cuando no hay
- *                 ninguna, lo dice con seguridad: eso también es información.
- *  2. AHORA     — lo vencido y lo de hoy, junto, sin importar de qué módulo.
- *  3. ESTA SEMANA — lo que viene en siete días.
- *  4. TU DÍA    — el cierre del día: cuánto llevas hecho.
- *  5. PRÓXIMOS 7 DÍAS — la semana en el lenguaje del calendario.
- *  6. TUS ÁREAS — acceso. Va al final porque es lo que el usuario consulta
- *                 cuando quiere, no lo que necesita saber al abrir.
+ * NO AÑADE DATOS: todo lo que pinta ya lo leía la pantalla anterior.
  *
  * NO FILTRA POR CONTEXTO y es correcto: `loadAll` ya pide los datos con el
- * contexto activo (ADR-019), así que en Personal solo hay Personal. Portal
- * recibe todo junto porque eso es Portal.
+ * contexto activo (ADR-019).
  */
+
 /**
- * Cuántas filas dibuja cada sección. Lo que no cabe sigue contado en el
- * antetítulo y sigue estando en su módulo: se acota lo que se PINTA, no lo que
- * se sabe.
+ * Cuántas filas dibuja «Hoy». Lo que no cabe sigue contado en el título de la
+ * zona y sigue en su módulo: se acota lo que se PINTA, no lo que se sabe.
  */
 private const val MAX_ROWS = 6
 
-/**
- * La cifra de un mosaico, o una raya cuando todavía no hay cifra que dar.
- *
- * Un cero es una afirmación —«no tienes nada»— y mientras se carga o cuando la
- * consulta falló no hay nada que afirmar. Poner «0» ahí era lo que hacía que
- * Inicio le dijera al usuario que tenía el día libre justo cuando el teléfono
- * no había podido preguntarlo.
- */
-private fun figureOrDash(value: Int, loading: Boolean, failed: Boolean): String =
-    if (loading || failed) "—" else value.toString()
+/** Aire entre zonas y entre el título de una zona y su contenido. */
+private val ZONE_GAP = 28.dp
+private val ZONE_INNER = 12.dp
+
+/** Los colores del icono (ADR-027), para el héroe. */
+private val IconDeep = Color(0xFF1E1B4B)
+private val IconMid = Color(0xFF2F2E7A)
+private val IconLight = Color(0xFF4A4DA0)
+private val IconHalo = Color(0xFFCFEAFB)
+private val IconSky = Color(0xFF7DC2ED)
 
 @Composable
 fun HomeScreen(
@@ -163,14 +136,9 @@ fun HomeScreen(
     scope: CoroutineScope,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val c = VidaTheme.colors
-    val t = VidaTheme.type
     val today = LocalDate.now()
 
-    // El ánimo de HOY, no la semana: en Inicio la cara es pequeña y le basta.
-    // El ánimo de hoy y QUIÉN eres. Lo segundo faltaba: el saludo leía
-    // `state.user` pero nadie lo pedía desde aquí —solo Portal—, así que en
-    // Inicio siempre era nulo y el saludo se quedaba en «¡Hola!».
+    // El ánimo de hoy y QUIÉN eres: el saludo del héroe lee `state.user`.
     LaunchedEffect(Unit) {
         viewModel.loadMood()
         viewModel.loadUser()
@@ -179,32 +147,19 @@ fun HomeScreen(
     val attention = AttentionEngine.scan(state.data, viewModel.allTasks(), today)
     val now = AttentionEngine.now(attention)
     val soon = AttentionEngine.soon(attention)
-    val forToday = AttentionEngine.today(attention)
-    val overdue = AttentionEngine.overdue(attention)
 
-    // LOS TRES ESTADOS QUE INICIO NO DISTINGUÍA.
-    //
-    // Esta pantalla no consultaba `loading` ni el resultado de la carga, así
-    // que pintaba ceros con total confianza tanto mientras cargaba como
-    // cuando no había podido hablar con el servidor: «Nada te reclama» era la
-    // misma frase para «no tienes nada» y para «no lo sé». Como lee las siete
-    // fuentes a la vez, le basta con que falle una para no poder responder.
+    // Cargando o sin respuesta no es «nada te reclama»: un cero es una
+    // afirmación, y sin datos no hay nada que afirmar.
     val firstLoad = state.loading && state.data.collections.all { it.isEmpty() }
     val cannotAnswer = state.loadFailed && attention.isEmpty()
 
     val todayTasks = viewModel.contentFor(today).tasks
     val doneCount = todayTasks.count { it.done }
+    val hoy = (now + soon).distinctBy { it.id }
 
     VidaScreen(
-        // El saludo era «¡Hola!» a secas aunque la sesión ya conocía al
-        // usuario: `/api/v1/me` se pedía y se guardaba, y nadie lo leía. No se
-        // inventa una segunda fuente ni se guarda el nombre aparte — se usa la
-        // que ya hay, y si todavía no ha llegado el saludo es el de siempre.
-        title = state.user?.username?.takeIf { it.isNotBlank() }
-            ?.let { "¡Hola, $it!" } ?: "¡Hola!",
-        subtitle = today.dayOfWeek.getDisplayName(TextStyle.FULL, Locale("es", "MX"))
-            .replaceFirstChar { it.uppercase() } + " ${today.dayOfMonth} de " +
-            today.month.getDisplayName(TextStyle.FULL, Locale("es", "MX")),
+        title = "Inicio",
+        brandMark = true,
         onNavigationClick = openDrawerAction(drawerState, scope),
         onRefresh = viewModel::refresh,
         refreshing = state.loading,
@@ -212,12 +167,8 @@ fun HomeScreen(
         laboralEnabled = state.laboralEnabled,
         onContextSelect = viewModel::setContext,
         actions = {
-            // EL PUNTO DICE LA VERDAD O NO ESTÁ.
-            //
-            // Estaba fijado a `true`: un aviso permanente que nunca se apagaba
-            // por mucho que el usuario leyera, y que por eso dejaba de
-            // significar nada. Ahora sale del mismo conjunto que pinta la
-            // pantalla de avisos, menos lo ya leído.
+            // El punto dice la verdad o no está: sale del mismo conjunto que
+            // pinta la pantalla de avisos, menos lo ya leído.
             val sinLeer = attention.count { it.noticeKey !in state.readNotices }
             VidaIconButton(
                 Icons.Outlined.Notifications,
@@ -227,284 +178,201 @@ fun HomeScreen(
             VidaIconButton(Icons.Outlined.Settings, "Ajustes") { onNavigate(Routes.SETTINGS) }
         },
     ) {
-        /* ══════════════════════════════════════════════════════════════════
-           1 — LA BANDA DEL ENCABEZADO
-           ══════════════════════════════════════════════════════════════════
-
-           «Ilustración principal (encabezado del home)» de la lámina: el
-           amanecer de montaña con la frase que da el tono de la aplicación.
-
-           SUSTITUYE A LA RETÍCULA DE CUATRO CIFRAS. No se pierde ninguna:
-           «Para hoy» y «Atrasado» son ahora el bloque «Hoy», y «En total» y
-           «Hechas» viven en los widgets contextuales, que es donde la
-           propuesta los coloca. Lo que cambia es la entrada a la pantalla —
-           antes se abría con cuatro números y ahora con una frase, que es
-           exactamente lo que la propuesta pide: «menos dashboard y más vida
-           real».
-
-           El paisaje se dibuja (ver `LandscapeBanner`): ni una fotografía en
-           el instalable.
-        */
-        StaggeredAppear(0) {
-            LandscapeBanner()
-        }
-
-        // 2 — «¿Cómo te sientes hoy?» (V36).
-        //
-        // SIGUE EN SU SITIO, el segundo, y con el mismo aspecto: es petición
-        // expresa. En la propuesta no aparece —su lámina no lo contempla—
-        // pero la sección existe y su lugar en la lectura de la pantalla no
-        // cambia: después de saber cómo viene el día y antes de ponerse a
-        // resolverlo.
-        StaggeredAppear(1) {
-            val marked = state.moodToday?.value
-            // El fondo lo decide el TEMA, no una tabla de cremas fijos: con
-            // el color literal, en Noche esta tarjeta se quedaba clara bajo
-            // un texto que sí había cambiado a claro.
-            val sky = moodSky(marked)
-            val deep = moodInk(marked)
-            // EL MISMO ENVOLTORIO QUE EL RESTO DEL INICIO: radio 22 y un filete
-            // de un dp. Antes era un bloque de color a 26 dp sin borde, y sobre
-            // una pantalla que ya usa tarjetas con filete era lo único que se
-            // leía como de otro sitio. El tinte sigue siendo el del ánimo.
-            val edge = marked?.let { MoodScale.accentOf(it).copy(alpha = 0.22f) } ?: c.line
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(sky, RoundedCornerShape(22.dp))
-                    .border(1.dp, edge, RoundedCornerShape(22.dp))
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(13.dp)) {
-                    Box(Modifier.vidaClickable(onClick = { onNavigate(Routes.WELLBEING) })) {
-                        MoodFace(
-                            value = marked, size = 50.dp, strokeWidth = 4f, surface = c.surfaceVariant,
-                            modifier = Modifier.vidaFloat(),
-                        )
-                    }
-                    Column(
-                        Modifier.weight(1f).vidaClickable(onClick = { onNavigate(Routes.WELLBEING) }),
-                        verticalArrangement = Arrangement.spacedBy(2.dp),
-                    ) {
-                        Text("¿Cómo te sientes hoy?", style = t.cardTitle, color = c.text)
-                        Text(
-                            when {
-                                marked != null -> MoodScale.ECHOES[marked]
-                                state.moodError != null -> "No pudimos consultarlo"
-                                state.moodLoading -> "Un momento…"
-                                else -> "Sin marcar"
-                            },
-                            style = t.caption,
-                            color = deep,
-                        )
-                    }
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Icon(Icons.Outlined.Lock, contentDescription = null, tint = c.textTertiary, modifier = Modifier.size(12.dp))
-                        Text("Solo tú", style = t.micro, color = c.textTertiary)
-                    }
-                }
-                // LOS CINCO, EN EL FORMATO DE LA LÁMINA: disco teñido y rótulo
-                // debajo. Eran cuadrados blancos con una carita de 24 dp y sin
-                // nombre — a ese tamaño «normal» y «regular» se confunden, y
-                // había que tocar para saber cuál era cuál.
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    (0..4).forEach { k ->
-                        MoodChip(
-                            value = k,
-                            selected = marked == k,
-                            onClick = { viewModel.setMood(k) },
-                            modifier = Modifier.weight(1f),
-                            size = 44.dp,
-                        )
-                    }
-                }
-            }
-        }
-
-        /* 3 — ACCESOS RÁPIDOS
-           «Tus módulos al alcance de un toque. Con iconos y contadores de
-           actividad cuando sea necesario.»
-
-           El contador sale del MISMO motor que alimenta el resto de la
-           pantalla, no de un recuento propio: lo que reclama de esa sección.
-           Un cero no se dibuja, que es lo que la propuesta pide con «cuando
-           sea necesario». */
-        StaggeredAppear(2) {
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                SectionQuickAccess(
-                    VidaSections.Tareas,
-                    { onNavigate(Routes.TASKS) },
-                    badge = attention.count { it.source == AttentionSource.TASK },
-                )
-                SectionQuickAccess(
-                    VidaSections.Pagos,
-                    { onNavigate(Routes.PAYMENTS) },
-                    badge = attention.count { it.source == AttentionSource.PAYMENT },
-                )
-                SectionQuickAccess(VidaSections.Documentos, { onNavigate(Routes.DOCUMENTS) })
-                SectionQuickAccess(VidaSections.Inventario, { onNavigate(Routes.INVENTORY) })
-                SectionQuickAccess(
-                    VidaSections.Compartidos,
-                    { onNavigate(Routes.SHARED) },
-                    badge = attention.count { it.source == AttentionSource.SHARED },
+        Column(verticalArrangement = Arrangement.spacedBy(ZONE_GAP)) {
+            // 1 — TU DÍA
+            StaggeredAppear(0) {
+                DayHero(
+                    name = state.user?.username?.takeIf { it.isNotBlank() },
+                    today = today,
+                    now = now,
+                    soonCount = soon.size,
+                    done = doneCount,
+                    total = todayTasks.size,
+                    firstLoad = firstLoad,
+                    cannotAnswer = cannotAnswer,
+                    onOpen = { onNavigate(Routes.DAY) },
                 )
             }
-        }
 
-        /* 4 — RESUMEN DE HOY
-           «Muestra tus tareas más importantes del día con prioridad, hora y
-           categoría.»
+            // 2 — ÁNIMO (petición expresa: segundo lugar)
+            StaggeredAppear(1) {
+                MoodZone(
+                    name = state.user?.username?.takeIf { it.isNotBlank() },
+                    marked = state.moodToday?.value,
+                    loading = state.moodLoading,
+                    failed = state.moodError != null,
+                    onMark = viewModel::setMood,
+                    onOpen = { onNavigate(Routes.WELLBEING) },
+                )
+            }
 
-           Lleva lo que reclama HOY de las siete fuentes, no solo tareas: es
-           el conjunto que antes vivía en «Ahora» y «Esta semana», con la
-           presentación de la propuesta. Sin él se perdería la única lectura
-           de la aplicación que cruza módulos. */
-        StaggeredAppear(3) {
-            val hoy = (now + soon).distinctBy { it.id }
-            VidaCard {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        buildString {
-                            append("Hoy")
-                            if (hoy.isNotEmpty()) append(" · ").append(plural(hoy.size, "pendiente", "pendientes"))
-                        },
-                        style = t.cardTitle, color = c.text, modifier = Modifier.weight(1f),
-                    )
-                    if (hoy.isNotEmpty()) {
-                        Row(
-                            Modifier.vidaClickable(onClick = { onNavigate(Routes.DAY) }),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text("Ver todas", style = t.caption, color = c.primary)
-                            Icon(Icons.Outlined.ChevronRight, null, Modifier.size(16.dp), tint = c.primary)
+            // 3 — HOY
+            StaggeredAppear(2) {
+                Zone(
+                    title = "Hoy · ${if (firstLoad || cannotAnswer) "—" else hoy.size}",
+                    link = "Ver todo".takeIf { hoy.isNotEmpty() },
+                    onLink = { onNavigate(Routes.DAY) },
+                ) {
+                    ZoneCard {
+                        when {
+                            firstLoad -> ZoneRow(
+                                tile = { SectionTile(VidaSections.Tareas, size = 32.dp) },
+                                title = "Comprobando tu día…",
+                                detail = { RowDetail("Un momento") },
+                                trailing = { WhenFigure("—") },
+                            )
+                            cannotAnswer -> ZoneRow(
+                                tile = { SectionTile(VidaSections.Tareas, size = 32.dp) },
+                                title = "No pudimos consultarlo",
+                                detail = { RowDetail("Desliza hacia abajo para reintentar") },
+                                trailing = { WhenFigure("—") },
+                            )
+                            // El día despejado es UNA FILA MÁS, no un bloque de otro tamaño.
+                            hoy.isEmpty() -> ZoneRow(
+                                tile = { SectionTile(VidaSections.Tareas, size = 32.dp) },
+                                title = "Semana despejada",
+                                detail = { RowDetail("Nada te reclama. Disfruta tu día.") },
+                                trailing = { WhenFigure("0", "pendientes") },
+                            )
+                            else -> hoy.take(MAX_ROWS).forEachIndexed { i, item ->
+                                if (i > 0) Divider()
+                                AttentionRow(item, today) { onNavigate(Routes.detailRoute(item)) }
+                            }
                         }
                     }
                 }
-                when {
-                    firstLoad -> Text("Comprobando tu día…", style = t.caption, color = c.textSecondary)
-                    cannotAnswer -> Text("No pudimos consultarlo", style = t.caption, color = c.textSecondary)
-                    hoy.isEmpty() -> SectionEmptyState(
-                        section = VidaSections.Tareas,
-                        title = "Semana despejada",
-                        body = "No hay nada que te reclame. Disfruta tu día.",
-                    )
-                    else -> Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        hoy.take(MAX_ROWS).forEach { item -> TodayRow(item, onNavigate) }
+            }
+
+            // 4 — ESTA SEMANA
+            StaggeredAppear(3) {
+                val esteMes = state.data.payments.filter {
+                    it.renewsOn.month == today.month && it.renewsOn.year == today.year
+                }
+                val totalMes = esteMes.sumOf { it.amount ?: 0.0 }
+                // La regla de «ya pagado» es la del repositorio, no una copia.
+                val yaPagados = state.data.paymentRecords.paidThisPeriod(today)
+                val pagado = esteMes.filter { it.id in yaPagados }.sumOf { it.amount ?: 0.0 }
+                val proximoMant = state.data.maintenance.minByOrNull { it.nextDueOn }
+
+                Zone(title = "Esta semana", link = "Calendario", onLink = { onNavigate(Routes.CALENDAR) }) {
+                    ZoneCard {
+                        WeekStrip(today, attention) { date ->
+                            viewModel.selectDate(date)
+                            onNavigate(Routes.CALENDAR)
+                        }
+                        Divider()
+                        ZoneRow(
+                            tile = { SectionTile(VidaSections.Pagos, size = 32.dp) },
+                            title = "Pagos del mes",
+                            onClick = { onNavigate(Routes.PAYMENTS) },
+                            detail = {
+                                if (totalMes > 0.0) {
+                                    VidaTintedBar(
+                                        progress = safeRatio(pagado, totalMes),
+                                        tint = brandInk(),
+                                        height = 6.dp,
+                                        modifier = Modifier.padding(top = 7.dp),
+                                    )
+                                } else {
+                                    RowDetail("Nada que pagar este mes")
+                                }
+                            },
+                            trailing = {
+                                if (totalMes > 0.0) WhenFigure(money(pagado), "de ${money(totalMes)}") else WhenFigure("—")
+                            },
+                        )
+                        Divider()
+                        ZoneRow(
+                            tile = { SectionTile(VidaSections.Mantenimiento, size = 32.dp) },
+                            title = "Próximo mantenimiento",
+                            onClick = { onNavigate(Routes.MAINTENANCE) },
+                            detail = { RowDetail(proximoMant?.item ?: "Nada programado") },
+                            trailing = {
+                                val d = proximoMant?.nextDueOn
+                                WhenFigure(
+                                    d?.format(DAY_SHORT)?.trimEnd('.') ?: "—",
+                                    d?.dayOfWeek?.getDisplayName(DateTextStyle.FULL, ES_MX),
+                                )
+                            },
+                        )
                     }
                 }
             }
-        }
 
-        /* 5 — WIDGETS CONTEXTUALES
-           «Muestran datos clave y relevantes de cada área. Sin ser un
-           dashboard, se integran de forma natural en el flujo.» */
-        StaggeredAppear(4) {
-            val pendientesHoy = todayTasks.count { !it.done }
-            val esteMes = state.data.payments.filter {
-                it.renewsOn.month == today.month && it.renewsOn.year == today.year
-            }
-            val totalMes = esteMes.sumOf { it.amount ?: 0.0 }
-            // La regla de «ya pagado» NO se reescribe aquí: es la que la Web
-            // fijó y el repositorio ya expone (`paidThisPeriod`). Dos
-            // versiones de la misma regla acabarían discrepando.
-            val yaPagados = state.data.paymentRecords.paidThisPeriod(today)
-            val pagado = esteMes.filter { it.id in yaPagados }.sumOf { it.amount ?: 0.0 }
-            val proximoMant = state.data.maintenance.minByOrNull { it.nextDueOn }
-
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                ContextWidget(
-                    section = VidaSections.Calendario,
-                    title = "Agenda",
-                    kicker = "Hoy",
-                    figure = pendientesHoy.toString(),
-                    caption = plural(pendientesHoy, "tarea", "tareas"),
-                    onClick = { onNavigate(Routes.CALENDAR) },
-                    modifier = Modifier.weight(1f),
-                )
-                ContextWidget(
-                    section = VidaSections.Pagos,
-                    title = "Pagos",
-                    kicker = "Este mes",
-                    figure = money(pagado),
-                    caption = "de ${money(totalMes)}",
-                    onClick = { onNavigate(Routes.PAYMENTS) },
-                    modifier = Modifier.weight(1f),
-                    ring = safeRatio(pagado, totalMes).takeIf { totalMes > 0.0 },
-                )
-                ContextWidget(
-                    section = VidaSections.Mantenimiento,
-                    title = "Mantenimiento",
-                    kicker = "Próximo",
-                    figure = proximoMant?.nextDueOn?.format(DAY_SHORT) ?: "—",
-                    caption = proximoMant?.item ?: "Nada programado",
-                    onClick = { onNavigate(Routes.MAINTENANCE) },
-                    modifier = Modifier.weight(1f),
-                )
-            }
-        }
-
-        /* 6 — CALENDARIO INTELIGENTE
-           «Muestra tus próximos días con indicadores de tareas, eventos,
-           pagos o recordatorios.» El punto de cada día se tiñe con el color
-           de la sección que lo ocupa. */
-        StaggeredAppear(5) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("Próximos 7 días", style = t.cardTitle, color = c.text, modifier = Modifier.weight(1f))
-                Row(
-                    Modifier.vidaClickable(onClick = { onNavigate(Routes.CALENDAR) }),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text("Ver calendario", style = t.caption, color = c.primary)
-                    Icon(Icons.Outlined.ChevronRight, null, Modifier.size(16.dp), tint = c.primary)
-                }
-            }
-        }
-        StaggeredAppear(6) {
-            Row(
-                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                (0..6).map { today.plusDays(it.toLong()) }.forEach { date ->
-                    val delDia = attention.filter { it.date == date }
-                    DayChip(
-                        weekday = date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale("es", "MX"))
-                            .replaceFirstChar { it.uppercase() }.take(3),
-                        day = date.dayOfMonth,
-                        isToday = date == today,
-                        dotColor = delDia.firstOrNull()?.let { sectionFor(it.source).tint },
-                        onClick = { viewModel.selectDate(date); onNavigate(Routes.CALENDAR) },
+            // 5 — TUS ESPACIOS
+            StaggeredAppear(4) {
+                Zone(title = "Tus espacios") {
+                    VidaCard(padding = 0.dp) {
+                        SpacesGrid(
+                            spaces = listOf(
+                                Space(VidaSections.Tareas, Routes.TASKS, attention.count { it.source == AttentionSource.TASK }),
+                                Space(VidaSections.Pagos, Routes.PAYMENTS, attention.count { it.source == AttentionSource.PAYMENT }),
+                                Space(VidaSections.Documentos, Routes.DOCUMENTS),
+                                Space(VidaSections.Inventario, Routes.INVENTORY),
+                                Space(VidaSections.Compartidos, Routes.SHARED, attention.count { it.source == AttentionSource.SHARED }),
+                                Space(VidaSections.Calendario, Routes.CALENDAR),
+                                Space(VidaSections.Familia, Routes.FAMILY),
+                                Space(VidaSections.Mantenimiento, Routes.MAINTENANCE, attention.count { it.source == AttentionSource.MAINTENANCE }),
+                            ),
+                            onNavigate = onNavigate,
+                        )
+                    }
+                    VisionBoardCard(
+                        onOpen = { onNavigate(Routes.BOARD) },
+                        modifier = Modifier.fillMaxWidth().height(112.dp),
                     )
                 }
             }
         }
+    }
+}
 
-        /* 7 — FAMILIA Y VISION BOARD
-           «Acceso rápido a tu familia/usuarios compartidos y a tu Vision
-           Board.» */
-        StaggeredAppear(7) {
-            // ALTURA FIJA Y COMPARTIDA. En la propuesta las dos tarjetas miden
-            // lo mismo, y no por casualidad: la de Vision Board necesita una
-            // altura conocida para repartirla entre el texto y el paisaje. Con
-            // alturas naturales cada una acababa a una altura distinta y el
-            // paisaje se estiraba o se aplastaba según cuántos miembros
-            // tuviera la familia de al lado.
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                FamilyCard(
-                    members = state.data.familyMembers.size,
-                    onOpen = { onNavigate(Routes.FAMILY) },
-                    modifier = Modifier.weight(1f).height(120.dp),
-                )
-                VisionBoardCard(
-                    onOpen = { onNavigate(Routes.BOARD) },
-                    modifier = Modifier.weight(1f).height(120.dp),
+/* ══════════════════════════════════════════════════════════════════════════
+   PIEZAS COMUNES
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * El azul tinta de la marca: estructura, día de hoy, contadores y barra del
+ * mes. En Noche se aclara para no hundirse en el fondo.
+ */
+@Composable
+private fun brandInk(): Color = vidaBrandInk()
+
+/** Una zona: título en versalitas, enlace opcional y su contenido. */
+@Composable
+private fun Zone(
+    title: String,
+    link: String? = null,
+    onLink: () -> Unit = {},
+    trailing: (@Composable () -> Unit)? = null,
+    content: @Composable () -> Unit,
+) {
+    val c = VidaTheme.colors
+    Column(verticalArrangement = Arrangement.spacedBy(ZONE_INNER)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                title.uppercase(),
+                style = TextStyle(fontFamily = VidaFonts.Sora, fontWeight = FontWeight.SemiBold, fontSize = 11.sp, letterSpacing = 0.14.em),
+                color = c.textSecondary,
+                modifier = Modifier.weight(1f),
+            )
+            if (link != null) {
+                Text(
+                    link,
+                    style = TextStyle(fontFamily = VidaFonts.Sora, fontWeight = FontWeight.SemiBold, fontSize = 12.5.sp),
+                    color = c.primary,
+                    modifier = Modifier.vidaClickable(onClick = onLink).padding(vertical = 4.dp),
                 )
             }
+            trailing?.invoke()
         }
+        content()
     }
+}
+
+@Composable
+private fun Divider() {
+    Box(Modifier.fillMaxWidth().height(1.dp).background(VidaTheme.colors.line))
 }
 
 /** El color de la sección de la que viene cada cosa que reclama. */
@@ -517,249 +385,510 @@ private fun sectionFor(source: AttentionSource): SectionVisual = when (source) {
     AttentionSource.COMMITMENT, AttentionSource.ROUTINE -> VidaSections.Calendario
 }
 
-/** Importe corto, como la propuesta: «$3,480», sin decimales que no aportan. */
+/** Importe corto: «$3,480», sin decimales que no aportan. */
 private fun money(value: Double): String =
     "$" + NumberFormat.getIntegerInstance(Locale("es", "MX")).format(value.toLong())
 
-private val DAY_SHORT: DateTimeFormatter =
-    DateTimeFormatter.ofPattern("d MMM", Locale("es", "MX"))
+private val ES_MX = Locale("es", "MX")
+private val DAY_SHORT: DateTimeFormatter = DateTimeFormatter.ofPattern("d MMM", ES_MX)
+
+private fun weekdayShort(date: LocalDate): String =
+    date.dayOfWeek.getDisplayName(DateTextStyle.SHORT, ES_MX).replaceFirstChar { it.uppercase() }.take(3)
+
+/* ══════════════════════════════════════════════════════════════════════════
+   1 · TU DÍA — el icono hecho pantalla
+   ══════════════════════════════════════════════════════════════════════════ */
 
 /**
- * Una fila del resumen de hoy.
+ * Une en un bloque lo que antes eran tres —saludo en la barra, banner con foto
+ * y widget de Agenda—. El fondo es el del icono (degradado radial y facetas) y
+ * la mariposa es la misma de ADR-027, así que abrir la app es entrar en él.
  *
- * La composición es la de la propuesta: círculo de estado, título, «Hoy ·
- * hora» y la píldora de categoría. El color del círculo y de la píldora
- * salen de la sección, que es lo que permite reconocer de dónde viene cada
- * línea sin leer la etiqueta.
+ * Los colores son literales a propósito: es un momento de MARCA y se ve igual
+ * en Claro y en Noche, como el propio icono.
  */
 @Composable
-private fun TodayRow(item: AttentionItem, onNavigate: (String) -> Unit) {
-    val c = VidaTheme.colors
-    val t = VidaTheme.type
-    val section = sectionFor(item.source)
+private fun DayHero(
+    name: String?,
+    today: LocalDate,
+    now: List<AttentionItem>,
+    soonCount: Int,
+    done: Int,
+    total: Int,
+    firstLoad: Boolean,
+    cannotAnswer: Boolean,
+    onOpen: () -> Unit,
+) {
+    val shape = RoundedCornerShape(24.dp)
+    val sora = VidaFonts.Sora
+    val fecha = today.dayOfWeek.getDisplayName(DateTextStyle.FULL, ES_MX).replaceFirstChar { it.uppercase() } +
+        " · ${today.dayOfMonth} " + today.month.getDisplayName(DateTextStyle.SHORT, ES_MX).trimEnd('.')
+    val clear = !firstLoad && !cannotAnswer && now.isEmpty()
+
+    Box(Modifier.fillMaxWidth().clip(shape).vidaClickable(onClick = onOpen)) {
+        HeroBackdrop(Modifier.matchParentSize())
+        ButterflyMark(
+            size = 78.dp,
+            modifier = Modifier.align(Alignment.TopEnd).padding(top = 10.dp, end = 12.dp).vidaFloat(),
+        )
+        Column(
+            Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, top = 18.dp, bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Column(Modifier.padding(end = 84.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    fecha.uppercase(),
+                    style = TextStyle(fontFamily = sora, fontWeight = FontWeight.SemiBold, fontSize = 11.sp, letterSpacing = 0.12.em),
+                    color = Color(0xFFBFD6F2),
+                )
+                Text(
+                    name?.let { "¡Hola, $it!" } ?: "¡Hola!",
+                    style = TextStyle(fontFamily = VidaFonts.FrauncesWordmark, fontWeight = FontWeight.Light, fontSize = 27.sp, lineHeight = 30.sp),
+                    color = Color.White,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            if (clear) {
+                // La frase de marca que antes estaba horneada en la foto del banner.
+                Text(
+                    "No tienes que acordarte de todo, estoy aquí para ayudarte.",
+                    style = TextStyle(fontFamily = VidaFonts.FrauncesWordmark, fontWeight = FontWeight.Light, fontSize = 17.sp, lineHeight = 22.sp),
+                    color = Color(0xFFE6EEFA),
+                    modifier = Modifier.padding(end = 40.dp),
+                )
+            }
+            Box(Modifier.fillMaxWidth().height(1.dp).background(IconHalo.copy(alpha = 0.18f)))
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                if (total > 0) HeroRing(done, total)
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    val (head, sub) = when {
+                        firstLoad -> "Comprobando tu día…" to "Un momento"
+                        cannotAnswer -> "No pudimos consultarlo" to "Desliza hacia abajo para reintentar"
+                        now.isNotEmpty() -> (plural(now.size, "cosa te reclama", "cosas te reclaman") + " hoy") to breakdown(now)
+                        soonCount > 0 -> "Nada urgente hoy" to plural(soonCount, "pendiente", "pendientes") + " esta semana"
+                        else -> "Nada te reclama hoy" to "Tu vida, en un solo lugar."
+                    }
+                    Text(head, style = TextStyle(fontFamily = sora, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, lineHeight = 19.sp), color = Color.White)
+                    Text(sub, style = VidaTheme.type.micro.copy(fontSize = 12.sp), color = Color(0xFFC9D8EE), maxLines = 2)
+                }
+            }
+            if (!clear && !firstLoad && !cannotAnswer) {
+                Row(
+                    Modifier
+                        .background(IconHalo, RoundedCornerShape(999.dp))
+                        .padding(start = 16.dp, end = 12.dp, top = 10.dp, bottom = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Text("Ver mi día", style = TextStyle(fontFamily = sora, fontWeight = FontWeight.SemiBold, fontSize = 13.sp), color = IconDeep)
+                    Icon(Icons.Outlined.ChevronRight, null, Modifier.size(16.dp), tint = IconDeep)
+                }
+            }
+        }
+    }
+}
+
+/** «1 atrasada · 1 pago · 1 tarea»: de dónde sale lo que reclama. */
+private fun breakdown(items: List<AttentionItem>): String {
+    val late = items.count { it.urgency == AttentionUrgency.OVERDUE }
+    val bySource = items.filter { it.urgency != AttentionUrgency.OVERDUE }
+        .groupingBy { it.source }.eachCount()
+        .entries.sortedByDescending { it.value }
+        .map { (s, n) -> plural(n, s.label.lowercase(), s.plural) }
+    return (listOfNotNull(if (late > 0) plural(late, "atrasada", "atrasadas") else null) + bySource)
+        .take(3).joinToString(" · ")
+}
+
+/** Degradado radial del icono y una textura de facetas con su paleta. */
+@Composable
+private fun HeroBackdrop(modifier: Modifier) {
+    Canvas(modifier) {
+        drawRect(
+            Brush.radialGradient(
+                0f to IconLight, 0.48f to IconMid, 1f to IconDeep,
+                center = Offset(size.width * 0.85f, 0f),
+                radius = size.maxDimension * 1.1f,
+            ),
+        )
+        // Retícula 7 × 5 con los vértices interiores desplazados. La semilla es
+        // fija: las facetas no bailan entre recomposiciones.
+        val cols = 7
+        val rows = 5
+        var seed = 7
+        fun rnd(): Float { seed = (seed * 9301 + 49297) % 233280; return seed / 233280f }
+        val jitter = size.width / 12f
+        val pts = Array((rows + 1) * (cols + 1)) { Offset.Zero }
+        for (r in 0..rows) for (col in 0..cols) {
+            val inner = r in 1 until rows && col in 1 until cols
+            val j = if (inner) 1f else 0f
+            pts[r * (cols + 1) + col] = Offset(
+                col * size.width / cols + (rnd() - 0.5f) * jitter * j,
+                r * size.height / rows + (rnd() - 0.5f) * jitter * j,
+            )
+        }
+        fun tri(a: Offset, b: Offset, c: Offset, color: Color) {
+            drawPath(Path().apply { moveTo(a.x, a.y); lineTo(b.x, b.y); lineTo(c.x, c.y); close() }, color)
+        }
+        for (r in 0 until rows) for (col in 0 until cols) {
+            val a = pts[r * (cols + 1) + col]
+            val b = pts[r * (cols + 1) + col + 1]
+            val d = pts[(r + 1) * (cols + 1) + col]
+            val e = pts[(r + 1) * (cols + 1) + col + 1]
+            tri(a, b, e, IconHalo.copy(alpha = 0.02f + rnd() * 0.07f))
+            tri(a, e, d, IconSky.copy(alpha = 0.02f + rnd() * 0.07f))
+        }
+    }
+}
+
+/** Anillo de tareas hechas hoy, con «hechas/total» dentro. */
+@Composable
+private fun HeroRing(done: Int, total: Int) {
+    val progress = if (total == 0) 0f else done.toFloat() / total
+    Box(Modifier.size(52.dp), contentAlignment = Alignment.Center) {
+        Canvas(Modifier.fillMaxSize()) {
+            val w = 5.dp.toPx()
+            val inset = w / 2f
+            val arc = androidx.compose.ui.geometry.Size(size.width - w, size.height - w)
+            drawArc(IconHalo.copy(alpha = 0.22f), 0f, 360f, false, Offset(inset, inset), arc, style = Stroke(w))
+            drawArc(IconHalo, -90f, 360f * progress, false, Offset(inset, inset), arc, style = Stroke(w, cap = StrokeCap.Round))
+        }
+        Text(
+            "$done/$total",
+            style = TextStyle(fontFamily = VidaFonts.Sora, fontWeight = FontWeight.Bold, fontSize = 12.sp),
+            color = Color.White,
+        )
+    }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   PIEZAS COMPARTIDAS DE ÁNIMO, HOY Y ESTA SEMANA
+
+   Las tres zonas se arman con las MISMAS piezas: una tarjeta (`ZoneCard`), una
+   fila tipo de 58 dp (`ZoneRow`) con su cifra a la derecha (`WhenFigure`) y una
+   tira de selección (`SegmentStrip`). Antes Ánimo y Hoy tenían cada una su
+   propia densidad, sus propios colores y sus propias proporciones, y por eso se
+   leían como piezas de otra pantalla.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/** La tarjeta de zona: `VidaCard` con el margen interior de las filas. */
+@Composable
+private fun ZoneCard(content: @Composable () -> Unit) {
+    VidaCard(padding = 0.dp) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 2.dp)) { content() }
+    }
+}
+
+/** La fila tipo: baldosa de 32 dp, título, una línea de detalle y la cifra a la derecha. */
+@Composable
+private fun ZoneRow(
+    tile: @Composable () -> Unit,
+    title: String,
+    detail: @Composable () -> Unit,
+    trailing: @Composable () -> Unit,
+    onClick: (() -> Unit)? = null,
+) {
     Row(
         Modifier
             .fillMaxWidth()
-            .vidaClickable(onClick = { onNavigate(item.source.route) })
-            .padding(vertical = 10.dp),
+            .heightIn(min = 58.dp)
+            .then(if (onClick != null) Modifier.vidaClickable(onClick = onClick) else Modifier)
+            .padding(vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        // El círculo vacío de «Pendiente» de la lámina de estados.
-        Box(
-            Modifier.size(22.dp).border(2.dp, section.tint.copy(alpha = 0.55f), CircleShape),
-        )
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Text(item.title, style = t.cardTitle.copy(fontSize = 15.sp), color = c.text, maxLines = 1)
-            Text(item.reason, style = t.micro, color = c.textSecondary, maxLines = 1)
-        }
-        Box(
-            Modifier
-                .background(section.container, RoundedCornerShape(999.dp))
-                .padding(horizontal = 10.dp, vertical = 4.dp),
-        ) {
-            Text(item.source.label, style = t.micro, color = section.tint)
-        }
-        Icon(Icons.Outlined.ChevronRight, null, Modifier.size(16.dp), tint = c.textTertiary)
-    }
-}
-
-/**
- * Un widget contextual: cabecera con su icono, antetítulo, cifra y leyenda.
- *
- * El anillo es opcional porque solo Pagos tiene una proporción que enseñar —
- * la propuesta lo dibuja solo ahí, y un anillo al 0 % en los otros dos
- * sería un adorno que miente.
- */
-@Composable
-private fun ContextWidget(
-    section: SectionVisual,
-    title: String,
-    kicker: String,
-    figure: String,
-    caption: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    ring: Float? = null,
-) {
-    val c = VidaTheme.colors
-    val t = VidaTheme.type
-    Column(
-        modifier
-            .background(section.wash, RoundedCornerShape(22.dp))
-            .border(1.dp, section.tint.copy(alpha = 0.18f), RoundedCornerShape(22.dp))
-            .vidaClickable(onClick = onClick)
-            .padding(13.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            // La ilustración de la lámina, a tamaño de cabecera. La lámina
-            // las pone así en «WIDGETS Y TARJETAS»: el dibujo del módulo
-            // junto a su nombre, no un icono de trazo teñido.
-            SectionTile(section, size = 19.dp)
-            // `Ellipsis` explícito y tamaño propio: «Mantenimiento» no cabe en
-            // un tercio de pantalla y se cortaba a media palabra sin puntos.
+        tile()
+        Column(Modifier.weight(1f)) {
             Text(
                 title,
-                style = t.micro.copy(fontSize = 9.5.sp, fontWeight = FontWeight.SemiBold),
-                color = section.tint,
+                style = TextStyle(fontFamily = VidaFonts.Sora, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, lineHeight = 17.5.sp),
+                color = VidaTheme.colors.text,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
+            detail()
         }
-        Text(kicker, style = t.micro, color = c.textTertiary)
-        Row(verticalAlignment = Alignment.Bottom) {
-            Column(Modifier.weight(1f)) {
-                Text(
-                    figure,
-                    style = t.cardTitle.copy(fontSize = 20.sp, fontWeight = FontWeight.Bold),
-                    color = c.text,
-                    maxLines = 1,
-                )
-                Text(caption, style = t.micro, color = c.textTertiary, maxLines = 1)
-            }
-            if (ring != null) {
-                VidaMetricRing(
-                    progress = ring,
-                    figure = "${(ring * 100).toInt()}%",
-                    tint = section.tint,
-                    size = 38.dp,
-                    stroke = 5.dp,
-                )
-            }
-        }
+        trailing()
     }
 }
 
-/** «Familia — N miembros», con sus avatares y el «+» de la lámina. */
 @Composable
-private fun FamilyCard(members: Int, onOpen: () -> Unit, modifier: Modifier = Modifier) {
+private fun RowDetail(text: String) {
+    Text(
+        text,
+        style = VidaTheme.type.micro.copy(fontSize = 12.sp),
+        color = VidaTheme.colors.textSecondary,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+    )
+}
+
+/**
+ * La cifra de la derecha: el dato en negrita y su aclaración debajo. En Hoy es
+ * el CUÁNDO («2 días / atrasado», «Hoy / vence»); el rojo, solo lo atrasado.
+ */
+@Composable
+private fun WhenFigure(figure: String, caption: String? = null, late: Boolean = false) {
     val c = VidaTheme.colors
-    val t = VidaTheme.type
-    val section = VidaSections.Familia
-    Column(
-        modifier
-            .background(section.wash, RoundedCornerShape(22.dp))
-            .border(1.dp, section.tint.copy(alpha = 0.18f), RoundedCornerShape(22.dp))
-            .vidaClickable(onClick = onOpen)
-            .padding(14.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-            SectionTile(section, size = 24.dp)
-            Text("Familia", style = t.cardTitle.copy(fontSize = 15.sp), color = c.text)
-        }
-        Text(plural(members, "miembro", "miembros"), style = t.micro, color = c.textTertiary)
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-            // Los avatares son iniciales y no fotografías: la aplicación no
-            // guarda foto de perfil, y un hueco gris diría menos que esto.
-            repeat(minOf(members, 3)) { i ->
-                SectionTile(section, size = 30.dp)
-            }
-            Box(
-                Modifier
-                    .size(30.dp)
-                    .background(c.surface, CircleShape)
-                    .border(1.dp, section.tint.copy(alpha = 0.4f), CircleShape),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(Icons.Outlined.Add, "Añadir a la familia", Modifier.size(15.dp), tint = section.tint)
-            }
+    val tone = if (late) c.error else c.text
+    Column(horizontalAlignment = Alignment.End) {
+        Text(
+            figure,
+            style = TextStyle(fontFamily = VidaFonts.Sora, fontWeight = FontWeight.Bold, fontSize = 14.5.sp, letterSpacing = (-0.01).em),
+            color = tone,
+            maxLines = 1,
+        )
+        if (caption != null) {
+            Text(caption, style = VidaTheme.type.micro.copy(fontSize = 11.5.sp), color = if (late) c.error else c.textSecondary, maxLines = 1)
         }
     }
 }
 
 /**
- * «Vision Board — Tus metas, en camino».
+ * La tira de selección: celdas de 62 dp con radio 16; la activa se rellena de
+ * azul tinta. Siete celdas en Semana, cinco en Ánimo.
+ */
+@Composable
+private fun SegmentStrip(
+    count: Int,
+    selected: Int?,
+    onSelect: (Int) -> Unit,
+    cell: @Composable (index: Int, on: Boolean) -> Unit,
+) {
+    val fill = if (VidaTheme.spec.isDark) Color(0xFF2B2870) else brandInk()
+    Row(Modifier.fillMaxWidth().padding(vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        repeat(count) { i ->
+            val on = i == selected
+            Column(
+                Modifier
+                    .weight(1f)
+                    .height(62.dp)
+                    .background(if (on) fill else Color.Transparent, RoundedCornerShape(16.dp))
+                    .vidaClickable(onClick = { onSelect(i) }),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterVertically),
+            ) { cell(i, on) }
+        }
+    }
+}
+
+/** Rótulo pequeño de una celda de la tira. */
+@Composable
+private fun CellLabel(text: String, on: Boolean) {
+    Text(
+        text,
+        style = TextStyle(fontFamily = VidaFonts.Sora, fontWeight = FontWeight.SemiBold, fontSize = 10.sp),
+        color = if (on) Color.White else VidaTheme.colors.textSecondary,
+        maxLines = 1,
+    )
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   2 · ÁNIMO — v3, diseño emocional (ver `VidaMoodCard.kt`)
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * Sigue segundo (petición expresa) y conserva el título de zona con «Solo tú».
+ * La tarjeta ya no es la fila tipo: el ánimo es el único momento de Inicio
+ * que pregunta por la persona, y la v2 lo leía como un campo de formulario.
+ */
+@Composable
+private fun MoodZone(
+    name: String?,
+    marked: Int?,
+    loading: Boolean,
+    failed: Boolean,
+    onMark: (Int) -> Unit,
+    onOpen: () -> Unit,
+) {
+    val c = VidaTheme.colors
+    Zone(
+        title = "Ánimo",
+        trailing = {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                Icon(Icons.Outlined.Lock, contentDescription = null, tint = c.textSecondary, modifier = Modifier.size(12.dp))
+                Text(
+                    "Solo tú",
+                    style = TextStyle(fontFamily = VidaFonts.Sora, fontWeight = FontWeight.SemiBold, fontSize = 11.sp),
+                    color = c.textSecondary,
+                )
+            }
+        },
+    ) {
+        VidaMoodCard(name, marked, loading, failed, onMark, onOpen)
+    }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   3 · HOY
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * Una fila de Hoy: la baldosa dice el módulo y la derecha dice CUÁNDO. Sin
+ * píldoras de color: el único color fuera de la baldosa es el rojo de lo
+ * atrasado.
+ */
+@Composable
+private fun AttentionRow(item: AttentionItem, today: LocalDate, onClick: () -> Unit) {
+    val section = sectionFor(item.source)
+    // Lo compartido no trae importe ni fecha: su motivo («Ana espera tu parte») es el dato.
+    val extra = item.amount ?: item.reason.takeIf { item.source == AttentionSource.SHARED }
+    ZoneRow(
+        tile = { SectionTile(section, size = 32.dp) },
+        title = item.title,
+        detail = { RowDetail(listOfNotNull(section.label, extra).joinToString(" · ")) },
+        trailing = {
+            when (item.urgency) {
+                AttentionUrgency.OVERDUE -> {
+                    val days = ChronoUnit.DAYS.between(item.date, today).toInt().coerceAtLeast(1)
+                    WhenFigure(plural(days, "día", "días"), "atrasado", late = true)
+                }
+                AttentionUrgency.TODAY -> WhenFigure("Hoy", "vence")
+                AttentionUrgency.SOON -> {
+                    val days = ChronoUnit.DAYS.between(today, item.date).toInt()
+                    if (days == 1) {
+                        WhenFigure("Mañana", item.date.dayOfWeek.getDisplayName(DateTextStyle.FULL, ES_MX))
+                    } else {
+                        WhenFigure("${weekdayShort(item.date)} ${item.date.dayOfMonth}", "en $days días")
+                    }
+                }
+            }
+        },
+        onClick = onClick,
+    )
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   4 · ESTA SEMANA
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/** Los siete días en la tira compartida; hoy es la celda marcada. */
+@Composable
+private fun WeekStrip(today: LocalDate, attention: List<AttentionItem>, onDay: (LocalDate) -> Unit) {
+    val days = (0..6).map { today.plusDays(it.toLong()) }
+    SegmentStrip(count = 7, selected = 0, onSelect = { onDay(days[it]) }) { i, on ->
+        val date = days[i]
+        val dot = if (on) IconSky else attention.firstOrNull { it.date == date }?.let { sectionFor(it.source).tint }
+        CellLabel(weekdayShort(date), on)
+        Text(
+            date.dayOfMonth.toString(),
+            style = TextStyle(fontFamily = VidaFonts.Sora, fontWeight = FontWeight.Bold, fontSize = 16.sp),
+            color = if (on) Color.White else VidaTheme.colors.text,
+        )
+        Box(Modifier.size(5.dp).background(dot ?: Color.Transparent, CircleShape))
+    }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   5 · TUS ESPACIOS
+   ══════════════════════════════════════════════════════════════════════════ */
+
+private data class Space(val section: SectionVisual, val route: String, val badge: Int = 0)
+
+/**
+ * Todos los accesos a un solo tamaño: los cinco de la lámina más Calendario,
+ * Familia y Mantenimiento, que antes se abrían desde widgets y tarjetas
+ * sueltas. El contador va en azul tinta, no en el color de cada módulo.
+ */
+@Composable
+private fun SpacesGrid(spaces: List<Space>, onNavigate: (String) -> Unit) {
+    Column(
+        Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        spaces.chunked(4).forEach { row ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                row.forEach { SpaceTile(it, Modifier.weight(1f)) { onNavigate(it.route) } }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SpaceTile(space: Space, modifier: Modifier, onClick: () -> Unit) {
+    val c = VidaTheme.colors
+    val ink = brandInk()
+    Column(
+        modifier.vidaClickable(onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(7.dp),
+    ) {
+        Box {
+            SectionTile(space.section, size = 52.dp)
+            if (space.badge > 0) {
+                Box(
+                    Modifier
+                        .align(Alignment.TopEnd)
+                        .padding()
+                        .size(20.dp)
+                        .background(ink, CircleShape)
+                        .border(2.dp, c.surfaceVariant, CircleShape),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        if (space.badge > 9) "9+" else space.badge.toString(),
+                        style = TextStyle(fontFamily = VidaFonts.Sora, fontWeight = FontWeight.Bold, fontSize = 9.sp),
+                        color = if (VidaTheme.spec.isDark) Color(0xFF0F1216) else Color.White,
+                    )
+                }
+            }
+        }
+        Text(
+            space.section.label,
+            style = VidaTheme.type.micro.copy(fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold),
+            color = c.text,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+/**
+ * «Vision Board — Tus metas, en camino». Cierra la pantalla como contrapunto
+ * del héroe: el paisaje llena la tarjeta y el texto va arriba, sobre el cielo.
  *
- * LA ILUSTRACIÓN ES EL FONDO. No es una estampa colocada debajo del texto con
- * su margen alrededor: el amanecer llena la tarjeta —a sangre por los lados y
- * por abajo— y el título y la frase van ENCIMA, en la franja alta donde la
- * imagen es sólo cielo. Así las letras nunca se plantan sobre las montañas,
- * que es lo que la propuesta hace y lo que distingue esta tarjeta de las
- * demás del inicio.
- *
- * Por eso es un `Box` y no una `Column`: una columna apila, y apilar era
- * justamente el error —dejaba la imagen como el último elemento de una lista
- * en vez de como el lienzo sobre el que se escribe.
- *
- * El recorte de la tarjeta se hace ANTES del fondo para que el paisaje quede
- * cortado por la esquina redondeada; si se recortara después, la imagen se
- * saldría por los picos.
+ * Los tonos son literales porque el texto se apoya en una ilustración clara;
+ * el gris del tema oscuro desaparecería sobre ese cielo.
  */
 @Composable
 private fun VisionBoardCard(onOpen: () -> Unit, modifier: Modifier = Modifier) {
-    val t = VidaTheme.type
-    val shape = RoundedCornerShape(22.dp)
-    // LOS TONOS SON LOS DE LA PROPUESTA, medidos sobre ella, y son literales
-    // en vez de venir del tema por dos razones:
-    //
-    //  · El texto se apoya en una ilustración clara. El gris del tema oscuro
-    //    desaparecería sobre el cielo del amanecer.
-    //  · La identidad de la sección —el verde azulado de `VidaSections`— es la
-    //    de su icono y su pestaña, no la de esta tarjeta. Aquí manda el
-    //    paisaje, y un borde verde sobre un amanecer lavanda desentonaba.
-    val title = Color(0xFF23206B)
-    val subtitle = Color(0xFF7C7392)
-    val edge = Color(0xFF8B7BD8)
+    val shape = RoundedCornerShape(24.dp)
     Box(
         modifier
             .clip(shape)
-            .border(1.dp, edge.copy(alpha = 0.22f), shape)
+            .border(1.dp, VidaTheme.colors.line, shape)
             .vidaClickable(onClick = onOpen),
     ) {
         VisionBoardBackdrop(Modifier.fillMaxSize())
         Column(
-            Modifier.fillMaxWidth().padding(start = 13.dp, top = 12.dp, end = 13.dp),
-            verticalArrangement = Arrangement.spacedBy(5.dp),
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(3.dp),
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                // LA BOMBILLA, no la baldosa verde del resto de la aplicación:
-                // es lo que la propuesta dibuja en ESTA tarjeta. Va en vector y
-                // no recortada de la lámina porque allí mide 34 px —ampliarla
-                // se veía emborronada, y es un icono de trazo, no un dibujo con
-                // volumen que haya que conservar tal cual.
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Box(
-                    Modifier.size(26.dp).background(Color(0xFFE6DEF8), CircleShape),
+                    Modifier.size(26.dp).background(Color.White.copy(alpha = 0.8f), RoundedCornerShape(8.dp)),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(
-                        Icons.Outlined.Lightbulb,
-                        contentDescription = null,
-                        tint = Color(0xFF3B22CC),
-                        modifier = Modifier.size(15.dp),
-                    )
+                    Icon(Icons.Outlined.Lightbulb, contentDescription = null, tint = VidaSections.VisionBoard.tint, modifier = Modifier.size(15.dp))
                 }
-                Text("Vision Board", style = t.cardTitle.copy(fontSize = 14.sp), color = title)
+                Text(
+                    "Vision Board",
+                    style = TextStyle(fontFamily = VidaFonts.Sora, fontWeight = FontWeight.SemiBold, fontSize = 12.sp),
+                    color = Color(0xFF2B2870),
+                )
             }
-            Text("Tus metas, en camino", style = t.micro, color = subtitle)
+            Text(
+                "Tus metas, en camino",
+                style = TextStyle(fontFamily = VidaFonts.FrauncesWordmark, fontWeight = FontWeight.Light, fontSize = 19.sp),
+                color = Color(0xFF2B2870),
+            )
         }
-        // La flecha va SOBRE el bosque, sin pastilla detrás: ahí la imagen es
-        // lo bastante oscura para que el blanco se lea solo, y una pastilla
-        // habría tapado justo la esquina que la propuesta deja ver.
         Icon(
             Icons.AutoMirrored.Outlined.ArrowForward,
             contentDescription = null,
             tint = Color.White,
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(12.dp)
-                .size(20.dp),
+            modifier = Modifier.align(Alignment.BottomEnd).padding(12.dp).size(20.dp).width(20.dp),
         )
     }
 }
-
-/**
- * La lista de cosas que reclaman.
- *
- * Usa `ResourceBoard` como el resto de la aplicación, y cae en su composición de
- * FILA porque ninguna entrada trae cifra destacada. Es deliberado: el importe de
- * un pago va dentro del motivo («Se paga hoy · $349 MXN») y no como dato héroe,
- * porque aquí lo que importa no es cuánto es sino que te toca. Pasarlo como
- * `amount` convertiría la lista en una retícula de cuadrados y mezclaría siete
- * módulos en piezas que compiten entre sí.
- *
- * La píldora dice de qué módulo viene cada cosa. Sin ella, siete fuentes juntas
- * se leerían como una lista plana y se perdería justo lo que hace valiosa a la
- * sección: que la aplicación miró en todas partes.
- */

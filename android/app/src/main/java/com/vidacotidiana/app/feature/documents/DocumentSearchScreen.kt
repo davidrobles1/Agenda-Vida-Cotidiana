@@ -1,5 +1,10 @@
 package com.vidacotidiana.app.feature.documents
 
+import com.vidacotidiana.app.core.ui.components.ListSearchBox
+import com.vidacotidiana.app.core.ui.components.SearchClearButton
+import com.vidacotidiana.app.core.ui.components.ListChip
+import com.vidacotidiana.app.core.ui.components.LoadMoreFooter
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -105,13 +110,13 @@ fun DocumentSearchScreen(
             VidaIconButton(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "Atrás", tint = c.text) {
                 navController.popBackStack()
             }
-            DocSearchBox(
+            ListSearchBox(
                 value = query,
                 onValueChange = { query = it },
                 placeholder = "Buscar por nombre, categoría o fecha",
                 focusRequester = focus,
                 modifier = Modifier.weight(1f),
-                trailing = if (query.isNotEmpty()) ({ ClearButton { query = "" } }) else null,
+                trailing = if (query.isNotEmpty()) ({ SearchClearButton { query = "" } }) else null,
             )
         }
         Column(
@@ -126,7 +131,7 @@ fun DocumentSearchScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 SearchScope.entries.forEach { option ->
-                    DocChip(option.label, scope == option, onClick = { scope = option })
+                    ListChip(option.label, scope == option, onClick = { scope = option })
                 }
             }
 

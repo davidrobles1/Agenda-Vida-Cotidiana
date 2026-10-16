@@ -29,6 +29,11 @@ data class Reminder(
      * perdía de vista al abrirla en el móvil.
      */
     val location: String? = null,
+    /** ADR-019: el módulo de la tarea. El backend lo devuelve siempre; nulo solo en datos viejos = PERSONAL. */
+    val context: String? = null,
+    /** ADR-016: a quién y a qué pertenece (Laboral). Se leen para enseñarlos y poder cambiarlos en el detalle. */
+    val personId: String? = null,
+    val projectId: String? = null,
     /**
      * V33: `LOW` | `NORMAL` | `URGENT`, nunca nulo en el backend.
      *

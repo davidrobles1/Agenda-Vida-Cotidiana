@@ -1,5 +1,6 @@
 package com.vidacotidiana.app.feature.attention
 
+import com.vidacotidiana.app.navigation.go
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -85,7 +86,7 @@ fun AtencionScreen(
                     )
                 }
                 StaggeredAppear(1) {
-                    AttentionList(items) { route -> navController.navigate(route) }
+                    AttentionList(items) { route -> navController.go(route) }
                 }
             }
         }

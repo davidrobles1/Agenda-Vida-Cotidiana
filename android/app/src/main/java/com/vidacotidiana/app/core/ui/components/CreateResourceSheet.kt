@@ -238,6 +238,8 @@ fun CreateResourceSheet(
      * descarta lo elegido y hay que volver a escogerlo a propósito.
      */
     formKey: Any = resource,
+    /** El módulo en el que se crea: en Personal no se ofrecen Persona ni Proyecto (ADR-016). */
+    laboral: Boolean = true,
     onCancel: () -> Unit,
 ) {
     val c = VidaTheme.colors
@@ -309,6 +311,8 @@ fun CreateResourceSheet(
         raw.isNotBlank() && raw.substringAfter('T', "").isBlank()
     }
     val completo = falta == null && mediaFecha == null
+    /** Editando: si algo difiere de lo guardado (o se eligió otro archivo). */
+    val cambiado = file != null || values.toMap() != initialValues
 
     Column(
         Modifier
@@ -334,7 +338,7 @@ fun CreateResourceSheet(
                 .verticalScroll(rememberScrollState()),
         ) {
             SheetHeader(
-                title = headline ?: if (editing) "Editar" else resource.title,
+                title = headline ?: if (editing) "Editar " + resource.noun else resource.title,
                 // LA HOJA SE DESVANECE AL ABRIR UNA FILA. Mientras se responde
                 // algo, el adorno deja paso; al cerrar, vuelve. No desaparece
                 // del todo —seguiría estando, apagada— porque un adorno que
@@ -361,7 +365,8 @@ fun CreateResourceSheet(
 
                 documentSlot()
 
-                resource.rowFields.forEach { field ->
+                val visibles = resource.fieldsFor(laboral).map { it.key }.toSet()
+                resource.rowFields.filter { it.key in visibles }.forEach { field ->
                     FieldRow(
                         field = field,
                         open = openKey == field.key,
@@ -473,7 +478,11 @@ fun CreateResourceSheet(
                         saving -> "Guardando…"
                         falta != null -> "Falta: " + falta.label.trim('¿', '?').lowercase()
                         mediaFecha != null -> "Falta la hora"
-                        else -> resource.verb
+                        // EL VERBO DICE QUÉ VA A PASAR. Al editar se mostraba
+                        // «Crear» sobre un registro que ya existe.
+                        editing && !cambiado -> "Sin cambios"
+                        editing -> "Guardar cambios"
+                        else -> resource.verb + " " + resource.noun
                     },
                     onClick = {
                         when {
@@ -490,6 +499,7 @@ fun CreateResourceSheet(
                                     openKey = falta.key
                                 }
                             mediaFecha != null -> openKey = mediaFecha.key
+                            editing && !cambiado -> onCancel()
                             else -> onSubmit(values.toMap(), file)
                         }
                     },
@@ -505,64 +515,93 @@ fun CreateResourceSheet(
     /* ── Los dos únicos diálogos, y los dos están justificados ───────────── */
 
     datePickerFor?.let { key ->
-        val pickerState = rememberDatePickerState(
-            initialSelectedDateMillis = values[key]?.substringBefore('T')
-                ?.let { runCatching { LocalDate.parse(it).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli() }.getOrNull() }
-                ?: System.currentTimeMillis(),
-        )
-        DatePickerDialog(
-            onDismissRequest = { datePickerFor = null },
-            confirmButton = {
-                TextButton(onClick = {
-                    pickerState.selectedDateMillis?.let { millis ->
-                        // El selector devuelve medianoche UTC: se lee en UTC para
-                        // no desplazar el día en zonas negativas.
-                        val day = Instant.ofEpochMilli(millis).atZone(ZoneOffset.UTC).toLocalDate().toString()
-                        val esFechaHora = resource.fields.any { it is FormField.DateTime && it.key == key }
-                        if (esFechaHora) {
-                            // Cambiar el día no borra la hora ya elegida.
-                            val hora = values[key]?.substringAfter('T', "").orEmpty()
-                            values[key] = if (hora.isBlank()) day else "$day" + "T" + hora
-                            // Sin hora todavía: la fila se queda abierta en la
-                            // tira de horas, que es el paso que falta.
-                            openKey = if (hora.isBlank()) key else null
-                        } else {
-                            values[key] = day
-                            openKey = null
-                        }
-                    }
-                    datePickerFor = null
-                }) { Text("Elegir") }
+        VidaDateDialog(
+            initial = values[key]?.substringBefore('T'),
+            onDismiss = { datePickerFor = null },
+            onPick = { day ->
+                val esFechaHora = resource.fields.any { it is FormField.DateTime && it.key == key }
+                if (esFechaHora) {
+                    // Cambiar el día no borra la hora ya elegida.
+                    val hora = values[key]?.substringAfter('T', "").orEmpty()
+                    values[key] = if (hora.isBlank()) day else day + "T" + hora
+                    // Sin hora todavía: la fila se queda abierta en la tira de
+                    // horas, que es el paso que falta.
+                    openKey = if (hora.isBlank()) key else null
+                } else {
+                    values[key] = day
+                    openKey = null
+                }
+                datePickerFor = null
             },
-            dismissButton = { TextButton(onClick = { datePickerFor = null }) { Text("Cancelar") } },
-        ) {
-            DatePicker(state = pickerState)
-        }
+        )
     }
 
     timePickerFor?.let { key ->
-        val existente = values[key]?.substringAfter('T', "").orEmpty()
-        val timeState = rememberTimePickerState(
-            initialHour = existente.substringBefore(':').toIntOrNull() ?: 9,
-            initialMinute = existente.substringAfter(':', "").toIntOrNull() ?: 0,
-            is24Hour = true,
-        )
-        AlertDialog(
-            onDismissRequest = { timePickerFor = null },
-            confirmButton = {
-                TextButton(onClick = {
-                    val dia = values[key]?.substringBefore('T').orEmpty()
-                    if (dia.isNotBlank()) {
-                        values[key] = dia + "T" + "%02d:%02d".format(timeState.hour, timeState.minute)
-                        openKey = null
-                    }
-                    timePickerFor = null
-                }) { Text("Elegir") }
+        VidaTimeDialog(
+            initial = values[key]?.substringAfter('T', ""),
+            onDismiss = { timePickerFor = null },
+            onPick = { hhmm ->
+                val dia = values[key]?.substringBefore('T').orEmpty()
+                if (dia.isNotBlank()) {
+                    values[key] = dia + "T" + hhmm
+                    openKey = null
+                }
+                timePickerFor = null
             },
-            dismissButton = { TextButton(onClick = { timePickerFor = null }) { Text("Cancelar") } },
-            text = { TimePicker(state = timeState) },
         )
     }
+}
+
+/**
+ * EL CALENDARIO DE SIEMPRE, en un solo sitio.
+ *
+ * Lo usan el formulario de alta y la edición en el sitio de los detalles: el
+ * lápiz de una fecha abre ESTE diálogo, no uno parecido. `initial` y el valor
+ * elegido van en ISO local (`2026-05-12`).
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun VidaDateDialog(initial: String?, onPick: (String) -> Unit, onDismiss: () -> Unit) {
+    val pickerState = rememberDatePickerState(
+        initialSelectedDateMillis = initial?.takeIf { it.isNotBlank() }
+            ?.let { runCatching { LocalDate.parse(it).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli() }.getOrNull() }
+            ?: System.currentTimeMillis(),
+    )
+    DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = {
+                val millis = pickerState.selectedDateMillis
+                // El selector devuelve medianoche UTC: se lee en UTC para no
+                // desplazar el día en zonas negativas.
+                if (millis != null) onPick(Instant.ofEpochMilli(millis).atZone(ZoneOffset.UTC).toLocalDate().toString())
+                else onDismiss()
+            }) { Text("Elegir") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } },
+    ) {
+        DatePicker(state = pickerState)
+    }
+}
+
+/** EL RELOJ DE SIEMPRE, de 24 horas. `initial` y el valor elegido van en `HH:mm`. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun VidaTimeDialog(initial: String?, onPick: (String) -> Unit, onDismiss: () -> Unit) {
+    val existente = initial.orEmpty()
+    val timeState = rememberTimePickerState(
+        initialHour = existente.substringBefore(':').toIntOrNull() ?: 9,
+        initialMinute = existente.substringAfter(':', "").toIntOrNull() ?: 0,
+        is24Hour = true,
+    )
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = { onPick("%02d:%02d".format(timeState.hour, timeState.minute)) }) { Text("Elegir") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } },
+        text = { TimePicker(state = timeState) },
+    )
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -841,7 +880,7 @@ private fun FieldRow(
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun FieldDrawer(
+internal fun FieldDrawer(
     field: FormField,
     values: MutableMap<String, String>,
     people: List<Pair<String, String>>,
@@ -982,7 +1021,7 @@ private fun FieldDrawer(
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun ReferenceDrawer(
+internal fun ReferenceDrawer(
     field: FormField.Reference,
     source: List<Pair<String, String>>,
     selected: String?,
@@ -1107,7 +1146,7 @@ private fun DrawerCaption(text: String) {
 
 /** Una ficha. Se ajusta a su texto y, si no cabe, el `FlowRow` la baja de línea. */
 @Composable
-private fun OptionChip(
+internal fun OptionChip(
     text: String,
     seleccionado: Boolean = false,
     escape: Boolean = false,
@@ -1139,7 +1178,7 @@ private fun OptionChip(
 
 /** La caja de texto de dentro de una fila. Más baja que la principal a propósito. */
 @Composable
-private fun DrawerInput(
+internal fun DrawerInput(
     value: String,
     placeholder: String,
     multiline: Boolean = false,

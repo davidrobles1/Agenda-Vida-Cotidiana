@@ -1114,6 +1114,67 @@ Todo esto aplica el criterio «coexistir con el teléfono».
   hacia abajo para que el texto que va encima se lea.
 - La barra superior flota sobre la lámina y se vuelve opaca al desplazar.
 
+**Extensión a todas las secciones** (Product Owner, 2026-09-26): la misma forma
+de ver listas y detalles se aplica a todas las secciones mediante piezas
+compartidas, no copiando pantalla por pantalla.
+
+- **Kit común** (`core/ui/components/VidaListKit.kt`): tarjeta suave, sello de
+  tono, cabecera flotante, título de bloque, buscador, chips y «Cargar más».
+  Salió de Documentos.
+- **Listas** (`ResourceBoard`): todas pasan a filas con sello, nombre, datos,
+  cifra o estado, «hecho» y menú «⋮». El menú solo ofrece las acciones reales
+  de cada registro; «Eliminar» siempre pide confirmación. La paginación es
+  local, de 8 en 8. La retícula anterior solo se conserva en el resumen «Ahora»
+  de Inicio.
+- **Pantalla de sección** (`ResourceListScreen`, `VidaSectionScreen`): título
+  grande, «+» y campana, cifras en tarjetas, buscador y chips. Se aplica a
+  Garantías, Inventario, Mantenimiento, Pagos, Objetivos, Rutinas, Lugares,
+  Recursos, las secciones de Laboral, Tareas, Familia y Compartidos.
+- **Ficha genérica** (`ResourceDetailScreen`): cabecera con lámina de fondo,
+  acciones rápidas, «Información» y documento adjunto con vista previa. La
+  información se construye con los campos de `CreatableResource`.
+  - **Cambio de comportamiento:** la ficha ya no es un formulario editable en
+    el sitio. Se lee primero y se edita con «Editar», que abre el mismo
+    formulario de siempre.
+- **Fichas propias:** Pago, Mantenimiento, Persona, Proyecto y Tarea cambian
+  su héroe macizo por la cabecera clara con lámina (`VidaDetailHero`).
+- **Láminas:** hay un motivo por clase de registro (`VidaHeroArt`/`HeroMotif`).
+  Todas son imágenes representativas; nunca muestran el contenido real.
+
+**Compartidos por categorías** (Product Owner, 2026-09-26): Compartidos adopta
+el mismo esquema que Documentos, en cada pestaña («Me compartieron» / «Yo
+compartí»).
+
+- **Resumen:**
+  - Tres cifras: compartidos, personas y categorías.
+  - Un buscador que abre la lista completa.
+  - Accesos rápidos: Te toca (o Esperando), Hecho y Solo ver.
+  - «Por categoría»: una tarjeta por cada uno de los seis tipos compartibles
+    de ADR-025.
+  - Los tres más recientes.
+- **Colección** (`SharedCollectionScreen`): buscador por nombre, persona o
+  tipo; chips; filas con «Cargar más».
+- **Acciones:** son las mismas que ya existían. Quien recibe solo marca su
+  parte o ve el documento; quien envía puede retirar el acceso.
+- Sin cambios de backend.
+
+**Detalle de lo compartido** (2026-09-26, corrección):
+
+- **«Me compartieron»:** abre una ficha de SOLO LECTURA (`SharedDetailScreen`),
+  sin Editar, Eliminar ni Compartir. Solo ofrece «Ver documento» si es un
+  documento y «Ya hice mi parte» / «Deshacer mi parte» si el dueño te asignó
+  una parte.
+- **«Yo compartí»:** abre la ficha normal del recurso, porque el usuario es el
+  dueño.
+- **Visor de documentos:** el botón «Acceso» solo aparece al dueño.
+- **Qué muestra la ficha de solo lectura:** solo lo que trae la compartición
+  (nombre, tipo, fecha, quién lo compartió y tu parte).
+- **Límite del backend:** los servicios de tarea, pago, garantía,
+  mantenimiento e inventario solo autorizan al dueño. El documento es la
+  excepción (`getVisibleOrThrow`).
+- **TBD:** un endpoint de lectura para colaboradores si se quiere mostrar el
+  resto de los campos.
+
 ### Alcance: qué NO cambia
 
 - No hay cambios de backend, endpoints ni migraciones.

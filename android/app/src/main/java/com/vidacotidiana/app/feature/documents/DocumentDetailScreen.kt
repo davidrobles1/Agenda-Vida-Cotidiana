@@ -1,5 +1,28 @@
 package com.vidacotidiana.app.feature.documents
 
+import com.vidacotidiana.app.core.app.CreatableResource
+import com.vidacotidiana.app.core.app.FormField
+import com.vidacotidiana.app.navigation.AppContext
+import com.vidacotidiana.app.core.ui.VidaSections
+import com.vidacotidiana.app.core.ui.components.DetailZoneTitle
+import com.vidacotidiana.app.core.ui.components.DockAction
+import com.vidacotidiana.app.core.ui.components.InfoEdit
+import com.vidacotidiana.app.core.ui.components.InfoItem
+import com.vidacotidiana.app.core.ui.components.MoreAction
+import com.vidacotidiana.app.core.ui.components.VidaDetailDock
+import com.vidacotidiana.app.core.ui.components.VidaDetailHeroCard
+import com.vidacotidiana.app.core.ui.components.VidaDetailPage
+import com.vidacotidiana.app.core.ui.components.VidaInfoSection
+import com.vidacotidiana.app.core.ui.components.infoItemsFor
+import com.vidacotidiana.app.core.ui.components.infoRefsOf
+import com.vidacotidiana.app.core.ui.components.rememberDetailSnack
+import com.vidacotidiana.app.core.ui.components.rememberInlineSaver
+import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.SwapHoriz
+import com.vidacotidiana.app.core.ui.components.softCard
+import com.vidacotidiana.app.core.ui.components.ToneMark
+import com.vidacotidiana.app.core.ui.components.DetailTopBar
+
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
@@ -112,50 +135,26 @@ fun DocumentDetailScreen(
         previewLoading = false
     }
 
-    var menuOpen by remember { mutableStateOf(false) }
-    val scroll = rememberScrollState()
-
-    // La barra de arriba, con atrás, ⇪ y ⋮. Flota sobre la lámina de la
-    // cabecera; `solid` la vuelve opaca cuando el contenido pasa por debajo.
-    val topBar: @Composable (solid: Float) -> Unit = { solid ->
-        Box(Modifier.fillMaxWidth().background(c.surface.copy(alpha = solid))) {
-            DocTopBar(
-                title = if (solid > 0.9f) doc?.name else null,
-                onBack = { navController.popBackStack() },
-                trailing = {
-                    if (doc != null) {
-                        VidaIconButton(Icons.Outlined.IosShare, "Abrir en otra app", tint = c.text) {
-                            actions.openExternal(doc)
-                        }
-                        Box {
-                            VidaIconButton(Icons.Outlined.MoreVert, "Más acciones", tint = c.text) { menuOpen = true }
-                            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                                val familyVisible = doc.visibility != "PRIVATE"
-                                DropdownMenuItem(
-                                    text = { Text("Editar") },
-                                    onClick = { menuOpen = false; actions.edit(doc) },
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(if (familyVisible) "Ocultar a la familia" else "Ver toda la familia") },
-                                    onClick = { menuOpen = false; actions.setFamilyVisible(doc, !familyVisible) },
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("Eliminar", color = c.error) },
-                                    onClick = { menuOpen = false; actions.askDelete(doc) },
-                                )
-                            }
-                        }
-                    }
-                },
-            )
+    val snack = rememberDetailSnack()
+    val saver = rememberInlineSaver(viewModel, CreatableResource.DOCUMENT, documentId, snack)
+    // «Archivo» cambia el contenido: el selector del teléfono y, al elegir, se
+    // guarda por el mismo camino de edición (que ya sustituye el archivo).
+    val replaceFile = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        val d = doc
+        if (uri != null && d != null) {
+            viewModel.readFile(uri) { payload ->
+                if (payload == null) snack.show("No se pudo leer el archivo")
+                else viewModel.saveField(CreatableResource.DOCUMENT, d.id, "name", d.name, file = payload) { ok ->
+                    snack.show(if (ok) "Archivo sustituido" else "No se pudo guardar. Revisa tu conexión.")
+                }
+            }
         }
     }
 
     if (doc == null) {
-        Column(Modifier.fillMaxSize().background(c.surface)) {
-            topBar(1f)
+        VidaDetailPage(title = "Documento", onBack = { navController.popBackStack() }, snack = snack) {
             if (state.loading) {
-                Box(Modifier.padding(18.dp)) { LoadingRows(3) }
+                LoadingRows(3)
             } else {
                 VidaError(
                     title = "Este documento ya no está",
@@ -169,118 +168,121 @@ fun DocumentDetailScreen(
         val visual = categoryVisual(doc.category)
         val favorite = doc.id in favorites
         val sharedWith = state.data.sharedByMe.count { it.kind == ShareableKind.DOCUMENT && it.resourceId == doc.id }
-        val density = LocalDensity.current
-        val fadeDistance = with(density) { 140.dp.toPx() }
+        val familyVisible = doc.visibility != "PRIVATE"
+        val values = viewModel.editSnapshot(CreatableResource.DOCUMENT, documentId)?.first.orEmpty()
+        val refs = infoRefsOf(state, viewModel)
+        // ADR-019/ADR-025: «Quién lo ve» y Compartir son de FAMILIA, así que
+        // solo existen en un documento de Personal. Uno de Laboral se abre, se
+        // descarga o se manda a otra app, pero no se comparte con la familia.
+        val personal = viewModel.moduleOf(CreatableResource.DOCUMENT, documentId) == AppContext.PERSONAL
+        val visibility = FormField.Choice(
+            "visibility", "Quién lo ve",
+            listOf("PRIVATE" to "Solo yo", "FAMILY_PUBLIC" to "Toda la familia"),
+        )
 
-        Box(Modifier.fillMaxSize().background(c.surface)) {
-            Column(Modifier.fillMaxSize().verticalScroll(scroll)) {
-                // ── Cabecera con lámina de fondo ─────────────────────────────
-                // La ilustración ocupa TODA la cabecera —detrás de la barra,
-                // del icono, del nombre y de los datos— y el texto va encima.
-                Box(Modifier.fillMaxWidth()) {
-                    DocumentHeroArt(doc.category, Modifier.matchParentSize())
-                    Column(
-                        Modifier
-                            .fillMaxWidth()
-                            .statusBarsPadding()
-                            .padding(top = 60.dp, start = 18.dp, end = 18.dp, bottom = 18.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        DocMark(doc.glyph(), visual.tone, size = 76.dp, iconSize = 36.dp, circle = true)
-                        Text(
-                            doc.name,
-                            style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold, fontSize = 24.sp),
-                            color = c.text,
-                            modifier = Modifier.fillMaxWidth(0.62f),
-                        )
-                        Text(
-                            visual.label,
-                            style = MaterialTheme.typography.labelLarge,
-                            color = visual.tone.fg,
-                            modifier = Modifier
-                                .background(visual.tone.bg, RoundedCornerShape(8.dp))
-                                .padding(horizontal = 10.dp, vertical = 4.dp),
-                        )
-                        Spacer(Modifier.height(6.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(22.dp)) {
-                            MetaItem(Icons.Outlined.CalendarToday, doc.dayLabel())
-                            MetaItem(Icons.Outlined.InsertDriveFile, doc.sizeLabel)
-                        }
-                        MetaItem(
-                            if (doc.visibility == "PRIVATE" && sharedWith == 0) Icons.Outlined.Lock else Icons.Outlined.Groups,
-                            visibilityLabel(doc.visibility, sharedWith),
-                        )
-                    }
-                }
-
-                Column(
-                    Modifier.fillMaxWidth().padding(horizontal = 18.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                ) {
-                    HorizontalDivider(color = c.border.copy(alpha = 0.18f))
-
-                    // ── Acciones rápidas ─────────────────────────────────────
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        ActionTile(Icons.Outlined.Visibility, "Abrir", Modifier.weight(1f)) { actions.open(doc) }
-                        ActionTile(Icons.Outlined.Download, "Descargar", Modifier.weight(1f)) { save.launch(doc.name) }
-                        ActionTile(Icons.Outlined.Share, "Compartir", Modifier.weight(1f)) { actions.share(doc) }
-                        ActionTile(
+        VidaDetailPage(
+            title = "Documento",
+            onBack = { navController.popBackStack() },
+            snack = snack,
+            dock = {
+                VidaDetailDock(
+                    primary = DockAction("Abrir", Icons.Outlined.Visibility) { actions.open(doc) },
+                    secondary = listOf(
+                        DockAction("Descargar", Icons.Outlined.Download) { save.launch(doc.name) },
+                        if (personal) {
+                            // COHERENCIA CON «QUIÉN LO VE». Si ya lo ve toda la
+                            // familia no hay a quién más compartírselo: el botón
+                            // se apaga. Con «Solo yo» se vuelve a encender.
+                            DockAction("Compartir", Icons.Outlined.Share, enabled = doc.visibility != "FAMILY_PUBLIC") { actions.share(doc) }
+                        } else {
+                            DockAction("Otra app", Icons.Outlined.IosShare) { actions.openExternal(doc) }
+                        },
+                    ),
+                    more = listOfNotNull(
+                        MoreAction(
+                            if (favorite) "Quitar de favoritos" else "Favorito",
                             if (favorite) Icons.Filled.Star else Icons.Outlined.StarOutline,
-                            "Favorito",
-                            Modifier.weight(1f),
-                            tint = if (favorite) c.warning else null,
-                        ) { actions.toggleFavorite(doc) }
-                    }
+                            "Aparece primero en Documentos",
+                        ) { actions.toggleFavorite(doc) },
+                        MoreAction("Abrir en otra app", Icons.Outlined.IosShare, "Con el selector de Android") {
+                            actions.openExternal(doc)
+                        }.takeIf { personal },
+                        // Su propio diálogo de confirmación, el de siempre.
+                        MoreAction("Eliminar", Icons.Outlined.DeleteOutline, "Se pide confirmación", danger = true) {
+                            actions.askDelete(doc)
+                        },
+                    ),
+                )
+            },
+        ) {
+            VidaDetailHeroCard(
+                section = VidaSections.Documentos,
+                tile = { ToneMark(doc.glyph(), visual.tone, size = 48.dp, iconSize = 24.dp) },
+                eyebrow = listOfNotNull(if (personal) AppContext.PERSONAL.label else AppContext.LABORAL.label, visual.label, doc.name.substringAfterLast('.', "").uppercase().takeIf { it.length in 2..4 })
+                    .joinToString(" · "),
+                title = doc.name,
+                onRename = { saver.save("name", "Nombre", it, doc.name, flashKey = "title") },
+                onEmptyTitle = { snack.show("El nombre no puede quedar vacío") },
+                figure = doc.sizeLabel,
+                status = (if (personal) visibilityLabel(doc.visibility, sharedWith) else "Solo tú") + if (favorite) " · Favorito" else "",
+                statusColor = c.textTertiary,
+            )
 
-                    // ── Información ──────────────────────────────────────────
-                    Text("Información", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold), color = c.text)
-                    Column(Modifier.fillMaxWidth().docCard().padding(horizontal = 16.dp, vertical = 4.dp)) {
-                        InfoRow("Nombre", doc.name)
-                        InfoRow("Categoría", visual.label)
-                        InfoRow("Fecha de creación", doc.dateTimeLabel())
-                        InfoRow("Tamaño", doc.sizeLabel, last = doc.resourceType == null)
-                        if (doc.resourceType != null) {
-                            InfoRow("Adjunto a", attachedLabel(doc.resourceType), last = true)
-                        }
-                    }
+            VidaInfoSection(
+                items = infoItemsFor(CreatableResource.DOCUMENT, values, refs, saver) + listOfNotNull(
+                    InfoItem(
+                        "file", "Archivo", doc.name,
+                        InfoEdit.Action(Icons.Outlined.SwapHoriz) { replaceFile.launch("*/*") },
+                    ),
+                    if (personal) InfoItem(
+                        "visibility", "Quién lo ve",
+                        if (familyVisible) "Toda la familia" else visibilityLabel(doc.visibility, sharedWith),
+                        InfoEdit.Field(visibility, if (familyVisible) "FAMILY_PUBLIC" else "PRIVATE"),
+                    ) { v -> actions.setFamilyVisible(doc, v == "FAMILY_PUBLIC"); snack.show("Visibilidad actualizada") } else null,
+                    InfoItem("size", "Tamaño", doc.sizeLabel, InfoEdit.ReadOnly("Del archivo")),
+                    InfoItem("created", "Creado", doc.dateTimeLabel(), InfoEdit.ReadOnly("Al subirlo")),
+                    doc.resourceType?.let { InfoItem("attached", "Adjunto a", attachedLabel(it), InfoEdit.ReadOnly()) },
+                ),
+                refs = refs,
+                flash = saver.flash,
+            )
 
-                    // ── Vista previa ─────────────────────────────────────────
-                    Text("Vista previa", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold), color = c.text)
-                    Box(
-                        Modifier
-                            .fillMaxWidth()
-                            .height(170.dp)
-                            .docCard(c.sunken)
-                            .clip(RoundedCornerShape(18.dp))
-                            .clickable(role = Role.Button) { actions.open(doc) },
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        val bmp = preview
-                        when {
-                            bmp != null -> Image(
-                                bitmap = bmp,
-                                contentDescription = "Vista previa de ${doc.name}",
-                                contentScale = ContentScale.Crop,
-                                alignment = Alignment.TopCenter,
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(10.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .border(1.dp, c.border.copy(alpha = 0.2f), RoundedCornerShape(12.dp)),
-                            )
-                            previewLoading -> Text("Preparando vista previa…", style = MaterialTheme.typography.bodySmall, color = c.textTertiary)
-                            else -> Text(
-                                "Sin vista previa. Toca para abrir.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = c.textTertiary,
-                                textAlign = TextAlign.Center,
-                            )
-                        }
+            // ── Vista previa ─────────────────────────────────────────────────
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                DetailZoneTitle("Vista previa")
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(170.dp)
+                        .background(c.surfaceVariant, RoundedCornerShape(24.dp))
+                        .border(1.dp, c.line, RoundedCornerShape(24.dp))
+                        .clip(RoundedCornerShape(24.dp))
+                        .clickable(role = Role.Button) { actions.open(doc) },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    val bmp = preview
+                    when {
+                        bmp != null -> Image(
+                            bitmap = bmp,
+                            contentDescription = "Vista previa de ${doc.name}",
+                            contentScale = ContentScale.Crop,
+                            alignment = Alignment.TopCenter,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(10.dp)
+                                .clip(RoundedCornerShape(14.dp))
+                                .border(1.dp, c.line, RoundedCornerShape(14.dp)),
+                        )
+                        previewLoading -> Text("Preparando vista previa…", style = MaterialTheme.typography.bodySmall, color = c.textTertiary)
+                        else -> Text(
+                            "Sin vista previa. Toca para abrir.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = c.textTertiary,
+                            textAlign = TextAlign.Center,
+                        )
                     }
-                    Spacer(Modifier.height(24.dp))
                 }
             }
-            topBar((scroll.value / fadeDistance).coerceIn(0f, 1f))
         }
     }
 
@@ -325,7 +327,7 @@ private fun ActionTile(
     val c = VidaTheme.colors
     Column(
         modifier
-            .docCard(corner = 16.dp)
+            .softCard(corner = 16.dp)
             .clip(RoundedCornerShape(16.dp))
             .clickable(role = Role.Button, onClick = onClick)
             .padding(vertical = 14.dp, horizontal = 4.dp),

@@ -1,5 +1,18 @@
 package com.vidacotidiana.app.feature.laboral
 
+import com.vidacotidiana.app.navigation.go
+import com.vidacotidiana.app.core.ui.VidaSections
+import com.vidacotidiana.app.core.ui.components.InfoEdit
+import com.vidacotidiana.app.core.ui.components.InfoItem
+import com.vidacotidiana.app.core.ui.components.VidaDetailHeroCard
+import com.vidacotidiana.app.core.ui.components.VidaDetailPage
+import com.vidacotidiana.app.core.ui.components.VidaInfoSection
+import com.vidacotidiana.app.core.ui.components.infoItemsFor
+import com.vidacotidiana.app.core.ui.components.infoRefsOf
+import com.vidacotidiana.app.core.ui.components.rememberDetailSnack
+import com.vidacotidiana.app.core.ui.components.rememberInlineSaver
+import androidx.compose.material.icons.automirrored.outlined.OpenInNew
+import androidx.compose.material.icons.Icons
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -55,19 +68,13 @@ fun ProyectoDetalleScreen(
 
     val project = state.data.projects.firstOrNull { it.id == projectId }
 
-    VidaScreen(
+    val snack = rememberDetailSnack()
+    val saver = rememberInlineSaver(viewModel, CreatableResource.PROJECT, projectId, snack)
+
+    VidaDetailPage(
         title = "Proyecto",
-        showBack = true,
-        onNavigationClick = { navController.popBackStack() },
-        actions = {
-            if (project != null) {
-                VidaSmallButton(
-                    "Editar",
-                    { viewModel.requestEdit(CreatableResource.PROJECT, projectId) },
-                    ghost = true,
-                )
-            }
-        },
+        onBack = { navController.popBackStack() },
+        snack = snack,
     ) {
         if (project == null) {
             VidaError(
@@ -76,7 +83,7 @@ fun ProyectoDetalleScreen(
                 onRetry = { navController.popBackStack() },
                 retryLabel = "Volver",
             )
-            return@VidaScreen
+            return@VidaDetailPage
         }
 
         val tasks = viewModel.allTasks()
@@ -92,58 +99,42 @@ fun ProyectoDetalleScreen(
             else -> c.primary
         }
 
-        StaggeredAppear(0) {
-            VidaDetailHero(
-                tone = tone,
-                eyebrow = "Proyecto",
-                title = project.name,
-                subtitle = listOfNotNull(
-                    // El héroe mostraba `EN_CURSO` tal como viene del
-                    // servidor. `VidaVocabulary.human` ya existía y ya lo
-                    // traducían las listas; los detalles no lo usaban.
-                    VidaVocabulary.human(project.status),
-                    project.deadline?.let { d ->
-                        when {
-                            days == null -> null
-                            days < 0 -> "venció hace ${-days} días"
-                            days == 0L -> "vence hoy"
-                            else -> "vence en $days días"
-                        }
-                    },
-                    "${people.size} participante${if (people.size == 1) "" else "s"}",
-                ).joinToString(" · "),
-                figure = { VidaHeroFigure(project.name.firstOrNull()?.uppercase() ?: "·") },
-            )
-        }
-
-        StaggeredAppear(1) {
-            VidaPropertyBlock(
-                listOfNotNull(
-                    project.status?.takeIf { it.isNotBlank() }?.let {
-                        VidaProperty("Estado", VidaVocabulary.human(it), c.primaryContainer, c.primaryDeep)
-                    },
-                    project.deadline?.let {
-                        VidaProperty(
-                            "Fecha límite",
-                            it.toString(),
-                            if (days != null && days < 0) c.warningContainer else c.sunken,
-                            if (days != null && days < 0) c.warningText else c.textSecondary,
+        val values = viewModel.editSnapshot(CreatableResource.PROJECT, projectId)?.first.orEmpty()
+        val refs = infoRefsOf(state, viewModel)
+        VidaDetailHeroCard(
+            section = VidaSections.Calendario,
+            eyebrow = "Laboral · Proyecto",
+            title = project.name,
+            onRename = { saver.save("name", "Nombre", it, project.name, flashKey = "title") },
+            onEmptyTitle = { snack.show("El nombre no puede quedar vacío") },
+            figure = "${people.size}",
+            figureCaption = if (people.size == 1) "participante" else "participantes",
+            status = listOfNotNull(
+                VidaVocabulary.human(project.status),
+                days?.let {
+                    when {
+                        it < 0 -> "venció hace ${-it} días"
+                        it == 0L -> "vence hoy"
+                        else -> "vence en $it días"
+                    }
+                },
+            ).joinToString(" · ").ifBlank { null },
+            statusColor = tone,
+        )
+        VidaInfoSection(
+            items = infoItemsFor(CreatableResource.PROJECT, values, refs, saver) + listOfNotNull(
+                project.clientPersonId?.let { pid ->
+                    state.data.people.firstOrNull { it.id == pid }?.let { person ->
+                        InfoItem(
+                            "client", "Cliente", person.name,
+                            InfoEdit.Action(Icons.AutoMirrored.Outlined.OpenInNew) { navController.go(Routes.personRoute(person.id)) },
                         )
-                    },
-                    project.clientPersonId?.let { pid ->
-                        state.data.people.firstOrNull { it.id == pid }?.let { person ->
-                            VidaProperty(
-                                "Cliente",
-                                person.name,
-                                c.secondContainer,
-                                c.second,
-                                onClick = { navController.navigate(Routes.personRoute(person.id)) },
-                            )
-                        }
-                    },
-                ),
-            )
-        }
+                    }
+                },
+            ),
+            refs = refs,
+            flash = saver.flash,
+        )
 
         /* ── PARTICIPANTES ───────────────────────────────────────────────── */
         StaggeredAppear(2) { VidaSectionLabel("Participantes", trailing = "${people.size}") }
@@ -160,7 +151,7 @@ fun ProyectoDetalleScreen(
                             tone = c.primary,
                         )
                     },
-                    onOpenDetail = { navController.navigate(Routes.personRoute(it.id)) },
+                    onOpenDetail = { navController.go(Routes.personRoute(it.id)) },
                 )
             }
         }
@@ -181,7 +172,7 @@ fun ProyectoDetalleScreen(
                             tone = if (cmt.status == "DONE") c.successText else c.warning,
                         )
                     },
-                    onOpenDetail = { navController.navigate(Routes.COMMITMENTS) },
+                    onOpenDetail = { navController.go(Routes.COMMITMENTS) },
                 )
             }
         }

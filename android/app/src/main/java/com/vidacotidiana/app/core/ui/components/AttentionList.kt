@@ -1,5 +1,6 @@
 package com.vidacotidiana.app.core.ui.components
 
+import com.vidacotidiana.app.navigation.Routes
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Assignment
 import androidx.compose.material.icons.outlined.Autorenew
@@ -55,8 +56,11 @@ fun AttentionList(items: List<AttentionItem>, onNavigate: (String) -> Unit) {
             )
         },
         onOpenDetail = { entry ->
-            items.firstOrNull { it.id == entry.id }?.let { onNavigate(it.source.route) }
+            items.firstOrNull { it.id == entry.id }?.let { onNavigate(Routes.detailRoute(it)) }
         },
+        // Inicio conserva su pieza aprobada: las filas de ADR-028 son para
+        // las listas de las secciones, no para el resumen del día.
+        rows = false,
     )
 }
 

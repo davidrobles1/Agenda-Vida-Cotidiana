@@ -1,7 +1,26 @@
 package com.vidacotidiana.app.feature.sharing
 
+import com.vidacotidiana.app.navigation.go
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.outlined.Category
+import androidx.compose.material.icons.outlined.Groups
+import androidx.compose.material.icons.outlined.PendingActions
+import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material.icons.outlined.TaskAlt
+import androidx.compose.material.icons.outlined.Visibility
+import com.vidacotidiana.app.core.ui.components.CategoryTile
+import com.vidacotidiana.app.core.ui.components.ListSearchBox
+import com.vidacotidiana.app.core.ui.components.ListSectionTitle
+import com.vidacotidiana.app.core.ui.components.QuickAccessTile
+import com.vidacotidiana.app.core.ui.components.SummaryStatTile
+import com.vidacotidiana.app.core.ui.components.ToneColors
+import com.vidacotidiana.app.core.ui.components.plural
+import com.vidacotidiana.app.feature.resources.identity
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
@@ -51,11 +70,12 @@ fun SharedScreen(
 ) {
     val c = VidaTheme.colors
     val state by viewModel.state.collectAsStateWithLifecycle()
-    var tab by remember { mutableStateOf("Me compartieron") }
+    var tab by rememberSaveable { mutableStateOf("Me compartieron") }
+    var allKinds by rememberSaveable { mutableStateOf(false) }
     val receiving = tab == "Me compartieron"
     val list = if (receiving) state.data.sharedWithMe else state.data.sharedByMe
 
-    VidaScreen(
+    com.vidacotidiana.app.core.ui.components.VidaSectionScreen(
         title = "Compartidos",
         subtitle = "Lo que tu familia comparte contigo y lo que tú compartes.",
         showBack = true,
@@ -75,34 +95,6 @@ fun SharedScreen(
         // espero de otra persona.
         //
         // ADR-018: ámbar, nunca rojo. Que me toque algo no es un error.
-        if (list.isNotEmpty()) {
-            StaggeredAppear(1) {
-                val mine = list.count { it.responsibility && !it.partDone }
-                val done = list.count { it.partDone }
-                val readOnly = list.count { !it.responsibility }
-                VidaTileRow(
-                    listOf(
-                        VidaTileSpec(
-                            if (receiving) "Te toca" else "Esperando",
-                            mine.toString(),
-                            if (receiving) "con tu parte" else "su parte",
-                            if (mine == 0) c.successContainer else c.warningContainer,
-                            if (mine == 0) c.successText else c.warningText,
-                            if (mine == 0) c.successText else c.warningText,
-                            weight = 1.32f,
-                        ),
-                        VidaTileSpec(
-                            "Hecho", done.toString(), "su parte",
-                            c.successContainer, c.successText, c.successText,
-                        ),
-                        VidaTileSpec(
-                            "Solo ver", readOnly.toString(), "sin parte",
-                            c.surfaceElevated, c.textSecondary, c.textTertiary,
-                        ),
-                    ),
-                )
-            }
-        }
         when {
             state.loading && list.isEmpty() -> StaggeredAppear(2) { LoadingRows(2) }
             // ADR-021(k): si la carga falló no se afirma que no hay nada.
@@ -129,7 +121,7 @@ fun SharedScreen(
                 EmptyState(
                     title = "Todavía no tienes a nadie en tu familia",
                     body = "Compartir empieza por ahí. Después podrás elegir con quién va cada cosa desde el propio recurso.",
-                    action = "Ir a Familia" to { navController.navigate(Routes.FAMILY) },
+                    action = "Ir a Familia" to { navController.go(Routes.FAMILY) },
                     section = VidaSections.Compartidos,
                 )
             }
@@ -154,63 +146,99 @@ fun SharedScreen(
             }
         }
         if (list.isNotEmpty()) {
-            StaggeredAppear(2) {
-                // Cuadricula: lo compartido son recursos, y verlos distribuidos
-                // deja leer de un vistazo cuantos piden accion.
-                ResourceBoard(
-                    entries = list.map { share ->
-                        ResourceEntry(
-                            id = share.id,
-                            title = share.label,
-                            subtitle = if (receiving) "De ${share.counterpart}" else "Con ${share.counterpart}",
-                            highlight = share.dateLabel,
-                            typeTag = share.type,
-                            tone = if (share.partDone) c.successText else if (share.responsibility) c.warning else null,
-                            pill = when {
-                                !share.responsibility -> "Solo ver" to PillTone.QUIET
-                                share.partDone && receiving -> "Hiciste tu parte" to PillTone.OK
-                                share.partDone -> "Ya hizo su parte" to PillTone.OK
-                                receiving -> "Te toca" to PillTone.WARN
-                                else -> "Pendiente" to PillTone.WARN
-                            },
-                            // Solo quien recibe marca SU parte: el emisor ve el
-                            // estado del otro, no lo cambia.
-                            onComplete = if (receiving && share.responsibility && !share.partDone) {
-                                { viewModel.togglePartDone(share.id, false) }
-                            } else null,
-                            completeLabel = "Ya hice mi parte",
-                            /*
-                             * ABRIR LO QUE A UNO LE COMPARTEN.
-                             *
-                             * Esto NO EXISTÍA: el detalle de esta pantalla era
-                             * `onOpenDetail = {}` y tocar un recurso recibido
-                             * no hacía nada, así que un documento compartido se
-                             * veía en la lista y no había forma de leerlo. El
-                             * backend sí lo permitía desde el principio —
-                             * `DocumentService.getVisibleOrThrow` autoriza al
-                             * colaborador además del dueño.
-                             *
-                             * Solo para documentos, y a propósito: los otros
-                             * cinco tipos son registros que viven en la sección
-                             * de su dueño, y llevar ahí a quien no es el dueño
-                             * le enseñaría una pantalla donde no puede tocar
-                             * nada. Un documento, en cambio, ES su contenido.
-                             */
-                            onOpen = if (share.kind == ShareableKind.DOCUMENT && share.resourceId != null) {
-                                { navController.navigate(Routes.documentRoute(share.resourceId)) }
-                            } else null,
-                            openLabel = "Ver documento",
-                            // QUIEN LO COMPARTIÓ PUEDE RETIRARLO desde aquí.
-                            // Antes había que ir al recurso —y tampoco estaba
-                            // allí—, así que un acceso dado por error no se
-                            // podía deshacer desde el móvil.
-                            onDelete = if (!receiving && share.kind != null && share.resourceId != null) {
-                                { viewModel.revokeResourceShare(share.kind, share.resourceId, share.id) }
-                            } else null,
-                        )
-                    },
-                    onOpenDetail = {},
+            val dir = if (receiving) ShareDir.RECEIVED else ShareDir.SENT
+            fun go(key: String) = navController.go(Routes.sharedCollectionRoute(dir, key))
+
+            // ── Resumen: tres cifras ─────────────────────────────────────────
+            StaggeredAppear(1) {
+                val people = list.map { it.counterpart }.distinct().size
+                val kinds = list.mapNotNull { it.kind }.distinct().size
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    SummaryStatTile(Icons.Outlined.Share, list.size.toString(),
+                        if (receiving) "recibidos" else "enviados", Modifier.weight(1f))
+                    SummaryStatTile(Icons.Outlined.Groups, people.toString(),
+                        if (people == 1) "persona" else "personas", Modifier.weight(1f))
+                    SummaryStatTile(Icons.Outlined.Category, kinds.toString(),
+                        if (kinds == 1) "categoría" else "categorías", Modifier.weight(1f))
+                }
+            }
+
+            // ── Buscador: lleva a la lista completa, donde se busca ─────────
+            StaggeredAppear(1) {
+                ListSearchBox(
+                    value = "",
+                    placeholder = if (receiving) "Buscar en lo que me compartieron…" else "Buscar en lo que compartí…",
+                    onClick = { go(ShareCollections.ALL) },
                 )
+            }
+
+            // ── Accesos rápidos ──────────────────────────────────────────────
+            // ADR-018: ámbar, nunca rojo. Que me toque algo no es un error.
+            StaggeredAppear(2) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    ListSectionTitle("Accesos rápidos")
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        QuickAccessTile(
+                            Icons.Outlined.PendingActions,
+                            ShareCollections.title(ShareCollections.PENDING, receiving),
+                            list.count { ShareCollections.matches(ShareCollections.PENDING, it) },
+                            ToneColors(c.warning, c.warningContainer), Modifier.weight(1f),
+                        ) { go(ShareCollections.PENDING) }
+                        QuickAccessTile(
+                            Icons.Outlined.TaskAlt, "Hecho",
+                            list.count { ShareCollections.matches(ShareCollections.DONE, it) },
+                            ToneColors(c.success, c.successContainer), Modifier.weight(1f),
+                        ) { go(ShareCollections.DONE) }
+                        QuickAccessTile(
+                            Icons.Outlined.Visibility, "Solo ver",
+                            list.count { ShareCollections.matches(ShareCollections.VIEW_ONLY, it) },
+                            ToneColors(c.textSecondary, c.sunken), Modifier.weight(1f),
+                        ) { go(ShareCollections.VIEW_ONLY) }
+                    }
+                }
+            }
+
+            // ── Mis categorías: una por tipo que se puede compartir ─────────
+            StaggeredAppear(3) {
+                val counts = list.groupingBy { it.kind }.eachCount()
+                val ordered = ShareableKind.entries.sortedByDescending { counts[it] ?: 0 }
+                val visible = if (allKinds) ordered else ordered.take(4)
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    ListSectionTitle(
+                        "Por categoría",
+                        action = if (allKinds) "Ver menos" else "Ver todas",
+                        onAction = { allKinds = !allKinds },
+                    )
+                    visible.chunked(2).forEach { pair ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            pair.forEach { kind ->
+                                val identity = kind.resource.identity
+                                CategoryTile(
+                                    identity.section.icon,
+                                    kindPlural(kind),
+                                    plural(counts[kind] ?: 0, "compartido", "compartidos"),
+                                    kindTone(kind),
+                                    Modifier.weight(1f),
+                                ) { go(kind.wire) }
+                            }
+                            if (pair.size == 1) Spacer(Modifier.weight(1f))
+                        }
+                    }
+                }
+            }
+
+            // ── Recientes ────────────────────────────────────────────────────
+            StaggeredAppear(4) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    ListSectionTitle("Recientes", action = "Ver todos") { go(ShareCollections.ALL) }
+                    ResourceBoard(
+                        entries = list.take(3).map { shareEntry(it, receiving, viewModel, navController) },
+                        onOpenDetail = { entry ->
+                            list.firstOrNull { it.id == entry.id }?.let { openShare(it, receiving, navController) }
+                        },
+                        pageSize = null,
+                    )
+                }
             }
         }
         // Nota al pie de la LISTA, no de la pantalla: cuando no hay nada, el

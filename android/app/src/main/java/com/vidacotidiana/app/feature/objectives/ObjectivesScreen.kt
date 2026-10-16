@@ -1,5 +1,6 @@
 package com.vidacotidiana.app.feature.objectives
 
+import com.vidacotidiana.app.navigation.go
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Flag
 import androidx.compose.material3.DrawerState
@@ -89,7 +90,7 @@ fun ObjectivesScreen(
     ResourceListScreen(
         // La ficha del recurso, en su ventana. Antes esto caía en la
         // hoja deslizante que ya no existe.
-        onOpenRoute = { navController.navigate(Routes.resourceRoute("OBJECTIVE", it.id)) },
+        onOpenRoute = { navController.go(Routes.resourceRoute("OBJECTIVE", it.id)) },
         title = "Objetivos",
         subtitle = "Lo que quieres lograr, y por dónde vas.",
         eyebrow = plural(objectives.count { !it.completed }, "en curso", "en curso"),
@@ -120,7 +121,7 @@ fun ObjectivesScreen(
         onBack = { navController.popBackStack() },
         // La campana lleva de verdad a los avisos, y el punto sale de
         // cuántos quedan sin leer. Antes era `{}` con `badge = true`.
-        onNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
+        onNotifications = { navController.go(Routes.NOTIFICATIONS) },
         notificationsBadge = viewModel.avisosSinLeer(),
     )
 }

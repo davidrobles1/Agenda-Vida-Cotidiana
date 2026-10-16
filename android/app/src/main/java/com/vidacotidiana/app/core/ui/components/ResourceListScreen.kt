@@ -1,6 +1,24 @@
 package com.vidacotidiana.app.core.ui.components
 
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.background
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material3.Icon
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -242,64 +260,90 @@ fun ResourceListScreen(
             (filters.isEmpty() || matchesFilter(it, filter))
     }
 
-    VidaScreen(
-        title = title,
-        subtitle = subtitle,
-        showBack = showBack,
-        onNavigationClick = if (showBack) onBack else openDrawerAction(drawerState, scope),
-        // Las ocho secciones de recursos ya tienen su propio «reintentar»; el
-        // gesto de tirar es el mismo acto, disponible sin tener que fallar
-        // primero. Una sola línea aquí lo da en todas.
+    val untrusted = error != null && entries.isEmpty()
+    // CABECERA DE ADR-028: la de Documentos. Título grande, «+» y campana a la
+    // derecha, cifras en tarjetas, buscador y chips. El botón de la izquierda
+    // sigue siendo «atrás» o el menú, según cómo se llegó a la sección.
+    androidx.compose.material3.pulltorefresh.PullToRefreshBox(
+        isRefreshing = loading && entries.isNotEmpty(),
         onRefresh = onRetry,
-        refreshing = loading,
-        actions = {
-            VidaIconButton(Icons.Filled.Add, addLabel, onClick = onAdd)
+        modifier = Modifier.fillMaxSize().background(c.surface),
+    ) {
+    Column(
+        Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .statusBarsPadding()
+            .padding(horizontal = 18.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.offset(x = (-12).dp)) {
+                val (back, click) = navButtonFor(showBack, if (showBack) onBack else openDrawerAction(drawerState, scope))
+                VidaIconButton(
+                    if (back) Icons.AutoMirrored.Filled.ArrowBack else Icons.Filled.Menu,
+                    if (back) "Atrás" else "Abrir navegación",
+                    tint = c.text,
+                    onClick = click,
+                )
+            }
+            Column(Modifier.weight(1f).offset(x = (-8).dp)) {
+                Text(
+                    title,
+                    style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold, fontSize = 28.sp),
+                    color = c.text,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = c.textSecondary, maxLines = 2)
+            }
+            VidaIconButton(Icons.Filled.Add, addLabel, tint = c.text, onClick = onAdd)
             onNotifications?.let { abrir ->
                 VidaIconButton(
                     Icons.Outlined.Notifications,
                     if (notificationsBadge == 0) "Avisos" else "Avisos · $notificationsBadge sin leer",
+                    tint = c.text,
                     badge = notificationsBadge > 0,
                     onClick = abrir,
                 )
             }
-        },
-    ) {
+        }
+
         // UNA CIFRA ES UNA AFIRMACIÓN SOBRE LOS DATOS, y cuando la carga falló
-        // no tenemos datos sobre los que afirmar nada.
-        //
-        // Antes las métricas y la cabecera se componían siempre, así que la
-        // pantalla llegaba a decir «0 compromisos · todo al día» justo encima
-        // de «No pudimos cargar esta sección». Callarlas no es esconder
-        // información: es no inventarla. Cuando hay datos en memoria de una
-        // carga anterior sí se siguen mostrando — ahí la cifra sí tiene
-        // respaldo, y borrarla castigaría al usuario por un fallo de red.
-        val untrusted = error != null && entries.isEmpty()
+        // no tenemos datos sobre los que afirmar nada: sin datos en memoria,
+        // las cifras y la cabecera propia se callan.
         if (metrics.isNotEmpty() && !untrusted) {
-            StaggeredAppear(0) {
-                Row(
-                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(VidaSpacing.sm),
-                ) {
-                    metrics.forEach { (k, v, s) -> StripCard(k, v, s, {}) }
-                }
-            }
+            StaggeredAppear(0) { MetricTiles(metrics, section) }
         }
         if (!untrusted) StaggeredAppear(1) { header() }
         StaggeredAppear(2) {
-            VidaSearchField(query, { query = it }, "Buscar en ${title.lowercase()}…")
+            ListSearchBox(
+                value = query,
+                onValueChange = { query = it },
+                placeholder = "Buscar en ${title.lowercase()}…",
+                trailing = if (query.isNotEmpty()) ({ SearchClearButton { query = "" } }) else null,
+            )
         }
         if (filters.isNotEmpty()) {
-            StaggeredAppear(2) { VidaChipRow(filters, filter, { filter = it }) }
+            StaggeredAppear(2) {
+                Row(
+                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    filters.forEach { f -> ListChip(f, filter == f, onClick = { filter = f }) }
+                }
+            }
         }
-        // El antetítulo («1 REGISTRADA», «0 ARTÍCULOS») es un recuento, y por
-        // tanto la misma clase de afirmación que las métricas de arriba.
         if (!untrusted) {
-            StaggeredAppear(3) { Eyebrow(if (selecting) "${selected.size} seleccionados" else eyebrow) }
+            StaggeredAppear(3) {
+                Text(
+                    if (selecting) "${selected.size} seleccionados" else eyebrow.replaceFirstChar { it.uppercase() },
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = c.text,
+                )
+            }
         }
 
-        // La barra de selección vive DEBAJO de los filtros, no en la cabecera:
-        // lo que se descarga es lo que el filtro y la búsqueda dejaron a la
-        // vista, y ponerla arriba sugeriría que actúa sobre todo el listado.
         bulkAction?.let { bulk ->
             StaggeredAppear(3) {
                 Row(
@@ -308,10 +352,6 @@ fun ResourceListScreen(
                 ) {
                     if (!selecting) {
                         VidaSmallButton("Seleccionar", { selecting = true }, ghost = true)
-                        // "Todos" no enumera la lista: manda el conjunto vacío,
-                        // que el backend interpreta como "todos los de este
-                        // módulo". Enumerar desde el cliente dependería de que
-                        // la página cargada los tuviera todos.
                         VidaSmallButton(bulk.allLabel, { bulk.onRun(emptySet()) }, ghost = true)
                     } else {
                         VidaSmallButton(
@@ -389,6 +429,52 @@ fun ResourceListScreen(
                 )
             }
         }
+        Spacer(Modifier.height(24.dp))
     }
+    }
+}
 
+/**
+ * Las cifras de la sección en tarjetas, como el resumen de Documentos. Hasta
+ * tres reparten el ancho; con más, la fila se desliza.
+ */
+@Composable
+private fun MetricTiles(metrics: List<Triple<String, String, String>>, section: SectionVisual?) {
+    val c = VidaTheme.colors
+    val tint = section?.tint ?: c.primary
+    @Composable
+    fun Tile(kicker: String, value: String, caption: String, modifier: Modifier) {
+        Column(
+            modifier.softCard().padding(vertical = 14.dp, horizontal = 10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(3.dp),
+        ) {
+            section?.let { Icon(it.icon, contentDescription = null, tint = tint, modifier = Modifier.size(22.dp)) }
+            Text(
+                value,
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold, fontSize = 20.sp),
+                color = c.text,
+                maxLines = 1,
+            )
+            Text(
+                listOf(kicker, caption).filter { it.isNotBlank() }.joinToString(" · "),
+                style = MaterialTheme.typography.bodySmall,
+                color = c.textSecondary,
+                maxLines = 2,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            )
+        }
+    }
+    if (metrics.size <= 3) {
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            metrics.forEach { (k, v, s) -> Tile(k, v, s, Modifier.weight(1f)) }
+        }
+    } else {
+        Row(
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            metrics.forEach { (k, v, s) -> Tile(k, v, s, Modifier.width(118.dp)) }
+        }
+    }
 }

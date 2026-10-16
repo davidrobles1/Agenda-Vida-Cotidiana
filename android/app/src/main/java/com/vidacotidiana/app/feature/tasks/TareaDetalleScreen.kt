@@ -1,5 +1,13 @@
 package com.vidacotidiana.app.feature.tasks
 
+import com.vidacotidiana.app.navigation.AppContext
+import com.vidacotidiana.app.core.app.FormField
+import com.vidacotidiana.app.core.app.ReferenceSource
+import com.vidacotidiana.app.core.ui.components.infoLabel
+import com.vidacotidiana.app.core.ui.components.infoValue
+import com.vidacotidiana.app.core.ui.components.rememberInfoOpener
+import androidx.compose.material.icons.outlined.Mail
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -63,21 +71,60 @@ import com.vidacotidiana.app.core.ui.VidaDates
 import com.vidacotidiana.app.core.data.ShareableKind
 import com.vidacotidiana.app.core.app.rememberResourceAccess
 import com.vidacotidiana.app.core.app.Dialogo
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.outlined.AttachFile
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material.icons.automirrored.outlined.Undo
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.foundation.ExperimentalFoundationApi
+import com.vidacotidiana.app.core.ui.VidaFonts
+import com.vidacotidiana.app.core.ui.VidaSections
+import com.vidacotidiana.app.core.ui.VidaVocabulary
+import com.vidacotidiana.app.core.ui.components.DetailAttachments
+import com.vidacotidiana.app.core.ui.components.DetailZoneCard
+import com.vidacotidiana.app.core.ui.components.DetailZoneTitle
+import com.vidacotidiana.app.core.ui.components.DockAction
+import com.vidacotidiana.app.core.ui.components.InfoEdit
+import com.vidacotidiana.app.core.ui.components.InfoItem
+import com.vidacotidiana.app.core.ui.components.MoreAction
+import com.vidacotidiana.app.core.ui.components.VidaDetailDock
+import com.vidacotidiana.app.core.ui.components.VidaDetailHeroCard
+import com.vidacotidiana.app.core.ui.components.VidaDetailPage
+import com.vidacotidiana.app.core.ui.components.VidaInfoSection
+import com.vidacotidiana.app.core.ui.components.infoItemsFor
+import com.vidacotidiana.app.core.ui.components.infoRefsOf
+import com.vidacotidiana.app.core.ui.components.rememberDetailSnack
+import com.vidacotidiana.app.core.ui.components.rememberInlineSaver
+import kotlinx.coroutines.launch
+import java.time.LocalDate
+import java.time.temporal.ChronoUnit
+import com.vidacotidiana.app.core.ui.components.readOnly
+import androidx.compose.material.icons.outlined.PersonAddAlt
+import androidx.compose.material.icons.outlined.Replay
+import androidx.compose.foundation.border
 
 /**
- * DETALLE DE UNA TAREA — la pantalla del artefacto maestro.
+ * DETALLE DE UNA TAREA.
  *
- * Composición transcrita: héroe con degradado y anillo blanco de avance,
- * propiedades como píldoras de color que SON el control, y la lista de pasos
- * con casillas redondas.
+ * «VER TODO, EDITAR EN EL SITIO» (`VidaDetailKit`): el título, el día, la hora,
+ * el dónde y el detalle llevan su lápiz y se guardan ahí mismo —el día abre el
+ * calendario de siempre y la hora el reloj de siempre—. «Completar» vive en la
+ * barra fija de abajo. Antes había cuatro botones de texto en la barra de
+ * arriba (Acceso, Invitar, Editar, Eliminar) y marcar la tarea como hecha
+ * pasaba por tocar la píldora «Estado».
  *
- * EL PORCENTAJE SE DERIVA, aquí también. `percentDone()` cuenta sobre la lista
- * que ya está en memoria; no hay un segundo número guardado ni en el cliente ni
- * en el servidor, así que marcar un paso mueve el anillo sin que nadie tenga
- * que acordarse de recalcular nada.
- *
+ * EL PORCENTAJE SE DERIVA de los pasos que ya están en memoria.
  * DATOS REALES: `/api/v1/reminders/{id}/steps` (V34).
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TareaDetalleScreen(
     taskId: String,
@@ -86,13 +133,14 @@ fun TareaDetalleScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val c = VidaTheme.colors
-    val t = VidaTheme.type
-    val spec = VidaTheme.spec
+    val snack = rememberDetailSnack()
+    val saver = rememberInlineSaver(viewModel, CreatableResource.TASK, taskId, snack)
+    val acceso = rememberResourceAccess(viewModel)
+    val scope = rememberCoroutineScope()
+    val attachmentsView = remember { BringIntoViewRequester() }
 
     LaunchedEffect(taskId) {
         viewModel.loadSteps(taskId)
-        // Los adjuntos usan la mecánica genérica (V37): el mismo endpoint que
-        // garantías, mantenimientos, artículos y pagos, cambiando el tipo.
         viewModel.loadAttachments(AttachTo.REMINDER, taskId)
     }
 
@@ -100,19 +148,9 @@ fun TareaDetalleScreen(
         viewModel.allTasks().firstOrNull { it.id == taskId }
     }
     val steps = if (state.stepsFor == taskId) state.steps else emptyList()
-    val pct = steps.percentDone()
     val doneCount = steps.count { it.done }
 
     var newStep by remember(taskId) { mutableStateOf("") }
-
-    /**
-     * Añadir el paso, escrito UNA vez.
-     *
-     * Lo piden dos sitios —el «+» de al lado y el «Realizado» del teclado— y
-     * tienen que hacer exactamente lo mismo. Duplicar el cuerpo es cómo se
-     * acaba con dos botones que dicen añadir y añaden cosas distintas: uno que
-     * limpia el campo y otro que no, por ejemplo.
-     */
     fun anadirPaso() {
         val texto = newStep.trim()
         if (texto.isNotBlank()) {
@@ -121,22 +159,8 @@ fun TareaDetalleScreen(
         }
     }
 
-    // El tono del héroe sale del estado real de la tarea, no de un color fijo:
-    // una tarea atrasada y una hecha no pueden presentarse igual.
-    val tone = when {
-        task?.done == true -> c.success
-        task?.time != null -> c.primary
-        else -> c.second
-    }
-
-    var confirmarBorrado by remember { mutableStateOf(false) }
-    val acceso = rememberResourceAccess(viewModel)
     var compartirAbierto by remember { mutableStateOf(false) }
     var destinatario by remember { mutableStateOf("") }
-
-    // Las comparticiones de ESTA tarea se piden al abrir el diálogo, no al
-    // entrar en la pantalla: casi ninguna tarea está compartida y no merece
-    // una petición por cada tarea que se abre.
     LaunchedEffect(compartirAbierto) { if (compartirAbierto) viewModel.loadShares(taskId) }
 
     if (compartirAbierto) {
@@ -190,217 +214,144 @@ fun TareaDetalleScreen(
         )
     }
 
-    if (confirmarBorrado) {
-        AlertDialog(
-            onDismissRequest = { confirmarBorrado = false },
-            title = { Text("Eliminar la tarea") },
-            text = { Text("«${task?.title.orEmpty()}» se borrará para siempre, con sus pasos. No se puede deshacer.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    confirmarBorrado = false
-                    viewModel.deleteResource(CreatableResource.TASK, taskId)
-                    navController.popBackStack()
-                }) { Text("Eliminar", color = c.error) }
-            },
-            dismissButton = { TextButton(onClick = { confirmarBorrado = false }) { Text("Cancelar") } },
-            containerColor = c.surfaceVariant,
-        )
-    }
 
-    VidaScreen(
-        title = "Tarea",
-        showBack = true,
-        onNavigationClick = { navController.popBackStack() },
-        actions = {
-            // DOS MECÁNICAS DISTINTAS, y por eso dos botones y no uno:
-            //
-            //  · «Acceso» es la compartición general de ADR-025 — se elige a
-            //    alguien que YA está en la plataforma y se le da o se le
-            //    retira acceso al instante. Es la que sirve para los seis
-            //    tipos de recurso y la que faltaba entera en el móvil.
-            //  · «Invitar» manda una invitación por correo a alguien que
-            //    todavía no tiene cuenta. Solo existe para tareas.
-            //
-            // Fundirlas en un botón obligaría a adivinar cuál quiere el
-            // usuario a partir de lo que escriba, que es justo lo que hacía el
-            // diálogo anterior mirando si el texto llevaba arroba.
-            VidaSmallButton("Acceso", { acceso.abrir(ShareableKind.REMINDER, taskId, task?.title.orEmpty()) }, ghost = true)
-            Spacer(Modifier.width(VidaSpacing.xs))
-            VidaSmallButton("Invitar", { compartirAbierto = true }, ghost = true)
-            Spacer(Modifier.width(VidaSpacing.xs))
-            VidaSmallButton("Editar", { viewModel.requestEdit(CreatableResource.TASK, taskId) }, ghost = true)
-            Spacer(Modifier.width(VidaSpacing.xs))
-            // BORRAR UNA TAREA no existía en el móvil: el backend lo permite
-            // desde siempre y la Web lo ofrece, así que una tarea creada por
-            // error solo se podía quitar desde el navegador.
-            VidaSmallButton("Eliminar", { confirmarBorrado = true }, ghost = true)
-        },
-    ) {
-        if (task == null) {
+    if (task == null) {
+        VidaDetailPage(title = "Tarea", onBack = { navController.popBackStack() }, snack = snack) {
             VidaError(
                 title = "No encontramos esa tarea",
                 body = "Puede que se haya borrado desde otro dispositivo.",
                 onRetry = { navController.popBackStack() },
                 retryLabel = "Volver",
             )
-            return@VidaScreen
         }
+        return
+    }
 
-        /* ── HÉROE ───────────────────────────────────────────────────────── */
-        StaggeredAppear(0) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .vidaSoftShadow(30.dp, color = tone, keyBlur = 32.dp, keyOffsetY = 14.dp, keyAlpha = 0.30f)
-                    .background(tone, RoundedCornerShape(30.dp))
-                    .padding(20.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                // El anillo del héroe va en BLANCO sobre el tono, no en el tono
-                // sobre blanco: es el mismo componente, pero aquí el fondo ya
-                // lleva el color y repetirlo lo haría desaparecer.
-                Box(Modifier.size(76.dp), contentAlignment = Alignment.Center) {
-                    androidx.compose.foundation.Canvas(Modifier.size(76.dp)) {
-                        val w = 7.dp.toPx()
-                        val inset = w / 2f
-                        val arcSize = androidx.compose.ui.geometry.Size(size.width - w, size.height - w)
-                        drawArc(
-                            color = Color.White.copy(alpha = 0.3f),
-                            startAngle = 0f, sweepAngle = 360f, useCenter = false,
-                            topLeft = androidx.compose.ui.geometry.Offset(inset, inset), size = arcSize,
-                            style = androidx.compose.ui.graphics.drawscope.Stroke(width = w),
-                        )
-                        if (pct > 0) {
-                            drawArc(
-                                color = Color.White,
-                                startAngle = -90f, sweepAngle = 360f * pct / 100f, useCenter = false,
-                                topLeft = androidx.compose.ui.geometry.Offset(inset, inset), size = arcSize,
-                                style = androidx.compose.ui.graphics.drawscope.Stroke(
-                                    width = w,
-                                    cap = androidx.compose.ui.graphics.StrokeCap.Round,
-                                ),
-                            )
+    val tone = when {
+        task.done -> c.success
+        task.time != null -> c.primary
+        else -> c.second
+    }
+    // Una tarea que no es tuya (compartida contigo) no trae valores editables:
+    // se ve entera, sin lápices.
+    val snapshot = viewModel.editSnapshot(CreatableResource.TASK, taskId)
+    val editable = snapshot != null
+    val refs = infoRefsOf(state, viewModel)
+    // ADR-019: la tarea sigue las reglas de SU módulo, no del que está activo.
+    //  · Personal → se comparte con Familia (ADR-025).
+    //  · Laboral  → se vincula a una Persona y a un Proyecto (ADR-016), y a una
+    //               reunión se invita por correo (REMINDER_SHARE). Sin Familia.
+    // Nunca las dos a la vez.
+    val laboral = viewModel.moduleOf(CreatableResource.TASK, taskId) == AppContext.LABORAL
+    val opener = rememberInfoOpener()
+    val baseValues = snapshot?.first.orEmpty()
+    val items = infoItemsFor(CreatableResource.TASK, baseValues, refs, saver, laboral = laboral)
+
+    VidaDetailPage(
+        title = "Tarea",
+        onBack = { navController.popBackStack() },
+        snack = snack,
+        dock = {
+            VidaDetailDock(
+                primary = if (task.done) {
+                    DockAction("Completada", Icons.Outlined.CheckCircle, done = true, enabled = false) {}
+                } else {
+                    DockAction("Completar", Icons.Outlined.CheckCircle) { viewModel.toggleTask(task.id) }
+                },
+                secondary = listOf(
+                    if (laboral) {
+                        DockAction("Persona", Icons.Outlined.PersonAddAlt, enabled = editable) { opener.open("personId") }
+                    } else {
+                        DockAction("Compartir", Icons.Outlined.Share) {
+                            acceso.abrir(ShareableKind.REMINDER, taskId, task.title)
                         }
-                    }
-                    Text(
-                        "$pct%",
-                        style = t.heroFigure.copy(fontSize = 17.sp, lineHeight = 20.sp),
-                        color = Color.White,
-                    )
-                }
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                    Text(
-                        task.title,
-                        style = t.sectionTitle.copy(fontSize = 21.sp, lineHeight = 27.sp),
-                        color = Color.White,
-                    )
-                    Text(
-                        buildString {
-                            if (steps.isNotEmpty()) append("$doneCount de ${steps.size} pasos · ")
-                            append(task.meta)
-                        },
-                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 17.sp),
-                        color = Color.White.copy(alpha = 0.82f),
-                    )
-                }
-            }
-        }
-
-        /* ── PROPIEDADES ─────────────────────────────────────────────────── */
-        StaggeredAppear(1) {
-            Column(verticalArrangement = Arrangement.spacedBy(VidaSpacing_sm)) {
-                // EL ESTADO SE CAMBIA EN LOS DOS SENTIDOS.
-                //
-                // Esta propiedad ya se podía tocar, pero siempre llamaba a
-                // `toggleTask`, que se plantaba sobre una tarea hecha
-                // (`if (status == "COMPLETED") return`). Es decir: sobre la
-                // tarea cerrada el gesto existía, invitaba a pulsarlo y no
-                // hacía absolutamente nada.
-                VidaProp(
-                    name = "Estado",
-                    value = if (task.done) "Hecha" else "Pendiente",
-                    valueBackground = if (task.done) c.successContainer else c.primaryContainer,
-                    valueForeground = if (task.done) c.successText else c.primaryDeep,
-                    onClick = {
-                        if (task.done) viewModel.reopenTask(task.id) else viewModel.toggleTask(task.id)
                     },
-                )
-                VidaProp(
-                    name = "Cuándo",
-                    // «Hoy» era un literal: la palabra estaba escrita a mano y
-                    // no miraba `task.date`, así que una tarea de la semana
-                    // pasada afirmaba ser de hoy. Ahora la frase se deriva de
-                    // la fecha real, en el mismo sitio que el resto de la app.
-                    value = VidaDates.dateTime(task.date, task.time),
-                    valueBackground = c.warningContainer,
-                    valueForeground = c.warningText,
-                    onClick = { viewModel.requestEdit(CreatableResource.TASK, taskId) },
-                )
-                task.location?.takeIf { it.isNotBlank() }?.let { place ->
-                    VidaProp(
-                        name = "Dónde",
-                        value = place,
-                        valueBackground = c.sunken,
-                        valueForeground = c.textSecondary,
-                        onClick = { viewModel.requestEdit(CreatableResource.TASK, taskId) },
-                    )
-                }
-            }
-        }
+                    DockAction("Adjuntar", Icons.Outlined.AttachFile) {
+                        scope.launch { attachmentsView.bringIntoView() }
+                    },
+                ),
+                more = listOfNotNull(
+                    MoreAction("Reabrir la tarea", Icons.Outlined.Replay, "Vuelve a quedar pendiente") {
+                        viewModel.reopenTask(task.id)
+                    }.takeIf { task.done },
+                    MoreAction("Invitar por correo", Icons.Outlined.Mail, "A una reunión, aunque no tenga cuenta") {
+                        compartirAbierto = true
+                    }.takeIf { laboral },
+                    MoreAction(
+                        "Eliminar la tarea", Icons.Outlined.DeleteOutline, "Se pide confirmación",
+                        danger = true,
+                        confirm = "«${task.title}» se borrará para siempre, con sus pasos. No se puede deshacer.",
+                    ) {
+                        viewModel.deleteResource(CreatableResource.TASK, taskId)
+                        navController.popBackStack()
+                    },
+                ),
+            )
+        },
+    ) {
+        VidaDetailHeroCard(
+            section = VidaSections.Tareas,
+            eyebrow = listOfNotNull(
+                if (laboral) AppContext.LABORAL.label else AppContext.PERSONAL.label,
+                "Tarea",
+                "Compartida".takeIf { task.shared },
+            ).joinToString(" · "),
+            title = task.title,
+            onRename = if (editable) {
+                { saver.save("title", "Título", it, task.title, flashKey = "title") }
+            } else null,
+            onEmptyTitle = { snack.show("El título no puede quedar vacío") },
+            figure = task.time?.toString()?.take(5),
+            figureCaption = task.date?.let { com.vidacotidiana.app.core.ui.components.infoDate(it).substringBefore(" ·").lowercase() },
+            status = when {
+                task.done -> "Hecha"
+                steps.isNotEmpty() -> "Pendiente · $doneCount de ${steps.size} pasos"
+                else -> "Pendiente"
+            },
+            statusColor = tone,
+        )
+
+        VidaInfoSection(
+            items = if (editable) items else items.readOnly(),
+            refs = refs,
+            flash = saver.flash,
+            opener = opener,
+        )
 
         /* ── PASOS ───────────────────────────────────────────────────────── */
-        StaggeredAppear(2) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("PASOS", style = t.eyebrow, color = c.textTertiary, modifier = Modifier.weight(1f))
-                if (steps.isNotEmpty()) {
-                    Text(
-                        "$doneCount/${steps.size}",
-                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                        color = tone,
-                    )
-                }
-            }
-        }
-
-        StaggeredAppear(3) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            DetailZoneTitle("Pasos", if (steps.isEmpty()) null else "$doneCount/${steps.size}")
             when {
                 state.stepsError != null && steps.isEmpty() -> VidaError(
                     title = "No se pudieron cargar los pasos",
                     body = state.stepsError ?: "",
                     onRetry = { viewModel.loadSteps(taskId) },
                 )
-
                 state.stepsLoading && steps.isEmpty() -> LoadingRows(2)
-
-                else -> Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .vidaSoftShadow(spec.radii.card)
-                        .background(c.surfaceVariant, RoundedCornerShape(spec.radii.card))
-                        .border(spec.borderWidth, c.line, RoundedCornerShape(spec.radii.card))
-                        .padding(18.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                ) {
+                else -> DetailZoneCard {
                     if (steps.isEmpty()) {
                         Text(
                             "Una tarea no necesita pasos. Añádelos solo si partirla en trozos te ayuda.",
-                            style = t.body,
+                            style = VidaTheme.type.body,
                             color = c.textSecondary,
+                            modifier = Modifier.padding(vertical = 12.dp),
                         )
                     }
-                    steps.forEach { step ->
+                    steps.forEachIndexed { i, step ->
+                        if (i > 0) Box(Modifier.fillMaxWidth().height(1.dp).background(c.line))
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .vidaClickable(onClick = { viewModel.toggleStep(taskId, step.id) }),
+                                .heightIn(min = 48.dp)
+                                .vidaClickable(onClick = { viewModel.toggleStep(taskId, step.id) })
+                                .padding(vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
                             VidaTick(checked = step.done, tone = tone)
                             Text(
                                 step.title,
-                                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 19.sp),
+                                style = VidaTheme.type.body,
                                 color = if (step.done) c.textTertiary else c.text,
                                 textDecoration = if (step.done) {
                                     androidx.compose.ui.text.style.TextDecoration.LineThrough
@@ -417,94 +368,43 @@ fun TareaDetalleScreen(
                             )
                         }
                     }
-
-                    // Añadir: campo + acción, sin salir de la pantalla.
+                    Box(Modifier.fillMaxWidth().height(1.dp).background(c.line))
                     Row(
+                        Modifier.padding(vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
                         Box(Modifier.weight(1f)) {
-                            VidaTextField(
-                                newStep, { newStep = it }, "Añadir paso",
-                                // «Realizado» hace lo MISMO que el «+» de al
-                                // lado, no algo parecido: una sola definición
-                                // de qué significa añadir un paso.
-                                onDone = { anadirPaso() },
-                            )
+                            VidaTextField(newStep, { newStep = it }, "Añadir paso", onDone = { anadirPaso() })
                         }
                         Box(
                             modifier = Modifier
                                 .size(VidaLayout.touchTarget)
                                 .background(
-                                    if (newStep.isBlank()) c.sunken else c.primary,
-                                    RoundedCornerShape(spec.radii.control),
+                                    if (newStep.isBlank()) c.sunken else com.vidacotidiana.app.core.ui.components.vidaBrandInk(),
+                                    RoundedCornerShape(14.dp),
                                 )
-                                .vidaClickable(
-                                    onClick = { anadirPaso() },
-                                ),
+                                .vidaClickable(onClick = { anadirPaso() }),
                             contentAlignment = Alignment.Center,
                         ) {
                             Icon(
                                 Icons.Filled.Add,
                                 contentDescription = "Añadir",
-                                tint = if (newStep.isBlank()) c.textTertiary else c.onPrimary,
+                                tint = if (newStep.isBlank()) c.textTertiary else c.surfaceVariant,
                                 modifier = Modifier.size(20.dp),
                             )
                         }
                     }
                 }
             }
-        }
-
-        state.stepsError?.takeIf { steps.isNotEmpty() }?.let { msg ->
-            StaggeredAppear(4) {
-                Text(msg, style = MaterialTheme.typography.bodySmall, color = c.error)
+            state.stepsError?.takeIf { steps.isNotEmpty() }?.let { msg ->
+                Text(msg, style = VidaTheme.type.caption, color = c.error)
             }
         }
 
-        /* ── ADJUNTOS (V37) ──────────────────────────────────────────────── */
-        StaggeredAppear(4) {
-            Text("ADJUNTOS", style = t.eyebrow, color = c.textTertiary)
-        }
-        StaggeredAppear(5) {
-            // La sección entera —lo colgado y el gesto de colgar— vive en
-            // `VidaAttachments`. Aquí solo se traducen los dos modelos de datos
-            // a la fila que pinta el componente, y se elige QUÉ puede colgarse:
-            // los documentos sueltos, nunca los que ya cuelgan de otro registro.
-            val files = if (state.attachmentsFor == taskId) state.attachments else emptyList()
-            val attachedIds = files.map { it.id }.toSet()
-            val docs = state.data.documents.filterNot { it.id in attachedIds }
-            VidaAttachments(
-                attached = files.map {
-                    VidaFile(
-                        it.id, it.name,
-                        "${it.contentType.substringAfterLast('/').uppercase()} · ${it.sizeBytes / 1024} KB",
-                        it.isImage,
-                    )
-                },
-                loose = docs.filter { it.resourceType == null }.map {
-                    VidaFile(it.id, it.name, "${it.category} · ${it.sizeLabel}", false)
-                },
-                hangingElsewhere = docs.count { it.resourceType != null },
-                loading = state.attachmentsLoading,
-                onAttach = { viewModel.attachDocument(it, AttachTo.REMINDER, taskId) },
-                onDetach = { viewModel.detachDocument(it, AttachTo.REMINDER, taskId) },
-            )
-        }
-
-        /* ── ACCIONES ────────────────────────────────────────────────────── */
-        StaggeredAppear(6) {
-            Row(horizontalArrangement = Arrangement.spacedBy(VidaSpacing_sm)) {
-                VidaPill(if (task.done) "Hecha" else "Pendiente", if (task.done) PillTone.OK else PillTone.NEUTRAL)
-                if (task.shared) VidaPill("Compartida", PillTone.WARN)
-            }
-        }
-
-        Spacer(Modifier.height(VidaLayout.sectionGap))
+        DetailAttachments(state, viewModel, AttachTo.REMINDER, taskId, Modifier.bringIntoViewRequester(attachmentsView))
     }
 
     acceso.Dialogo(viewModel)
 }
 
-/** Alias local: el hueco entre piezas hermanas del artefacto. */
-private val VidaSpacing_sm = 10.dp

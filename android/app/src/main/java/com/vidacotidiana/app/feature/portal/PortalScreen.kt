@@ -1,5 +1,6 @@
 package com.vidacotidiana.app.feature.portal
 
+import com.vidacotidiana.app.navigation.go
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -240,7 +241,7 @@ fun PortalScreen(viewModel: AppViewModel, navController: NavHostController) {
                         modifier = Modifier
                             .fillMaxWidth()
                             .background(c.surfaceElevated, RoundedCornerShape(20.dp))
-                            .vidaClickable(onClick = { navController.navigate(route) })
+                            .vidaClickable(onClick = { navController.go(route) })
                             .padding(horizontal = 16.dp, vertical = 13.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp),

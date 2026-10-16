@@ -1,5 +1,6 @@
 package com.vidacotidiana.app.feature.laboral
 
+import com.vidacotidiana.app.navigation.go
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -176,7 +177,7 @@ fun HoyScreen(
                         figureSize = 54.dp,
                         chevron = true,
                         modifier = Modifier.weight(1.32f).fillMaxHeight(),
-                        onClick = { navController.navigate(Routes.TASKS_LAB) },
+                        onClick = { navController.go(Routes.TASKS_LAB) },
                     )
                     VidaTile(
                         kicker = "Vencidos",
@@ -193,7 +194,7 @@ fun HoyScreen(
                         figureSize = 46.dp,
                         chevron = true,
                         modifier = Modifier.weight(1f).fillMaxHeight(),
-                        onClick = { navController.navigate(Routes.COMMITMENTS) },
+                        onClick = { navController.go(Routes.COMMITMENTS) },
                     )
                 }
                 // Fila 2 — 100 dp. De quién depende cada cosa, y lo ya cerrado.
@@ -216,7 +217,7 @@ fun HoyScreen(
                         figureSize = 38.dp,
                         chevron = true,
                         modifier = Modifier.weight(1.32f).fillMaxHeight(),
-                        onClick = { navController.navigate(Routes.COMMITMENTS) },
+                        onClick = { navController.go(Routes.COMMITMENTS) },
                     )
                     VidaTile(
                         kicker = "Hechas",
@@ -229,7 +230,7 @@ fun HoyScreen(
                         figureSize = 38.dp,
                         chevron = true,
                         modifier = Modifier.weight(1f).fillMaxHeight(),
-                        onClick = { navController.navigate(Routes.TASKS_LAB) },
+                        onClick = { navController.go(Routes.TASKS_LAB) },
                     )
                 }
             }
@@ -261,7 +262,7 @@ fun HoyScreen(
                             } ?: emptyList(),
                         )
                     },
-                    onOpenDetail = { entry -> viewModel.requestEdit(CreatableResource.TASK, entry.id) },
+                    onOpenDetail = { entry -> navController.go(Routes.taskRoute(entry.id)) },
                 )
             }
         }
@@ -292,7 +293,7 @@ fun HoyScreen(
                             completeLabel = "Cerrar",
                         )
                     },
-                    onOpenDetail = { entry -> viewModel.requestEdit(CreatableResource.COMMITMENT, entry.id) },
+                    onOpenDetail = { entry -> navController.go(Routes.resourceRoute(CreatableResource.COMMITMENT.name, entry.id)) },
                 )
             }
         }
@@ -452,7 +453,7 @@ fun LaboralTasksScreen(viewModel: AppViewModel, drawerState: DrawerState, scope:
         )
     }
     ResourceListScreen(
-        onOpenRoute = { navController.navigate(Routes.resourceRoute("TASK", it.id)) },
+        onOpenRoute = { navController.go(Routes.resourceRoute("TASK", it.id)) },
         title = "Tareas",
         subtitle = "Lo que te toca en el trabajo.",
         eyebrow = plural(entries.count { it.pill == null }, "abierta", "abiertas"),
@@ -481,7 +482,7 @@ fun LaboralTasksScreen(viewModel: AppViewModel, drawerState: DrawerState, scope:
         onBack = { navController.popBackStack() },
         // La campana lleva de verdad a los avisos, y el punto sale de
         // cuántos quedan sin leer. Antes era `{}` con `badge = true`.
-        onNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
+        onNotifications = { navController.go(Routes.NOTIFICATIONS) },
         notificationsBadge = viewModel.avisosSinLeer(),
     )
 }
@@ -540,7 +541,7 @@ fun PeopleScreen(viewModel: AppViewModel, drawerState: DrawerState, scope: Corou
 
     ResourceListScreen(
         // El artefacto le da pantalla propia a la persona.
-        onOpenRoute = { navController.navigate(Routes.personRoute(it.id)) },
+        onOpenRoute = { navController.go(Routes.personRoute(it.id)) },
         title = state.profile.personPlural,
         subtitle = "Con quién trabajas.",
         eyebrow = plural(entries.size, "registrada", "registradas"),
@@ -585,7 +586,7 @@ fun PeopleScreen(viewModel: AppViewModel, drawerState: DrawerState, scope: Corou
         onBack = { navController.popBackStack() },
         // La campana lleva de verdad a los avisos, y el punto sale de
         // cuántos quedan sin leer. Antes era `{}` con `badge = true`.
-        onNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
+        onNotifications = { navController.go(Routes.NOTIFICATIONS) },
         notificationsBadge = viewModel.avisosSinLeer(),
     )
 }
@@ -638,7 +639,7 @@ fun ProjectsScreen(viewModel: AppViewModel, drawerState: DrawerState, scope: Cor
     // Destino prioritario de la barra en Laboral: su cabecera muestra el menú.
     ResourceListScreen(
         // El artefacto le da pantalla propia al proyecto.
-        onOpenRoute = { navController.navigate(Routes.projectRoute(it.id)) },
+        onOpenRoute = { navController.go(Routes.projectRoute(it.id)) },
         title = state.profile.projectPlural,
         subtitle = "En qué estás trabajando.",
         eyebrow = plural(projects.size, "abierto", "abiertos"),
@@ -681,7 +682,7 @@ fun ProjectsScreen(viewModel: AppViewModel, drawerState: DrawerState, scope: Cor
         onBack = {},
         // La campana lleva de verdad a los avisos, y el punto sale de
         // cuántos quedan sin leer. Antes era `{}` con `badge = true`.
-        onNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
+        onNotifications = { navController.go(Routes.NOTIFICATIONS) },
         notificationsBadge = viewModel.avisosSinLeer(),
     )
 }
@@ -727,7 +728,7 @@ fun CommitmentsScreen(viewModel: AppViewModel, drawerState: DrawerState, scope: 
         )
     }
     ResourceListScreen(
-        onOpenRoute = { navController.navigate(Routes.resourceRoute("COMMITMENT", it.id)) },
+        onOpenRoute = { navController.go(Routes.resourceRoute("COMMITMENT", it.id)) },
         title = "Seguimientos",
         subtitle = "Lo que debes y lo que esperas.",
         eyebrow = plural(commitments.count { it.status != "DONE" }, "abierto", "abiertos"),
@@ -782,7 +783,7 @@ fun CommitmentsScreen(viewModel: AppViewModel, drawerState: DrawerState, scope: 
         onBack = { navController.popBackStack() },
         // La campana lleva de verdad a los avisos, y el punto sale de
         // cuántos quedan sin leer. Antes era `{}` con `badge = true`.
-        onNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
+        onNotifications = { navController.go(Routes.NOTIFICATIONS) },
         notificationsBadge = viewModel.avisosSinLeer(),
     )
 }

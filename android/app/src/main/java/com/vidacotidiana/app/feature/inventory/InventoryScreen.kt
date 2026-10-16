@@ -1,5 +1,6 @@
 package com.vidacotidiana.app.feature.inventory
 
+import com.vidacotidiana.app.navigation.go
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material3.DrawerState
@@ -112,7 +113,7 @@ fun InventoryScreen(
     ResourceListScreen(
         // La ficha del recurso, en su ventana. Antes esto caía en la
         // hoja deslizante que ya no existe.
-        onOpenRoute = { navController.navigate(Routes.resourceRoute("INVENTORY", it.id)) },
+        onOpenRoute = { navController.go(Routes.resourceRoute("INVENTORY", it.id)) },
         // Retícula del artefacto: el inventario no reclama nada, así que sus
         // piezas dicen QUÉ HAY y cuánto de eso está cubierto.
         header = {
@@ -148,7 +149,7 @@ fun InventoryScreen(
         onBack = { navController.popBackStack() },
         // La campana lleva de verdad a los avisos, y el punto sale de
         // cuántos quedan sin leer. Antes era `{}` con `badge = true`.
-        onNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
+        onNotifications = { navController.go(Routes.NOTIFICATIONS) },
         notificationsBadge = viewModel.avisosSinLeer(),
     )
 

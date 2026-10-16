@@ -63,6 +63,7 @@ fun VidaScreen(
      */
     onRefresh: (() -> Unit)? = null,
     refreshing: Boolean = false,
+    brandMark: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val c = VidaTheme.colors
@@ -96,6 +97,7 @@ fun VidaScreen(
             showBack = showBack,
             onNavigationClick = onNavigationClick,
             actions = actions,
+            brandMark = brandMark,
         )
         if (context != null) {
             ContextBar(current = context, laboralEnabled = laboralEnabled, onSelect = onContextSelect)

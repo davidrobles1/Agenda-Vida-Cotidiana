@@ -1,5 +1,6 @@
 package com.vidacotidiana.app.feature.tasks
 
+import com.vidacotidiana.app.navigation.go
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material.icons.Icons
@@ -80,7 +81,7 @@ fun TasksScreen(
         "Hechas" to all.filter { it.done },
     ).filterValues { it.isNotEmpty() }
 
-    VidaScreen(
+    com.vidacotidiana.app.core.ui.components.VidaSectionScreen(
         title = "Tareas",
         subtitle = "Lo que te toca, agrupado por cuándo.",
         showBack = true,
@@ -172,7 +173,7 @@ fun TasksScreen(
         // primer encabezado entraría a la vez que ella.
         var index = 1
         groups.forEach { (label, tasks) ->
-            StaggeredAppear(index++) { Eyebrow("$label · ${tasks.size}") }
+            StaggeredAppear(index++) { com.vidacotidiana.app.core.ui.components.ListSectionTitle("$label (${tasks.size})") }
             Column(verticalArrangement = Arrangement.spacedBy(VidaSpacing.sm)) {
                 // Cuadrícula, no lista: cada tarea es una pieza. El
                 // deslizar-para-completar deja de tener sentido en una tarjeta
@@ -239,7 +240,7 @@ fun TasksScreen(
                     // Abrir una tarea lleva a SU pantalla, no al formulario
                     // de edición: el artefacto separa mirar de editar, y los
                     // pasos solo caben en el detalle.
-                    onOpenDetail = { navController.navigate(Routes.taskRoute(it.id)) },
+                    onOpenDetail = { navController.go(Routes.taskRoute(it.id)) },
                     // FILA, no mosaico: en el artefacto la tarea es una fila con
                     // su antetítulo, su hora al lado y el NOMBRE como dato
                     // principal. Deducir la forma del contenido ascendía la hora

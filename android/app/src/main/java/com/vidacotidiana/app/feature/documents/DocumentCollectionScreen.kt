@@ -1,5 +1,11 @@
 package com.vidacotidiana.app.feature.documents
 
+import com.vidacotidiana.app.core.ui.components.ToneColors
+import com.vidacotidiana.app.core.ui.components.DetailTopBar
+import com.vidacotidiana.app.core.ui.components.ListSearchBox
+import com.vidacotidiana.app.core.ui.components.ListChip
+import com.vidacotidiana.app.core.ui.components.LoadMoreFooter
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -91,6 +97,7 @@ fun DocumentCollectionScreen(
     val favorites by viewModel.favoriteDocuments.collectAsStateWithLifecycle()
     val c = VidaTheme.colors
     val actions = rememberDocumentActions(viewModel, navController)
+    val context = androidx.compose.ui.platform.LocalContext.current
     val isCategory = !key.startsWith("_")
     val title = DocCollections.title(key)
 
@@ -136,7 +143,7 @@ fun DocumentCollectionScreen(
     val (space, unit) = totalSizeParts(base.sumOf { it.sizeBytes })
 
     Column(Modifier.fillMaxSize().background(c.surface)) {
-        DocTopBar(
+        DetailTopBar(
             title = title,
             subtitle = "${plural(base.size, "documento", "documentos")} · $space $unit",
             onBack = { navController.popBackStack() },
@@ -150,7 +157,7 @@ fun DocumentCollectionScreen(
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             Spacer(Modifier.height(2.dp))
-            DocSearchBox(
+            ListSearchBox(
                 value = query,
                 onValueChange = { query = it },
                 placeholder = "Buscar en $title…",
@@ -167,6 +174,18 @@ fun DocumentCollectionScreen(
                                     onClick = { sort = option; sortOpen = false },
                                 )
                             }
+                            // PARIDAD CON WEB: bajarse lo que se ve en un zip
+                            // (`POST /documents/download`), la acción masiva que
+                            // tenía la lista anterior.
+                            androidx.compose.material3.HorizontalDivider()
+                            DropdownMenuItem(
+                                text = { Text("Descargar estos (${filtered.size}) en zip") },
+                                enabled = filtered.isNotEmpty(),
+                                onClick = {
+                                    sortOpen = false
+                                    viewModel.downloadDocumentsZip(context, filtered.map { it.id }.toSet())
+                                },
+                            )
                         }
                     }
                 },
@@ -177,10 +196,10 @@ fun DocumentCollectionScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 listOf(CHIP_ALL, CHIP_RECENT, CHIP_FAVORITES).forEach { option ->
-                    DocChip(option, chip == option, onClick = { chip = option; more = null })
+                    ListChip(option, chip == option, onClick = { chip = option; more = null })
                 }
                 Box {
-                    DocChip(
+                    ListChip(
                         more?.label ?: CHIP_MORE,
                         selected = chip == CHIP_MORE,
                         dropdown = true,
@@ -248,10 +267,10 @@ private fun emptyBodyFor(key: String): String = when (key) {
 private fun CollectionIllustration(key: String) {
     val c = VidaTheme.colors
     val (icon, tone) = when (key) {
-        DocCollections.RECENT -> Icons.Outlined.Schedule to DocTone(c.info, c.infoContainer)
-        DocCollections.FAVORITES -> Icons.Outlined.StarOutline to DocTone(c.warning, c.warningContainer)
-        DocCollections.SHARED -> Icons.Outlined.Group to DocTone(c.second, c.secondContainer)
-        DocCollections.ALL -> Icons.Outlined.Description to DocTone(c.primary, c.primaryContainer)
+        DocCollections.RECENT -> Icons.Outlined.Schedule to ToneColors(c.info, c.infoContainer)
+        DocCollections.FAVORITES -> Icons.Outlined.StarOutline to ToneColors(c.warning, c.warningContainer)
+        DocCollections.SHARED -> Icons.Outlined.Group to ToneColors(c.second, c.secondContainer)
+        DocCollections.ALL -> Icons.Outlined.Description to ToneColors(c.primary, c.primaryContainer)
         else -> categoryVisual(key).let { it.icon to it.tone }
     }
     Box(Modifier.size(width = 68.dp, height = 56.dp), contentAlignment = Alignment.Center) {

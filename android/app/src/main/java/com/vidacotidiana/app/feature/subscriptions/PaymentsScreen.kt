@@ -1,5 +1,6 @@
 package com.vidacotidiana.app.feature.subscriptions
 
+import com.vidacotidiana.app.navigation.go
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Autorenew
 import androidx.compose.material3.DrawerState
@@ -179,7 +180,7 @@ fun PaymentsScreen(
 
     ResourceListScreen(
         // El artefacto le da pantalla propia a este registro.
-        onOpenRoute = { navController.navigate(Routes.paymentRoute(it.id)) },
+        onOpenRoute = { navController.go(Routes.paymentRoute(it.id)) },
         title = "Pagos",
         subtitle = "Lo que pagas cada mes, y cuándo.",
         eyebrow = plural(entries.size, "compromiso", "compromisos"),
@@ -258,7 +259,7 @@ fun PaymentsScreen(
         onBack = {},
         // La campana lleva de verdad a los avisos, y el punto sale de
         // cuántos quedan sin leer. Antes era `{}` con `badge = true`.
-        onNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
+        onNotifications = { navController.go(Routes.NOTIFICATIONS) },
         notificationsBadge = viewModel.avisosSinLeer(),
     )
 

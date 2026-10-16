@@ -51,20 +51,20 @@ fun FamilyScreen(
     val typed = query.trim()
     val enough = typed.length >= 5
 
-    VidaScreen(
+    com.vidacotidiana.app.core.ui.components.VidaSectionScreen(
         title = "Familia",
         subtitle = "Las personas con las que compartes tu día a día.",
         showBack = true,
         onNavigationClick = { navController.popBackStack() },
     ) {
         StaggeredAppear(0) {
-            VidaSearchField(
-                query,
-                {
+            com.vidacotidiana.app.core.ui.components.ListSearchBox(
+                value = query,
+                onValueChange = {
                     query = it
                     viewModel.searchUsers(it)
                 },
-                "Buscar por nombre de usuario…",
+                placeholder = "Buscar por nombre de usuario…",
             )
         }
         StaggeredAppear(1) {
@@ -84,7 +84,7 @@ fun FamilyScreen(
         // Resultados de búsqueda: cada uno dice en qué situación está contigo,
         // porque invitar a quien ya es familia no tiene sentido.
         if (enough && state.userSearch.isNotEmpty()) {
-            StaggeredAppear(2) { Eyebrow("Resultados") }
+            StaggeredAppear(2) { com.vidacotidiana.app.core.ui.components.ListSectionTitle("Resultados") }
             Column(verticalArrangement = Arrangement.spacedBy(VidaSpacing.sm)) {
                 state.userSearch.forEachIndexed { index, user ->
                     StaggeredAppear(3 + index) {
@@ -114,7 +114,7 @@ fun FamilyScreen(
 
         // Invitaciones recibidas: se aceptan o se rechazan aquí mismo.
         if (state.data.receivedInvitations.isNotEmpty()) {
-            StaggeredAppear(4) { Eyebrow("Te invitaron") }
+            StaggeredAppear(4) { com.vidacotidiana.app.core.ui.components.ListSectionTitle("Te invitaron") }
             Column(verticalArrangement = Arrangement.spacedBy(VidaSpacing.sm)) {
                 state.data.receivedInvitations.forEachIndexed { index, invitation ->
                     StaggeredAppear(5 + index) {
@@ -135,7 +135,7 @@ fun FamilyScreen(
             }
         }
 
-        StaggeredAppear(6) { Eyebrow("Tu familia") }
+        StaggeredAppear(6) { com.vidacotidiana.app.core.ui.components.ListSectionTitle("Tu familia") }
         when {
             state.loading && state.data.familyMembers.isEmpty() -> StaggeredAppear(7) { LoadingRows(2) }
             state.data.familyMembers.isEmpty() -> StaggeredAppear(7) {

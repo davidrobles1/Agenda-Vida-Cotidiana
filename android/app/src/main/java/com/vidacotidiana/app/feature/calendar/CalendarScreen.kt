@@ -141,9 +141,9 @@ fun CalendarScreen(
                 verticalArrangement = Arrangement.spacedBy(VidaSpacing.sm),
             ) {
                 when (state.calendarDensity) {
-                    "Mes" -> MonthDensity(viewModel, state.visibleMonth, selected, today, now, ::onTaskNoop, { onNavigate(it.source.route) }, { onNavigate(Routes.taskRoute(it.id)) })
-                    "Semana" -> WeekDensity(viewModel, selected, today, now, { onNavigate(it.source.route) }, { onNavigate(Routes.taskRoute(it.id)) })
-                    else -> DayDensity(viewModel, selected, today, now, { onNavigate(it.source.route) }, { onNavigate(Routes.taskRoute(it.id)) })
+                    "Mes" -> MonthDensity(viewModel, state.visibleMonth, selected, today, now, ::onTaskNoop, { onNavigate(Routes.detailRoute(it)) }, { onNavigate(Routes.taskRoute(it.id)) })
+                    "Semana" -> WeekDensity(viewModel, selected, today, now, { onNavigate(Routes.detailRoute(it)) }, { onNavigate(Routes.taskRoute(it.id)) })
+                    else -> DayDensity(viewModel, selected, today, now, { onNavigate(Routes.detailRoute(it)) }, { onNavigate(Routes.taskRoute(it.id)) })
                 }
             }
         }

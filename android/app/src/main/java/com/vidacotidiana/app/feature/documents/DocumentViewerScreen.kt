@@ -1,5 +1,6 @@
 package com.vidacotidiana.app.feature.documents
 
+
 import android.graphics.Bitmap
 import android.graphics.pdf.PdfRenderer
 import android.os.ParcelFileDescriptor
@@ -122,11 +123,16 @@ fun DocumentViewerScreen(
             // Compartir con la familia: la misma mecánica que el resto de los
             // recursos, que en Documentos no existía —solo estaba el selector
             // del sistema, que manda el archivo fuera.
-            VidaSmallButton(
-                "Acceso",
-                { acceso.abrir(ShareableKind.DOCUMENT, documentId, doc?.name.orEmpty()) },
-                ghost = true,
-            )
+            // SOLO EL DUEÑO decide quién tiene acceso. `doc` sale de la lista
+            // PROPIA; si es nulo, el documento es uno que te compartieron y
+            // aquí sólo se puede ver (ADR-025).
+            if (doc != null) {
+                VidaSmallButton(
+                    "Acceso",
+                    { acceso.abrir(ShareableKind.DOCUMENT, documentId, doc.name) },
+                    ghost = true,
+                )
+            }
         },
     ) {
         when {

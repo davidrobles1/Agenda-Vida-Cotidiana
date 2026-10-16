@@ -1,5 +1,6 @@
 package com.vidacotidiana.app.feature.notifications
 
+import com.vidacotidiana.app.navigation.go
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.MaterialTheme
@@ -163,7 +164,7 @@ fun NotificationsScreen(viewModel: AppViewModel, navController: NavHostControlle
                     onOpenDetail = { entry ->
                         grupo.firstOrNull { it.noticeKey == entry.id }?.let { item ->
                             viewModel.markNoticeRead(item.noticeKey)
-                            navController.navigate(destinoDe(item))
+                            navController.go(destinoDe(item))
                         }
                     },
                     shape = ResourceShape.LIST,
@@ -182,22 +183,5 @@ fun NotificationsScreen(viewModel: AppViewModel, navController: NavHostControlle
     }
 }
 
-/**
- * A dónde lleva cada aviso.
- *
- * Al REGISTRO cuando tiene pantalla propia, y a su sección cuando no. Nunca a
- * una ruta inventada: `AttentionSource.route` es la lista de ese módulo y
- * siempre existe, así que el peor caso es aterrizar en la sección correcta en
- * vez de en ningún sitio.
- */
-private fun destinoDe(item: AttentionItem): String = when (item.source) {
-    AttentionSource.TASK -> Routes.taskRoute(item.resourceId)
-    AttentionSource.PAYMENT -> Routes.paymentRoute(item.resourceId)
-    AttentionSource.MAINTENANCE -> Routes.maintenanceRoute(item.resourceId)
-    // Garantías, seguimientos, rutinas y compartidos no tienen pantalla de
-    // detalle todavía; se abre su sección, donde el registro está a la vista.
-    AttentionSource.WARRANTY,
-    AttentionSource.COMMITMENT,
-    AttentionSource.ROUTINE,
-    AttentionSource.SHARED -> item.source.route
-}
+/** A dónde lleva cada aviso: al detalle de su registro. */
+private fun destinoDe(item: AttentionItem): String = Routes.detailRoute(item)

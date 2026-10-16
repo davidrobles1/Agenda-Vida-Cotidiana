@@ -23,6 +23,10 @@ import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.vidacotidiana.app.core.app.CreatableResource
 import com.vidacotidiana.app.core.vocabulary.ProfessionalProfile
+import com.vidacotidiana.app.core.attention.AttentionItem
+import com.vidacotidiana.app.core.calendar.AlertSource
+import com.vidacotidiana.app.core.calendar.DateAlert
+import com.vidacotidiana.app.core.attention.AttentionSource
 import com.vidacotidiana.app.core.attention.AttentionUrgency
 
 /**
@@ -93,6 +97,16 @@ object Routes {
      * lista única y se reparte en cuatro vistas — resumen, una colección
      * (categoría o acceso rápido), búsqueda global y detalle del documento.
      */
+    /** Compartidos por categoría o acceso rápido; `dir` = recibidos | enviados. */
+    const val SHARED_COLLECTION = "compartidos/col/{dir}/{key}"
+
+    fun sharedCollectionRoute(dir: String, key: String) = "compartidos/col/$dir/$key"
+
+    /** Un recurso que te compartieron, en solo lectura (ADR-025). */
+    const val SHARED_DETAIL = "compartido/{shareId}"
+
+    fun sharedDetailRoute(shareId: String) = "compartido/$shareId"
+
     const val DOCUMENT_DETAIL = "documentos/doc/{documentId}"
 
     fun documentDetailRoute(documentId: String) = "documentos/doc/$documentId"
@@ -158,6 +172,34 @@ object Routes {
     fun maintenanceRoute(id: String) = "mant/$id"
     fun personRoute(id: String) = "persona/$id"
     fun projectRoute(id: String) = "proyecto/$id"
+
+    /**
+     * EL DETALLE DEL REGISTRO que reclama, no la lista de su módulo.
+     *
+     * Tocar «Revisar calentador» abría Mantenimiento y obligaba a buscarlo otra
+     * vez. Ahora cada fuente abre su ficha, y la ficha decide qué se puede hacer:
+     * lo propio se lee y se edita desde «Editar»; lo que te compartieron abre
+     * su vista de solo lectura (ADR-025). Una sola función para todas las listas
+     * que pintan lo que reclama, para que no vuelvan a divergir.
+     */
+    fun detailRoute(item: AttentionItem): String = when (item.source) {
+        AttentionSource.TASK -> taskRoute(item.resourceId)
+        AttentionSource.PAYMENT -> paymentRoute(item.resourceId)
+        AttentionSource.MAINTENANCE -> maintenanceRoute(item.resourceId)
+        AttentionSource.WARRANTY -> resourceRoute(CreatableResource.WARRANTY.name, item.resourceId)
+        AttentionSource.COMMITMENT -> resourceRoute(CreatableResource.COMMITMENT.name, item.resourceId)
+        AttentionSource.ROUTINE -> resourceRoute(CreatableResource.ROUTINE.name, item.resourceId)
+        // El id del aviso compartido ES el de la compartición, que es lo que
+        // pide la vista de solo lectura.
+        AttentionSource.SHARED -> sharedDetailRoute(item.resourceId)
+    }
+
+    /** Lo mismo para los avisos derivados del calendario (ADR-018). */
+    fun detailRoute(alert: DateAlert): String = when (alert.source) {
+        AlertSource.SUBSCRIPTION -> paymentRoute(alert.sourceId)
+        AlertSource.MAINTENANCE -> maintenanceRoute(alert.sourceId)
+        AlertSource.WARRANTY -> resourceRoute(CreatableResource.WARRANTY.name, alert.sourceId)
+    }
 
     // Laboral
     const val HOY = "hoy"
@@ -373,4 +415,44 @@ fun createActions(context: AppContext, profile: ProfessionalProfile): List<Creat
         CreateAction(CreatableResource.INVENTORY, "Nuevo artículo", Icons.Outlined.Inventory2),
         CreateAction(CreatableResource.DOCUMENT, "Subir documento", Icons.Outlined.Description),
     )
+}
+
+/**
+ * LAS SECCIONES: todo destino del menú lateral, de la barra de abajo y de la
+ * cuenta, en los tres módulos. Son las pantallas que llevan hamburguesa.
+ */
+val SECTION_ROUTES: Set<String> = buildSet {
+    AppContext.entries.forEach { ctx ->
+        ProfessionalProfile.entries.forEach { profile ->
+            navFor(ctx, profile).forEach { add(it.route) }
+            bottomDestinations(ctx, profile).forEach { add(it.route) }
+        }
+    }
+    accountDestinations.forEach { add(it.route) }
+}
+
+/**
+ * NAVEGAR SIN APILAR VISTAS.
+ *
+ * La pila tiene siempre la forma «raíz del módulo → sección → detalle». Ir a
+ * una SECCIÓN vacía todo lo que haya por encima de la raíz y la pone arriba:
+ * desde Tareas a Pagos, «atrás» vuelve a Inicio y no a Tareas. Ir a cualquier
+ * otra cosa (un detalle, una subpantalla) se apila encima de lo actual, como
+ * siempre. Sin esto, cada salto entre secciones dejaba una vista debajo de otra
+ * y «atrás» recorría pantallas que el usuario ya no tenía delante.
+ */
+fun androidx.navigation.NavController.go(route: String) {
+    if (route in SECTION_ROUTES) {
+        // La raíz es la PRIMERA pantalla real de la pila: la navegación siempre
+        // la reinicia en la raíz del módulo (al entrar y al cambiar de módulo).
+        val root = currentBackStack.value
+            .firstOrNull { it.destination !is androidx.navigation.NavGraph }
+            ?.destination?.route
+        navigate(route) {
+            if (root != null) popUpTo(root) { inclusive = false }
+            launchSingleTop = true
+        }
+    } else {
+        navigate(route) { launchSingleTop = true }
+    }
 }

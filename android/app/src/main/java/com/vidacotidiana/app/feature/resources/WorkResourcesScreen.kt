@@ -1,5 +1,6 @@
 package com.vidacotidiana.app.feature.resources
 
+import com.vidacotidiana.app.navigation.go
 import android.content.Intent
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.FolderOpen
@@ -90,7 +91,7 @@ fun WorkResourcesScreen(
     ResourceListScreen(
         // La ficha del recurso, en su ventana. Antes esto caía en la
         // hoja deslizante que ya no existe.
-        onOpenRoute = { navController.navigate(Routes.resourceRoute("WORK_RESOURCE", it.id)) },
+        onOpenRoute = { navController.go(Routes.resourceRoute("WORK_RESOURCE", it.id)) },
         title = "Recursos",
         subtitle = "Enlaces, plantillas y manuales de tu trabajo.",
         eyebrow = plural(resources.size, "recurso", "recursos"),
@@ -112,7 +113,7 @@ fun WorkResourcesScreen(
         onBack = { navController.popBackStack() },
         // La campana lleva de verdad a los avisos, y el punto sale de
         // cuántos quedan sin leer. Antes era `{}` con `badge = true`.
-        onNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
+        onNotifications = { navController.go(Routes.NOTIFICATIONS) },
         notificationsBadge = viewModel.avisosSinLeer(),
     )
 }

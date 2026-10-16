@@ -68,6 +68,8 @@ data class Warranty(
     val status: WarrantyStatus,
     val inventoryItemId: String?,
     val version: Int,
+    /** ADR-019: el módulo del registro (PERSONAL · LABORAL). Se fija al crear y no cambia. */
+    val context: String = "PERSONAL",
 )
 
 data class MaintenanceRecord(
@@ -81,6 +83,8 @@ data class MaintenanceRecord(
     /** V31: artículo del inventario al que se le hace. Nulo = sin enlazar. */
     val inventoryItemId: String?,
     val version: Int,
+    /** ADR-019: el módulo del registro (PERSONAL · LABORAL). Se fija al crear y no cambia. */
+    val context: String = "PERSONAL",
 )
 
 data class InventoryItem(
@@ -89,6 +93,8 @@ data class InventoryItem(
     val category: String,
     val location: String?,
     val version: Int,
+    /** ADR-019: el módulo del registro (PERSONAL · LABORAL). Se fija al crear y no cambia. */
+    val context: String = "PERSONAL",
 )
 
 data class Document(
@@ -118,6 +124,8 @@ data class Document(
      * exacta en el detalle. El DTO siempre lo trajo (`createdAt`).
      */
     val createdAt: java.time.LocalDateTime? = null,
+    /** ADR-019: el módulo del registro (PERSONAL · LABORAL). Se fija al crear y no cambia. */
+    val context: String = "PERSONAL",
 )
 
 data class Payment(
@@ -136,6 +144,8 @@ data class Payment(
     /** Una tarjeta de importe variable no aporta cifra hasta su corte. */
     val variableAmount: Boolean,
     val version: Int,
+    /** ADR-019: el módulo del registro (PERSONAL · LABORAL). Se fija al crear y no cambia. */
+    val context: String = "PERSONAL",
 )
 
 data class FamilyMember(val userId: String, val username: String, val sinceLabel: String?)
@@ -1257,6 +1267,7 @@ private fun WarrantyDto.toDomain(): Warranty {
         },
         inventoryItemId = inventoryItemId,
         version = version,
+        context = context ?: "PERSONAL",
     )
 }
 
@@ -1284,6 +1295,7 @@ private fun MaintenanceDto.toDomain(): MaintenanceRecord {
         },
         inventoryItemId = inventoryItemId,
         version = version,
+        context = context ?: "PERSONAL",
     )
 }
 
@@ -1351,7 +1363,8 @@ private fun InventoryItemDto.toDomain() = InventoryItem(
     category = category,
     location = location,
     version = version,
-)
+        context = context ?: "PERSONAL",
+    )
 
 private fun DocumentDto.toDomain() = Document(
     id = id,
@@ -1365,7 +1378,8 @@ private fun DocumentDto.toDomain() = Document(
     resourceId = resourceId,
     version = version,
     createdAt = parseDateTime(createdAt),
-)
+        context = context ?: "PERSONAL",
+    )
 
 /** Instante ISO → fecha y hora locales. Una fecha sola cae a medianoche. */
 private fun parseDateTime(value: String?): java.time.LocalDateTime? {
@@ -1420,6 +1434,7 @@ private fun SubscriptionDto.toDomain(): Payment {
         currency = currency,
         variableAmount = variableAmount,
         version = version,
+        context = context ?: "PERSONAL",
     )
 }
 

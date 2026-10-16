@@ -1,6 +1,13 @@
 package com.vidacotidiana.app.core.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -63,54 +70,81 @@ fun VidaDetailHero(
     title: String,
     subtitle: String,
     modifier: Modifier = Modifier,
+    /** La lámina de fondo de su clase de registro (ADR-028). */
+    motif: HeroMotif = HeroMotif.FOLDER,
     figure: (@Composable () -> Unit)? = null,
 ) {
-    val t = VidaTheme.type
-    Row(
-        modifier = modifier
+    val c = VidaTheme.colors
+    val shape = RoundedCornerShape(28.dp)
+    // ADR-028: la cabecera deja de ser un bloque macizo del tono con letra
+    // blanca y pasa a ser la de Documentos — fondo claro con la lámina del
+    // registro a la derecha, y encima la cifra, el tipo, el nombre y el estado.
+    Box(
+        modifier
             .fillMaxWidth()
-            .vidaSoftShadow(30.dp, color = tone, keyBlur = 32.dp, keyOffsetY = 14.dp, keyAlpha = 0.30f)
-            .background(tone, RoundedCornerShape(30.dp))
-            .padding(20.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
+            .clip(shape)
+            .background(c.surface, shape)
+            .border(1.dp, c.border.copy(alpha = 0.14f), shape),
     ) {
-        figure?.invoke()
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        VidaHeroArt(motif, ToneColors(tone, tone.copy(alpha = 0.14f)), Modifier.matchParentSize())
+        Column(
+            Modifier.fillMaxWidth().padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            if (figure != null) {
+                CompositionLocalProvider(LocalHeroTone provides tone) { figure() }
+            }
             Text(
-                eyebrow.uppercase(),
-                style = t.eyebrow,
-                color = Color.White.copy(alpha = 0.78f),
+                eyebrow,
+                style = MaterialTheme.typography.labelLarge,
+                color = tone,
+                maxLines = 1,
+                modifier = Modifier
+                    .background(tone.copy(alpha = 0.14f), RoundedCornerShape(8.dp))
+                    .padding(horizontal = 10.dp, vertical = 4.dp),
             )
             Text(
                 title,
-                style = t.sectionTitle.copy(fontSize = 21.sp, lineHeight = 27.sp),
-                color = Color.White,
+                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold, fontSize = 23.sp, lineHeight = 29.sp),
+                color = c.text,
+                modifier = Modifier.fillMaxWidth(0.66f),
             )
             if (subtitle.isNotBlank()) {
                 Text(
                     subtitle,
-                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 17.sp),
-                    color = Color.White.copy(alpha = 0.82f),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = c.textSecondary,
+                    modifier = Modifier.fillMaxWidth(0.72f),
                 )
             }
         }
     }
 }
 
+/** El tono del héroe, para que la cifra lo tome sin pedirlo. */
+val LocalHeroTone = compositionLocalOf<Color?> { null }
+
 /**
- * Una cifra grande dentro del héroe, en blanco sobre el tono.
- *
- * En blanco y no en el tono: el fondo YA lleva el color, y repetirlo haría
- * desaparecer la cifra. Es el mismo criterio del anillo del detalle de tarea.
+ * La cifra del héroe: el importe, los días, una inicial. Va dentro de un sello
+ * del tono del registro —círculo si es corta, píldora si no cabe—, como el
+ * icono grande del detalle de un documento.
  */
 @Composable
 fun VidaHeroFigure(text: String, modifier: Modifier = Modifier) {
-    Box(modifier.size(76.dp), contentAlignment = Alignment.Center) {
+    val tone = LocalHeroTone.current ?: VidaTheme.colors.primary
+    val short = text.length <= 4
+    Box(
+        modifier
+            .defaultMinSize(minWidth = 76.dp, minHeight = 76.dp)
+            .background(tone.copy(alpha = 0.14f), if (short) CircleShape else RoundedCornerShape(38.dp))
+            .padding(horizontal = if (short) 0.dp else 18.dp),
+        contentAlignment = Alignment.Center,
+    ) {
         Text(
             text,
-            style = VidaTheme.type.tileFigureFor(text),
-            color = Color.White,
+            style = VidaTheme.type.tileFigureFor(text).copy(fontSize = if (short) 28.sp else 22.sp),
+            color = tone,
+            maxLines = 1,
         )
     }
 }

@@ -1,5 +1,6 @@
 package com.vidacotidiana.app.feature.places
 
+import com.vidacotidiana.app.navigation.go
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Place
 import androidx.compose.material3.DrawerState
@@ -75,7 +76,7 @@ fun PlacesScreen(
     ResourceListScreen(
         // La ficha del recurso, en su ventana. Antes esto caía en la
         // hoja deslizante que ya no existe.
-        onOpenRoute = { navController.navigate(Routes.resourceRoute("PLACE", it.id)) },
+        onOpenRoute = { navController.go(Routes.resourceRoute("PLACE", it.id)) },
         title = "Lugares",
         subtitle = "Las direcciones que repites, guardadas.",
         eyebrow = plural(places.size, "lugar", "lugares"),
@@ -95,7 +96,7 @@ fun PlacesScreen(
         onBack = { navController.popBackStack() },
         // La campana lleva de verdad a los avisos, y el punto sale de
         // cuántos quedan sin leer. Antes era `{}` con `badge = true`.
-        onNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
+        onNotifications = { navController.go(Routes.NOTIFICATIONS) },
         notificationsBadge = viewModel.avisosSinLeer(),
     )
 }
